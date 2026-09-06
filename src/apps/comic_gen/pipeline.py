@@ -1219,15 +1219,7 @@ class ComicGenPipeline:
         if not script:
             raise ValueError("Script not found")
         
-        # Find target asset
-        target_asset = None
-        if asset_type == "character":
-            target_asset = next((c for c in script.characters if c.id == asset_id), None)
-        elif asset_type == "scene":
-            target_asset = next((s for s in script.scenes if s.id == asset_id), None)
-        elif asset_type == "prop":
-            target_asset = next((p for p in script.props if p.id == asset_id), None)
-        
+        target_asset, source = self._find_asset_with_source(script, asset_id, asset_type)
         if not target_asset:
             raise ValueError(f"Asset {asset_id} of type {asset_type} not found")
         
@@ -1322,7 +1314,7 @@ class ComicGenPipeline:
             
             logger.info(f"Added uploaded variant {new_variant.id} to {asset_type} {asset_id}")
         
-        self._save_data()
+        self._save_after_asset_mutation(source)
         return script
 
     def update_project_style(self, script_id: str, style_preset: str, style_prompt: Optional[str] = None) -> Script:

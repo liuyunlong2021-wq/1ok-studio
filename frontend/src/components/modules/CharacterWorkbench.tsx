@@ -464,8 +464,8 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                     assetName={asset.name}
                     defaultDescription={descriptionDraft}
                     scriptId={currentProject.id}
-                    onUploadComplete={(updatedScript) => {
-                        updateProject(currentProject.id, updatedScript);
+                    onUploadComplete={async () => {
+                        updateProject(currentProject.id, await api.getProject(currentProject.id));
                         setShowUploadModal(false);
                     }}
                 />

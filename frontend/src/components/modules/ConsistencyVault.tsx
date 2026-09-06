@@ -365,9 +365,9 @@ export default function ConsistencyVault() {
         setIsUploadModalOpen(true);
     };
 
-    const handleUploadComplete = async (updatedScript: any) => {
+    const handleUploadComplete = async (_updatedScript: any) => {
         if (currentProject) {
-            updateProject(currentProject.id, updatedScript);
+            updateProject(currentProject.id, await api.getProject(currentProject.id));
         }
         setIsUploadModalOpen(false);
         setUploadTarget(null);

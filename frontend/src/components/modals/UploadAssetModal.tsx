@@ -13,7 +13,7 @@ interface UploadAssetModalProps {
     assetName: string;
     defaultDescription: string;
     scriptId: string;
-    onUploadComplete: (updatedScript: any) => void;
+    onUploadComplete: (updatedScript: any) => void | Promise<void>;
 }
 
 export default function UploadAssetModal({
@@ -97,7 +97,7 @@ export default function UploadAssetModal({
                 uploadType,
                 description
             );
-            onUploadComplete(updatedScript);
+            await onUploadComplete(updatedScript);
             handleClose();
         } catch (err: any) {
             setError(err.message || t("errorUploadFailed"));

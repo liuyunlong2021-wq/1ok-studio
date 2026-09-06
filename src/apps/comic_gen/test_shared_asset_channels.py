@@ -161,6 +161,27 @@ def test_update_and_delete_library_asset(tmp_path):
         p.delete_library_asset("character", "ghost")
 
 
+def test_upload_variant_routes_to_series_shared_character(tmp_path):
+    shared = _char("shared-char", "Shared Hero")
+    episode = _script(sid="ep1", series_id="S")
+    p = _bare_pipeline(
+        tmp_path,
+        series_store={"S": _series(sid="S", characters=[shared])},
+        scripts={"ep1": episode},
+    )
+
+    p.add_uploaded_asset_variant(
+        "ep1", "character", "shared-char", "full_body",
+        "uploads/reference.png", "updated description",
+    )
+
+    assert shared.full_body_asset.selected_id
+    variant = shared.full_body_asset.variants[0]
+    assert variant.url == "uploads/reference.png"
+    assert variant.is_uploaded_source is True
+    assert json.loads(open(p.series_data_file).read())["S"]["characters"][0]["description"] == "updated description"
+
+
 # --------------------------------------------------------------------------
 # promote
 # --------------------------------------------------------------------------
