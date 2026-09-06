@@ -738,7 +738,8 @@ export const useProjectStore = create<ProjectStore>()(
             partialize: (state) => ({
                 projects: state.projects,
 
-                generatingTasks: state.generatingTasks // Now persisting this to maintain state across refreshes
+                // Generation tasks are transient UI state; persisting them
+                // leaves stale "Generating" overlays after a reload.
             }),
         }
     )

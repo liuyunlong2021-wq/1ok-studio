@@ -893,7 +893,15 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
         }
     };
 
-    const imageUrl = (type === 'character' ? (asset.avatar_url || asset.image_url) : asset.image_url);
+    // Keep the library card in sync with the workbench: uploaded/generated
+    // character variants live in full_body_asset, while older records only
+    // have avatar_url/image_url.
+    const selectedFullBody = type === 'character'
+        ? asset.full_body_asset?.variants?.find((v: any) => v.id === asset.full_body_asset?.selected_id)
+        : null;
+    const imageUrl = type === 'character'
+        ? (selectedFullBody?.url || asset.full_body_image_url || asset.avatar_url || asset.image_url)
+        : (asset.image_url || asset.image?.image_variants?.find((v: any) => v.id === asset.image?.selected_image_id)?.url);
     const fullImageUrl = getAssetUrl(imageUrl);
 
     return (
@@ -974,7 +982,7 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
                         size="sm"
                         className="flex-1"
                     >
-                        {isGenerating ? "Generating..." : "Generate"}
+                        {isGenerating ? "生成中..." : "生成图片"}
                     </WorkflowActionButton>
                     <button
                         onClick={(e) => {
