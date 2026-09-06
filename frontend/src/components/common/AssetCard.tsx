@@ -4,6 +4,7 @@ import { Image as ImageIcon, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Character, Scene, Prop } from "@/store/projectStore";
 import { characterImageUrl } from "@/lib/characterImage";
+import { getAssetUrl } from "@/lib/utils";
 
 type AssetTab = "characters" | "scenes" | "props";
 
@@ -37,7 +38,7 @@ function getImageUrl(asset: Character | Scene | Prop, type: AssetTab): string | 
 }
 
 export default function AssetCard({ asset, type }: AssetCardProps) {
-  const imageUrl = getImageUrl(asset, type);
+  const imageUrl = getAssetUrl(getImageUrl(asset, type));
   const t = useTranslations("assetCard");
   // Series-shared assets get a subtle top-right badge so the user
   // knows mutations here will propagate across episodes (A1 design

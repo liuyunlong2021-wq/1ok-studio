@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { X, Star, Download, Sparkles, Loader2, Globe } from "lucide-react";
+import { X, Star, Download, Sparkles, Loader2, Globe, Trash2 } from "lucide-react";
 import type { Character, Scene, Prop, ImageAsset, ImageVariant } from "@/store/projectStore";
 import { characterImageAsset } from "@/lib/characterImage";
 import { api } from "@/lib/api";
+import { getAssetUrl } from "@/lib/utils";
 import { toast } from "@/store/toastStore";
 import { coverGradient, GRAIN_URL } from "@/lib/atelierCover";
 
@@ -36,6 +37,7 @@ interface AssetInspectorProps {
   onToggleStar: () => void;
   /** 提升到全局成功后回调（父层刷新库以显示新入池资产）。可选。 */
   onPromoted?: () => void;
+  onDeleted?: () => void;
 }
 
 /** Character 走 characterImageAsset（reference_sheet→full_body，归一化成 ImageAsset 形状）；scene/prop 用 image_asset。 */
@@ -92,6 +94,7 @@ export default function AssetInspector({
   onClose,
   onToggleStar,
   onPromoted,
+  onDeleted,
 }: AssetInspectorProps) {
   const t = useTranslations("library");
   const TYPE_LABEL: Record<AssetTab, string> = {
@@ -115,6 +118,7 @@ export default function AssetInspector({
   // reload 时刷新，所以新变体在此并入以即时反馈；按 id 与 prop 集去重，父层后续 reload
   // （届时新变体会随 `baseVariants` 带回）也不会重复。
   const [extraVariants, setExtraVariants] = useState<ImageVariant[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const baseIds = new Set(baseVariants.map((v) => v.id));
   const variants = [...baseVariants, ...extraVariants.filter((v) => !baseIds.has(v.id))];
   const defaultId = imageAsset?.selected_id ?? baseVariants[0]?.id ?? null;
@@ -161,7 +165,7 @@ export default function AssetInspector({
   }, []);
 
   const activeVariant = variants.find((v) => v.id === activeVariantId) ?? variants[0];
-  const heroUrl = activeVariant?.url ?? fallbackUrl(asset, type);
+  const heroUrl = getAssetUrl(activeVariant?.url ?? fallbackUrl(asset, type));
   const prompt = activeVariant?.prompt_used ?? "";
 
   // 元数据行（数据驱动）：先放现有四项，再在字段存在时追加 SEED/MODEL/SIZE。
@@ -289,6 +293,19 @@ export default function AssetInspector({
     }
   };
 
+  const handleDelete = async () => {
+    if (sourceKind !== "global" || deleting || !window.confirm(`确定删除全局资产“${asset.name}”吗？`)) return;
+    setDeleting(true);
+    try {
+      await api.deleteLibraryAsset(SINGULAR_TYPE[type], asset.id);
+      onDeleted?.();
+    } catch (e: any) {
+      toast.error("删除失败", { body: e?.response?.data?.detail?.message || e?.response?.data?.detail || e?.message || "无法删除资产" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <aside
       ref={asideRef}
@@ -384,7 +401,7 @@ export default function AssetInspector({
                       on ? "ring-2 ring-primary" : "ring-1 ring-glass-border"
                     }`}
                   >
-                    <img src={v.url} alt={t("variantAlt")} className="w-full h-full object-cover" />
+                    <img src={getAssetUrl(v.url)} alt={t("variantAlt")} className="w-full h-full object-cover" />
                   </button>
                 );
               })}
@@ -475,6 +492,17 @@ export default function AssetInspector({
             <Download size={15} />
             {t("download")}
           </button>
+          {sourceKind === "global" && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={15} />
+              {deleting ? "删除中…" : "删除全局资产"}
+            </button>
+          )}
         </div>
       </div>
     </aside>

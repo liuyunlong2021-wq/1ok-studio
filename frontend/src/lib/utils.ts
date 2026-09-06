@@ -25,7 +25,7 @@ export function getAssetUrl(path: string | null | undefined): string {
     }
 
     // Remove leading slash if present to avoid double slashes with API_URL/files/
-    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    const cleanPath = (path.startsWith("/") ? path.slice(1) : path).replace(/^output\//, "");
     return `${API_URL}/files/${encodeURI(cleanPath)}`;
 }
 

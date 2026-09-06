@@ -9,6 +9,7 @@ import { toast } from "@/store/toastStore";
 import { characterImageUrl, characterVariants } from "@/lib/characterImage";
 import { coverGradient, GRAIN_URL } from "@/lib/atelierCover";
 import { rovingKeyDown } from "@/lib/a11y";
+import { getAssetUrl } from "@/lib/utils";
 import AssetInspector from "./AssetInspector";
 import NewLibraryAssetDialog from "./NewLibraryAssetDialog";
 
@@ -46,13 +47,13 @@ interface RenderGroup {
 
 /** 取图：character 走 characterImageUrl（reference_sheet→full_body→legacy）；scene/prop 用 image_asset。 */
 function getImageUrl(asset: Character | Scene | Prop, type: AssetTab): string | undefined {
-  if (type === "characters") return characterImageUrl(asset as Character);
+  if (type === "characters") return getAssetUrl(characterImageUrl(asset as Character));
   const a = asset as Scene | Prop;
   if (a.image_asset?.variants?.length) {
     const sel = a.image_asset.variants.find((v) => v.id === a.image_asset?.selected_id);
-    return sel?.url || a.image_asset.variants[0]?.url;
+    return getAssetUrl(sel?.url || a.image_asset.variants[0]?.url);
   }
-  return a.image_url;
+  return a.image_url ? getAssetUrl(a.image_url) : undefined;
 }
 
 function variantCount(asset: Character | Scene | Prop, type: AssetTab): number {
@@ -647,6 +648,7 @@ export default function AssetLibraryPage() {
             onClose={() => setSelected(null)}
             onToggleStar={() => toggleStar(selected.sourceId, selected.assetId, selected.type)}
             onPromoted={loadAssets}
+            onDeleted={() => { setSelected(null); loadAssets(); }}
           />
         )}
       </div>

@@ -1566,32 +1566,17 @@ def get_project(script_id: str):
                     d["source"] = "series"
                     payload["props"].append(d)
 
-    # Merge the project-independent global asset library underneath as
-    # the lowest layer. Any id not already present from the episode or
-    # series layers is appended with source="global" (read-time only —
-    # never written back to projects.json). When the library is empty
-    # this is a no-op and the response is byte-identical to before.
-    lib = pipeline.library_store
-    if lib.characters or lib.scenes or lib.props:
-        seen_char_ids = {c["id"] for c in payload["characters"]}
-        seen_scene_ids = {s["id"] for s in payload["scenes"]}
-        seen_prop_ids = {p["id"] for p in payload["props"]}
-        for ch in lib.characters:
-            if ch.id not in seen_char_ids:
-                d = ch.model_dump()
-                d["source"] = "global"
-                payload["characters"].append(d)
-        for sc in lib.scenes:
-            if sc.id not in seen_scene_ids:
-                d = sc.model_dump()
-                d["source"] = "global"
-                payload["scenes"].append(d)
-        for pr in lib.props:
-            if pr.id not in seen_prop_ids:
-                d = pr.model_dump()
-                d["source"] = "global"
-                payload["props"].append(d)
     return signed_response(payload)
+
+
+@app.delete("/series/{series_id}/assets/{asset_type}/{asset_id}")
+def delete_series_asset(series_id: str, asset_type: str, asset_id: str):
+    try:
+        return signed_response(pipeline.delete_series_asset(series_id, asset_type, asset_id))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

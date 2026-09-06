@@ -1303,6 +1303,10 @@ export const api = {
         const res = await axios.get(`${API_URL}/library/assets`);
         return res.data;
     },
+    deleteLibraryAsset: async (assetType: string, assetId: string) => {
+        const res = await axios.delete(`${API_URL}/library/assets/${assetType}/${assetId}`);
+        return res.data;
+    },
     /** 新建一条全局/共享资产。后端：POST /library/assets。
      *  assetType 为单数（"character"|"scene"|"prop"）。data 可含 name/description/persona/image_url/voice_id。 */
     createLibraryAsset: async (
@@ -1596,6 +1600,10 @@ export const crudApi = {
 
     deleteScene: async (scriptId: string, sceneId: string) => {
         const res = await axios.delete(`${API_URL}/projects/${scriptId}/scenes/${sceneId}`);
+        return res.data;
+    },
+    deleteSeriesAsset: async (seriesId: string, assetType: string, assetId: string) => {
+        const res = await axios.delete(`${API_URL}/series/${seriesId}/assets/${assetType}/${assetId}`);
         return res.data;
     },
 

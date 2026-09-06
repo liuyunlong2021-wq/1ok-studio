@@ -186,10 +186,18 @@ export default function ConsistencyVault() {
     // Delete asset handler
     const handleDeleteAsset = async (assetId: string, type: string) => {
         if (!currentProject) return;
-        if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+        const list = type === "character" ? currentProject.characters : type === "scene" ? currentProject.scenes : currentProject.props;
+        const asset = list?.find((item: any) => item.id === assetId) as any;
+        const source = asset?.source || "episode";
+        const scope = source === "series" ? "整个系列" : source === "global" ? "全局模板库" : "当前集";
+        if (!confirm(`确定从${scope}删除这个${type}吗？`)) return;
 
         try {
-            if (type === "character") {
+            if (source === "global") {
+                await api.deleteLibraryAsset(type, assetId);
+            } else if (source === "series" && currentProject.series_id) {
+                await crudApi.deleteSeriesAsset(currentProject.series_id, type, assetId);
+            } else if (type === "character") {
                 await crudApi.deleteCharacter(currentProject.id, assetId);
             } else if (type === "scene") {
                 await crudApi.deleteScene(currentProject.id, assetId);
@@ -901,7 +909,7 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
         : null;
     const imageUrl = type === 'character'
         ? (selectedFullBody?.url || asset.full_body_image_url || asset.avatar_url || asset.image_url)
-        : (asset.image_url || asset.image?.image_variants?.find((v: any) => v.id === asset.image?.selected_image_id)?.url);
+        : (asset.image_asset?.variants?.find((v: any) => v.id === asset.image_asset?.selected_id)?.url || asset.image_url);
     const fullImageUrl = getAssetUrl(imageUrl);
 
     return (

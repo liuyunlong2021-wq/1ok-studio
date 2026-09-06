@@ -1007,6 +1007,20 @@ class ComicGenPipeline:
     def delete_prop(self, script_id: str, prop_id: str) -> Script:
         return self._delete_asset(script_id, "prop", prop_id)
 
+    def delete_series_asset(self, series_id: str, asset_type: str, asset_id: str) -> Script:
+        episode = next((s for s in self.scripts.values() if s.series_id == series_id), None)
+        if episode:
+            return self._delete_asset(episode.id, asset_type, asset_id)
+        series = self.series_store.get(series_id)
+        if not series:
+            raise ValueError("Series not found")
+        field = {"character": "characters", "scene": "scenes", "prop": "props"}.get(asset_type)
+        if not field or not any(item.id == asset_id for item in getattr(series, field)):
+            raise ValueError(f"Asset {asset_id} of type {asset_type} not found in series")
+        setattr(series, field, [item for item in getattr(series, field) if item.id != asset_id])
+        self._save_series_data()
+        return series
+
     def _delete_asset(self, script_id: str, asset_type: str, asset_id: str) -> Script:
         script = self.scripts.get(script_id)
         if not script:
