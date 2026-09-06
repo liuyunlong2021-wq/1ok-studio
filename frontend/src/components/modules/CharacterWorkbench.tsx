@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, RefreshCw, Check, AlertTriangle, Image as ImageIcon, Lock, Unlock, ChevronRight, Maximize2, Video, Sparkles } from "lucide-react";
+import { X, RefreshCw, Check, AlertTriangle, Image as ImageIcon, Lock, Unlock, ChevronRight, Maximize2, Video, Sparkles, Upload } from "lucide-react";
 import { api, API_URL } from "@/lib/api";
+import UploadAssetModal from "../modals/UploadAssetModal";
 
 import { VariantSelector } from "../common/VariantSelector";
 import { VideoVariantSelector } from "../common/VideoVariantSelector";
@@ -93,6 +94,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     const [rewriteError, setRewriteError] = useState("");
     const [isGeneratingAssetPrompt, setIsGeneratingAssetPrompt] = useState(false);
     const [generationError, setGenerationError] = useState("");
+    const [showUploadModal, setShowUploadModal] = useState(false);
 
     // New State for Style Control
     const [applyStyle, setApplyStyle] = useState(true);
@@ -360,7 +362,20 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         <div className="flex-1 min-h-0 rounded-xl border border-glass-border bg-glass p-3 overflow-hidden">
                             <VariantSelector asset={asset.full_body_asset} currentImageUrl={asset.full_body_image_url || asset.image_url} onSelect={(id: string) => handleSelectVariant("full_body", id)} onDelete={(id: string) => handleDeleteVariant("full_body", id)} onFavorite={(id: string, fav: boolean) => handleFavoriteVariant("full_body", id, fav)} onGenerate={(batch: number) => handleGenerateClick("full_body", batch)} isGenerating={getGeneratingInfo("full_body").isGenerating} generatingBatchSize={getGeneratingInfo("full_body").batchSize} aspectRatio="4:5" className="h-full" />
                         </div>
-                        <div className="flex items-center justify-between text-xs text-text-muted"><span>{asset.full_body_asset?.variants?.length || 0} 个版本</span><span>{asset.full_body_asset?.selected_id ? "已设为主图" : "未选择主图"}</span></div>
+                        <div className="flex items-center justify-between gap-3 text-xs text-text-muted">
+                            <span>{asset.full_body_asset?.variants?.length || 0} 个版本</span>
+                            <div className="flex items-center gap-2">
+                                <span>{asset.full_body_asset?.selected_id ? "已设为主图" : "未选择主图"}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUploadModal(true)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary"
+                                >
+                                    <Upload size={13} />
+                                    上传本地图片
+                                </button>
+                            </div>
+                        </div>
                     </section>
                     <section className="min-w-0 min-h-0 border-r border-glass-border p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
                         <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">描述</h3><p className="text-xs text-text-muted mt-1">当前来源：{asset.description_source === "ai" ? "AI 修改" : asset.description_source === "manual" ? "手工编辑" : "剧本提取"}</p></div><button type="button" onClick={() => setShowRewriteBar((v) => !v)} disabled={isRewritingDescription} className="text-xs text-primary disabled:opacity-50">{isRewritingDescription ? "AI 修改中..." : "AI 修改"}</button></div>
@@ -440,6 +455,21 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                     )}
                 </div>
             </motion.div>
+            {currentProject && (
+                <UploadAssetModal
+                    isOpen={showUploadModal}
+                    onClose={() => setShowUploadModal(false)}
+                    assetId={asset.id}
+                    assetType={assetType}
+                    assetName={asset.name}
+                    defaultDescription={descriptionDraft}
+                    scriptId={currentProject.id}
+                    onUploadComplete={(updatedScript) => {
+                        updateProject(currentProject.id, updatedScript);
+                        setShowUploadModal(false);
+                    }}
+                />
+            )}
         </div>
     );
 }
