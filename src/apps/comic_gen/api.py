@@ -4283,25 +4283,12 @@ def create_prop(script_id: str, request: CreatePropRequest):
 @app.delete("/projects/{script_id}/props/{prop_id}")
 def delete_prop(script_id: str, prop_id: str):
     """Deletes a prop from the project."""
-    script = pipeline.get_script(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    original_count = len(script.props)
-    script.props = [p for p in script.props if p.id != prop_id]
-
-    if len(script.props) == original_count:
-        raise HTTPException(status_code=404, detail="Prop not found")
-
-    # Remove prop references from frames
-    for frame in script.frames:
-        if prop_id in frame.prop_ids:
-            frame.prop_ids.remove(prop_id)
-
-    script.updated_at = time.time()
-    pipeline._save_data()
-
-    return signed_response(script)
+    try:
+        return signed_response(pipeline.delete_prop(script_id, prop_id))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

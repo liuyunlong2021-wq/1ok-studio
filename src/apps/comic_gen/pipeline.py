@@ -985,13 +985,7 @@ class ComicGenPipeline:
         return script
 
     def delete_character(self, script_id: str, char_id: str) -> Script:
-        script = self.scripts.get(script_id)
-        if not script:
-            raise ValueError("Script not found")
-        
-        script.characters = [c for c in script.characters if c.id != char_id]
-        self._save_data()
-        return script
+        return self._delete_asset(script_id, "character", char_id)
 
     def add_scene(self, script_id: str, name: str, description: str) -> Script:
         script = self.scripts.get(script_id)
@@ -1008,12 +1002,46 @@ class ComicGenPipeline:
         return script
 
     def delete_scene(self, script_id: str, scene_id: str) -> Script:
+        return self._delete_asset(script_id, "scene", scene_id)
+
+    def delete_prop(self, script_id: str, prop_id: str) -> Script:
+        return self._delete_asset(script_id, "prop", prop_id)
+
+    def _delete_asset(self, script_id: str, asset_type: str, asset_id: str) -> Script:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
-        
-        script.scenes = [s for s in script.scenes if s.id != scene_id]
-        self._save_data()
+        target, source = self._find_asset_with_source(script, asset_id, asset_type)
+        if target is None or source == "global":
+            raise ValueError(f"Asset {asset_id} of type {asset_type} not found in project")
+
+        if asset_type == "character":
+            field = "characters"
+        elif asset_type == "scene":
+            field = "scenes"
+        elif asset_type == "prop":
+            field = "props"
+        else:
+            raise ValueError(f"Invalid asset type: {asset_type}")
+
+        owner = script if source == "script" else self.series_store.get(script.series_id)
+        items = getattr(owner, field)
+        setattr(owner, field, [item for item in items if item.id != asset_id])
+
+        # Remove stale storyboard references from affected episodes.
+        scripts = [script] if source == "script" else [s for s in self.scripts.values() if s.series_id == script.series_id]
+        for item in scripts:
+            for frame in item.frames:
+                if asset_type == "scene" and frame.scene_id == asset_id:
+                    frame.scene_id = ""
+                elif asset_type == "character" and asset_id in frame.character_ids:
+                    frame.character_ids.remove(asset_id)
+                elif asset_type == "prop" and asset_id in frame.prop_ids:
+                    frame.prop_ids.remove(asset_id)
+
+        self._save_after_asset_mutation(source)
+        if source == "series":
+            self._save_data()
         return script
     
     def _find_asset_with_source(

@@ -199,9 +199,9 @@ export default function ConsistencyVault() {
             // Refresh project data
             const updatedProject = await api.getProject(currentProject.id);
             updateProject(currentProject.id, updatedProject);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to delete asset:", error);
-            alert("Failed to delete asset");
+            alert(error.response?.data?.detail || error.message || "删除资产失败");
         }
     };
 
