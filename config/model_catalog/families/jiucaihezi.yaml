@@ -1,0 +1,223 @@
+family: jiucaihezi
+display_name: "韭菜盒子"
+provider: jiucaihezi
+routing_prefixes: ["jiucaihezi/"]
+supported_backends: [jiucaihezi]
+default_backend: jiucaihezi
+credential_sources:
+  jiucaihezi: [JIUCAIHEZI_API_KEY]
+supported_modalities: [text, t2i, i2i, i2v]
+docs:
+  official_snapshot_ids: [jiucaihezi]
+  context_hub_doc_ids: [jiucaihezi]
+transport:
+  image_input_mode: {jiucaihezi: jiucaihezi_url_or_multipart}
+  audio_input_mode: {jiucaihezi: jiucaihezi_url}
+  reference_video_input_mode: {jiucaihezi: jiucaihezi_url}
+models:
+  - id: claude-fable-5-1
+    display_name: "Claude Fable 5.1 · 韭菜盒子"
+    description: "Claude Fable 5.1 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 1000, recommended: false, badges: [韭菜盒子]}
+  - id: claude-sonnet-5
+    display_name: "Claude Sonnet 5 · 韭菜盒子"
+    description: "Claude Sonnet 5 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 999, recommended: false, badges: [韭菜盒子]}
+  - id: deepseek-v4-pro-0813
+    display_name: "DeepSeek V4 Pro · 韭菜盒子"
+    description: "DeepSeek V4 Pro via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
+  - id: gemini-3.8-flash
+    display_name: "Gemini 3.8 Flash · 韭菜盒子"
+    description: "Gemini 3.8 Flash via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 997, recommended: false, badges: [韭菜盒子]}
+  - id: gpt-5.6-sol
+    display_name: "GPT 5.6 Sol · 韭菜盒子"
+    description: "GPT 5.6 Sol via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: true, badges: [韭菜盒子]}
+  - id: jiucaihezi/gpt-image-2-1k
+    display_name: "GPT Image 2 1K · 韭菜盒子"
+    description: "GPT Image 2 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/images], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: image
+      visible_in: [project_settings, series_settings, global_settings]
+      order: 1000
+      recommended: false
+      badges: [韭菜盒子]
+    params: &jiucaihezi_image_params
+      size:
+        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048", "2048x1536", "1536x2048", "3840x2160", "2160x3840"]
+        default: "1024x1024"
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
+  - id: jiucaihezi/gemini-3-pro-image-preview
+    display_name: "Gemini 3 Pro Image · 韭菜盒子"
+    description: "Gemini 3 Pro Image via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/images], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: image
+      visible_in: [project_settings, series_settings, global_settings]
+      order: 999
+      recommended: false
+      badges: [韭菜盒子]
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/gpt-image-2-低质量
+    display_name: "GPT Image 2 低质量 · 韭菜盒子"
+    description: "GPT Image 2 低质量 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/gpt-image-2-中质量
+    display_name: "GPT Image 2 中质量 · 韭菜盒子"
+    description: "GPT Image 2 中质量 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 997, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/gpt-image-2-vip
+    display_name: "GPT Image 2 VIP · 韭菜盒子"
+    description: "GPT Image 2 VIP via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/gpt-image-2-官方
+    display_name: "GPT Image 2 官方 · 韭菜盒子"
+    description: "GPT Image 2 官方 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/[按token]gpt-image-2
+    display_name: "GPT Image 2 Token · 韭菜盒子"
+    description: "GPT Image 2 Token via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/gemini-3.1-flash-image-preview
+    display_name: "Gemini 3.1 Flash Image · 韭菜盒子"
+    description: "Gemini 3.1 Flash Image via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 993, recommended: false, badges: [韭菜盒子]}
+    params: *jiucaihezi_image_params
+  - id: jiucaihezi/dola-seedance2.5
+    display_name: "Seedance 2.5 · 韭菜盒子"
+    description: "Seedance 2.5 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [i2v]
+    docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: i2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1000
+      recommended: false
+      badges: [韭菜盒子]
+    duration: {type: fixed, value: 30}
+    params:
+      resolution: {options: [720p], default: 720p}
+      ratio: {options: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"], default: "16:9"}
+    inputs:
+      reference_images: {max: 9, reference_type: image}
+  - id: jiucaihezi/dola-seedance2.5-r2v
+    display_name: "Seedance 2.5 R2V · 韭菜盒子"
+    description: "Seedance 2.5 参考生视频 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1000
+      recommended: false
+      badges: [韭菜盒子]
+    duration: {type: fixed, value: 30}
+    params:
+      resolution: {options: [720p], default: 720p}
+      ratio: {options: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"], default: "16:9"}
+    inputs:
+      reference_images: {max: 9, reference_type: image}
+  - id: jiucaihezi/minimax_h3_image_audio_to_video_v2_15s
+    display_name: "MiniMax H3 参考生视频 · 韭菜盒子"
+    description: "MiniMax H3 图片/音频参考生视频 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1001
+      recommended: false
+      badges: [韭菜盒子, MiniMax]
+    duration: {type: slider, min: 1, max: 15, step: 1, default: 5}
+    params:
+      resolution: {options: ["480p横", "768p横", "480p竖", "768p竖"], default: "768p横"}
+      ratio: {options: ["16:9", "9:16"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: true
+    inputs:
+      reference_images: {max: 9, reference_type: image}
+      reference_audio: {max: 3, reference_type: audio}
