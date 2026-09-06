@@ -182,6 +182,25 @@ def test_upload_variant_routes_to_series_shared_character(tmp_path):
     assert json.loads(open(p.series_data_file).read())["S"]["characters"][0]["description"] == "updated description"
 
 
+@pytest.mark.parametrize(
+    ("asset_type", "asset_id", "collection"),
+    [("scene", "shared-scene", "scenes"), ("prop", "shared-prop", "props")],
+)
+def test_upload_variant_routes_to_scene_and_prop_image_asset(tmp_path, asset_type, asset_id, collection):
+    asset = _scene(asset_id) if asset_type == "scene" else _prop(asset_id)
+    episode = _script(sid="ep1", series_id="S")
+    series = _series(sid="S", **{collection: [asset]})
+    p = _bare_pipeline(tmp_path, series_store={"S": series}, scripts={"ep1": episode})
+
+    p.add_uploaded_asset_variant("ep1", asset_type, asset_id, "image", "uploads/reference.png")
+
+    assert asset.image_url == "uploads/reference.png"
+    assert asset.image_asset.selected_id == asset.image_asset.variants[0].id
+    assert asset.image_asset.variants[0].url == "uploads/reference.png"
+    saved_asset = json.loads(open(p.series_data_file).read())["S"][collection][0]
+    assert saved_asset["image_asset"]["variants"][0]["url"] == "uploads/reference.png"
+
+
 # --------------------------------------------------------------------------
 # promote
 # --------------------------------------------------------------------------

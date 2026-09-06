@@ -1301,15 +1301,12 @@ class ComicGenPipeline:
             logger.info(f"Added uploaded variant {new_variant.id} to character {asset_id} {upload_type}")
             
         elif asset_type in ["scene", "prop"]:
-            # Scene and Prop have a single 'image' asset unit
-            if not hasattr(target_asset, 'image') or target_asset.image is None:
-                target_asset.image = AssetUnit()
-            
-            target_asset.image.image_variants.append(new_variant)
-            target_asset.image.selected_image_id = new_variant.id
-            target_asset.image.image_updated_at = time.time()
-            
-            # Also update legacy image_url field
+            # Scene and Prop use the legacy-compatible ImageAsset contract.
+            if target_asset.image_asset is None:
+                from .models import ImageAsset
+                target_asset.image_asset = ImageAsset()
+            target_asset.image_asset.variants.append(new_variant)
+            target_asset.image_asset.selected_id = new_variant.id
             target_asset.image_url = image_url
             
             logger.info(f"Added uploaded variant {new_variant.id} to {asset_type} {asset_id}")

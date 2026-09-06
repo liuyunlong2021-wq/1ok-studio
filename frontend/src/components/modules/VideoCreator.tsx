@@ -20,6 +20,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, VideoTask } from "@/lib/api";
 import { R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
+import { updateFrameSelection } from "@/lib/frameSelection";
 import PromptBuilder, { PromptSegment, PromptBuilderRef } from "./PromptBuilder";
 import type { VideoParams } from "@/store/projectStore";
 
@@ -239,20 +240,14 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
 
     const handleR2VFrameSelect = (frame: any) => {
         const frames = currentProject?.frames || [];
-        if (!frameSelectionAnchor) {
-            setFrameSelectionAnchor(frame.id);
-            setSelectedFrameIds([frame.id]);
-            return;
-        }
-        if (frame.id === frameSelectionAnchor) {
-            setFrameSelectionAnchor(null);
-            setSelectedFrameIds([]);
-            return;
-        }
-        const start = frames.findIndex((item: any) => item.id === frameSelectionAnchor);
-        const end = frames.findIndex((item: any) => item.id === frame.id);
-        const [from, to] = start <= end ? [start, end] : [end, start];
-        setSelectedFrameIds(frames.slice(from, to + 1).map((item: any) => item.id));
+        const next = updateFrameSelection(
+            frames.map((item: any) => item.id),
+            selectedFrameIds,
+            frameSelectionAnchor,
+            frame.id,
+        );
+        setSelectedFrameIds(next.selectedIds);
+        setFrameSelectionAnchor(next.anchorId);
     };
 
     const addReference = (asset: ReferenceAsset) => {
