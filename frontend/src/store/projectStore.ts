@@ -741,6 +741,11 @@ export const useProjectStore = create<ProjectStore>()(
                 // Generation tasks are transient UI state; persisting them
                 // leaves stale "Generating" overlays after a reload.
             }),
+            merge: (persisted, current) => ({
+                ...current,
+                ...(persisted as Partial<ProjectStore>),
+                generatingTasks: [],
+            }),
         }
     )
 );
