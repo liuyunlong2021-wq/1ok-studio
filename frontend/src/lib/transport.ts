@@ -8,7 +8,7 @@
 
 // Detect Tauri environment at runtime
 export const isTauri = (): boolean => {
-    return typeof window !== 'undefined' && '__TAURI__' in window;
+    return typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
 };
 
 interface ApiResponse<T = unknown> {
