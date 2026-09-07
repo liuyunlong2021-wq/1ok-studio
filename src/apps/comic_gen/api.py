@@ -484,6 +484,7 @@ class GenerateMotionPromptRequest(BaseModel):
     skill_id: Optional[str] = None
     model: str = ""
     ratio: str = "16:9"
+    prompt_preset: str = "r2v"
 
 
 @app.post("/projects/{script_id}/motion/generate_prompt")
@@ -504,8 +505,13 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
     selected_skill = next((item for item in _read_script_skills("motion") if item["id"] == request.skill_id), None) if request.skill_id else None
-    skill_content = selected_skill["content"] if selected_skill else (getattr(script.prompt_config, "r2v_polish", "") or DEFAULT_R2V_POLISH_PROMPT)
-    skill_name = selected_skill["name"] if selected_skill else "提示词配置 · R2V"
+    if selected_skill:
+        skill_content, skill_name = selected_skill["content"], selected_skill["name"]
+    elif request.prompt_preset == "r2v_minimax":
+        skill_content = getattr(script.prompt_config, "r2v_minimax", "") or getattr(script.prompt_config, "r2v_polish", "") or DEFAULT_R2V_POLISH_PROMPT
+        skill_name = "MiniMax 参考生视频 Skill"
+    else:
+        skill_content, skill_name = getattr(script.prompt_config, "r2v_polish", "") or DEFAULT_R2V_POLISH_PROMPT, "提示词配置 · R2V"
 
     frames = [script.frames[position] for position in positions]
     frame_lines = []
@@ -794,6 +800,7 @@ def get_series_prompt_config(series_id: str):
             "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
             "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
             "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
+            "r2v_minimax": "",
             "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
             "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
             "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
@@ -2856,6 +2863,7 @@ class UpdatePromptConfigRequest(BaseModel):
     storyboard_polish: str = ""
     video_polish: str = ""
     r2v_polish: str = ""
+    r2v_minimax: str = ""
     entity_extraction: str = ""
     style_analysis: str = ""
     storyboard_extraction: str = ""
@@ -2914,6 +2922,7 @@ def get_prompt_config(script_id: str):
                 "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
                 "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
                 "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
+                "r2v_minimax": "",
                 "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
                 "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
                 "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
@@ -2937,6 +2946,7 @@ def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
             storyboard_polish=request.storyboard_polish,
             video_polish=request.video_polish,
             r2v_polish=request.r2v_polish,
+            r2v_minimax=request.r2v_minimax,
             entity_extraction=request.entity_extraction,
             style_analysis=request.style_analysis,
             storyboard_extraction=request.storyboard_extraction,
@@ -2965,6 +2975,7 @@ def get_prompt_defaults():
         "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
         "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
         "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
+        "r2v_minimax": "",
         "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
         "style_analysis": DEFAULT_STYLE_ANALYSIS_PROMPT,
         "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,

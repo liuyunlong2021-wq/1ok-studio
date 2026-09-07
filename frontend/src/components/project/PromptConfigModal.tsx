@@ -17,6 +17,7 @@ interface PromptDefaults {
     storyboard_polish: string;
     video_polish: string;
     r2v_polish: string;
+    r2v_minimax: string;
     character_prompt: string;
     scene_prompt: string;
     prop_prompt: string;
@@ -38,6 +39,11 @@ const SECTIONS = [
         label: 'Video R2V Polish (Prompt E)',
         description: 'System prompt for Reference-to-Video prompt polishing. Placeholder: {SLOTS} (character slot context).',
     },
+    {
+        key: 'r2v_minimax' as const,
+        label: 'MiniMax 参考生视频 Skill',
+        description: '上传或粘贴 MiniMax 参考生视频专用 Skill.md；Motion 中选择后使用。',
+    },
     { key: 'character_prompt' as const, label: '角色资产 Skill', description: '上传或粘贴角色资产的 Skill.md；生成时会自动注入当前角色资料和艺术指导风格。' },
     { key: 'scene_prompt' as const, label: '场景资产 Skill', description: '上传或粘贴场景资产的 Skill.md；生成时会自动注入当前场景资料和艺术指导风格。' },
     { key: 'prop_prompt' as const, label: '道具资产 Skill', description: '上传或粘贴道具资产的 Skill.md；生成时会自动注入当前道具资料和艺术指导风格。' },
@@ -49,7 +55,7 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
     const t = useTranslations("project");
     const tc = useTranslations("common");
 
-    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', character_prompt: '', scene_prompt: '', prop_prompt: '', polish_model: '' });
+    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', r2v_minimax: '', character_prompt: '', scene_prompt: '', prop_prompt: '', polish_model: '' });
     const [defaults, setDefaults] = useState<PromptDefaults | null>(null);
     const [expandedDefault, setExpandedDefault] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);

@@ -375,6 +375,7 @@ export const api = {
         skill_id?: string;
         model?: string;
         ratio?: string;
+        prompt_preset?: "r2v" | "r2v_minimax";
     }) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/motion/generate_prompt`, data);
         return res.data as { prompt: string; model: string; skill_id: string; skill_name: string };
@@ -700,7 +701,7 @@ export const api = {
         return res.data;
     },
 
-    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
+    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
         const res = await axios.put(`${API_URL}/projects/${scriptId}/prompt_config`, config);
         return res.data;
     },
@@ -1520,7 +1521,7 @@ export const api = {
         const response = await axios.get(`${API_URL}/series/${seriesId}/prompt_config`);
         return response.data;
     },
-    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
+    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
         const response = await axios.put(`${API_URL}/series/${seriesId}/prompt_config`, config);
         return response.data;
     },

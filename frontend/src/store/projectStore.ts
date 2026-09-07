@@ -235,6 +235,7 @@ export interface PromptConfig {
     storyboard_polish: string;
     video_polish: string;
     r2v_polish: string;
+    r2v_minimax?: string;
     storyboard_extraction?: string;
 }
 

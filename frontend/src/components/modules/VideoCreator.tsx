@@ -21,7 +21,6 @@ import { api, API_URL, VideoTask } from "@/lib/api";
 import { R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
-import { scriptEditorApi, type ScriptSkill } from "@/lib/scriptEditorApi";
 import PromptBuilder, { PromptSegment, PromptBuilderRef } from "./PromptBuilder";
 import type { VideoParams } from "@/store/projectStore";
 
@@ -94,8 +93,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const [frameSelectionAnchor, setFrameSelectionAnchor] = useState<string | null>(null);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
     const [motionError, setMotionError] = useState("");
-    const [motionSkills, setMotionSkills] = useState<ScriptSkill[]>([]);
-    const [selectedMotionSkillId, setSelectedMotionSkillId] = useState("");
+    const [selectedPromptPreset, setSelectedPromptPreset] = useState<"r2v" | "r2v_minimax">("r2v");
     const [isUploadingReference, setIsUploadingReference] = useState(false);
     const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">("i2v"); // Local mode state
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
@@ -107,9 +105,6 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
         }
     }, [params.generationMode]);
 
-    useEffect(() => {
-        scriptEditorApi.listScriptSkills("motion").then(setMotionSkills).catch(() => setMotionSkills([]));
-    }, []);
 
     const handleExtractLastFrame = async (frameId: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -294,7 +289,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
             const result = await api.generateMotionPrompt(currentProject.id, {
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
-                skill_id: selectedMotionSkillId || undefined,
+                prompt_preset: selectedPromptPreset,
                 model: currentProject.model_settings?.text_model,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
@@ -1029,13 +1024,13 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                             <div className="flex items-center justify-between rounded-lg border border-border-subtle bg-surface p-4">
                                 <div className="min-w-0 flex-1"><p className="text-sm font-medium text-text-secondary">提示词配置</p><p className="mt-1 text-xs text-text-muted">选择 Skill 后生成对应提示词，参考图可稍后绑定。</p></div>
                                 <select
-                                    value={selectedMotionSkillId}
-                                    onChange={(e) => setSelectedMotionSkillId(e.target.value)}
+                                    value={selectedPromptPreset}
+                                    onChange={(e) => setSelectedPromptPreset(e.target.value as "r2v" | "r2v_minimax")}
                                     className="max-w-[220px] rounded border border-glass-border bg-surface px-2 py-1.5 text-xs text-foreground"
                                     aria-label="提示词 Skill"
                                 >
-                                    <option value="">提示词配置 · R2V</option>
-                                    {motionSkills.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}
+                                    <option value="r2v">提示词配置 · R2V</option>
+                                    <option value="r2v_minimax">MiniMax 参考生视频 Skill</option>
                                 </select>
                                 <button type="button" onClick={generateMotionPrompt} disabled={isGeneratingPrompt || !selectedFrameIds.length} className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40">
                                     {isGeneratingPrompt ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Wand2 size={13} className="mr-1 inline" />}生成提示词
