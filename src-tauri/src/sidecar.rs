@@ -5,7 +5,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::thread;
-use tauri::Manager;
 
 /// Start the Python backend sidecar process
 /// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
@@ -79,20 +78,11 @@ fn start_dev_backend() -> Result<Child, std::io::Error> {
         .spawn()
 }
 
-fn start_prod_backend(app_handle: &tauri::AppHandle) -> Result<Child, std::io::Error> {
-    // Resolve the sidecar binary path from Tauri's resource directory
-    let resource_path = app_handle
-        .path()
-        .resource_dir()
-        .expect("failed to resolve resource dir");
-
-    let binary_name = if cfg!(target_arch = "aarch64") {
-        "lumenx-backend-aarch64-apple-darwin"
-    } else {
-        "lumenx-backend-x86_64-apple-darwin"
-    };
-
-    let sidecar_path = resource_path.join("binaries").join(binary_name);
+fn start_prod_backend(_app_handle: &tauri::AppHandle) -> Result<Child, std::io::Error> {
+    let sidecar_path = std::env::current_exe()?
+        .parent()
+        .expect("app executable has no parent directory")
+        .join("lumenx-backend");
 
     Command::new(sidecar_path)
         .arg("--port")

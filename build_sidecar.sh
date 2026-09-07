@@ -30,15 +30,20 @@ echo ""
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-# Check for PyInstaller
-if ! command -v pyinstaller &>/dev/null; then
-    echo "⚠️  PyInstaller not found, installing..."
-    pip install pyinstaller
+PYTHON="${SCRIPT_DIR}/.venv/bin/python"
+if [ ! -x "$PYTHON" ]; then
+    echo "❌ Project virtual environment not found. Run: python3 -m venv .venv"
+    exit 1
+fi
+
+if ! "$PYTHON" -m PyInstaller --version &>/dev/null; then
+    echo "→ Installing PyInstaller into .venv..."
+    "$PYTHON" -m pip install pyinstaller
 fi
 
 # Build with PyInstaller
 echo "→ Running PyInstaller..."
-pyinstaller \
+"$PYTHON" -m PyInstaller \
     --name "$BINARY_NAME" \
     --onefile \
     --console \
@@ -65,8 +70,9 @@ pyinstaller \
     --hidden-import=oss2 \
     --collect-all=dashscope \
     --add-data "src:src" \
+    --add-data "config:config" \
     --distpath "$OUTPUT_DIR" \
-    src/apps/comic_gen/api.py
+    sidecar_entry.py
 
 # PyInstaller puts the binary in a folder, move it to the expected location
 if [ -f "${OUTPUT_DIR}/${BINARY_NAME}/${BINARY_NAME}" ]; then
