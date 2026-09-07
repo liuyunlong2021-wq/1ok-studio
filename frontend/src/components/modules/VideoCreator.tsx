@@ -256,8 +256,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
         setMotionError("");
         setReferenceAssets((items) => {
             if (items.some((item) => item.url === asset.url)) return items;
-            if (items.length >= 9) {
-                setMotionError("最多选择 9 张参考图");
+            if (items.length >= referenceImageLimit) {
+                setMotionError(`最多选择 ${referenceImageLimit} 张参考图`);
                 return items;
             }
             return [...items, asset];
@@ -266,8 +266,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
 
     const uploadReferences = async (files: FileList | null) => {
         if (!files) return;
-        const remaining = 9 - referenceAssets.length;
-        if (remaining <= 0) return setMotionError("最多选择 9 张参考图");
+        const remaining = referenceImageLimit - referenceAssets.length;
+        if (remaining <= 0) return setMotionError(`最多选择 ${referenceImageLimit} 张参考图`);
         setIsUploadingReference(true);
         try {
             for (const file of Array.from(files).slice(0, remaining)) {
@@ -528,6 +528,9 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const castSlots = referenceAssets;
     const availableReferenceVideos: any[] = [];
     const r2vUsesImages = true;
+    const isSeedance25 = (params.model || "").includes("dola-seedance2.5");
+    const referenceImageLimit = isSeedance25 ? 30 : 9;
+    const promptLimit = isSeedance25 ? 3000 : 12000;
     const handleCastSlotSelect = (_slotIndex: number, selected: { url: string; name: string }) => {
         const asset = availableReferenceImages.find((item) => item.url === selected.url);
         if (asset) addReference(asset);
@@ -857,13 +860,13 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-medium text-text-secondary">参考图（角色 / 场景 / 道具）</label>
-                                    <span className="text-xs text-text-muted">{referenceAssets.length} / 9</span>
+                                    <span className="text-xs text-text-muted">{referenceAssets.length} / {referenceImageLimit}</span>
                                 </div>
                                 {r2vUsesImages ? (
-                                    /* HappyHorse R2V: Image reference slots (1-9) */
+                                    /* Image-based R2V: slot count follows the gateway contract. */
                                     <>
                                         <div className="grid grid-cols-3 gap-3">
-                                            {Array.from({ length: Math.min(Math.max(castSlots.filter(s => s.url).length + 1, 3), 9) }, (_, slotIndex) => {
+                                            {Array.from({ length: Math.min(Math.max(castSlots.filter(s => s.url).length + 1, 3), referenceImageLimit) }, (_, slotIndex) => {
                                                 const slot = castSlots[slotIndex];
                                                 const refImage = slot?.url ? availableReferenceImages.find(img => img.url === slot.url) : null;
 
@@ -929,7 +932,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                                             })}
                                         </div>
                                         <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs text-text-muted">按选择顺序作为参考图 1-9 提交；最多 9 张。</p>
+                                            <p className="text-xs text-text-muted">按选择顺序作为参考图提交；最多 {referenceImageLimit} 张。</p>
                                             <label className="cursor-pointer rounded border border-border-subtle px-2 py-1.5 text-xs text-primary hover:bg-hover-bg">
                                                 {isUploadingReference ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Upload size={13} className="mr-1 inline" />}
                                                 上传参考图
@@ -1085,8 +1088,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                                 }
                             />
                             {generationMode === 'r2v' && (
-                                <span className={`absolute bottom-2 right-3 text-[0.625rem] ${prompt.length > 12000 ? "text-red-400" : "text-text-muted"}`}>
-                                    {prompt.length} / 12000
+                                <span className={`absolute bottom-2 right-3 text-[0.625rem] ${prompt.length > promptLimit ? "text-red-400" : "text-text-muted"}`}>
+                                    {prompt.length} / {promptLimit}
                                 </span>
                             )}
                         </div>
@@ -1200,7 +1203,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                         onClick={handleSubmit}
                         disabled={isSubmitting || !prompt || (generationMode === 'i2v'
                             ? selectedImages.length === 0
-                            : (!selectedFrameIds.length || !referenceAssets.length || prompt.length > 12000))}
+                            : (!selectedFrameIds.length || !referenceAssets.length || prompt.length > promptLimit))}
                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] ${submitSuccess
                             ? "bg-green-500 text-white"
                             : "bg-primary hover:bg-primary/90 text-white"

@@ -1,4 +1,5 @@
 import base64
+import logging
 import mimetypes
 import os
 import time
@@ -8,6 +9,8 @@ import requests
 
 from .base import VideoGenModel
 from .image import ImageGenModel
+
+logger = logging.getLogger(__name__)
 
 
 def _base_url() -> str:
@@ -28,10 +31,31 @@ def _download(url: str, output_path: str) -> None:
         output.write(response.content)
 
 
-def _public_image_url(ref: str) -> str:
+def _public_media_url(ref: str, media_type: str = "image") -> str:
     if ref.startswith(("http://", "https://")):
         return ref
     path = ref if os.path.exists(ref) else os.path.join("output", ref)
+
+    # The gateway provides a temporary public URL for local media. This is
+    # the native path for Jiucaihezi and does not require OSS configuration.
+    if os.path.exists(path):
+        try:
+            with open(path, "rb") as handle:
+                response = requests.post(
+                    f"{_base_url()}/api/creations/uploads",
+                    headers=_headers(),
+                    files={"file": (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "application/octet-stream")},
+                    timeout=60,
+                )
+            response.raise_for_status()
+            url = response.json().get("url")
+            if url:
+                return url
+        except Exception as exc:
+            # Keep the configured OSS path available for installations where
+            # the gateway upload endpoint is unavailable.
+            logger.warning("Jiucaihezi local %s upload failed; trying OSS fallback: %s", media_type, exc)
+
     from ..utils.oss_utils import OSSImageUploader
 
     uploader = OSSImageUploader()
@@ -41,7 +65,10 @@ def _public_image_url(ref: str) -> str:
         object_key = ref
     url = uploader.sign_url_for_api(object_key) if object_key else ""
     if not url:
-        raise RuntimeError("Seedance 2.5 reference images require public URLs or configured OSS")
+        raise RuntimeError(
+            f"Jiucaihezi {media_type} reference requires a public URL; "
+            "local upload to the gateway and OSS fallback both failed"
+        )
     return url
 
 
@@ -92,12 +119,13 @@ class JiucaiheziImageModel(ImageGenModel):
 class JiucaiheziVideoModel(VideoGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
+        model_name = (kwargs.get("model_name") or "dola-seedance2.5").split("/", 1)[-1].split("#", 1)[0]
         images = list(kwargs.get("ref_image_urls") or [])
         if kwargs.get("img_url"):
             images.insert(0, kwargs["img_url"])
         if kwargs.get("img_path"):
             images.insert(0, kwargs["img_path"])
-        images = [_public_image_url(ref) for ref in dict.fromkeys(images)]
+        images = [_public_media_url(ref, "image") for ref in dict.fromkeys(images)]
         payload = {"model": model_name, "prompt": prompt, "ratio": kwargs.get("aspect_ratio") or kwargs.get("ratio") or "16:9"}
         if model_name == "minimax_h3_image_audio_to_video_v2_15s":
             payload["duration"] = int(kwargs.get("duration") or 5)
@@ -106,9 +134,9 @@ class JiucaiheziVideoModel(VideoGenModel):
             if kwargs.get("audio_url"):
                 audio_refs.insert(0, kwargs["audio_url"])
             if audio_refs:
-                payload["audios"] = [_public_image_url(ref) for ref in dict.fromkeys(audio_refs)][:3]
+                payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
         if images:
-            payload["images"] = images[:9]
+            payload["images"] = images[:30] if model_name == "dola-seedance2.5" else images[:9]
         response = requests.post(f"{_base_url()}/v1/videos", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=120)
         response.raise_for_status()
         task = response.json()

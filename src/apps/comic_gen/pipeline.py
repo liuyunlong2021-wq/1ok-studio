@@ -2160,10 +2160,10 @@ class ComicGenPipeline:
         is_jiucaihezi_seedance = isinstance(model, str) and "jiucaihezi/" in model and "dola-seedance2.5" in model
         if is_jiucaihezi_seedance:
             prompt = (prompt or "").strip()
-            if not 1 <= len(prompt) <= 12000:
-                raise ValueError("Seedance 2.5 prompt must contain 1-12000 characters")
-            if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 9:
-                raise ValueError("Seedance 2.5 reference mode requires 1-9 reference images")
+            if not 1 <= len(prompt) <= 3000:
+                raise ValueError("Seedance 2.5 prompt must contain 1-3000 characters")
+            if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 30:
+                raise ValueError("Seedance 2.5 reference mode requires 1-30 reference images")
             if generation_mode == "r2v" and not source_frame_ids:
                 raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
             duration = 30
