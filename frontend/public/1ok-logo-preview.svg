@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" role="img" aria-labelledby="title desc">
-  <title id="title">1OK shield logo</title>
-  <desc id="desc">White 1OK shield logo on a black background.</desc>
+  <title id="title">1OK shield logo preview</title>
+  <desc id="desc">A black-background preview of the white 1OK shield logo.</desc>
   <rect width="2048" height="2048" fill="#030504"/>
   <g fill="#fff">
     <path d="M1024 205 847 352C670 475 486 550 307 596l119 823c35 110 106 213 211 310 102 94 234 176 387 247 153-71 285-153 387-247 105-97 176-200 211-310l119-823c-179-46-363-121-540-244L1024 205Zm0 59 143 119c176 122 358 201 546 249l-113 780c-32 101-98 197-199 290-96 89-222 168-377 240-155-72-281-151-377-240-101-93-167-189-199-290L335 632c188-48 370-127 546-249l143-119Z"/>

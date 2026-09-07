@@ -3,6 +3,7 @@
 import GlobalSidebar, { type GlobalTab } from "./GlobalSidebar";
 import OfflineBanner from "./OfflineBanner";
 import BottomTabBar from "./BottomTabBar";
+import TauriDragBar from "./TauriDragBar";
 
 interface AppShellProps {
   activeTab: GlobalTab;
@@ -13,6 +14,7 @@ interface AppShellProps {
 export default function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
   return (
     <div className="flex h-full w-full flex-col">
+      <TauriDragBar />
       <OfflineBanner />
       <div className="flex min-h-0 flex-1">
         <GlobalSidebar activeTab={activeTab} onTabChange={onTabChange} />
