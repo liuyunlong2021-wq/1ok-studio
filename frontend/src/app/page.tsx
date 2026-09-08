@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { motion } from "framer-motion";
 import {
-  Plus, RefreshCw, Library, FileUp, X, ChevronDown, FileText,
+  Plus, RefreshCw, Library, FileUp, X, ChevronDown, FileText, Trash2,
   Zap, Film, Sparkles, Search, Clock, MoreVertical,
 } from "lucide-react";
 import { useProjectStore, Project } from "@/store/projectStore";
@@ -475,6 +475,7 @@ export default function Home() {
   const projects = useProjectStore((state) => state.projects);
   const seriesList = useProjectStore((state) => state.seriesList);
   const deleteProject = useProjectStore((state) => state.deleteProject);
+  const deleteSeries = useProjectStore((state) => state.deleteSeries);
   const setProjects = useProjectStore((state) => state.setProjects);
   const fetchSeriesList = useProjectStore((state) => state.fetchSeriesList);
   const t = useTranslations("workspace");
@@ -548,6 +549,20 @@ export default function Home() {
 
   const syncAll = async () => {
     await Promise.all([syncProjects(), fetchSeriesList()]);
+  };
+
+  const handleDeleteSeries = async (id: string, title: string) => {
+    if (!window.confirm(t("confirmDeleteSeries", { title }))) return;
+    try {
+      await deleteSeries(id);
+      setSeriesEpisodes((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
   };
 
   // Close dropdown when clicking outside
@@ -944,6 +959,15 @@ export default function Home() {
                         {t("series")} · {t("frames", { count: eps.length })}
                       </span>
                       <span className="atelier-group-line h-px flex-1 bg-glass-border" />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSeries(s.id, s.title)}
+                        className="w-8 h-8 rounded-lg grid place-items-center text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        aria-label={`${tc("delete")} ${s.title}`}
+                        title={`${tc("delete")} ${s.title}`}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
                     </div>
                     {viewMode === "list" ? (
                       <div className="flex flex-col gap-1.5">
