@@ -41,6 +41,22 @@ if ! "$PYTHON" -m PyInstaller --version &>/dev/null; then
     "$PYTHON" -m pip install pyinstaller
 fi
 
+# PyInstaller onefile extracts Python.framework at runtime. Sign collected
+# binaries with the same identity Tauri uses or macOS library validation will
+# reject the framework because its Team ID differs from the sidecar process.
+SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
+if [ -z "$SIGNING_IDENTITY" ]; then
+    SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' \
+        | head -n 1)"
+fi
+
+PYINSTALLER_SIGNING_ARGS=()
+if [ -n "$SIGNING_IDENTITY" ]; then
+    echo "→ Signing sidecar libraries with: ${SIGNING_IDENTITY}"
+    PYINSTALLER_SIGNING_ARGS=(--codesign-identity "$SIGNING_IDENTITY")
+fi
+
 # Build with PyInstaller
 echo "→ Running PyInstaller..."
 "$PYTHON" -m PyInstaller \
@@ -49,6 +65,7 @@ echo "→ Running PyInstaller..."
     --console \
     --noconfirm \
     --clean \
+    "${PYINSTALLER_SIGNING_ARGS[@]}" \
     --hidden-import=uvicorn \
     --hidden-import=uvicorn.logging \
     --hidden-import=uvicorn.loops \

@@ -16,6 +16,7 @@ fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
         let _ = window.set_focus();
     }
 }
+
 /// Start the Python backend sidecar process
 /// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
 /// In production: runs the bundled PyInstaller binary
@@ -31,6 +32,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
             eprintln!(
                 "[sidecar] Port 17177 is occupied by a backend that cannot be safely replaced"
             );
+            show_main_window(app_handle, false);
             return;
         }
     }
@@ -48,13 +50,14 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Backend process started (pid: {})", process.id());
 
-            // Wait for backend to be ready (poll /health every 200ms, up to 30s)
-            let ready = wait_for_backend_ready(150); // 150 * 200ms = 30s
+            // A signed PyInstaller onefile can take ~35s to extract on first launch.
+            let ready = wait_for_backend_ready(300); // 300 * 200ms = 60s
             if ready {
                 println!("[sidecar] Backend is ready!");
             } else {
-                eprintln!("[sidecar] Backend failed to become ready within 30s");
+                eprintln!("[sidecar] Backend failed to become ready within 60s");
             }
+            show_main_window(app_handle, ready);
 
             // Keep monitoring the process
             loop {
@@ -86,6 +89,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
         }
         Err(e) => {
             eprintln!("[sidecar] Failed to start backend: {}", e);
+            show_main_window(app_handle, false);
         }
     }
 }

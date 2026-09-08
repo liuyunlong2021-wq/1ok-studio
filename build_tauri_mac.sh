@@ -39,6 +39,13 @@ if pgrep -f 'One OK Studio\.app/Contents/MacOS/(lumenx-studio|lumenx-backend)' >
     exit 1
 fi
 
+if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+    APPLE_SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+        | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' \
+        | head -n 1)"
+    export APPLE_SIGNING_IDENTITY
+fi
+
 # ─── Step 2: Build Python sidecar ───
 echo "→ Step 2: Building Python sidecar..."
 bash build_sidecar.sh
