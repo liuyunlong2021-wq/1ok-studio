@@ -58,12 +58,16 @@ class LLMAdapter:
                 self._client = OpenAI(
                     api_key=os.getenv("OPENAI_API_KEY"),
                     base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                    timeout=60.0,
+                    max_retries=0,
                 )
             else:
                 # DashScope uses OpenAI-compatible endpoint
                 self._client = OpenAI(
                     api_key=os.getenv("DASHSCOPE_API_KEY"),
                     base_url=f"{get_provider_base_url('DASHSCOPE')}/compatible-mode/v1",
+                    timeout=60.0,
+                    max_retries=0,
                 )
         return self._client
 
@@ -79,7 +83,12 @@ class LLMAdapter:
             base_url = get_provider_base_url("JIUCAIHEZI")
             if not base_url.endswith("/v1"):
                 base_url += "/v1"
-            self._jiucaihezi_client = OpenAI(api_key=key, base_url=base_url)
+            self._jiucaihezi_client = OpenAI(
+                api_key=key,
+                base_url=base_url,
+                timeout=60.0,
+                max_retries=0,
+            )
         return self._jiucaihezi_client
 
     # DashScope qwen 系列：首选 qwen3.7-plus（最新），不可用时回退到 qwen3.6-plus，
@@ -113,9 +122,22 @@ class LLMAdapter:
             RuntimeError: If the API call fails.
         """
         if model in JIUCAIHEZI_MODELS:
-            return self._chat_once(
-                self._get_jiucaihezi_client(), model, messages, response_format, "Jiucaihezi"
-            )
+            client = self._get_jiucaihezi_client()
+            try:
+                return self._chat_once(
+                    client, model, messages, response_format, "Jiucaihezi"
+                )
+            except RuntimeError as exc:
+                transient = any(
+                    token in str(exc).lower()
+                    for token in ("524", "timeout", "timed out", "connection")
+                )
+                if not transient or model == "gpt-5.6-sol":
+                    raise
+                logger.warning("%s failed temporarily; falling back to gpt-5.6-sol", model)
+                return self._chat_once(
+                    client, "gpt-5.6-sol", messages, response_format, "Jiucaihezi"
+                )
 
         # When only the Jiucaihezi credential is configured, do not silently
         # fall through to DashScope's default qwen model.
