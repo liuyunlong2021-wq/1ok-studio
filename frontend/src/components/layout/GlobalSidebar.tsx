@@ -22,7 +22,7 @@ export const GLOBAL_NAV_ITEMS: { id: GlobalTab; icon: typeof LayoutGrid; hash: s
   { id: "settings", icon: Settings, hash: "#/settings" },
 ];
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.0.1";
 
 function NavButton({
   active,

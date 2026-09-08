@@ -31,7 +31,7 @@ import {
   settingsInputClass,
 } from "./SettingsControls";
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.0.1";
 
 type EnvConfig = EnvConfigPayload & {
   DASHSCOPE_API_KEY: string;
@@ -93,7 +93,8 @@ const normalizeEnvConfig = (existing: EnvConfig, data?: EnvConfigPayload): EnvCo
 
 const getValidationErrors = (env: EnvConfig): string[] => {
   const errors: string[] = [];
-  if (!env.DASHSCOPE_API_KEY?.trim()) errors.push("DashScope API Key");
+  if (env.JIUCAIHEZI_API_KEY?.trim()) return errors;
+  if (!env.DASHSCOPE_API_KEY?.trim()) errors.push("韭菜盒子 API Key 或 DashScope API Key");
   if (env.KLING_PROVIDER_MODE === "vendor") {
     if (!env.KLING_ACCESS_KEY?.trim()) errors.push("Kling Access Key (vendor mode)");
     if (!env.KLING_SECRET_KEY?.trim()) errors.push("Kling Secret Key (vendor mode)");
@@ -699,7 +700,7 @@ export default function SettingsPage() {
               placeholder="https://api.jiucaihezi.studio"
               className={settingsInputClass + " font-mono text-[0.71875rem] mb-3"}
             />
-            <FieldLabel>JIUCAIHEZI_API_KEY</FieldLabel>
+            <FieldLabel>JIUCAIHEZI_API_KEY *</FieldLabel>
             <KeyField
               value={config.JIUCAIHEZI_API_KEY}
               onChange={(v) => handleChange("JIUCAIHEZI_API_KEY", v)}
@@ -708,7 +709,7 @@ export default function SettingsPage() {
           </FormRow>
 
           <FormRow label={t("dashscopeKeyLabel")} hint={t("dashscopeKeyHint")}>
-            <FieldLabel>DASHSCOPE_API_KEY *</FieldLabel>
+            <FieldLabel>DASHSCOPE_API_KEY</FieldLabel>
             <KeyField
               value={config.DASHSCOPE_API_KEY}
               onChange={(v) => handleChange("DASHSCOPE_API_KEY", v)}

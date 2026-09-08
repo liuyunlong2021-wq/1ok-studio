@@ -22,6 +22,7 @@ interface EnvConfig {
   KLING_ACCESS_KEY: string;
   KLING_SECRET_KEY: string;
   VIDU_API_KEY: string;
+  JIUCAIHEZI_API_KEY: string;
   endpoint_overrides: Record<string, string>;
   [key: string]: string | Record<string, string>;
 }
@@ -45,6 +46,7 @@ const DEFAULT_CONFIG: EnvConfig = {
   KLING_ACCESS_KEY: "",
   KLING_SECRET_KEY: "",
   VIDU_API_KEY: "",
+  JIUCAIHEZI_API_KEY: "",
   endpoint_overrides: {},
 };
 
@@ -54,6 +56,7 @@ function normalizeProviderMode(mode?: string): ProviderMode {
 
 /** Mirrors validateRequiredFields() after Task 8 */
 function validateRequiredFields(config: EnvConfig): boolean {
+  if (config.JIUCAIHEZI_API_KEY?.trim()) return true;
   const dashscopeKey = config.DASHSCOPE_API_KEY?.trim();
   if (!dashscopeKey) return false;
 
@@ -145,12 +148,27 @@ describe("ENDPOINT_PROVIDERS registry", () => {
 });
 
 describe("validateRequiredFields", () => {
-  it("returns false when DashScope key is missing", () => {
+  it("returns false when both primary API keys are missing", () => {
     expect(validateRequiredFields(DEFAULT_CONFIG)).toBe(false);
   });
 
   it("returns true when only DashScope key is present (default provider modes)", () => {
     const valid = { ...DEFAULT_CONFIG, DASHSCOPE_API_KEY: "sk-test" };
+    expect(validateRequiredFields(valid)).toBe(true);
+  });
+
+  it("returns true when only Jiucaihezi key is present", () => {
+    const valid = { ...DEFAULT_CONFIG, JIUCAIHEZI_API_KEY: "jc-test" };
+    expect(validateRequiredFields(valid)).toBe(true);
+  });
+
+  it("does not require vendor credentials when Jiucaihezi is configured", () => {
+    const valid = {
+      ...DEFAULT_CONFIG,
+      JIUCAIHEZI_API_KEY: "jc-test",
+      KLING_PROVIDER_MODE: "vendor" as const,
+      VIDU_PROVIDER_MODE: "vendor" as const,
+    };
     expect(validateRequiredFields(valid)).toBe(true);
   });
 
@@ -298,9 +316,9 @@ describe("computeCanClose", () => {
     expect(computeCanClose(false, DEFAULT_CONFIG)).toBe(true);
   });
 
-  it("blocks closing required dialog until DashScope key is set", () => {
+  it("blocks closing required dialog until either primary key is set", () => {
     expect(computeCanClose(true, DEFAULT_CONFIG)).toBe(false);
-    const valid = { ...DEFAULT_CONFIG, DASHSCOPE_API_KEY: "sk-test" };
+    const valid = { ...DEFAULT_CONFIG, JIUCAIHEZI_API_KEY: "jc-test" };
     expect(computeCanClose(true, valid)).toBe(true);
   });
 

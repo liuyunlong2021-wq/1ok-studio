@@ -71,8 +71,10 @@ const normalizeEnvConfig = (existing: EnvConfig, data?: EnvConfigPayload): EnvCo
 const getValidationErrors = (env: EnvConfig): string[] => {
   const errors: string[] = [];
 
+  // 韭菜盒子是完整的默认路由，其他凭证均可选。
+  if (env.JIUCAIHEZI_API_KEY?.trim()) return errors;
   if (!env.DASHSCOPE_API_KEY?.trim()) {
-    errors.push("DashScope API Key");
+    errors.push("韭菜盒子 API Key 或 DashScope API Key");
   }
   if (env.KLING_PROVIDER_MODE === "vendor") {
     if (!env.KLING_ACCESS_KEY?.trim()) {
@@ -241,7 +243,9 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">API Key</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      API Key <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="password"
                       value={config.JIUCAIHEZI_API_KEY}
@@ -254,14 +258,14 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
 
                 <div>
                   <label className="flex items-center justify-between text-sm font-medium text-foreground mb-2">
-                    <span>DashScope API Key <span className="text-red-500">*</span></span>
+                    <span>DashScope API Key <span className="text-text-muted font-normal text-xs">(可选)</span></span>
                     <span className="text-text-muted font-normal text-xs">e.g. sk-xxx</span>
                   </label>
                   <input
                     type="password"
                     value={config.DASHSCOPE_API_KEY}
                     onChange={(e) => handleChange("DASHSCOPE_API_KEY", e.target.value)}
-                    placeholder="Required for DashScope-first model routing"
+                    placeholder="Optional, only needed for DashScope routing"
                     className={inputClass}
                   />
                 </div>

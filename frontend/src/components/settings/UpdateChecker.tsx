@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 import { RefreshCw, Loader2, Check, Sparkles, ExternalLink, CircleAlert } from "lucide-react";
 
 // 本地版本常量,避免跨文件耦合(与 SettingsPage 的 APP_VERSION 同源)。
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.0.1";
 const REPO = "liuyunlong2021-wq/1ok-studio";
 const LATEST_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const RELEASES_URL = `https://github.com/${REPO}/releases`;
