@@ -24,6 +24,7 @@ import StoryboardR2V from "@/components/modules/StoryboardR2V";
 import EntityConfirmModal from "@/components/modules/EntityConfirmModal";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
+import { toast } from "@/store/toastStore";
 
 const CreativeCanvas = dynamic(() => import("@/components/canvas/CreativeCanvas"), { ssr: false });
 
@@ -63,6 +64,7 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
     const [promptConfigOpen, setPromptConfigOpen] = useState(false);
     const t = useTranslations("project");
     const tp = useTranslations("pipeline");
+    const ts = useTranslations("script");
 
     const selectProject = useProjectStore((state) => state.selectProject);
     const currentProject = useProjectStore((state) => state.currentProject);
@@ -74,6 +76,10 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
             useProjectStore.setState({ pendingExtraction: preview, pendingExtractionScript: text });
         } catch (error) {
             console.error("Failed to extract entities:", error);
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error(ts("analysisFailedShort"), {
+                body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error),
+            });
         } finally {
             useProjectStore.setState({ isAnalyzing: false });
         }

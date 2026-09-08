@@ -34,6 +34,11 @@ echo "  ✓ Rust $(rustc --version | awk '{print $2}')"
 echo "  ✓ Node $(node --version)"
 echo ""
 
+if pgrep -f 'One OK Studio\.app/Contents/MacOS/(lumenx-studio|lumenx-backend)' >/dev/null; then
+    echo "❌ One OK Studio is running. Quit the app before rebuilding so its sidecar archive is not replaced in place."
+    exit 1
+fi
+
 # ─── Step 2: Build Python sidecar ───
 echo "→ Step 2: Building Python sidecar..."
 bash build_sidecar.sh

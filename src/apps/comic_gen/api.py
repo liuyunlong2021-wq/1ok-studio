@@ -37,6 +37,7 @@ import shutil
 import uuid
 import logging
 import traceback
+import sys
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
 from .models import (
     ArtDirection,
@@ -48,6 +49,12 @@ from .models import (
     StoryboardFrame,
     VideoTask,
     AssetContract,
+)
+
+_SIDECAR_MTIME = (
+    os.path.getmtime(sys.executable)
+    if getattr(sys, "frozen", False) and os.path.exists(sys.executable)
+    else None
 )
 from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT
 from ...utils.oss_utils import OSSImageUploader, sign_oss_urls_in_data
@@ -263,6 +270,8 @@ def health_check():
     return {
         "ok": True,
         "time": time.time(),
+        "pid": os.getpid(),
+        "sidecar_mtime": _SIDECAR_MTIME,
         "log_file": log_file,
         "log_dir": log_dir,
         "studio_projects": len(getattr(pipeline, "scripts", {})),
