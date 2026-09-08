@@ -24,6 +24,7 @@ import LeftSidebar from './sidebar';
 import StoryboardView from './views/StoryboardView';
 import ExportDialog from './dialogs/ExportDialog';
 import StandardizeDialog from './dialogs/StandardizeDialog';
+import { scriptEditorApi } from '@/lib/scriptEditorApi';
 
 function textToEditorDocument(text: string) {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -66,6 +67,7 @@ export default function ScriptEditorShell({
   useDerivation(editor);
   const loadedProjectRef = useRef<string | null>(null);
   const hydratedTextRef = useRef<string | null>(null);
+  const loadedDocumentRef = useRef<string | null>(null);
   const isDirty = useEditorStore((s) => s.isDirty);
   useEffect(() => {
     const store = useEditorStore.getState();
@@ -74,7 +76,27 @@ export default function ScriptEditorShell({
     store.setLastSavedAt(null);
   }, [projectId]);
   useEffect(() => {
+    if (!editor || !effectiveProjectId) return;
+    let cancelled = false;
+    loadedDocumentRef.current = null;
+
+    scriptEditorApi.loadDocument(effectiveProjectId)
+      .then((document) => {
+        if (cancelled || useEditorStore.getState().isDirty || !document.content?.length) return;
+        loadedDocumentRef.current = effectiveProjectId;
+        loadedProjectRef.current = effectiveProjectId;
+        hydratedTextRef.current = projectText;
+        editor.commands.setContent(document);
+        useEditorStore.getState().setDirty(false);
+        useEditorStore.getState().updateDerivation({ wordCount: editor.getText().length });
+      })
+      .catch((error) => console.error('[ScriptEditor] Failed to load saved document:', error));
+
+    return () => { cancelled = true; };
+  }, [editor, effectiveProjectId, projectText]);
+  useEffect(() => {
     if (!editor || !hydrationProject?.id) return;
+    if (loadedDocumentRef.current === hydrationProject.id) return;
     const projectData = hydrationProject as typeof hydrationProject & { original_text?: string };
     const text = projectData.originalText || projectData.original_text || '';
     const projectChanged = loadedProjectRef.current !== hydrationProject.id;

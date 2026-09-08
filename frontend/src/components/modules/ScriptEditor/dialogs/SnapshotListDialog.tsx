@@ -77,7 +77,7 @@ export default function SnapshotListDialog({
       setRestoring(true);
       try {
         const result = await scriptEditorApi.restoreSnapshot(projectId, timestamp);
-        onRestore(result.content);
+        onRestore(result);
         onClose();
       } catch (err) {
         console.error('[SnapshotListDialog] Restore failed:', err);

@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
 import { scriptEditorApi } from '@/lib/scriptEditorApi';
 import { useEditorStore } from '@/store/editorStore';
+import { useProjectStore } from '@/store/projectStore';
+import { toast } from '@/store/toastStore';
 
 const AUTOSAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -28,11 +30,14 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
 
       try {
         await scriptEditorApi.saveDocument(projectId, content, createSnapshot);
-        await scriptEditorApi.updateScriptText(projectId, editor.getText());
+        const text = editor.getText();
+        await scriptEditorApi.updateScriptText(projectId, text);
+        useProjectStore.getState().updateProject(projectId, { originalText: text });
         setDirty(false);
         setLastSavedAt(new Date());
       } catch (err) {
         console.error('[useAutoSave] Save failed:', err);
+        toast.error('剧本保存失败', { body: '内容仍保留在编辑器中，请检查连接后重试。' });
       } finally {
         isSavingRef.current = false;
       }
