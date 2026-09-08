@@ -5,6 +5,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
+use tauri::Manager;
+
+fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        if reload {
+            let _ = window.reload();
+        }
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
 /// Start the Python backend sidecar process
 /// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
 /// In production: runs the bundled PyInstaller binary
@@ -13,6 +24,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
         if cfg!(debug_assertions) || backend_matches_current_build(&health) {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Reusing matching backend on port 17177");
+            show_main_window(app_handle, cfg!(debug_assertions));
             return;
         }
         if !terminate_stale_backend(&health) {
