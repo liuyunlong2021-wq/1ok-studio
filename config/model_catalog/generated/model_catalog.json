@@ -21,6 +21,7 @@
       "jiucaihezi/gpt-image-2-中质量": "jiucaihezi/jiucaihezi/gpt-image-2-中质量#image",
       "jiucaihezi/gpt-image-2-低质量": "jiucaihezi/jiucaihezi/gpt-image-2-低质量#image",
       "jiucaihezi/gpt-image-2-官方": "jiucaihezi/jiucaihezi/gpt-image-2-官方#image",
+      "jiucaihezi/grok-imagine-image-2.0": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
       "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "kling-v3-i2v": "kling/kling-v3-video#i2v",
       "kling-v3-r2v": "kling/kling-v3-video#r2v",
@@ -196,6 +197,7 @@
         "jiucaihezi/gpt-image-2-中质量",
         "jiucaihezi/gpt-image-2-低质量",
         "jiucaihezi/gpt-image-2-官方",
+        "jiucaihezi/grok-imagine-image-2.0",
         "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s"
       ],
       "provider": "jiucaihezi",
@@ -1592,6 +1594,64 @@
       ],
       "modes": [
         "jiucaihezi/jiucaihezi/gpt-image-2-官方#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jiucaihezi/grok-imagine-image-2.0": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
+      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0",
+      "legacy_model_ids": [
+        "jiucaihezi/grok-imagine-image-2.0"
+      ],
+      "modes": [
+        "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -4642,6 +4702,88 @@
           "韭菜盒子"
         ],
         "order": 995,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/grok-imagine-image-2.0": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
+      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/grok-imagine-image-2.0",
+      "inputs": {
+        "reference_images": {
+          "max": 5,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "2048x2048",
+            "2048x1152",
+            "1152x2048"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1001,
         "recommended": false,
         "selection_group": "image",
         "visible_in": [
@@ -9054,6 +9196,96 @@
           "韭菜盒子"
         ],
         "order": 995,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
+      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
+      "inputs": {
+        "reference_images": {
+          "max": 5,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jiucaihezi/grok-imagine-image-2.0",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "2048x2048",
+            "2048x1152",
+            "1152x2048"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1001,
         "recommended": false,
         "selection_group": "image",
         "visible_in": [

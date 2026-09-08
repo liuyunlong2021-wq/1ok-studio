@@ -157,6 +157,25 @@ models:
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 993, recommended: false, badges: [韭菜盒子]}
     params: *jiucaihezi_image_params
+  - id: jiucaihezi/grok-imagine-image-2.0
+    display_name: "Grok Imagine Image 2.0 · 韭菜盒子"
+    description: "Grok Imagine Image 2.0 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/grok-image-2], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1001, recommended: false, badges: [韭菜盒子]}
+    params:
+      size:
+        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048"]
+        default: "1024x1024"
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
+    inputs:
+      reference_images: {max: 5, reference_type: image}
   - id: jiucaihezi/dola-seedance2.5
     display_name: "Seedance 2.5 · 韭菜盒子"
     description: "Seedance 2.5 via 韭菜盒子"

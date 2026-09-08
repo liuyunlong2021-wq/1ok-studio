@@ -66,6 +66,15 @@ describe('model catalog selectors', () => {
         ]);
     });
 
+    it('exposes Grok image generation and editing without resetting the selection', () => {
+        const id = 'jiucaihezi/grok-imagine-image-2.0';
+        expect(GLOBAL_IMAGE_MODELS.some(model => model.id === id)).toBe(true);
+        for (const surface of ['global_settings', 'project_settings', 'series_settings'] as const) {
+            expect(resolveModelSettings({ image_model: id, t2i_model: id, i2i_model: id }, surface))
+                .toMatchObject({ image_model: id, t2i_model: id, i2i_model: id });
+        }
+    });
+
     it('keeps hidden and planned catalog entries out of visible selectors', () => {
         expect(GLOBAL_I2V_MODELS.some((model) => model.id === 'wan2.6-r2v')).toBe(false);
         expect(GLOBAL_I2V_MODELS.some((model) => model.id === 'pixverse-v4-i2v')).toBe(false);
