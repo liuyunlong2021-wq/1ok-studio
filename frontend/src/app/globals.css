@@ -1056,29 +1056,6 @@ html.atelier-light .atelier-new-tile:hover > span:first-child {
   app-region: no-drag;
 }
 
-/* Tauri desktop: Traffic Light avoidance padding */
-.tauri-titlebar-inset {
-  padding-top: 38px;
-}
-
-/* Tauri desktop: Top drag bar for window movement (drag via JS API) */
-.tauri-drag-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 38px;
-  z-index: 9999;
-  pointer-events: auto;
-  cursor: default;
-}
-
-.tauri-drag-bar button,
-.tauri-drag-bar a,
-.tauri-drag-bar input {
-  pointer-events: auto;
-}
-
 /* Script editor theme bridge: legacy editor utilities inherit the active
    LumenX semantic palette instead of forcing a separate black UI. */
 .script-editor-theme .bg-zinc-900,
