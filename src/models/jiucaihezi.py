@@ -11,6 +11,7 @@ from .base import VideoGenModel
 from .image import ImageGenModel
 
 logger = logging.getLogger(__name__)
+GROK_IMAGE_MODEL = "grok-imagine-image-2.0"
 
 
 def _base_url() -> str:
@@ -75,11 +76,12 @@ def _public_media_url(ref: str, media_type: str = "image") -> str:
 class JiucaiheziImageModel(ImageGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
-        model_name = (kwargs.get("model_name") or "dola-seedance2.5").split("/", 1)[-1].split("#", 1)[0]
         refs = kwargs.get("ref_image_paths") or ([] if not kwargs.get("ref_image_path") else [kwargs["ref_image_path"]])
         model = kwargs.get("model_name") or "gpt-image-2-1k"
         model = model.split("/", 1)[-1].split("#", 1)[0]
         size = (kwargs.get("size") or "1024*1024").replace("*", "x")
+        if model == GROK_IMAGE_MODEL:
+            return self._generate_grok(prompt, output_path, model, size, refs, started)
         if refs:
             files = []
             handles = []
@@ -114,6 +116,74 @@ class JiucaiheziImageModel(ImageGenModel):
             with open(output_path, "wb") as output:
                 output.write(base64.b64decode(item["b64_json"]))
         return output_path, time.time() - started
+
+    def _generate_grok(
+        self,
+        prompt: str,
+        output_path: str,
+        model: str,
+        size: str,
+        refs: list,
+        started: float,
+    ) -> Tuple[str, float]:
+        payload = {"model": model, "prompt": prompt, "size": size, "response_format": "url"}
+        handles = []
+        try:
+            if refs:
+                files = []
+                for ref in refs[:8]:
+                    if ref.startswith(("http://", "https://")):
+                        downloaded = requests.get(ref, timeout=180)
+                        downloaded.raise_for_status()
+                        mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
+                        name = os.path.basename(ref.split("?", 1)[0]) or "reference.png"
+                        files.append(("image[]", (name, downloaded.content, mime)))
+                        continue
+                    path = ref if os.path.exists(ref) else os.path.join("output", ref)
+                    if os.path.exists(path):
+                        handle = open(path, "rb")
+                        handles.append(handle)
+                        files.append(("image[]", (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
+                if not files:
+                    raise ValueError("No valid reference images found for Grok image generation")
+                response = requests.post(
+                    f"{_base_url()}/v1/videos",
+                    headers=_headers(),
+                    data=payload,
+                    files=files,
+                    timeout=180,
+                )
+            else:
+                response = requests.post(
+                    f"{_base_url()}/v1/videos",
+                    headers={**_headers(), "Content-Type": "application/json"},
+                    json=payload,
+                    timeout=180,
+                )
+        finally:
+            for handle in handles:
+                handle.close()
+
+        response.raise_for_status()
+        task = response.json()
+        task_id = task.get("task_id") or task.get("id")
+        if not task_id:
+            raise RuntimeError(f"Grok image response missing task id: {task}")
+
+        for _ in range(180):
+            time.sleep(10)
+            poll = requests.get(f"{_base_url()}/v1/videos/{task_id}", headers=_headers(), timeout=60)
+            poll.raise_for_status()
+            result = poll.json()
+            if result.get("status") in ("completed", "succeeded"):
+                url = (result.get("metadata") or {}).get("url")
+                if not url:
+                    raise RuntimeError(f"Grok image completed without metadata.url: {result}")
+                _download(url, output_path)
+                return output_path, time.time() - started
+            if result.get("status") in ("failed", "error", "cancelled"):
+                raise RuntimeError(f"Grok image failed: {result}")
+        raise TimeoutError("Grok image task timed out")
 
 
 class JiucaiheziVideoModel(VideoGenModel):
