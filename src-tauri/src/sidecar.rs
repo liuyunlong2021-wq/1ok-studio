@@ -79,7 +79,11 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
 }
 
 fn start_dev_backend() -> Result<Child, std::io::Error> {
+    let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("src-tauri has no parent directory");
     Command::new("python")
+        .current_dir(project_root)
         .args([
             "-m",
             "uvicorn",
