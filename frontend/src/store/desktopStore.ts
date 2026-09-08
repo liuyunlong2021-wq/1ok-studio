@@ -43,10 +43,11 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
     },
 
     startHealthCheck: () => {
+        if (get().backendChecking || get().backendReady) return;
         set({ backendChecking: true, backendError: null });
 
         let attempts = 0;
-        const maxAttempts = 150; // 30 seconds at 200ms intervals
+        const maxAttempts = 300; // PyInstaller onefile may need ~35s on first launch.
 
         const poll = async () => {
             attempts++;
@@ -60,7 +61,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
             if (attempts >= maxAttempts) {
                 set({
                     backendChecking: false,
-                    backendError: 'Backend failed to start within 30 seconds',
+                    backendError: 'Backend failed to start within 60 seconds',
                 });
                 return;
             }
