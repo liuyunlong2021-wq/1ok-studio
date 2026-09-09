@@ -138,4 +138,6 @@ frontend/docs/
 # Tauri
 src-tauri/target/
 src-tauri/binaries/*.app
+src-tauri/lumenx-backend/
+src-tauri/lumenx-demucs
 src-tauri/gen/

@@ -1,6 +1,8 @@
 // Sidecar management: start/stop/health-check the Python FastAPI backend
 
-use std::process::{Child, Command};
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -22,7 +24,7 @@ fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
 /// In production: runs the bundled PyInstaller binary
 pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
     if let Some(health) = backend_health() {
-        if cfg!(debug_assertions) || backend_matches_current_build(&health) {
+        if cfg!(debug_assertions) || backend_matches_current_build(app_handle, &health) {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Reusing matching backend on port 17177");
             show_main_window(app_handle, cfg!(debug_assertions));
@@ -50,12 +52,14 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Backend process started (pid: {})", process.id());
 
-            // A signed PyInstaller onefile can take ~35s to extract on first launch.
-            let ready = wait_for_backend_ready(300); // 300 * 200ms = 60s
+            // The unpacked runtime should expose its health endpoint promptly.
+            let ready = wait_for_backend_ready(150); // 150 * 200ms = 30s
             if ready {
                 println!("[sidecar] Backend is ready!");
             } else {
-                eprintln!("[sidecar] Backend failed to become ready within 60s");
+                let message = "Backend failed to become ready within 30s";
+                eprintln!("[sidecar] {message}");
+                append_sidecar_log(message);
             }
             show_main_window(app_handle, ready);
 
@@ -89,6 +93,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
         }
         Err(e) => {
             eprintln!("[sidecar] Failed to start backend: {}", e);
+            append_sidecar_log(&format!("Failed to start backend: {e}"));
             show_main_window(app_handle, false);
         }
     }
@@ -112,18 +117,47 @@ fn start_dev_backend() -> Result<Child, std::io::Error> {
         .spawn()
 }
 
-fn start_prod_backend(_app_handle: &tauri::AppHandle) -> Result<Child, std::io::Error> {
-    Command::new(prod_sidecar_path()?)
+fn start_prod_backend(app_handle: &tauri::AppHandle) -> Result<Child, std::io::Error> {
+    let log_path = sidecar_log_path();
+    if let Some(parent) = log_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let stdout = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)?;
+    let stderr = stdout.try_clone()?;
+    Command::new(prod_sidecar_path(app_handle)?)
         .arg("--port")
         .arg("17177")
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr))
         .spawn()
 }
 
-fn prod_sidecar_path() -> Result<std::path::PathBuf, std::io::Error> {
-    Ok(std::env::current_exe()?
-        .parent()
-        .expect("app executable has no parent directory")
-        .join("lumenx-backend"))
+fn prod_sidecar_path(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, std::io::Error> {
+    app_handle
+        .path()
+        .resource_dir()
+        .map(|path| path.join("lumenx-backend/lumenx-backend"))
+        .map_err(std::io::Error::other)
+}
+
+pub fn sidecar_log_path() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join(".lumen-x/logs/sidecar.log")
+}
+
+fn append_sidecar_log(message: &str) {
+    if let Ok(mut log) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(sidecar_log_path())
+    {
+        let _ = writeln!(log, "[sidecar] {message}");
+    }
 }
 
 fn backend_health() -> Option<serde_json::Value> {
@@ -143,9 +177,12 @@ fn same_build(reported: Option<f64>, expected: Option<f64>) -> bool {
     matches!((reported, expected), (Some(a), Some(b)) if (a - b).abs() < 1.0)
 }
 
-fn backend_matches_current_build(health: &serde_json::Value) -> bool {
+fn backend_matches_current_build(
+    app_handle: &tauri::AppHandle,
+    health: &serde_json::Value,
+) -> bool {
     let reported = health.get("sidecar_mtime").and_then(|value| value.as_f64());
-    let expected = prod_sidecar_path()
+    let expected = prod_sidecar_path(app_handle)
         .ok()
         .and_then(|path| path.metadata().ok())
         .and_then(|metadata| metadata.modified().ok())

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build_sidecar.sh — Package the Python backend into a standalone binary via PyInstaller
-# Output: src-tauri/binaries/lumenx-backend-{arch}-apple-darwin
+# Output: a fast core runtime plus an on-demand Demucs helper
 
 set -euo pipefail
 
@@ -20,8 +20,9 @@ case "$ARCH" in
     *)             echo "❌ Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-BINARY_NAME="lumenx-backend-${TAURI_ARCH}-apple-darwin"
-OUTPUT_DIR="src-tauri/binaries"
+BINARY_NAME="lumenx-backend"
+DEMUCS_NAME="lumenx-demucs"
+OUTPUT_DIR="src-tauri"
 
 echo "→ Building for architecture: ${TAURI_ARCH}"
 echo "→ Output: ${OUTPUT_DIR}/${BINARY_NAME}"
@@ -61,7 +62,7 @@ fi
 echo "→ Running PyInstaller..."
 "$PYTHON" -m PyInstaller \
     --name "$BINARY_NAME" \
-    --onefile \
+    --onedir \
     --console \
     --noconfirm \
     --clean \
@@ -85,21 +86,43 @@ echo "→ Running PyInstaller..."
     --hidden-import=yaml \
     --hidden-import=dashscope \
     --hidden-import=oss2 \
-    --collect-all=dashscope \
+    --hidden-import=dashscope.audio.tts_v2 \
+    --exclude-module=demucs \
+    --exclude-module=torch \
+    --exclude-module=torchaudio \
+    --exclude-module=sympy \
     --add-data "src:src" \
     --add-data "config:config" \
     --distpath "$OUTPUT_DIR" \
     sidecar_entry.py
 
-# PyInstaller puts the binary in a folder, move it to the expected location
-if [ -f "${OUTPUT_DIR}/${BINARY_NAME}/${BINARY_NAME}" ]; then
-    mv "${OUTPUT_DIR}/${BINARY_NAME}/${BINARY_NAME}" "${OUTPUT_DIR}/${BINARY_NAME}"
-    rm -rf "${OUTPUT_DIR}/${BINARY_NAME}.dir" 2>/dev/null || true
-fi
+# Tauri's resource copier canonicalizes symlinks before copying. PyInstaller's
+# macOS onedir layout uses framework symlinks, which then collide with their
+# real targets. Materialize them once at build time.
+MATERIALIZED_DIR="${OUTPUT_DIR}/${BINARY_NAME}.materialized"
+rm -rf "$MATERIALIZED_DIR"
+cp -RLp "${OUTPUT_DIR}/${BINARY_NAME}" "$MATERIALIZED_DIR"
+rm -rf "${OUTPUT_DIR}/${BINARY_NAME}"
+mv "$MATERIALIZED_DIR" "${OUTPUT_DIR}/${BINARY_NAME}"
+
+echo "→ Building on-demand Demucs helper..."
+"$PYTHON" -m PyInstaller \
+    --name "$DEMUCS_NAME" \
+    --onefile \
+    --console \
+    --noconfirm \
+    --clean \
+    "${PYINSTALLER_SIGNING_ARGS[@]}" \
+    --collect-all=demucs \
+    --hidden-import=demucs.separate \
+    --distpath "$OUTPUT_DIR" \
+    demucs_sidecar_entry.py
 
 # Clean up PyInstaller artifacts
-rm -rf build/ "${BINARY_NAME}.spec" 2>/dev/null || true
+rm -rf build/ "${BINARY_NAME}.spec" "${DEMUCS_NAME}.spec" 2>/dev/null || true
 
 echo ""
-echo "✅ Sidecar binary built: ${OUTPUT_DIR}/${BINARY_NAME}"
-echo "   Size: $(du -h "${OUTPUT_DIR}/${BINARY_NAME}" | cut -f1)"
+echo "✅ Sidecar runtime built: ${OUTPUT_DIR}/${BINARY_NAME}"
+echo "   Size: $(du -sh "${OUTPUT_DIR}/${BINARY_NAME}" | cut -f1)"
+echo "✅ Demucs helper built: ${OUTPUT_DIR}/${DEMUCS_NAME}"
+echo "   Size: $(du -h "${OUTPUT_DIR}/${DEMUCS_NAME}" | cut -f1)"

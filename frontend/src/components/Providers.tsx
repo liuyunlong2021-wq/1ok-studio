@@ -29,9 +29,14 @@ function BackendGate({ children }: { children: React.ReactNode }) {
             <div className="text-center">
                 <p className="font-medium">{backendError || "正在启动服务…"}</p>
                 {backendError && (
-                    <button className="mt-4 rounded-lg bg-primary px-4 py-2 text-on-accent" onClick={retry}>
-                        重试
-                    </button>
+                    <div className="mt-4 flex justify-center gap-2">
+                        <button className="rounded-lg border border-border px-4 py-2" onClick={() => import('@tauri-apps/api/core').then(({ invoke }) => invoke('open_sidecar_log'))}>
+                            打开启动日志
+                        </button>
+                        <button className="rounded-lg bg-primary px-4 py-2 text-on-accent" onClick={retry}>
+                            重试
+                        </button>
+                    </div>
                 )}
             </div>
         </main>

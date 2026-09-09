@@ -31,4 +31,15 @@ describe("desktop startup", () => {
     await vi.waitFor(() => expect(useDesktopStore.getState().backendReady).toBe(true));
     expect(mocks.checkBackendReady).toHaveBeenCalledTimes(1);
   });
+
+  it("shows the sidecar log path instead of waiting forever", async () => {
+    vi.useFakeTimers();
+    mocks.checkBackendReady.mockResolvedValue(false);
+
+    useDesktopStore.getState().init();
+    await vi.advanceTimersByTimeAsync(30_200);
+
+    expect(useDesktopStore.getState().backendError).toContain("sidecar.log");
+    vi.useRealTimers();
+  });
 });

@@ -7,6 +7,7 @@ import uuid
 import subprocess
 import threading
 import platform
+import sys
 from urllib.parse import quote
 from .models import Script, GenerationStatus, VideoTask, Character, Scene, StoryboardFrame, Series, PromptConfig, ArtDirection, GlobalAssetLibrary
 from .llm import ScriptProcessor
@@ -104,11 +105,6 @@ class ComicGenPipeline:
         self._vidu_model = None
         self._mulerouter_video_model = None
         self._jiucaihezi_video_model = None
-
-        # Pre-download Demucs model in background so first dub request is fast
-        self._demucs_ready = threading.Event()
-        self._demucs_error: Optional[str] = None
-        threading.Thread(target=self._warmup_demucs_model, daemon=True).start()
 
         # Recover orphan async tasks. FastAPI BackgroundTasks live in
         # process memory — any restart between submit + execute leaves
@@ -2616,18 +2612,6 @@ class ComicGenPipeline:
                 os.remove(cached)
             return None
 
-    def _warmup_demucs_model(self):
-        """Pre-download htdemucs model at startup so first dub request is fast."""
-        try:
-            from demucs.pretrained import get_model
-            get_model("htdemucs")
-            logger.info("[DUB] Demucs htdemucs model ready")
-            self._demucs_ready.set()
-        except Exception as e:
-            self._demucs_error = str(e)
-            self._demucs_ready.set()
-            logger.warning(f"[DUB] Demucs model warmup failed: {e}")
-
     def _separate_background_audio(self, video_path: str, work_dir: str) -> Optional[str]:
         """Extract audio from video and separate background (no_vocals) using Demucs.
 
@@ -2659,18 +2643,28 @@ class ComicGenPipeline:
             return None
 
         # Step 2: Run Demucs separation (two-stems: vocals + no_vocals)
-        # Wait for background model warmup to finish (avoids duplicate download)
-        if not self._demucs_ready.wait(timeout=120):
-            raise RuntimeError("Demucs 模型正在下载中（首次约需30秒），请稍后重试。")
-
         try:
-            import demucs.separate
-            demucs.separate.main([
-                "--two-stems", "vocals",
-                "-n", "htdemucs",
-                "--out", work_dir,
-                extracted_audio,
-            ])
+            if getattr(sys, "frozen", False):
+                helper = os.path.join(
+                    os.path.dirname(os.path.dirname(sys.executable)),
+                    "lumenx-demucs",
+                )
+                result = subprocess.run(
+                    [helper, "--input", extracted_audio, "--out", work_dir],
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+            else:
+                import demucs.separate
+                demucs.separate.main([
+                    "--two-stems", "vocals",
+                    "-n", "htdemucs",
+                    "--out", work_dir,
+                    extracted_audio,
+                ])
         except Exception as e:
             logger.warning(f"[DUB] Demucs separation failed: {e}, falling back to simple replacement")
             return None

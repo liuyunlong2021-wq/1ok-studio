@@ -78,6 +78,11 @@ async fn check_backend_health() -> Result<bool, String> {
     }
 }
 
+#[tauri::command]
+fn open_sidecar_log() -> Result<(), String> {
+    open::that(sidecar::sidecar_log_path()).map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let backend_running = Arc::new(AtomicBool::new(false));
@@ -143,6 +148,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             api_proxy,
             check_backend_health,
+            open_sidecar_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running One OK Studio");

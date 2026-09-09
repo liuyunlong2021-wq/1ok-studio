@@ -46,11 +46,9 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
         if (get().backendChecking || get().backendReady) return;
         set({ backendChecking: true, backendError: null });
 
-        let attempts = 0;
-        const maxAttempts = 300; // PyInstaller onefile may need ~35s on first launch.
+        const deadline = Date.now() + 30_000;
 
         const poll = async () => {
-            attempts++;
             const ready = await checkBackendReady();
 
             if (ready) {
@@ -58,10 +56,10 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
                 return;
             }
 
-            if (attempts >= maxAttempts) {
+            if (Date.now() >= deadline) {
                 set({
                     backendChecking: false,
-                    backendError: 'Backend failed to start within 60 seconds',
+                    backendError: '服务启动失败。请重试；仍失败请查看 ~/.lumen-x/logs/sidecar.log',
                 });
                 return;
             }
