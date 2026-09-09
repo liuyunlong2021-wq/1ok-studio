@@ -190,6 +190,8 @@ class JiucaiheziVideoModel(VideoGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
         model_name = (kwargs.get("model_name") or "dola-seedance2.5").split("/", 1)[-1].split("#", 1)[0]
+        if model_name == "dola-seedance2.5-r2v":
+            model_name = "dola-seedance2.5"
         images = list(kwargs.get("ref_image_urls") or [])
         if kwargs.get("img_url"):
             images.insert(0, kwargs["img_url"])

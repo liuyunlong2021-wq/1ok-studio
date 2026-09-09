@@ -54,7 +54,6 @@ describe('model catalog selectors', () => {
 
         // Ordered DESC by ui.order; ties broken by display_name asc.
         expect(GLOBAL_I2V_MODELS.map((model) => model.id)).toEqual([
-            'jiucaihezi/dola-seedance2.5',
             'happyhorse-1.1-i2v',
             'kling-v3-i2v',
             'pixverse/pixverse-v6-video',

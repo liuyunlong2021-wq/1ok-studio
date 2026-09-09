@@ -176,27 +176,7 @@ models:
       watermark: false
     inputs:
       reference_images: {max: 8, reference_type: image}
-  - id: jiucaihezi/dola-seedance2.5
-    display_name: "Seedance 2.5 · 韭菜盒子"
-    description: "Seedance 2.5 via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [i2v]
-    docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui:
-      selection_group: i2v
-      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
-      order: 1000
-      recommended: false
-      badges: [韭菜盒子]
-    duration: {type: fixed, value: 30}
-    params:
-      resolution: {options: [720p], default: 720p}
-      ratio: {options: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"], default: "16:9"}
-    inputs:
-      reference_images: {max: 9, reference_type: image}
-  - id: jiucaihezi/dola-seedance2.5-r2v
+  - id: dola-seedance2.5
     display_name: "Seedance 2.5 R2V · 韭菜盒子"
     description: "Seedance 2.5 参考生视频 via 韭菜盒子"
     status: active
@@ -216,7 +196,7 @@ models:
       ratio: {options: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"], default: "16:9"}
     inputs:
       reference_images: {max: 9, reference_type: image}
-  - id: jiucaihezi/minimax_h3_image_audio_to_video_v2_15s
+  - id: minimax_h3_image_audio_to_video_v2_15s
     display_name: "MiniMax H3 参考生视频 · 韭菜盒子"
     description: "MiniMax H3 图片/音频参考生视频 via 韭菜盒子"
     status: active

@@ -338,7 +338,10 @@ class PlaygroundService:
             out_path = os.path.join(VIDEO_OUTPUT_DIR, out_filename)
 
             try:
-                if model_lower.startswith("jiucaihezi/"):
+                if model_lower.startswith("jiucaihezi/") or model_lower in {
+                    "dola-seedance2.5",
+                    "minimax_h3_image_audio_to_video_v2_15s",
+                }:
                     self._generate_video_jiucaihezi(gen, out_path)
                 elif model_lower.startswith("seedance"):
                     self._generate_video_mulerouter(gen, out_path)
@@ -447,6 +450,9 @@ class PlaygroundService:
         self._jiucaihezi_video_model.generate(
             gen.prompt,
             out_path,
+            model_name=gen.model_id,
+            duration=gen.parameters.get("duration"),
+            resolution=gen.parameters.get("resolution"),
             img_path=img_path,
             img_url=img_url,
             ratio=gen.parameters.get("ratio") or gen.parameters.get("aspect_ratio") or "16:9",

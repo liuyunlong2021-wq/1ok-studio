@@ -2157,7 +2157,7 @@ class ComicGenPipeline:
             if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
                 raise ValueError("Selected storyboard frames must be consecutive and ordered")
 
-        is_jiucaihezi_seedance = isinstance(model, str) and "jiucaihezi/" in model and "dola-seedance2.5" in model
+        is_jiucaihezi_seedance = isinstance(model, str) and model.endswith(("dola-seedance2.5", "dola-seedance2.5-r2v"))
         if is_jiucaihezi_seedance:
             prompt = (prompt or "").strip()
             if not 1 <= len(prompt) <= 3000:
@@ -3380,7 +3380,10 @@ class ComicGenPipeline:
             use_mulerouter = backend == "mulerouter" and (
                 model_name_lower.startswith("seedance")
             )
-            use_jiucaihezi = model_name.startswith("jiucaihezi/")
+            use_jiucaihezi = backend == "jiucaihezi" or model_name in {
+                "dola-seedance2.5",
+                "minimax_h3_image_audio_to_video_v2_15s",
+            }
 
             if use_jiucaihezi:
                 if self._jiucaihezi_video_model is None:

@@ -4,6 +4,7 @@
       "claude-fable-5-1": "jiucaihezi/claude-fable-5-1#text",
       "claude-sonnet-5": "jiucaihezi/claude-sonnet-5#text",
       "deepseek-v4-pro-0813": "jiucaihezi/deepseek-v4-pro-0813#text",
+      "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
       "gpt-image-2": "gpt-image/gpt-image-2#image",
@@ -12,8 +13,6 @@
       "happyhorse-1.1-r2v": "happyhorse/happyhorse-1.1-video#r2v",
       "happyhorse-1.1-t2v": "happyhorse/happyhorse-1.1-t2v#i2v",
       "jiucaihezi/[按token]gpt-image-2": "jiucaihezi/jiucaihezi/[按token]gpt-image-2#image",
-      "jiucaihezi/dola-seedance2.5": "jiucaihezi/jiucaihezi/dola-seedance2.5#i2v",
-      "jiucaihezi/dola-seedance2.5-r2v": "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v#r2v",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
       "jiucaihezi/gemini-3.1-flash-image-preview": "jiucaihezi/jiucaihezi/gemini-3.1-flash-image-preview#image",
       "jiucaihezi/gpt-image-2-1k": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
@@ -22,9 +21,9 @@
       "jiucaihezi/gpt-image-2-低质量": "jiucaihezi/jiucaihezi/gpt-image-2-低质量#image",
       "jiucaihezi/gpt-image-2-官方": "jiucaihezi/jiucaihezi/gpt-image-2-官方#image",
       "jiucaihezi/grok-imagine-image-2.0": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
-      "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "kling-v3-i2v": "kling/kling-v3-video#i2v",
       "kling-v3-r2v": "kling/kling-v3-video#r2v",
+      "minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "pixverse-c1-i2v": "pixverse/pixverse-c1-video#i2v",
       "pixverse-c1-r2v": "pixverse/pixverse-c1-video#r2v",
       "pixverse-v4-i2v": "pixverse/pixverse-v4-i2v#i2v",
@@ -185,11 +184,10 @@
         "claude-fable-5-1",
         "claude-sonnet-5",
         "deepseek-v4-pro-0813",
+        "dola-seedance2.5",
         "gemini-3.8-flash",
         "gpt-5.6-sol",
         "jiucaihezi/[按token]gpt-image-2",
-        "jiucaihezi/dola-seedance2.5",
-        "jiucaihezi/dola-seedance2.5-r2v",
         "jiucaihezi/gemini-3-pro-image-preview",
         "jiucaihezi/gemini-3.1-flash-image-preview",
         "jiucaihezi/gpt-image-2-1k",
@@ -198,7 +196,7 @@
         "jiucaihezi/gpt-image-2-低质量",
         "jiucaihezi/gpt-image-2-官方",
         "jiucaihezi/grok-imagine-image-2.0",
-        "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s"
+        "minimax_h3_image_audio_to_video_v2_15s"
       ],
       "provider": "jiucaihezi",
       "routing_prefixes": [
@@ -931,6 +929,64 @@
         }
       }
     },
+    "jiucaihezi/dola-seedance2.5": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
+      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/dola-seedance2.5",
+      "legacy_model_ids": [
+        "dola-seedance2.5"
+      ],
+      "modes": [
+        "jiucaihezi/dola-seedance2.5#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
     "jiucaihezi/gemini-3.8-flash": {
       "backend_env_key": null,
       "credential_sources": {
@@ -1072,122 +1128,6 @@
       ],
       "modes": [
         "jiucaihezi/jiucaihezi/[按token]gpt-image-2#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/dola-seedance2.5": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 via 韭菜盒子",
-      "display_name": "Seedance 2.5 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/dola-seedance2.5",
-      "legacy_model_ids": [
-        "jiucaihezi/dola-seedance2.5"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/dola-seedance2.5#i2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
-      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v",
-      "legacy_model_ids": [
-        "jiucaihezi/dola-seedance2.5-r2v"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -1685,7 +1625,7 @@
         }
       }
     },
-    "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": {
+    "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1704,12 +1644,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
+      "id": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
       "legacy_model_ids": [
-        "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s"
+        "minimax_h3_image_audio_to_video_v2_15s"
       ],
       "modes": [
-        "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v"
+        "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -3385,6 +3325,93 @@
         ]
       }
     },
+    "dola-seedance2.5": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
+      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "dola-seedance2.5",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "3:4",
+            "4:3",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1000,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "gemini-3.8-flash": {
       "backend_env_key": null,
       "capabilities": [
@@ -3966,180 +3993,6 @@
         "visible_in": [
           "project_settings",
           "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/dola-seedance2.5": {
-      "backend_env_key": null,
-      "capabilities": [
-        "i2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 via 韭菜盒子",
-      "display_name": "Seedance 2.5 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/dola-seedance2.5",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "3:4",
-            "4:3",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "i2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/dola-seedance2.5-r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
-      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/dola-seedance2.5-r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "3:4",
-            "4:3",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
@@ -4793,103 +4646,6 @@
         ]
       }
     },
-    "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": {
-      "backend_env_key": null,
-      "capabilities": [
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "MiniMax H3 图片/音频参考生视频 via 韭菜盒子",
-      "display_name": "MiniMax H3 参考生视频 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 15,
-        "min": 1,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
-      "inputs": {
-        "reference_audio": {
-          "max": 3,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "audio": true,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16"
-          ]
-        },
-        "resolution": {
-          "default": "768p横",
-          "options": [
-            "480p横",
-            "768p横",
-            "480p竖",
-            "768p竖"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子",
-          "MiniMax"
-        ],
-        "order": 1001,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "kling-v3-i2v": {
       "backend_env_key": "KLING_PROVIDER_MODE",
       "capabilities": [
@@ -5090,6 +4846,103 @@
       "ui": {
         "badges": [],
         "order": 80,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "minimax_h3_image_audio_to_video_v2_15s": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "MiniMax H3 图片/音频参考生视频 via 韭菜盒子",
+      "display_name": "MiniMax H3 参考生视频 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 15,
+        "min": 1,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "minimax_h3_image_audio_to_video_v2_15s",
+      "inputs": {
+        "reference_audio": {
+          "max": 3,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": true,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "768p横",
+          "options": [
+            "480p横",
+            "768p横",
+            "480p竖",
+            "768p竖"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子",
+          "MiniMax"
+        ],
+        "order": 1001,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -8167,6 +8020,101 @@
         ]
       }
     },
+    "jiucaihezi/dola-seedance2.5#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
+      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/dola-seedance2.5#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "dola-seedance2.5",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/dola-seedance2.5",
+      "params": {
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "3:4",
+            "4:3",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1000,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/gemini-3.8-flash#text": {
       "backend_env_key": null,
       "capabilities": [
@@ -8388,196 +8336,6 @@
         "visible_in": [
           "project_settings",
           "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/dola-seedance2.5#i2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "i2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 via 韭菜盒子",
-      "display_name": "Seedance 2.5 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/dola-seedance2.5#i2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/dola-seedance2.5",
-      "mode": "i2v",
-      "model_line_id": "jiucaihezi/jiucaihezi/dola-seedance2.5",
-      "params": {
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "3:4",
-            "4:3",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "i2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Seedance 2.5 参考生视频 via 韭菜盒子",
-      "display_name": "Seedance 2.5 R2V · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/dola-seedance2.5-r2v",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/jiucaihezi/dola-seedance2.5-r2v",
-      "params": {
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "3:4",
-            "4:3",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
@@ -9295,7 +9053,7 @@
         ]
       }
     },
-    "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v": {
+    "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "r2v"
@@ -9324,7 +9082,7 @@
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
+      "id": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "inputs": {
         "reference_audio": {
           "max": 3,
@@ -9335,9 +9093,9 @@
           "reference_type": "image"
         }
       },
-      "legacy_model_id": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
+      "legacy_model_id": "minimax_h3_image_audio_to_video_v2_15s",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
+      "model_line_id": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s",
       "params": {
         "audio": true,
         "negativePrompt": false,

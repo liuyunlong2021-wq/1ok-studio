@@ -2,7 +2,7 @@ import os
 import tempfile
 from unittest.mock import Mock, patch
 
-from src.models.jiucaihezi import JiucaiheziImageModel
+from src.models.jiucaihezi import JiucaiheziImageModel, JiucaiheziVideoModel
 
 
 def _response(data):
@@ -62,3 +62,43 @@ def test_grok_reference_images_use_image_array_fields(post, get, _sleep, _downlo
     assert post.call_args.args[0].endswith("/v1/videos")
     assert "json" not in post.call_args.kwargs
     assert [field for field, _file in post.call_args.kwargs["files"]] == ["image[]"]
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
+    post.return_value = _response({"task_id": "task-1"})
+    get.return_value = _response({"status": "completed", "video_url": "https://example.com/video.mp4"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt",
+        "/tmp/output.mp4",
+        model_name="minimax_h3_image_audio_to_video_v2_15s",
+        duration=15,
+        resolution="768p竖",
+        ratio="9:16",
+    )
+
+    assert post.call_args.kwargs["json"] == {
+        "model": "minimax_h3_image_audio_to_video_v2_15s",
+        "prompt": "prompt",
+        "ratio": "9:16",
+        "duration": 15,
+        "resolution": "768p竖",
+    }
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt",
+        "/tmp/output.mp4",
+        model_name="dola-seedance2.5",
+        ratio="9:16",
+    )
+
+    assert post.call_args.kwargs["json"] == {
+        "model": "dola-seedance2.5",
+        "prompt": "prompt",
+        "ratio": "9:16",
+    }
