@@ -100,6 +100,8 @@ class ComicGenPipeline:
         # Format: { task_id: { status: str, progress: int, error: str, script_id: str, asset_id: str, created_at: float } }
         self.asset_generation_tasks: Dict[str, Dict[str, Any]] = {}
         self.video_generation_tasks: Dict[str, Dict[str, Any]] = {}
+        self.prompt_generation_tasks: Dict[str, Dict[str, Any]] = {}
+        self._prompt_generation_slots = threading.BoundedSemaphore(2)
         # Temporary cache for file import previews (import_id -> text)
         self._import_cache: Dict[str, str] = {}
         # Cached model instances (lazily initialized)
@@ -157,6 +159,12 @@ class ComicGenPipeline:
                         except Exception:
                             pass
                     recovered += 1
+            for collection in (script.characters, script.scenes, script.props):
+                for asset in collection:
+                    if getattr(asset, "prompt_generation_status", None) in STUCK:
+                        asset.prompt_generation_status = "failed"
+                        asset.prompt_generation_error = self._ORPHAN_RECOVERY_REASON
+                        recovered += 1
 
         if recovered > 0:
             try:
@@ -899,6 +907,77 @@ class ComicGenPipeline:
             "script_id": task.get("script_id"),
             "created_at": task.get("created_at")
         }
+
+    def create_prompt_generation_task(
+        self, script_id: str, asset_id: str, asset_type: str,
+        name: str, description: str, custom_prompt: str, model: str, style_prompt: str = "",
+    ) -> str:
+        """Persist a lightweight prompt job on its asset and return immediately."""
+        script = self.scripts.get(script_id)
+        if not script:
+            raise ValueError("Project not found")
+        asset, source = self._find_asset_with_source(script, asset_id, asset_type)
+        if not asset:
+            raise ValueError("Asset not found")
+        if getattr(asset, "prompt_generation_status", "idle") in ("queued", "processing"):
+            return str(asset.prompt_generation_task_id)
+
+        task_id = f"prompt_{uuid.uuid4().hex}"
+        task = {
+            "task_id": task_id, "script_id": script_id, "asset_id": asset_id,
+            "asset_type": asset_type, "name": name, "description": description,
+            "description_version": int(getattr(asset, "description_version", 1) or 1),
+            "custom_prompt": custom_prompt, "model": model, "style_prompt": style_prompt,
+            "status": "queued", "error": None, "created_at": time.time(),
+        }
+        self.prompt_generation_tasks[task_id] = task
+        asset.prompt_generation_status = "queued"
+        asset.prompt_generation_task_id = task_id
+        asset.prompt_generation_error = None
+        asset.prompt_generation_started_at = time.time()
+        self._save_after_asset_mutation(source)
+        return task_id
+
+    def process_prompt_generation_task(self, task_id: str) -> None:
+        task = self.prompt_generation_tasks.get(task_id)
+        if not task:
+            return
+        with self._prompt_generation_slots:
+            script = self.scripts.get(task["script_id"])
+            if not script:
+                return
+            asset, source = self._find_asset_with_source(script, task["asset_id"], task["asset_type"])
+            if not asset or getattr(asset, "prompt_generation_task_id", None) != task_id:
+                return
+            task["status"] = "processing"
+            asset.prompt_generation_status = "processing"
+            self._save_after_asset_mutation(source)
+            try:
+                prompt = self.script_processor.generate_asset_prompt(
+                    task["asset_type"], task["name"], task["description"],
+                    task["custom_prompt"], task["model"], task["style_prompt"],
+                )
+                # Do not overwrite a prompt generated for an older description.
+                if int(getattr(asset, "description_version", 1) or 1) != task["description_version"]:
+                    asset.prompt_generation_status = "stale"
+                    asset.prompt_generation_error = "描述已变更，请重新生成提示词"
+                    task["status"] = "stale"
+                else:
+                    if task["asset_type"] == "character":
+                        asset.full_body_prompt = prompt
+                    else:
+                        asset.image_prompt = prompt
+                    asset.prompt_generation_status = "completed"
+                    asset.prompt_generation_error = None
+                    task["status"] = "completed"
+            except Exception as exc:
+                logger.exception("Prompt task %s failed", task_id)
+                task["status"] = "failed"
+                task["error"] = str(exc)
+                asset.prompt_generation_status = "failed"
+                asset.prompt_generation_error = str(exc)
+            finally:
+                self._save_after_asset_mutation(source)
 
     def create_motion_ref_task(self, script_id: str, asset_id: str, asset_type: str, 
                                 prompt: Optional[str] = None, audio_url: Optional[str] = None, 

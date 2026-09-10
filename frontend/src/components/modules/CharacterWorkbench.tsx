@@ -21,7 +21,7 @@ interface CharacterWorkbenchProps {
     onUpdateDescription: (desc: string) => void;
     onRewriteDescription?: (description: string, instruction: string) => Promise<string | null>;
     onGenerate: (type: string, prompt: string, applyStyle: boolean, negativePrompt: string, batchSize: number) => void | Promise<void>;
-    onGeneratePrompt?: (assetType: string, description: string) => Promise<string>;
+    onGeneratePrompt?: (assetType: string, description: string) => Promise<void>;
     generatingTypes: { type: string; batchSize: number }[];
     stylePrompt?: string;
     styleNegativePrompt?: string;
@@ -102,6 +102,10 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     const [showStyleExpanded, setShowStyleExpanded] = useState(false);
 
     useEffect(() => setDescriptionDraft(asset.description || ""), [asset.description]);
+    useEffect(() => {
+        const savedPrompt = assetType === "character" ? asset.full_body_prompt : asset.image_prompt;
+        if (savedPrompt) setFullBodyPrompt(savedPrompt);
+    }, [asset.full_body_prompt, asset.image_prompt, assetType]);
 
     const handleRewriteDescription = async () => {
         if (!onRewriteDescription || isRewritingDescription) return;
@@ -123,11 +127,10 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     };
 
     const handleGenerateAssetPrompt = async () => {
-        if (!onGeneratePrompt || isGeneratingAssetPrompt) return;
+        if (!onGeneratePrompt || isGeneratingAssetPrompt || ["queued", "processing"].includes(asset.prompt_generation_status)) return;
         setIsGeneratingAssetPrompt(true);
         try {
-            const result = await onGeneratePrompt("character", descriptionDraft);
-            if (result) setFullBodyPrompt(result);
+            await onGeneratePrompt(assetType, descriptionDraft);
         } catch (error: any) {
             alert(error?.response?.data?.detail || error?.message || "生成提示词失败，请稍后重试");
         } finally {
@@ -385,7 +388,8 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         {asset.extracted_description && <details className="text-xs text-text-muted"><summary className="cursor-pointer hover:text-text-secondary">查看原始剧本描述</summary><p className="mt-2 rounded-lg bg-glass p-3 leading-relaxed">{asset.extracted_description}</p></details>}
                     </section>
                     <section className="min-w-0 min-h-0 p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
-                        <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">生图提示词</h3><p className="text-xs text-text-muted mt-1">基于当前描述生成</p></div><button type="button" onClick={handleGenerateAssetPrompt} disabled={!onGeneratePrompt || isGeneratingAssetPrompt} className="text-xs text-primary disabled:opacity-50">{isGeneratingAssetPrompt ? "生成中..." : "生成提示词"}</button></div>
+                        <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">生图提示词</h3><p className="text-xs text-text-muted mt-1">基于当前描述生成</p></div><button type="button" onClick={handleGenerateAssetPrompt} disabled={!onGeneratePrompt || isGeneratingAssetPrompt || ["queued", "processing"].includes(asset.prompt_generation_status)} className="text-xs text-primary disabled:opacity-50">{asset.prompt_generation_status === "queued" ? "排队中..." : asset.prompt_generation_status === "processing" ? "生成中..." : asset.prompt_generation_status === "failed" || asset.prompt_generation_status === "stale" ? "重试生成" : asset.prompt_generation_status === "completed" ? "重新生成" : isGeneratingAssetPrompt ? "提交中..." : "生成提示词"}</button></div>
+                        {(asset.prompt_generation_status === "failed" || asset.prompt_generation_status === "stale") && <p className="text-xs text-red-400">{asset.prompt_generation_error || "生成失败，请重试"}</p>}
                         <textarea value={fullBodyPrompt} onChange={(e) => setFullBodyPrompt(e.target.value)} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted"><span>当前模型：项目默认 · 描述版本 v{asset.description_version || 1}</span><button type="button" onClick={(event) => { event.stopPropagation(); void handleGenerateClick("full_body", 1); }} disabled={getGeneratingInfo("full_body").isGenerating} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw size={13} className={getGeneratingInfo("full_body").isGenerating ? "animate-spin" : ""} />{getGeneratingInfo("full_body").isGenerating ? "生成中..." : "生成图片"}</button></div>

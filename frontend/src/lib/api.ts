@@ -713,7 +713,7 @@ export const api = {
     },
     generateAssetPrompt: async (scriptId: string, assetType: string, name: string, description: string, assetId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/generate_prompt`, { asset_type: assetType, asset_id: assetId, name, description });
-        return res.data as { prompt: string; source: string; model: string; description_version: number };
+        return res.data as { task_id?: string; status?: string; prompt?: string; source?: string; model: string; description_version?: number };
     },
     getAssetContract: async (scriptId: string, assetType: string, assetId: string) => {
         const res = await axios.get(`${API_URL}/projects/${scriptId}/assets/${assetType}/${assetId}/contract`);

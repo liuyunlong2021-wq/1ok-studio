@@ -1,6 +1,9 @@
+import threading
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from src.apps.comic_gen.llm import ScriptProcessor
+from src.apps.comic_gen.pipeline import ComicGenPipeline
 
 
 def _processor(*results):
@@ -79,3 +82,51 @@ def test_asset_prompt_does_not_retry_permanent_provider_failure(_sleep):
 
     assert processor.llm.chat.call_count == 1
     _sleep.assert_not_called()
+
+
+def _prompt_pipeline(asset):
+    pipeline = ComicGenPipeline.__new__(ComicGenPipeline)
+    pipeline.scripts = {"project-1": SimpleNamespace()}
+    pipeline.prompt_generation_tasks = {}
+    pipeline._prompt_generation_slots = threading.BoundedSemaphore(2)
+    pipeline._find_asset_with_source = Mock(return_value=(asset, "script"))
+    pipeline._save_after_asset_mutation = Mock()
+    pipeline.script_processor = Mock()
+    return pipeline
+
+
+def test_background_prompt_task_writes_result_to_asset():
+    asset = SimpleNamespace(
+        description_version=3, prompt_generation_status="idle",
+        prompt_generation_task_id=None, prompt_generation_error=None,
+        prompt_generation_started_at=0.0, full_body_prompt="",
+    )
+    pipeline = _prompt_pipeline(asset)
+    pipeline.script_processor.generate_asset_prompt.return_value = "生成完成的角色提示词"
+
+    task_id = pipeline.create_prompt_generation_task(
+        "project-1", "asset-1", "character", "角色", "描述", "规则", "model",
+    )
+    pipeline.process_prompt_generation_task(task_id)
+
+    assert asset.full_body_prompt == "生成完成的角色提示词"
+    assert asset.prompt_generation_status == "completed"
+
+
+def test_background_prompt_task_does_not_overwrite_after_description_changes():
+    asset = SimpleNamespace(
+        description_version=3, prompt_generation_status="idle",
+        prompt_generation_task_id=None, prompt_generation_error=None,
+        prompt_generation_started_at=0.0, full_body_prompt="原提示词",
+    )
+    pipeline = _prompt_pipeline(asset)
+    pipeline.script_processor.generate_asset_prompt.return_value = "过期结果"
+    task_id = pipeline.create_prompt_generation_task(
+        "project-1", "asset-1", "character", "角色", "描述", "规则", "model",
+    )
+    asset.description_version = 4
+
+    pipeline.process_prompt_generation_task(task_id)
+
+    assert asset.full_body_prompt == "原提示词"
+    assert asset.prompt_generation_status == "stale"

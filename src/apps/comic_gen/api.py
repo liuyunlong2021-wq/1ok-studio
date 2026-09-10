@@ -3077,7 +3077,7 @@ def get_prompt_defaults():
 
 
 @app.post("/projects/{script_id}/assets/generate_prompt")
-def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest):
+def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest, background_tasks: BackgroundTasks):
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -3088,6 +3088,19 @@ def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest):
     # contract, so do not duplicate it in the asset input message.
     style = ""
     model = pipeline.get_effective_polish_model(script)
+    if request.asset_id:
+        try:
+            task_id = pipeline.create_prompt_generation_task(
+                script_id, request.asset_id, request.asset_type, request.name,
+                request.description, custom, model, style,
+            )
+            background_tasks.add_task(pipeline.process_prompt_generation_task, task_id)
+            return {"task_id": task_id, "status": "queued", "model": model or "default"}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.exception("Could not queue asset prompt generation")
+            raise HTTPException(status_code=500, detail=str(e))
     try:
         prompt = pipeline.script_processor.generate_asset_prompt(request.asset_type, request.name, request.description, custom, model, style)
         description_version = 1

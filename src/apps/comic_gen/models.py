@@ -263,6 +263,10 @@ class Character(BaseModel):
     description_source: str = Field("extracted", description="Description source: extracted | manual | ai")
     description_updated_at: float = Field(default_factory=time.time)
     description_version: int = Field(1, ge=1)
+    prompt_generation_status: str = Field("idle", description="idle | queued | processing | completed | failed | stale")
+    prompt_generation_task_id: Optional[str] = None
+    prompt_generation_error: Optional[str] = None
+    prompt_generation_started_at: float = 0.0
 
     # R2V v2 Phase 4 — persona grouping. The character.id is the *visual
     # unit* (e.g. "young Zhang San" vs "adult Zhang San" are two ids).
@@ -346,6 +350,11 @@ class Scene(BaseModel):
     description_source: str = Field("extracted", description="Description source: extracted | manual | ai")
     description_updated_at: float = Field(default_factory=time.time)
     description_version: int = Field(1, ge=1)
+    image_prompt: str = ""
+    prompt_generation_status: str = Field("idle", description="idle | queued | processing | completed | failed | stale")
+    prompt_generation_task_id: Optional[str] = None
+    prompt_generation_error: Optional[str] = None
+    prompt_generation_started_at: float = 0.0
     visual_weight: int = Field(3, description="Visual importance weight (1-5)")
     time_of_day: Optional[str] = Field(None, description="Time of day (e.g. Night, Day)")
     lighting_mood: Optional[str] = Field(None, description="Lighting atmosphere")
@@ -368,6 +377,11 @@ class Prop(BaseModel):
     description_source: str = Field("extracted", description="Description source: extracted | manual | ai")
     description_updated_at: float = Field(default_factory=time.time)
     description_version: int = Field(1, ge=1)
+    image_prompt: str = ""
+    prompt_generation_status: str = Field("idle", description="idle | queued | processing | completed | failed | stale")
+    prompt_generation_task_id: Optional[str] = None
+    prompt_generation_error: Optional[str] = None
+    prompt_generation_started_at: float = 0.0
     video_url: Optional[str] = None
     audio_url: Optional[str] = None
     sfx_url: Optional[str] = None

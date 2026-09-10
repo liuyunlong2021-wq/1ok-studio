@@ -35,6 +35,23 @@ export default function ConsistencyVault() {
     const [selectedAssetType, setSelectedAssetType] = useState<string | null>(null);
     const [generationNotice, setGenerationNotice] = useState<string>("");
 
+    const hasPromptJobs = !!currentProject && [
+        ...(currentProject.characters || []), ...(currentProject.scenes || []), ...(currentProject.props || []),
+    ].some((asset: any) => ["queued", "processing"].includes(asset.prompt_generation_status));
+
+    useEffect(() => {
+        if (!currentProject || !hasPromptJobs) return;
+        const projectId = currentProject.id;
+        const timer = window.setInterval(async () => {
+            try {
+                updateProject(projectId, await api.getProject(projectId));
+            } catch (error) {
+                console.error("Failed to refresh prompt generation status:", error);
+            }
+        }, 2000);
+        return () => window.clearInterval(timer);
+    }, [currentProject?.id, hasPromptJobs, updateProject]);
+
     // Create asset dialog state
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -504,7 +521,14 @@ export default function ConsistencyVault() {
                             }}
                             onUpdateDescription={(desc: string) => handleUpdateDescription(selectedAssetId, selectedAssetType, desc)}
                             onRewriteDescription={(desc: string, instruction: string) => handleRewriteDescription(selectedAssetId, selectedAssetType, desc, instruction)}
-                            onGeneratePrompt={async (_type: string, description: string) => (await api.generateAssetPrompt(currentProject!.id, selectedAssetType, selectedAsset.name, description, selectedAsset.id)).prompt}
+                            onGeneratePrompt={async (_type: string, description: string) => {
+                                if (description !== (selectedAsset.description || "")) {
+                                    await api.updateAssetDescription(currentProject!.id, selectedAsset.id, selectedAssetType, description);
+                                }
+                                await api.generateAssetPrompt(currentProject!.id, selectedAssetType, selectedAsset.name, description, selectedAsset.id);
+                                updateProject(currentProject!.id, await api.getProject(currentProject!.id));
+                                setGenerationNotice(`“${selectedAsset.name}”的提示词已在后台生成，可继续处理其他资产`);
+                            }}
                             onGenerate={(type: string, prompt: string, applyStyle: boolean, negativePrompt: string, batchSize: number) => handleGenerate(selectedAssetId, selectedAssetType, selectedAssetType === "character" ? type : "all", prompt, applyStyle, negativePrompt, batchSize)}
                             generatingTypes={getAssetGeneratingTypes(selectedAssetId)}
                             stylePrompt={currentProject?.art_direction?.style_config?.positive_prompt || ""}
@@ -911,6 +935,12 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
         ? (selectedFullBody?.url || asset.full_body_image_url || asset.avatar_url || asset.image_url)
         : (asset.image_asset?.variants?.find((v: any) => v.id === asset.image_asset?.selected_id)?.url || asset.image_url);
     const fullImageUrl = getAssetUrl(imageUrl);
+    const promptStatus = asset.prompt_generation_status;
+    const promptStatusLabel = promptStatus === "queued" ? "提示词排队中"
+        : promptStatus === "processing" ? "提示词生成中"
+            : promptStatus === "completed" ? "提示词已生成"
+                : promptStatus === "failed" ? "提示词失败 · 点击重试"
+                    : promptStatus === "stale" ? "描述已变更 · 请重试" : "";
 
     return (
         <motion.div
@@ -941,6 +971,14 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
                 <div className="absolute inset-0 z-20 bg-overlay backdrop-blur-sm flex items-center justify-center flex-col gap-2">
                     <RefreshCw className="animate-spin text-primary" size={32} />
                     <span className="text-xs font-mono text-primary">Generating...</span>
+                </div>
+            )}
+
+            {/* Top Actions Overlay */}
+            {promptStatusLabel && (
+                <div className={`absolute top-2 left-2 z-30 rounded-full border px-2.5 py-1 text-[0.6875rem] backdrop-blur-md ${promptStatus === "failed" || promptStatus === "stale" ? "border-red-400/40 bg-red-500/20 text-red-300" : promptStatus === "completed" ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-300" : "border-primary/40 bg-surface/80 text-primary"}`}>
+                    {(promptStatus === "queued" || promptStatus === "processing") && <RefreshCw size={11} className="mr-1 inline animate-spin" />}
+                    {promptStatusLabel}
                 </div>
             )}
 
