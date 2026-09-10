@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { Save, Loader2, ChevronDown, ChevronRight, FolderOpen, WifiOff, Copy, Check } from "lucide-react";
+import { Save, Loader2, ChevronDown, ChevronRight, FolderOpen, WifiOff, Copy, Check, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api, type EnvConfigPayload, type ProviderMode, API_URL } from "@/lib/api";
 import { ASPECT_RATIOS } from "@/store/projectStore";
@@ -115,6 +115,10 @@ interface DefaultPromptConfig {
   entity_extraction: string;
   style_analysis: string;
   storyboard_extraction: string;
+  r2v_minimax: string;
+  character_prompt: string;
+  scene_prompt: string;
+  prop_prompt: string;
 }
 
 const EMPTY_PROMPT_CONFIG: DefaultPromptConfig = {
@@ -124,6 +128,10 @@ const EMPTY_PROMPT_CONFIG: DefaultPromptConfig = {
   entity_extraction: "",
   style_analysis: "",
   storyboard_extraction: "",
+  r2v_minimax: "",
+  character_prompt: "",
+  scene_prompt: "",
+  prop_prompt: "",
 };
 
 function loadFromLS<T>(key: string, fallback: T): T {
@@ -212,6 +220,9 @@ export default function SettingsPage() {
   // so we can pre-fill the fields and run the delta comparison on save.
   const [promptConfig, setPromptConfig] = useState<DefaultPromptConfig>(() =>
     loadFromLS(LS_KEY_PROMPT, EMPTY_PROMPT_CONFIG)
+  );
+  const [promptSkillBindings, setPromptSkillBindings] = useState<Record<string, string>>(() =>
+    loadFromLS<{ skill_bindings?: Record<string, string> }>(LS_KEY_PROMPT, {}).skill_bindings || {}
   );
   const [promptDefaults, setPromptDefaults] = useState<Record<string, string>>({});
 
@@ -390,7 +401,7 @@ export default function SettingsPage() {
       const text = promptConfig[k] ?? "";
       delta[k] = text === promptDefaults[k] ? "" : text;
     });
-    localStorage.setItem(LS_KEY_PROMPT, JSON.stringify(delta));
+    localStorage.setItem(LS_KEY_PROMPT, JSON.stringify({ ...delta, skill_bindings: promptSkillBindings }));
     toast.success(t("saved"));
   };
 
@@ -639,6 +650,10 @@ export default function SettingsPage() {
     { key: "storyboard_polish", label: t("promptStoryboardPolishLabel"), desc: t("promptStoryboardPolishDesc") },
     { key: "video_polish", label: t("promptVideoPolishLabel"), desc: t("promptVideoPolishDesc") },
     { key: "r2v_polish", label: t("promptR2vPolishLabel"), desc: t("promptR2vPolishDesc") },
+    { key: "r2v_minimax", label: "MiniMax R2V Skill", desc: "MiniMax 参考生视频专用规则。" },
+    { key: "character_prompt", label: "角色资产 Skill", desc: "基于角色描述与项目风格生成角色提示词。" },
+    { key: "scene_prompt", label: "场景资产 Skill", desc: "基于场景描述与项目风格生成场景提示词。" },
+    { key: "prop_prompt", label: "道具资产 Skill", desc: "基于道具描述与项目风格生成道具提示词。" },
   ];
 
   const renderPrompts = () => (
@@ -650,8 +665,9 @@ export default function SettingsPage() {
       <div className="space-y-5">
         {PROMPT_FIELDS.map((f) => (
           <div key={f.key} className="space-y-2">
-            <h3 className="text-sm font-semibold text-foreground">{f.label}</h3>
+            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-foreground">{f.label}</h3><label className="cursor-pointer text-xs text-primary"><Upload size={12} className="mr-1 inline" />上传 Skill 包<input type="file" accept=".zip,.md,.markdown,.txt" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const pkg = await api.uploadSkillPackage(file); setPromptSkillBindings(prev => ({ ...prev, [f.key]: pkg.id })); } catch (error: any) { toast.error(error?.response?.data?.detail || 'Skill 包上传失败'); } }} /></label></div>
             <p className="text-[0.6875rem] text-text-muted">{f.desc}</p>
+            {promptSkillBindings[f.key] && <div className="flex items-center justify-between"><p className="text-[0.625rem] text-emerald-400">已绑定：{promptSkillBindings[f.key]}</p><button type="button" onClick={() => setPromptSkillBindings(prev => { const next = { ...prev }; delete next[f.key]; return next; })} className="text-[0.625rem] text-text-muted hover:text-foreground">解除绑定</button></div>}
             <textarea
               value={promptConfig[f.key]}
               onChange={(e) => setPromptConfig((prev) => ({ ...prev, [f.key]: e.target.value }))}

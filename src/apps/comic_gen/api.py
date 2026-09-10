@@ -39,6 +39,7 @@ import logging
 import traceback
 import sys
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
+from .skill_packages import SkillPackageError
 from .models import (
     ArtDirection,
     PromptConfig,
@@ -64,6 +65,32 @@ from dotenv import load_dotenv, set_key
 
 app = FastAPI(title="AI Comic Gen API")
 logger = logging.getLogger(__name__)
+SKILL_STAGE_KEYS = {
+    "entity_extraction", "style_analysis", "storyboard_extraction",
+    "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax",
+    "character_prompt", "scene_prompt", "prop_prompt",
+}
+
+
+def _skill_binding_details(config: PromptConfig) -> Dict[str, Any]:
+    details = {}
+    for stage, package_id in (config.skill_bindings or {}).items():
+        try:
+            details[stage] = pipeline.skill_packages.describe(package_id)
+        except SkillPackageError as exc:
+            details[stage] = {"id": package_id, "error": str(exc)}
+    return details
+
+
+def _validate_skill_bindings(bindings: Dict[str, str]) -> None:
+    unknown = set(bindings) - SKILL_STAGE_KEYS
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"不支持的 Skill 阶段: {', '.join(sorted(unknown))}")
+    for stage, package_id in bindings.items():
+        try:
+            pipeline.skill_packages.describe(package_id)
+        except SkillPackageError as exc:
+            raise HTTPException(status_code=400, detail=f"{stage}: {exc}")
 
 # Setup logging to user directory
 setup_logging()
@@ -412,6 +439,7 @@ class CreateProjectRequest(BaseModel):
     # the next episode of this series (episode_number = current max + 1).
     # Omit for a standalone project — behavior unchanged.
     series_id: Optional[str] = None
+    prompt_config: Optional[PromptConfig] = None
 
 
 @app.post("/projects", response_model=Script)
@@ -422,12 +450,22 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
     of that series; omitting it keeps the standalone-project behavior
     unchanged.
     """
+    if request.prompt_config:
+        _validate_skill_bindings(request.prompt_config.skill_bindings)
     # Run in thread pool to avoid blocking event loop during LLM analysis (Python 3.8 compatible)
     loop = asyncio.get_event_loop()
     try:
         result = await loop.run_in_executor(
             None,  # Use default executor
-            partial(pipeline.create_project, request.title, request.text, skip_analysis, request.workflow_mode, request.series_id)
+            partial(
+                pipeline.create_project,
+                request.title,
+                request.text,
+                skip_analysis,
+                request.workflow_mode,
+                request.series_id,
+                request.prompt_config.model_dump() if request.prompt_config else None,
+            )
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -517,10 +555,12 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     if selected_skill:
         skill_content, skill_name = selected_skill["content"], selected_skill["name"]
     elif request.prompt_preset == "r2v_minimax":
-        skill_content = getattr(script.prompt_config, "r2v_minimax", "") or getattr(script.prompt_config, "r2v_polish", "") or DEFAULT_R2V_POLISH_PROMPT
+        series = pipeline.get_series(script.series_id) if script.series_id else None
+        skill_content = pipeline.get_effective_prompt("r2v_minimax", script, series)
         skill_name = "MiniMax 参考生视频 Skill"
     else:
-        skill_content, skill_name = getattr(script.prompt_config, "r2v_polish", "") or DEFAULT_R2V_POLISH_PROMPT, "提示词配置 · R2V"
+        series = pipeline.get_series(script.series_id) if script.series_id else None
+        skill_content, skill_name = pipeline.get_effective_prompt("r2v_polish", script, series), "提示词配置 · R2V"
 
     frames = [script.frames[position] for position in positions]
     frame_lines = []
@@ -537,9 +577,7 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     refs = (f"本次将绑定 {reference_count} 张参考图，请使用稳定占位符‘参考图1’至‘参考图{reference_count}’，"
             "不得输出原始文件名、上传文件名或 URL。" if reference_count else
             "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。")
-    user_prompt = f"""{skill_content}
-
-请严格按照以上 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
+    user_prompt = f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
 固定输出时长：30秒
 画幅：{request.ratio}
 要求：保留镜头先后顺序；明确参考图编号与镜头内容的对应；总长度不超过12000字；只输出最终提示词，不要解释，不要 Markdown 代码块。
@@ -552,7 +590,10 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     try:
         from .llm_adapter import LLMAdapter
         model = request.model or script.model_settings.text_model or pipeline.get_effective_polish_model(script)
-        result = LLMAdapter().chat([{"role": "user", "content": user_prompt}], model=model or None).strip()
+        result = LLMAdapter().chat([
+            {"role": "system", "content": skill_content},
+            {"role": "user", "content": user_prompt},
+        ], model=model or None).strip()
         result = result.replace("```text", "").replace("```markdown", "").replace("```", "").strip()
         return {"prompt": result, "model": model or "system-default", "skill_id": request.skill_id, "skill_name": skill_name}
     except Exception as e:
@@ -805,11 +846,14 @@ def get_series_prompt_config(series_id: str):
         raise HTTPException(status_code=404, detail="Series not found")
     return {
         "prompt_config": series.prompt_config.model_dump(),
+        "skill_packages": _skill_binding_details(series.prompt_config),
         "defaults": {
             "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
             "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
             "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
             "r2v_minimax": "",
+            "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
+            "style_analysis": DEFAULT_STYLE_ANALYSIS_PROMPT,
             "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
             "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
             "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
@@ -822,6 +866,7 @@ def get_series_prompt_config(series_id: str):
 def update_series_prompt_config(series_id: str, config: PromptConfig):
     """Update Series-level prompt config."""
     try:
+        _validate_skill_bindings(config.skill_bindings)
         series = pipeline.update_series(series_id, {"prompt_config": config})
         return signed_response(series)
     except ValueError as e:
@@ -2880,6 +2925,7 @@ class UpdatePromptConfigRequest(BaseModel):
     character_prompt: str = ""
     scene_prompt: str = ""
     prop_prompt: str = ""
+    skill_bindings: Dict[str, str] = Field(default_factory=dict)
 
 
 class GenerateAssetPromptRequest(BaseModel):
@@ -2927,11 +2973,14 @@ def get_prompt_config(script_id: str):
         config = script.prompt_config if hasattr(script, 'prompt_config') else PromptConfig()
         return {
             "prompt_config": config.model_dump(),
+            "skill_packages": _skill_binding_details(config),
             "defaults": {
                 "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
                 "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
                 "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
                 "r2v_minimax": "",
+                "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
+                "style_analysis": DEFAULT_STYLE_ANALYSIS_PROMPT,
                 "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
                 "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
                 "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
@@ -2948,6 +2997,7 @@ def get_prompt_config(script_id: str):
 def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
     """Updates project custom prompt configuration. Empty string = use system default."""
     try:
+        _validate_skill_bindings(request.skill_bindings)
         script = pipeline.get_script(script_id)
         if not script:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -2963,6 +3013,7 @@ def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
             character_prompt=request.character_prompt,
             scene_prompt=request.scene_prompt,
             prop_prompt=request.prop_prompt,
+            skill_bindings=request.skill_bindings,
         )
         pipeline._save_data()
         return {"prompt_config": script.prompt_config.model_dump()}
@@ -2970,6 +3021,37 @@ def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/skill-packages")
+def upload_skill_package(file: UploadFile = File(...)):
+    try:
+        data = file.file.read()
+        return pipeline.skill_packages.import_upload(file.filename or "SKILL.md", data)
+    except SkillPackageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/skill-packages/{package_id}")
+def get_skill_package(package_id: str):
+    try:
+        return pipeline.skill_packages.describe(package_id)
+    except SkillPackageError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.delete("/skill-packages/{package_id}")
+def delete_skill_package(package_id: str):
+    try:
+        for owner in [*pipeline.scripts.values(), *pipeline.series_store.values()]:
+            if package_id in (getattr(owner.prompt_config, "skill_bindings", {}) or {}).values():
+                raise HTTPException(status_code=409, detail="Skill Package 仍被项目或系列使用")
+        pipeline.skill_packages.delete(package_id)
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except SkillPackageError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @app.get("/prompt_defaults")
@@ -3001,13 +3083,10 @@ def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest):
         raise HTTPException(status_code=404, detail="Project not found")
     series = pipeline.get_series(script.series_id) if script.series_id else None
     key = f"{request.asset_type}_prompt"
-    custom = getattr(getattr(script, "prompt_config", None), key, "") or getattr(getattr(series, "prompt_config", None), key, "")
+    custom = pipeline.get_effective_prompt(key, script, series)
+    # get_effective_prompt already attaches the Episode/Series visual style
+    # contract, so do not duplicate it in the asset input message.
     style = ""
-    art = script.art_direction or (series.art_direction if series else None)
-    if isinstance(art, dict):
-        style = art.get("style_config", {}).get("positive_prompt", "")
-    elif art:
-        style = art.style_config.get("positive_prompt", "")
     model = pipeline.get_effective_polish_model(script)
     try:
         prompt = pipeline.script_processor.generate_asset_prompt(request.asset_type, request.name, request.description, custom, model, style)
@@ -3875,7 +3954,11 @@ async def analyze_script_for_styles(script_id: str, request: AnalyzeStyleRequest
             raise HTTPException(status_code=404, detail="Script not found")
 
         # Use LLM to analyze and recommend styles (run in thread pool to avoid blocking, Python 3.8 compatible)
-        custom_style = getattr(getattr(script, "prompt_config", None), "style_analysis", "")
+        series = pipeline.get_series(script.series_id) if script.series_id else None
+        custom_style = pipeline.get_effective_prompt("style_analysis", script, series)
+        from .llm import DEFAULT_STYLE_ANALYSIS_PROMPT
+        if custom_style == DEFAULT_STYLE_ANALYSIS_PROMPT:
+            custom_style = ""
         loop = asyncio.get_event_loop()
         recommendations = await loop.run_in_executor(
             None,  # Use default executor

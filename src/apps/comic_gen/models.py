@@ -552,6 +552,10 @@ class PromptConfig(BaseModel):
     character_prompt: str = Field("", description="System prompt for character asset prompt generation")
     scene_prompt: str = Field("", description="System prompt for scene asset prompt generation")
     prop_prompt: str = Field("", description="System prompt for prop asset prompt generation")
+    skill_bindings: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Prompt stage to Skill Package ID bindings",
+    )
     # Polish 调用使用的 LLM 模型。空 = 用 LLMAdapter 默认（qwen3.6-plus）。
     # 显式覆盖时用于切到 vision-capable 或更便宜的模型（qwen3.6-flash、kimi-k2.6 等）。
     polish_model: str = Field("", description="Override LLM model id used for polish calls; empty = use system default")

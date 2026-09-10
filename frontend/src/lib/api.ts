@@ -239,8 +239,8 @@ export interface RefineSSEEvent {
 }
 
 export const api = {
-    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string) => {
-        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId }, {
+    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>) => {
+        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig }, {
             params: { skip_analysis: skipAnalysis }
         });
         return { ...res.data, originalText: res.data.original_text };
@@ -701,9 +701,15 @@ export const api = {
         return res.data;
     },
 
-    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
+    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; skill_bindings?: Record<string, string> }) => {
         const res = await axios.put(`${API_URL}/projects/${scriptId}/prompt_config`, config);
         return res.data;
+    },
+    uploadSkillPackage: async (file: File) => {
+        const body = new FormData();
+        body.append("file", file);
+        const res = await axios.post(`${API_URL}/skill-packages`, body);
+        return res.data as { id: string; name: string; entry: string; files: { path: string; size: number }[]; validation: { errors: string[]; warnings: string[] } };
     },
     generateAssetPrompt: async (scriptId: string, assetType: string, name: string, description: string, assetId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/generate_prompt`, { asset_type: assetType, asset_id: assetId, name, description });
@@ -1521,7 +1527,7 @@ export const api = {
         const response = await axios.get(`${API_URL}/series/${seriesId}/prompt_config`);
         return response.data;
     },
-    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string }) => {
+    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; skill_bindings?: Record<string, string> }) => {
         const response = await axios.put(`${API_URL}/series/${seriesId}/prompt_config`, config);
         return response.data;
     },

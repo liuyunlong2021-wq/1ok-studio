@@ -16,6 +16,7 @@ from .storyboard import StoryboardGenerator
 from .video import VideoGenerator
 from .audio import AudioGenerator
 from .export import ExportManager
+from .skill_packages import SkillPackageStore
 from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 from ...utils.provider_registry import resolve_provider_backend
@@ -80,6 +81,7 @@ class ComicGenPipeline:
         self.video_generator = VideoGenerator(self.config.get('video'))
         self.audio_generator = AudioGenerator(self.config.get('audio'))
         self.export_manager = ExportManager(self.config.get('export'))
+        self.skill_packages = SkillPackageStore("output/skill_packages")
         
         self.data_file = "output/projects.json"
         self.series_data_file = "output/series.json"
@@ -419,7 +421,7 @@ class ComicGenPipeline:
         if repaired:
             self._save_data()
 
-    def create_project(self, title: str, text: str, skip_analysis: bool = False, workflow_mode: str = "i2v_legacy", series_id: Optional[str] = None) -> Script:
+    def create_project(self, title: str, text: str, skip_analysis: bool = False, workflow_mode: str = "i2v_legacy", series_id: Optional[str] = None, prompt_config: Optional[Dict[str, Any]] = None) -> Script:
         """Step 1: Parse novel and create project.
 
         When `series_id` is provided the new project is bound as the next
@@ -433,8 +435,26 @@ class ComicGenPipeline:
             script = self.script_processor.create_draft_script(title, text)
         else:
             series = self.series_store.get(series_id) if series_id else None
-            model = getattr(getattr(series, "prompt_config", None), "polish_model", "")
-            script = self.script_processor.parse_novel(title, text, model=model)
+            initial_config = PromptConfig(**(prompt_config or {}))
+            model = initial_config.polish_model or getattr(getattr(series, "prompt_config", None), "polish_model", "")
+            custom_extraction = ""
+            package_id = (initial_config.skill_bindings or {}).get("entity_extraction")
+            if package_id:
+                custom_extraction = self.skill_packages.compile(package_id)
+            elif initial_config.entity_extraction:
+                custom_extraction = initial_config.entity_extraction
+            elif series:
+                bindings = getattr(series.prompt_config, "skill_bindings", {}) or {}
+                package_id = bindings.get("entity_extraction")
+                custom_extraction = (
+                    self.skill_packages.compile(package_id)
+                    if package_id
+                    else getattr(series.prompt_config, "entity_extraction", "")
+                )
+            script = self.script_processor.parse_novel(title, text, custom_extraction, model)
+
+        if prompt_config:
+            script.prompt_config = PromptConfig(**prompt_config)
 
         script.workflow_mode = workflow_mode
         self.scripts[script.id] = script
@@ -459,7 +479,8 @@ class ComicGenPipeline:
         existing_script = self.scripts.get(script_id)
         if not existing_script:
             raise ValueError("Script not found")
-        custom_extraction = getattr(getattr(existing_script, "prompt_config", None), "entity_extraction", "")
+        series = self.get_series(existing_script.series_id) if existing_script.series_id else None
+        custom_extraction = self.get_effective_prompt("entity_extraction", existing_script, series)
         model = self.get_effective_polish_model(existing_script)
         new_script = self.script_processor.parse_novel(existing_script.title, text, custom_extraction, model)
         self._stamp_extracted_descriptions(new_script)
@@ -478,7 +499,8 @@ class ComicGenPipeline:
             new_script = cached[1]
             self._stamp_extracted_descriptions(new_script, existing_script)
         else:
-            custom_extraction = getattr(getattr(existing_script, "prompt_config", None), "entity_extraction", "")
+            series = self.get_series(existing_script.series_id) if existing_script.series_id else None
+            custom_extraction = self.get_effective_prompt("entity_extraction", existing_script, series)
             model = self.get_effective_polish_model(existing_script)
             new_script = self.script_processor.parse_novel(existing_script.title, text, custom_extraction, model)
             self._stamp_extracted_descriptions(new_script, existing_script)
@@ -4988,25 +5010,59 @@ class ComicGenPipeline:
             return target, imported_ids, skipped_ids
 
     def get_effective_prompt(self, prompt_type: str, episode: Script, series: Optional[Series] = None) -> str:
-        """Three-level fallback: Episode -> Series -> system default."""
-        valid_prompt_types = ("storyboard_polish", "video_polish", "r2v_polish", "storyboard_extraction")
+        """Resolve Skill Package/text/default, then attach the visual-style contract."""
+        valid_prompt_types = (
+            "entity_extraction", "style_analysis", "storyboard_extraction",
+            "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax",
+            "character_prompt", "scene_prompt", "prop_prompt",
+        )
         if prompt_type not in valid_prompt_types:
             raise ValueError(f"Invalid prompt_type: {prompt_type}. Must be one of {valid_prompt_types}")
-        from .llm import DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT
+        from .llm import (
+            DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT,
+            DEFAULT_PROP_ASSET_PROMPT, DEFAULT_R2V_POLISH_PROMPT,
+            DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
+            DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT,
+            DEFAULT_VIDEO_POLISH_PROMPT,
+        )
         defaults = {
+            "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
+            "style_analysis": DEFAULT_STYLE_ANALYSIS_PROMPT,
             "storyboard_polish": DEFAULT_STORYBOARD_POLISH_PROMPT,
             "video_polish": DEFAULT_VIDEO_POLISH_PROMPT,
             "r2v_polish": DEFAULT_R2V_POLISH_PROMPT,
+            "r2v_minimax": DEFAULT_R2V_POLISH_PROMPT,
             "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
+            "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
+            "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
+            "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,
         }
+        resolved = ""
+        episode_bindings = getattr(episode.prompt_config, "skill_bindings", {}) or {}
+        if episode_bindings.get(prompt_type):
+            resolved = self.skill_packages.compile(episode_bindings[prompt_type])
+        if not resolved and series:
+            series_bindings = getattr(series.prompt_config, "skill_bindings", {}) or {}
+            if series_bindings.get(prompt_type):
+                resolved = self.skill_packages.compile(series_bindings[prompt_type])
         episode_value = getattr(episode.prompt_config, prompt_type, "")
-        if episode_value.strip():
-            return episode_value
-        if series:
+        if not resolved and episode_value.strip():
+            resolved = episode_value
+        if not resolved and series:
             series_value = getattr(series.prompt_config, prompt_type, "")
             if series_value.strip():
-                return series_value
-        return defaults.get(prompt_type, "")
+                resolved = series_value
+        resolved = resolved or defaults.get(prompt_type, "")
+        if prompt_type in {"storyboard_extraction", "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax", "character_prompt", "scene_prompt", "prop_prompt"}:
+            art = episode.art_direction or (series.art_direction if series else None)
+            style = ""
+            if isinstance(art, dict):
+                style = (art.get("style_config") or {}).get("positive_prompt", "")
+            elif art:
+                style = (getattr(art, "style_config", {}) or {}).get("positive_prompt", "")
+            if style:
+                resolved += ("\n\n# 本项目视觉风格合同\n" + style + "\n执行本 Skill 时必须以该风格为视觉基础，但不得让风格覆盖资产身份、剧情事实或镜头要求。")
+        return resolved
 
     def get_effective_polish_model(self, episode: Script) -> str:
         """Resolve the text model with Episode -> Series -> adapter default fallback."""

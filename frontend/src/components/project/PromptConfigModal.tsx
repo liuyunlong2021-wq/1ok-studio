@@ -14,6 +14,9 @@ interface PromptConfigModalProps {
 }
 
 interface PromptDefaults {
+    entity_extraction: string;
+    style_analysis: string;
+    storyboard_extraction: string;
     storyboard_polish: string;
     video_polish: string;
     r2v_polish: string;
@@ -24,6 +27,9 @@ interface PromptDefaults {
 }
 
 const SECTIONS = [
+    { key: 'entity_extraction' as const, label: '实体提取 Skill', description: '依据 Skill 从原文提取角色、场景和道具描述。' },
+    { key: 'style_analysis' as const, label: '风格分析 Skill', description: '依据 Skill 分析项目视觉风格与艺术指导。' },
+    { key: 'storyboard_extraction' as const, label: '分镜提取 Skill', description: '依据 Skill 将剧本与资产资料转换为基础分镜。' },
     {
         key: 'storyboard_polish' as const,
         label: 'Storyboard Polish (Prompt C)',
@@ -55,7 +61,7 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
     const t = useTranslations("project");
     const tc = useTranslations("common");
 
-    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', r2v_minimax: '', character_prompt: '', scene_prompt: '', prop_prompt: '', polish_model: '' });
+    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', r2v_minimax: '', entity_extraction: '', style_analysis: '', storyboard_extraction: '', character_prompt: '', scene_prompt: '', prop_prompt: '', polish_model: '', skill_bindings: {} as Record<string, string> });
     const [defaults, setDefaults] = useState<PromptDefaults | null>(null);
     const [expandedDefault, setExpandedDefault] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -96,18 +102,22 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
     };
 
     const handleReset = (key: keyof PromptDefaults) => {
-        setConfig(prev => ({ ...prev, [key]: '' }));
+        setConfig(prev => {
+            const bindings = { ...prev.skill_bindings };
+            delete bindings[key];
+            return { ...prev, [key]: '', skill_bindings: bindings };
+        });
     };
 
     const handleSkillUpload = (key: keyof PromptDefaults, file?: File) => {
         if (!file) return;
-        if (!/\.(md|markdown|txt)$/i.test(file.name)) {
-            alert('请选择 .md 或 .txt 格式的 Skill 文件');
+        if (!/\.(zip|md|markdown|txt)$/i.test(file.name)) {
+            alert('请选择 Skill ZIP、.md 或 .txt 文件');
             return;
         }
-        const reader = new FileReader();
-        reader.onload = () => setConfig(prev => ({ ...prev, [key]: String(reader.result || '') }));
-        reader.readAsText(file);
+        api.uploadSkillPackage(file).then((pkg) => {
+            setConfig(prev => ({ ...prev, [key]: '', skill_bindings: { ...prev.skill_bindings, [key]: pkg.id } }));
+        }).catch((error) => alert(error?.response?.data?.detail || error?.message || 'Skill 包上传失败'));
     };
 
     if (!isOpen) return null;
@@ -195,11 +205,12 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
                                             <div className="flex items-center gap-1">
                                                 <label className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg cursor-pointer">
                                                     <Upload size={10} /> 上传 Skill
-                                                    <input type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="hidden" onChange={(e) => handleSkillUpload(section.key, e.target.files?.[0])} />
+                                                    <input type="file" accept=".zip,.md,.markdown,.txt,application/zip,text/markdown,text/plain" className="hidden" onChange={(e) => handleSkillUpload(section.key, e.target.files?.[0])} />
                                                 </label>
-                                                <button onClick={() => handleReset(section.key)} disabled={!config[section.key]} className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><RotateCcw size={10} /> {t("resetToDefault")}</button>
+                                                <button onClick={() => handleReset(section.key)} disabled={!config[section.key] && !config.skill_bindings?.[section.key]} className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><RotateCcw size={10} /> {t("resetToDefault")}</button>
                                             </div>
                                         </div>
+                                        {config.skill_bindings?.[section.key] && <p className="text-[0.625rem] text-emerald-400">已绑定 Skill Package：{config.skill_bindings[section.key]}</p>}
 
                                         <textarea
                                             value={config[section.key]}

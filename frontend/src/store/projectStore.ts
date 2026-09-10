@@ -237,6 +237,12 @@ export interface PromptConfig {
     r2v_polish: string;
     r2v_minimax?: string;
     storyboard_extraction?: string;
+    entity_extraction?: string;
+    style_analysis?: string;
+    character_prompt?: string;
+    scene_prompt?: string;
+    prop_prompt?: string;
+    skill_bindings?: Record<string, string>;
 }
 
 export interface Series {
@@ -377,6 +383,11 @@ async function injectDefaultsIntoProject(projectId: string): Promise<Project | n
         entity_extraction?: string;
         style_analysis?: string;
         storyboard_extraction?: string;
+        r2v_minimax?: string;
+        character_prompt?: string;
+        scene_prompt?: string;
+        prop_prompt?: string;
+        skill_bindings?: Record<string, string>;
     }>(LS_KEY_DEFAULT_PROMPT);
 
     let applied = false;
@@ -399,7 +410,7 @@ async function injectDefaultsIntoProject(projectId: string): Promise<Project | n
     }
 
     if (pc) {
-        const hasAny = Object.values(pc).some((v) => typeof v === 'string' && v.trim());
+        const hasAny = Object.entries(pc).some(([key, value]) => key === 'skill_bindings' ? Object.keys(value || {}).length > 0 : typeof value === 'string' && value.trim());
         if (hasAny) {
             await api.updatePromptConfig(projectId, pc);
             applied = true;
@@ -453,7 +464,8 @@ export const useProjectStore = create<ProjectStore>()(
             createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string) => {
                 set({ isLoading: true });
                 try {
-                    let project = await api.createProject(title, text, skipAnalysis, workflowMode, seriesId);
+                    const initialPromptConfig = seriesId ? undefined : readLS<Record<string, any>>(LS_KEY_DEFAULT_PROMPT) || undefined;
+                    let project = await api.createProject(title, text, skipAnalysis, workflowMode, seriesId, initialPromptConfig);
                     // Inject SettingsPage defaults into the new project. These
                     // are persisted to localStorage by SettingsPage but were
                     // never wired into creation — so changing defaults had no
