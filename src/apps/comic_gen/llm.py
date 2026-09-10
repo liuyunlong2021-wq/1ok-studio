@@ -766,36 +766,75 @@ class ScriptProcessor:
 
     def generate_asset_prompt(self, asset_type: str, name: str, description: str, custom_prompt: str = "", model: str = "", style_prompt: str = "") -> str:
         defaults = {"character": DEFAULT_CHARACTER_ASSET_PROMPT, "scene": DEFAULT_SCENE_ASSET_PROMPT, "prop": DEFAULT_PROP_ASSET_PROMPT}
-        template = custom_prompt.strip() or defaults.get(asset_type)
-        if not template:
+        default_template = defaults.get(asset_type)
+        if not default_template:
             raise ValueError(f"Invalid asset_type: {asset_type}")
-        prompt = template.replace("{name}", name or "").replace("{description}", description or "")
-        # Custom prompt configurations are often written as standalone rules
-        # without placeholders. Always append the current asset input so the
-        # model cannot answer with the rules themselves or ask for missing data.
-        if "{name}" not in template or "{description}" not in template:
-            prompt += f"\n\n## 本次资产输入\n资产名称：{name or ''}\n资产描述：{description or ''}"
-        if style_prompt:
-            prompt += f"\n整体视觉风格：{style_prompt}"
-        prompt += "\n\n只输出本次资产最终可直接用于生图的提示词，不要复述规范、不要索要资料、不要输出解释。"
+        template = custom_prompt.strip() or default_template
         if not self.is_configured:
             raise ValueError("LLM API key 未配置")
-        result = self.llm.chat(messages=[{"role": "user", "content": prompt}], model=model or None)
-        # Some compatible gateways return HTTP 200 with an empty content field.
-        # Keep the feature useful by returning the rendered template in that case.
-        result = (result or "").strip()
+        system_prompt = (
+            f"{template}\n\n"
+            "你正在执行资产提示词生成规则，而不是介绍、改写或输出这些规则。"
+            "最终答案只能是供图像模型直接使用的一条成品提示词；严禁输出 Skill.md、YAML 前置元数据、"
+            "规则正文、步骤说明、标题或解释。"
+        )
+        user_prompt = f"资产类型：{asset_type}\n资产名称：{name or ''}\n资产描述：{description or ''}"
+        if style_prompt:
+            user_prompt += f"\n整体视觉风格：{style_prompt}"
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        for attempt in range(2):
+            result = self.llm.chat(messages=messages, model=model or None)
+            result = self._clean_asset_prompt_result(result)
+            if result and not self._looks_like_asset_skill_echo(result, template):
+                return result
+            if attempt == 0:
+                messages = messages + [{
+                    "role": "user",
+                    "content": "上一次输出无效：它为空或复述了 Skill/规则。请重新执行，只返回一条可直接生图的成品提示词。",
+                }]
+
+        # Never leak a configured Skill document into the image-prompt field.
+        # A deterministic built-in prompt is safer than returning the assembled
+        # instructions when a compatible gateway responds with empty content.
+        fallback = default_template.replace("{name}", name or "").replace("{description}", description or "")
+        if style_prompt:
+            fallback += f"\n整体视觉风格：{style_prompt}"
+        return fallback.strip()
+
+    @staticmethod
+    def _clean_asset_prompt_result(result: Any) -> str:
+        result = str(result or "").strip()
         if result.startswith("```"):
-            result = result.split("\n", 1)[1] if "\n" in result else result
+            result = result.split("\n", 1)[1] if "\n" in result else ""
             result = result.rsplit("```", 1)[0].strip()
-        if result.startswith("---") and "---" in result[3:]:
-            result = result.split("---", 2)[-1].strip()
         try:
             parsed = json.loads(result)
             if isinstance(parsed, dict):
                 result = str(parsed.get("prompt") or parsed.get("prompt_cn") or parsed.get("prompt_en") or parsed.get("sheetPrompt") or "").strip()
         except (json.JSONDecodeError, TypeError):
             pass
-        return result or prompt.strip()
+        return result
+
+    @staticmethod
+    def _looks_like_asset_skill_echo(result: str, template: str) -> bool:
+        normalized = result.strip()
+        lowered = normalized.lower()
+        if re.match(r"^---\s*\n(?:name|description|triggers)\s*:", normalized, re.IGNORECASE):
+            return True
+        if "## 本次资产输入" in normalized or "只输出本次资产最终可直接用于生图" in normalized:
+            return True
+        skill_markers = ("# skill", "skill.md", "## 触发", "## trigger", "## 任务", "## 输出前自检")
+        if any(marker in lowered for marker in skill_markers):
+            return True
+        # Catch near-verbatim rule echoes even when the model strips YAML or a
+        # heading. Short final prompts will naturally stay well below this bar.
+        if len(normalized) >= 300 and SequenceMatcher(None, normalized, template.strip()).ratio() >= 0.72:
+            return True
+        return False
 
     def rewrite_asset_description(self, asset_type: str, name: str, description: str, instruction: str, model: str = "") -> str:
         if not self.is_configured:
