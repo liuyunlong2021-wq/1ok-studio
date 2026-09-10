@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from src.apps.comic_gen.llm import ScriptProcessor
 
@@ -50,3 +50,32 @@ def test_asset_prompt_empty_responses_fall_back_without_leaking_skill():
     assert "卖草鞋的青年" in result
     assert "name: character-skill" not in result
     assert "## 任务" not in result
+
+
+@patch("src.apps.comic_gen.llm.time.sleep")
+def test_asset_prompt_retries_transient_provider_failure(_sleep):
+    processor = _processor(
+        RuntimeError("Jiucaihezi API error: 502 Bad Gateway"),
+        "刘备，青年男性，旧布袍，草鞋，正面全身站姿，纯色背景",
+    )
+
+    result = processor.generate_asset_prompt("character", "刘备", "卖草鞋的青年")
+
+    assert result.startswith("刘备，青年男性")
+    assert processor.llm.chat.call_count == 2
+    _sleep.assert_called_once_with(0.5)
+
+
+@patch("src.apps.comic_gen.llm.time.sleep")
+def test_asset_prompt_does_not_retry_permanent_provider_failure(_sleep):
+    processor = _processor(RuntimeError("Jiucaihezi API error: 401 Unauthorized"))
+
+    try:
+        processor.generate_asset_prompt("character", "刘备", "卖草鞋的青年")
+    except RuntimeError as exc:
+        assert "401" in str(exc)
+    else:
+        raise AssertionError("expected permanent provider error")
+
+    assert processor.llm.chat.call_count == 1
+    _sleep.assert_not_called()

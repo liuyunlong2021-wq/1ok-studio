@@ -614,7 +614,7 @@ function CharacterDetailModal({ asset, type, onClose, onUpdateDescription, onRew
             if (prompt) setImagePrompt(prompt);
         } catch (error: any) {
             console.error("Failed to generate prompt:", error);
-            alert(error?.message || "生成提示词失败，请稍后重试");
+            alert(error?.response?.data?.detail || error?.message || "生成提示词失败，请稍后重试");
         } finally {
             setIsGeneratingPrompt(false);
         }

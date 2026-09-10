@@ -129,7 +129,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
             const result = await onGeneratePrompt("character", descriptionDraft);
             if (result) setFullBodyPrompt(result);
         } catch (error: any) {
-            alert(error?.message || "生成提示词失败，请稍后重试");
+            alert(error?.response?.data?.detail || error?.message || "生成提示词失败，请稍后重试");
         } finally {
             setIsGeneratingAssetPrompt(false);
         }
@@ -533,7 +533,7 @@ function WorkbenchPanel({
             await onGeneratePrompt();
         } catch (error: any) {
             console.error("Failed to generate prompt:", error);
-            alert(error?.message || "生成提示词失败，请稍后重试");
+            alert(error?.response?.data?.detail || error?.message || "生成提示词失败，请稍后重试");
         } finally {
             setIsGeneratingPrompt(false);
         }

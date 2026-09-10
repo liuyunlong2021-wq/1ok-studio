@@ -3098,7 +3098,8 @@ def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.exception("Asset prompt generation failed for project=%s type=%s", script_id, request.asset_type)
+        raise HTTPException(status_code=502, detail=f"上游模型生成提示词失败：{e}")
 
 
 class BindVoiceRequest(BaseModel):

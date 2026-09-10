@@ -795,7 +795,7 @@ class ScriptProcessor:
             {"role": "user", "content": user_prompt},
         ]
         for attempt in range(2):
-            result = self.llm.chat(messages=messages, model=model or None)
+            result = self._chat_asset_prompt_with_retry(messages, model or None)
             result = self._clean_asset_prompt_result(result)
             if result and not self._looks_like_asset_skill_echo(result, template):
                 return result
@@ -812,6 +812,50 @@ class ScriptProcessor:
         if style_prompt:
             fallback += f"\n整体视觉风格：{style_prompt}"
         return fallback.strip()
+
+    def _chat_asset_prompt_with_retry(self, messages: List[Dict[str, str]], model: Optional[str]) -> str:
+        """Retry only transient provider failures; never retry bad auth/input."""
+        for attempt in range(3):
+            try:
+                return self.llm.chat(messages=messages, model=model)
+            except Exception as exc:
+                if attempt >= 2 or not self._is_retryable_llm_error(exc):
+                    raise
+                delay = 0.5 * (2 ** attempt)
+                logger.warning(
+                    "Asset prompt provider call failed temporarily (attempt %s/3, retrying in %.1fs): %s",
+                    attempt + 1, delay, exc,
+                )
+                time.sleep(delay)
+        raise RuntimeError("unreachable")
+
+    @staticmethod
+    def _is_retryable_llm_error(exc: Exception) -> bool:
+        """Recognize retryable HTTP/network errors through wrapped exceptions."""
+        parts = []
+        current: Optional[BaseException] = exc
+        seen = set()
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            parts.append(str(current))
+            status = getattr(current, "status_code", None)
+            if status == 429 or isinstance(status, int) and 500 <= status <= 599:
+                return True
+            if isinstance(status, int) and 400 <= status <= 499:
+                return status in (408, 409, 429)
+            current = current.__cause__ or current.__context__
+
+        message = " ".join(parts).lower()
+        # Explicit permanent client failures win over broad network wording.
+        if re.search(r"(?:status(?: code)?[=: ]*|http[/ ]|error[ :])(?:400|401|403|404|422)\b", message):
+            return False
+        if re.search(r"\b(?:408|409|429|5\d\d)\b", message):
+            return True
+        return any(token in message for token in (
+            "timeout", "timed out", "connection reset", "connection refused",
+            "connection aborted", "connection error", "temporarily unavailable",
+            "bad gateway", "gateway timeout", "service unavailable",
+        ))
 
     @staticmethod
     def _clean_asset_prompt_result(result: Any) -> str:
