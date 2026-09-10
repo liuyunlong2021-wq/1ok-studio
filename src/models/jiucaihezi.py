@@ -32,6 +32,17 @@ def _download(url: str, output_path: str) -> None:
         output.write(response.content)
 
 
+def _download_video_content(task_id: str, output_path: str) -> None:
+    response = requests.get(
+        f"{_base_url()}/v1/videos/{task_id}/content",
+        headers=_headers(),
+        timeout=300,
+    )
+    response.raise_for_status()
+    with open(output_path, "wb") as output:
+        output.write(response.content)
+
+
 def _public_media_url(ref: str, media_type: str = "image") -> str:
     if ref.startswith(("http://", "https://")):
         return ref
@@ -222,9 +233,10 @@ class JiucaiheziVideoModel(VideoGenModel):
             result = poll.json()
             if result.get("status") in ("completed", "succeeded"):
                 url = result.get("video_url")
-                if not url:
-                    raise RuntimeError(f"Jiucaihezi video completed without video_url: {result}")
-                _download(url, output_path)
+                if url:
+                    _download(url, output_path)
+                else:
+                    _download_video_content(task_id, output_path)
                 return output_path, time.time() - started
             if result.get("status") in ("failed", "error", "cancelled"):
                 raise RuntimeError(f"Jiucaihezi video failed: {result}")

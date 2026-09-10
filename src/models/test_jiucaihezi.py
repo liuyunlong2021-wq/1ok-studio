@@ -102,3 +102,26 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
         "prompt": "prompt",
         "ratio": "9:16",
     }
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_downloads_content_endpoint_when_completed_task_has_no_url(post, get, _sleep, tmp_path):
+    post.return_value = _response({"id": "task-content"})
+    poll = _response({
+        "id": "task-content",
+        "status": "completed",
+        "progress": 100,
+    })
+    content = _response({})
+    content.content = b"video-bytes"
+    get.side_effect = [poll, content]
+    output_path = tmp_path / "output.mp4"
+
+    JiucaiheziVideoModel({}).generate("prompt", str(output_path), model_name="minimax_h3_image_audio_to_video_v2_15s")
+
+    assert output_path.read_bytes() == b"video-bytes"
+    assert get.call_args_list[1].args[0].endswith("/v1/videos/task-content/content")
+    assert get.call_args_list[1].kwargs["headers"] == {"Authorization": "Bearer test"}
