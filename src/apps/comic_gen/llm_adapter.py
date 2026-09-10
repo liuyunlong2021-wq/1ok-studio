@@ -24,6 +24,7 @@ JIUCAIHEZI_MODELS = {
     "claude-fable-5-1",
     "claude-sonnet-5",
     "deepseek-v4-pro-0813",
+    "deepseek-v4-flash",
     "gemini-3.8-flash",
     "gpt-5.6-sol",
 }
@@ -121,6 +122,9 @@ class LLMAdapter:
         Raises:
             RuntimeError: If the API call fails.
         """
+        # Model ids are stored canonically in lowercase; tolerate UI/API callers
+        # sending the vendor's mixed-case spelling as well.
+        model = model.lower() if isinstance(model, str) else model
         if model in JIUCAIHEZI_MODELS:
             client = self._get_jiucaihezi_client()
             try:

@@ -42,6 +42,15 @@ models:
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
+  - id: deepseek-v4-flash
+    display_name: "DeepSeek V4.1 Flash · 韭菜盒子"
+    description: "DeepSeek V4.1 Flash via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子]}
   - id: gemini-3.8-flash
     display_name: "Gemini 3.8 Flash · 韭菜盒子"
     description: "Gemini 3.8 Flash via 韭菜盒子"

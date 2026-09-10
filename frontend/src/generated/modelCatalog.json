@@ -3,6 +3,7 @@
     "legacy_model_ids": {
       "claude-fable-5-1": "jiucaihezi/claude-fable-5-1#text",
       "claude-sonnet-5": "jiucaihezi/claude-sonnet-5#text",
+      "deepseek-v4-flash": "jiucaihezi/deepseek-v4-flash#text",
       "deepseek-v4-pro-0813": "jiucaihezi/deepseek-v4-pro-0813#text",
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
@@ -183,6 +184,7 @@
       "models": [
         "claude-fable-5-1",
         "claude-sonnet-5",
+        "deepseek-v4-flash",
         "deepseek-v4-pro-0813",
         "dola-seedance2.5",
         "gemini-3.8-flash",
@@ -838,6 +840,64 @@
       ],
       "modes": [
         "jiucaihezi/claude-sonnet-5#text"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/deepseek-v4-flash": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/deepseek-v4-flash",
+      "legacy_model_ids": [
+        "deepseek-v4-flash"
+      ],
+      "modes": [
+        "jiucaihezi/deepseek-v4-flash#text"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -3256,6 +3316,66 @@
           "韭菜盒子"
         ],
         "order": 999,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "deepseek-v4-flash": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "deepseek-v4-flash",
+      "inputs": {},
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 995,
         "recommended": false,
         "selection_group": "text",
         "visible_in": [
@@ -7943,6 +8063,74 @@
           "韭菜盒子"
         ],
         "order": 999,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/deepseek-v4-flash#text": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/deepseek-v4-flash#text",
+      "inputs": {},
+      "legacy_model_id": "deepseek-v4-flash",
+      "mode": "text",
+      "model_line_id": "jiucaihezi/deepseek-v4-flash",
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 995,
         "recommended": false,
         "selection_group": "text",
         "visible_in": [

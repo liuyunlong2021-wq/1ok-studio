@@ -19,3 +19,18 @@ def test_transient_jiucaihezi_failure_falls_back_to_stable_model(monkeypatch):
         ("jiucaihezi", "gemini-3.8-flash"),
         ("jiucaihezi", "gpt-5.6-sol"),
     ]
+
+
+def test_deepseek_v4_flash_routes_to_jiucaihezi(monkeypatch):
+    adapter = LLMAdapter()
+    monkeypatch.setattr(adapter, "_get_jiucaihezi_client", lambda: "jiucaihezi")
+    calls = []
+
+    def chat_once(client, model, *_args, **_kwargs):
+        calls.append((client, model))
+        return f"{client}:{model}"
+
+    monkeypatch.setattr(adapter, "_chat_once", chat_once)
+
+    assert adapter.chat([], model="deepSeek-v4-flash") == "jiucaihezi:deepseek-v4-flash"
+    assert calls == [("jiucaihezi", "deepseek-v4-flash")]
