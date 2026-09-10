@@ -425,11 +425,19 @@ class ScriptProcessor:
              logger.error("LLM API key not configured.")
              raise ValueError("LLM API Key 未配置。请在 API 配置中设置对应的 API Key 后重试。")
 
-        prompt = self._construct_prompt(text, custom_extraction_prompt)
+        if custom_extraction_prompt and custom_extraction_prompt.strip():
+            system_prompt = custom_extraction_prompt.replace("{text}", "[剧本文本见用户消息]")
+            user_prompt = f"请严格执行系统 Skill，从以下剧本提取角色、场景和道具，并只返回该 Skill 要求的结果。\n\n{text}"
+        else:
+            system_prompt = self._construct_prompt("[剧本文本见用户消息]")
+            user_prompt = text
 
         try:
             content = self.llm.chat(
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
                 model=model or None,
             )
             logger.debug(f"LLM Response Content:\n{content}")
@@ -1245,10 +1253,10 @@ Return a JSON object with ALL fields below. null is acceptable for optional fiel
 
         # Use custom prompt or default, substituting placeholders
         template = custom_system_prompt.strip() if custom_system_prompt and custom_system_prompt.strip() else DEFAULT_STORYBOARD_POLISH_PROMPT
-        system_prompt = template.replace("{ASSETS}", context_str).replace("{DRAFT}", draft_prompt)
+        system_prompt = template.replace("{ASSETS}", context_str).replace("{DRAFT}", "[草稿见用户消息]")
 
         # Build user message with optional feedback (injected in user content, not system prompt)
-        user_content = system_prompt
+        user_content = f"[待处理分镜草稿]\n{draft_prompt}"
         if feedback and feedback.strip():
             user_content += f"""
 [用户反馈]
@@ -1259,7 +1267,10 @@ Return a JSON object with ALL fields below. null is acceptable for optional fiel
 
         try:
             content = self.llm.chat(
-                messages=[{"role": "user", "content": user_content}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
                 response_format={'type': 'json_object'},
             ).strip()
             logger.debug(f"Polished Prompt Raw: {content}")
