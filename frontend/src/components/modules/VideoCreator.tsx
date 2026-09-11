@@ -18,7 +18,7 @@ import {
 
 import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, VideoTask } from "@/lib/api";
-import { R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
+import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
 import PromptBuilder, { PromptSegment, PromptBuilderRef } from "./PromptBuilder";
@@ -110,11 +110,17 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     }, []);
     const [selectedPromptPreset, setSelectedPromptPreset] = useState<"r2v" | "r2v_minimax">("r2v");
     const [isUploadingReference, setIsUploadingReference] = useState(false);
-    const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">("i2v"); // Local mode state
+    const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">(I2V_MODE_AVAILABLE ? "i2v" : "r2v"); // Local mode state
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
 
     // Sync from parent params
     useEffect(() => {
+        // 没有可用的 I2V 模型时（本安装只接重子网关）强制停在参考图驱动，
+        // 否则会拿着没配密钥的 i2v 模型去生成。
+        if (!I2V_MODE_AVAILABLE) {
+            setGenerationMode("r2v");
+            return;
+        }
         if (params.generationMode) {
             setGenerationMode(params.generationMode as "i2v" | "r2v");
         }
@@ -597,7 +603,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                 </h2>
 
                 <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full pb-8">
-                    {/* Generation Mode Switcher */}
+                    {/* Generation Mode Switcher（本安装只接重子，没有 i2v 模型时不显示） */}
+                    {I2V_MODE_AVAILABLE && (
                     <div className="flex items-center justify-center">
                         <div className="flex bg-surface rounded-xl p-1.5 gap-1 border border-glass-border">
                             <button
@@ -638,6 +645,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                             </button>
                         </div>
                     </div>
+                    )}
                     {/* === I2V MODE: Source Selector === */}
                     {generationMode === 'i2v' && (
                         <div className="space-y-4">

@@ -7,7 +7,7 @@ import { useProjectStore } from "@/store/projectStore";
 import VideoCreator from "./VideoCreator";
 import VideoSidebar from "./VideoSidebar";
 import { api, VideoTask } from "@/lib/api";
-import { resolveModelId } from "@/lib/modelCatalog";
+import { I2V_MODE_AVAILABLE, resolveModelId } from "@/lib/modelCatalog";
 import StepHeader from "@/components/shared/StepHeader";
 
 export default function VideoGenerator() {
@@ -25,6 +25,12 @@ export default function VideoGenerator() {
         currentProject?.model_settings?.i2v_model,
         'video_sidebar',
     );
+    // 本安装只接重子网关时没有 i2v 模型，默认走参考图驱动（dola-seedance2.5）。
+    const defaultR2vModel = resolveModelId(
+        'r2v',
+        currentProject?.model_settings?.r2v_model,
+        'video_sidebar',
+    );
 
     // Generation Params (Lifted State)
     const [params, setParams] = useState({
@@ -38,9 +44,9 @@ export default function VideoGenerator() {
         batchSize: 1,
         cameraMovement: "none" as string,
         subjectMotion: "still" as string,
-        model: defaultI2vModel,
+        model: I2V_MODE_AVAILABLE ? defaultI2vModel : defaultR2vModel,
         shotType: "single" as string,  // 'single' or 'multi' (only for wan2.6-i2v)
-        generationMode: "i2v" as string,  // 'i2v' or 'r2v'
+        generationMode: (I2V_MODE_AVAILABLE ? "i2v" : "r2v") as string,  // 'i2v' or 'r2v'
         referenceVideoUrls: [] as string[],  // Reference videos for R2V (max 3)
         // Kling params
         mode: "std" as string,
@@ -55,13 +61,12 @@ export default function VideoGenerator() {
     useEffect(() => {
         setParams((p) => ({
             ...p,
-            model: resolveModelId(
-                'i2v',
-                currentProject?.model_settings?.i2v_model,
-                'video_sidebar',
-            ),
+            // 只在当前模式对应的设置变化时换模型，否则会把 r2v 的模型重置成 i2v。
+            model: p.generationMode === 'r2v'
+                ? resolveModelId('r2v', currentProject?.model_settings?.r2v_model, 'video_sidebar')
+                : resolveModelId('i2v', currentProject?.model_settings?.i2v_model, 'video_sidebar'),
         }));
-    }, [currentProject?.model_settings?.i2v_model]);
+    }, [currentProject?.model_settings?.i2v_model, currentProject?.model_settings?.r2v_model]);
 
     // Sync tasks from project
     useEffect(() => {

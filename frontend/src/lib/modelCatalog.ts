@@ -449,6 +449,10 @@ export const GLOBAL_R2V_MODELS = getVisibleModels('r2v', 'global_settings').map(
 export const GLOBAL_TEXT_MODELS = getVisibleModels('text', 'global_settings').map(toSelectableModel);
 export const VIDEO_I2V_MODELS = getVisibleModels('i2v', 'video_sidebar').map(toI2VModel);
 
+/** 首帧驱动（I2V）在本安装是否可用。数据驱动：重子网关当前没有 i2v 模型，
+ *  所以整个 I2V 入口默认不启用；以后往目录里加一个可用的 i2v 模型，它自动回来。 */
+export const I2V_MODE_AVAILABLE = VIDEO_I2V_MODELS.length > 0;
+
 export const T2I_MODELS = PROJECT_T2I_MODELS;
 export const I2I_MODELS = PROJECT_I2I_MODELS;
 export const IMAGE_MODELS = PROJECT_IMAGE_MODELS;
