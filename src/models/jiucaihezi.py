@@ -1,17 +1,16 @@
 import base64
-import logging
 import mimetypes
 import os
 import time
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import requests
 
 from .base import VideoGenModel
 from .image import ImageGenModel
 
-logger = logging.getLogger(__name__)
 GROK_IMAGE_MODEL = "grok-imagine-image-2.0"
+MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 def _base_url() -> str:
@@ -43,45 +42,48 @@ def _download_video_content(task_id: str, output_path: str) -> None:
         output.write(response.content)
 
 
-def _public_media_url(ref: str, media_type: str = "image") -> str:
+def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
+    """Upload a local URL-type reference to Jiucaihezi's temporary media API.
+
+    This is intentionally fail-closed: Jiucaihezi reference URLs must never
+    fall back to OSS or any other storage provider.
+    """
+    if not os.path.isfile(path):
+        raise RuntimeError(f"Jiucaihezi {media_type} upload source not found: {path}")
+    if os.path.getsize(path) > MAX_TEMP_UPLOAD_BYTES:
+        raise RuntimeError(
+            f"Jiucaihezi {media_type} upload exceeds the 20 MB temporary-media limit"
+        )
+    content_type = mimetypes.guess_type(path)[0]
+    allowed_prefix = {"image": "image/", "audio": "audio/", "video": "video/"}.get(media_type)
+    if not content_type or (allowed_prefix and not content_type.startswith(allowed_prefix)):
+        raise RuntimeError(f"Jiucaihezi temporary upload does not accept this {media_type} file type")
+    try:
+        with open(path, "rb") as handle:
+            response = requests.post(
+                f"{_base_url()}/api/creations/uploads",
+                headers=_headers(),
+                files={"file": (os.path.basename(path), handle, content_type)},
+                timeout=60,
+            )
+        response.raise_for_status()
+        url = response.json().get("url")
+    except Exception as exc:
+        raise RuntimeError(
+            f"Jiucaihezi {media_type} upload failed; OSS fallback is disabled"
+        ) from exc
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        raise RuntimeError(
+            f"Jiucaihezi {media_type} upload returned no public URL; OSS fallback is disabled"
+        )
+    return url
+
+
+def _public_media_url(ref: str, media_type: str = "media") -> str:
     if ref.startswith(("http://", "https://")):
         return ref
     path = ref if os.path.exists(ref) else os.path.join("output", ref)
-
-    # The gateway provides a temporary public URL for local media. This is
-    # the native path for Jiucaihezi and does not require OSS configuration.
-    if os.path.exists(path):
-        try:
-            with open(path, "rb") as handle:
-                response = requests.post(
-                    f"{_base_url()}/api/creations/uploads",
-                    headers=_headers(),
-                    files={"file": (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "application/octet-stream")},
-                    timeout=60,
-                )
-            response.raise_for_status()
-            url = response.json().get("url")
-            if url:
-                return url
-        except Exception as exc:
-            # Keep the configured OSS path available for installations where
-            # the gateway upload endpoint is unavailable.
-            logger.warning("Jiucaihezi local %s upload failed; trying OSS fallback: %s", media_type, exc)
-
-    from ..utils.oss_utils import OSSImageUploader
-
-    uploader = OSSImageUploader()
-    if os.path.exists(path):
-        object_key = uploader.upload_file(path, sub_path="temp/jiucaihezi")
-    else:
-        object_key = ref
-    url = uploader.sign_url_for_api(object_key) if object_key else ""
-    if not url:
-        raise RuntimeError(
-            f"Jiucaihezi {media_type} reference requires a public URL; "
-            "local upload to the gateway and OSS fallback both failed"
-        )
-    return url
+    return upload_to_jiucaihezi(path, media_type)
 
 
 class JiucaiheziImageModel(ImageGenModel):

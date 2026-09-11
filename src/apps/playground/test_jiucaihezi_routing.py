@@ -60,6 +60,29 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             ref_image_urls=[],
         )
 
+    @patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"})
+    @patch("src.models.jiucaihezi.upload_to_jiucaihezi")
+    @patch("src.apps.playground.service.requests.post")
+    def test_seed_audio_local_reference_uses_jiucaihezi_upload(self, post, upload):
+        upload.return_value = "https://api.jiucaihezi.studio/media/creation/audio"
+        response = Mock()
+        response.content = b"mp3"
+        response.raise_for_status.return_value = None
+        post.return_value = response
+        service = PlaygroundService(Mock())
+        generation = _generation("seed-audio-1.0", PlaygroundMode.R2A)
+        generation.input_media = ["output/reference.wav"]
+
+        with patch("src.apps.playground.service.os.path.exists", return_value=True), patch(
+            "builtins.open", unittest.mock.mock_open(read_data=b"audio")
+        ):
+            service._process_audio_generation(generation)
+
+        upload.assert_called_once_with("output/reference.wav", "audio")
+        assert post.call_args.kwargs["json"]["metadata"]["references"] == [
+            {"audio_url": "https://api.jiucaihezi.studio/media/creation/audio"}
+        ]
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,13 +2,58 @@ import os
 import tempfile
 from unittest.mock import Mock, patch
 
-from src.models.jiucaihezi import JiucaiheziImageModel, JiucaiheziVideoModel
+import pytest
+
+from src.models.jiucaihezi import (
+    JiucaiheziImageModel,
+    JiucaiheziVideoModel,
+    upload_to_jiucaihezi,
+)
 
 
 def _response(data):
     response = Mock()
     response.json.return_value = data
     return response
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_local_media_upload_uses_jiucaihezi_temporary_media_api(post, tmp_path):
+    source = tmp_path / "reference.wav"
+    source.write_bytes(b"audio")
+    post.return_value = _response({
+        "url": "https://api.jiucaihezi.studio/media/creation/token"
+    })
+
+    url = upload_to_jiucaihezi(str(source), "audio")
+
+    assert url.endswith("/media/creation/token")
+    assert post.call_args.args[0].endswith("/api/creations/uploads")
+    assert post.call_args.kwargs["headers"] == {"Authorization": "Bearer test"}
+    assert post.call_args.kwargs["files"]["file"][0] == "reference.wav"
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_local_media_upload_fails_closed_without_oss_fallback(post, tmp_path):
+    source = tmp_path / "reference.png"
+    source.write_bytes(b"image")
+    post.side_effect = RuntimeError("gateway unavailable")
+
+    with pytest.raises(RuntimeError, match="OSS fallback is disabled"):
+        upload_to_jiucaihezi(str(source), "image")
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_local_media_upload_rejects_missing_url_without_oss_fallback(post, tmp_path):
+    source = tmp_path / "reference.png"
+    source.write_bytes(b"image")
+    post.return_value = _response({})
+
+    with pytest.raises(RuntimeError, match="OSS fallback is disabled"):
+        upload_to_jiucaihezi(str(source), "image")
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})

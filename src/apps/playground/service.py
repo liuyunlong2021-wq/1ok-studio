@@ -8,7 +8,6 @@ routing logic in ``src/apps/comic_gen/pipeline.py:process_video_task()``.
 import os
 import shutil
 import uuid
-import base64
 import requests
 from datetime import datetime, timezone
 from typing import Optional
@@ -122,8 +121,8 @@ class PlaygroundService:
                     continue
                 path = ref if os.path.exists(ref) else os.path.join("output", ref)
                 if os.path.exists(path):
-                    with open(path, "rb") as f:
-                        refs.append({"audio_data": base64.b64encode(f.read()).decode("ascii")})
+                    from ...models.jiucaihezi import upload_to_jiucaihezi
+                    refs.append({"audio_url": upload_to_jiucaihezi(path, "audio")})
             if refs:
                 payload["metadata"] = {"references": refs}
         base_url = (os.getenv("JIUCAIHEZI_BASE_URL") or "https://api.jiucaihezi.studio").rstrip("/")
