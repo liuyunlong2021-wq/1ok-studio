@@ -37,7 +37,7 @@ def is_oss_enabled() -> bool:
     """
     value = os.getenv("OSS_ENABLE")
     if value is None:
-        return True
+        return False
     return value.strip().lower() not in ("false", "0", "no", "off")
 
 
@@ -85,6 +85,19 @@ class OSSImageUploader:
     
     def __init__(self):
         if self._initialized:
+            return
+
+        # LumenX uses Jiucaihezi for managed media uploads. Keep the legacy
+        # OSS adapter inert so missing/placeholder OSS credentials cannot
+        # trigger network initialization or storage warnings.
+        if not is_oss_enabled():
+            self.access_key_id = None
+            self.access_key_secret = None
+            self.endpoint = None
+            self.bucket_name = None
+            self.base_path = get_oss_base_path()
+            self.bucket = None
+            self._initialized = True
             return
             
         self.access_key_id = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")

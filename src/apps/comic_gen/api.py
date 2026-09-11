@@ -105,11 +105,6 @@ if os.path.exists(env_path):
 from ..playground.api import router as playground_router
 app.include_router(playground_router, prefix="/playground")
 
-# Debug: Print OSS configuration at startup
-logger.info(f"STARTUP: OSS_ENDPOINT={os.getenv('OSS_ENDPOINT')}, OSS_BUCKET_NAME={os.getenv('OSS_BUCKET_NAME')}, OSS_BASE_PATH={os.getenv('OSS_BASE_PATH')}")
-
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, specify the frontend origin
