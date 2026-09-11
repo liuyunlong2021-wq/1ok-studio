@@ -12,6 +12,8 @@ from .image import ImageGenModel
 GROK_IMAGE_MODEL = "grok-imagine-image-2.0"
 MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
 JIUCAIHEZI_BASE_URL = "https://api.jiucaihezi.studio"
+TEMP_UPLOAD_ATTEMPTS = 3
+TEMP_UPLOAD_TIMEOUT = (15, 120)
 
 
 def _base_url() -> str:
@@ -59,23 +61,44 @@ def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
     allowed_prefix = {"image": "image/", "audio": "audio/", "video": "video/"}.get(media_type)
     if not content_type or (allowed_prefix and not content_type.startswith(allowed_prefix)):
         raise RuntimeError(f"Jiucaihezi temporary upload does not accept this {media_type} file type")
-    try:
-        with open(path, "rb") as handle:
-            response = requests.post(
-                f"{_base_url()}/api/creations/uploads",
-                headers=_headers(),
-                files={"file": (os.path.basename(path), handle, content_type)},
-                timeout=60,
-            )
-        response.raise_for_status()
-        url = response.json().get("url")
-    except Exception as exc:
+    response = None
+    for attempt in range(1, TEMP_UPLOAD_ATTEMPTS + 1):
+        try:
+            # Reopen the file on every attempt so retries always start at byte 0.
+            with open(path, "rb") as handle:
+                response = requests.post(
+                    f"{_base_url()}/api/creations/uploads",
+                    headers=_headers(),
+                    files={"file": (os.path.basename(path), handle, content_type)},
+                    timeout=TEMP_UPLOAD_TIMEOUT,
+                )
+            response.raise_for_status()
+            data = response.json()
+            url = data.get("url") or (data.get("data") or {}).get("url")
+            break
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            detail = (exc.response.text if exc.response is not None else str(exc))[:300]
+            if status is not None and status < 500:
+                raise RuntimeError(
+                    f"Jiucaihezi {media_type} upload rejected ({status}): {detail}"
+                ) from exc
+            last_error = f"HTTP {status}: {detail}" if status else str(exc)
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last_error = str(exc)
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError(
+                f"Jiucaihezi {media_type} upload returned an invalid response: {exc}"
+            ) from exc
+        if attempt < TEMP_UPLOAD_ATTEMPTS:
+            time.sleep(attempt)
+    else:
         raise RuntimeError(
-            f"Jiucaihezi {media_type} upload failed; OSS fallback is disabled"
-        ) from exc
+            f"Jiucaihezi {media_type} upload failed after {TEMP_UPLOAD_ATTEMPTS} attempts: {last_error}"
+        )
     if not isinstance(url, str) or not url.startswith(("http://", "https://")):
         raise RuntimeError(
-            f"Jiucaihezi {media_type} upload returned no public URL; OSS fallback is disabled"
+            f"Jiucaihezi {media_type} upload returned no public URL"
         )
     return url
 

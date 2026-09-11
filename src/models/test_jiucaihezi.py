@@ -3,6 +3,7 @@ import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 from src.models.jiucaihezi import (
     JiucaiheziImageModel,
@@ -32,17 +33,27 @@ def test_local_media_upload_uses_jiucaihezi_temporary_media_api(post, tmp_path):
     assert post.call_args.args[0].endswith("/api/creations/uploads")
     assert post.call_args.kwargs["headers"] == {"Authorization": "Bearer test"}
     assert post.call_args.kwargs["files"]["file"][0] == "reference.wav"
+    assert post.call_args.kwargs["timeout"] == (15, 120)
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
-def test_local_media_upload_fails_closed_without_oss_fallback(post, tmp_path):
+def test_local_media_upload_retries_transient_gateway_failure(post, tmp_path):
     source = tmp_path / "reference.png"
     source.write_bytes(b"image")
-    post.side_effect = RuntimeError("gateway unavailable")
+    failed = _response({})
+    failed.status_code = 503
+    failed.text = "gateway unavailable"
+    failed.raise_for_status.side_effect = requests.HTTPError(response=failed)
+    post.side_effect = [failed, _response({
+        "url": "https://api.jiucaihezi.studio/media/creation/recovered"
+    })]
 
-    with pytest.raises(RuntimeError, match="OSS fallback is disabled"):
-        upload_to_jiucaihezi(str(source), "image")
+    with patch("src.models.jiucaihezi.time.sleep"):
+        url = upload_to_jiucaihezi(str(source), "image")
+
+    assert url.endswith("/recovered")
+    assert post.call_count == 2
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
@@ -52,7 +63,7 @@ def test_local_media_upload_rejects_missing_url_without_oss_fallback(post, tmp_p
     source.write_bytes(b"image")
     post.return_value = _response({})
 
-    with pytest.raises(RuntimeError, match="OSS fallback is disabled"):
+    with pytest.raises(RuntimeError, match="returned no public URL"):
         upload_to_jiucaihezi(str(source), "image")
 
 
