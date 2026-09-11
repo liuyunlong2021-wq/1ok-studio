@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api, API_URL } from '@/lib/api';
 import type { FrontendModelSettings } from '@/lib/modelCatalog';
+import { resolveModelSettings } from '@/lib/modelCatalog';
 export {
     I2I_MODELS,
     I2V_MODELS,
@@ -188,6 +189,14 @@ export interface ArtDirection {
 }
 
 export type ModelSettings = FrontendModelSettings;
+
+/** 项目里存的模型 id 可能已被清除（例如旧项目的 wan2.7-image-pro /
+ *  happyhorse-1.1-i2v）。大量组件直接读 currentProject.model_settings，
+ *  所以在这里统一解析到允许家族的模型，否则生成时会打到没配密钥的网关。
+ *  ponytail: 只在项目读入时做一次，没有改成 per-call 解析。 */
+function withResolvedModelSettings<T extends { model_settings?: ModelSettings }>(project: T): T {
+    return { ...project, model_settings: resolveModelSettings(project.model_settings, 'project_settings') };
+}
 
 export const ASPECT_RATIOS = [
     { id: '9:16', name: '9:16', description: 'Portrait (576×1024)' },
@@ -477,6 +486,7 @@ export const useProjectStore = create<ProjectStore>()(
                         // Non-fatal: a failed backfill must not block creation.
                         console.warn('Failed to inject default settings into new project:', backfillError);
                     }
+                    project = withResolvedModelSettings(project);
                     set((state) => ({
                         projects: [...state.projects, project],
                         currentProject: project,
@@ -526,7 +536,7 @@ export const useProjectStore = create<ProjectStore>()(
                 // First, try to set from local cache for immediate feedback
                 const cachedProject = get().projects.find((p) => p.id === id);
                 if (cachedProject) {
-                    set({ currentProject: cachedProject });
+                    set({ currentProject: withResolvedModelSettings(cachedProject) });
                 }
 
                 // Then fetch latest data from backend
@@ -535,10 +545,10 @@ export const useProjectStore = create<ProjectStore>()(
                     if (response.ok) {
                         const rawData = await response.json();
                         // Transform data to match frontend model (snake_case -> camelCase for specific fields)
-                        const latestProject = {
+                        const latestProject = withResolvedModelSettings({
                             ...rawData,
                             originalText: rawData.original_text
-                        };
+                        });
 
                         // Update both currentProject and projects array with latest data
                         set((state) => ({

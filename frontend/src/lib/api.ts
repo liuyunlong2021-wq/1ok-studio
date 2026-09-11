@@ -59,6 +59,9 @@ export const API_URL = getApiUrl();
 
 export type ProviderMode = "dashscope" | "vendor";
 
+/** Motion 提示词生成是后台任务 + 轮询，因为一次生成可能要 2 分钟。 */
+export type MotionPromptJobStatus = "queued" | "running" | "done" | "failed";
+
 /**
  * PR-3g #3 · TTS voice metadata returned by GET /voices.
  * Family-aware fields (family/dialect/lang_primary/supports_instruction)
@@ -378,7 +381,29 @@ export const api = {
         prompt_preset?: "r2v" | "r2v_minimax";
     }) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/motion/generate_prompt`, data);
-        return res.data as { prompt: string; model: string; skill_id: string; skill_name: string };
+        return res.data as { job_id: string; status: MotionPromptJobStatus; skill_name: string };
+    },
+
+    /** 本地拼装（不调 AI）：把参考图和镜头按序号直接拼成提示词，秒回、不会超时。 */
+    assembleMotionPrompt: async (scriptId: string, data: {
+        frame_ids: string[];
+        references: { name: string; asset_type: string }[];
+        ratio?: string;
+    }) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/motion/assemble_prompt`, data);
+        return res.data as { prompt: string; model: string; skill_name: string };
+    },
+
+    getMotionPromptJob: async (scriptId: string, jobId: string) => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/motion/generate_prompt/${jobId}`);
+        return res.data as {
+            status: MotionPromptJobStatus;
+            prompt: string;
+            model: string;
+            skill_name: string;
+            error: string;
+            attempt: number;
+        };
     },
 
     /** Upload an external image as a T2I首帧 candidate for an I2V flow.

@@ -21,9 +21,28 @@ from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 from ...utils.provider_registry import resolve_provider_backend
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
-from ...utils.model_catalog import get_default_model_settings
+from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings
 
 logger = get_logger(__name__)
+
+
+def _is_jiucaihezi_family_model(model_id: Optional[str]) -> bool:
+    """模型是否由韭菜盒子提供（兼容 dola-seedance2.5 这类 legacy 扁平 id）。
+
+    pipeline 里多处用 `model.startswith("jiucaihezi/")` 判断供应商，但目录里韭菜盒子
+    的 R2V 模型 id 就是扁平形式（dola-seedance2.5 / minimax_h3_image_audio_to_video_v2_15s），
+    前缀判断会漏掉它们——漏掉的后果是 R2V 自动切换分支静默把模型换成 wan2.7-r2v，
+    请求被交给另一个供应商（DashScope key 无效时直接失败）。这里用目录的
+    legacy→canonical 映射兜住，查不到时退回前缀判断。
+    """
+    if not model_id:
+        return False
+    canonical = model_id
+    try:
+        canonical = get_catalog_accessor().resolve_legacy_to_canonical(model_id) or model_id
+    except Exception:  # 目录不可用时不能让路由挂掉
+        pass
+    return canonical.startswith("jiucaihezi/")
 
 # --- Security helpers ---
 
@@ -2257,8 +2276,8 @@ class ComicGenPipeline:
         is_jiucaihezi_seedance = isinstance(model, str) and model.endswith(("dola-seedance2.5", "dola-seedance2.5-r2v"))
         if is_jiucaihezi_seedance:
             prompt = (prompt or "").strip()
-            if not 1 <= len(prompt) <= 3000:
-                raise ValueError("Seedance 2.5 prompt must contain 1-3000 characters")
+            if not 1 <= len(prompt) <= 12000:
+                raise ValueError("Seedance 2.5 prompt must contain 1-12000 characters")
             if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 30:
                 raise ValueError("Seedance 2.5 reference mode requires 1-30 reference images")
             if generation_mode == "r2v" and not source_frame_ids:
@@ -2282,9 +2301,12 @@ class ComicGenPipeline:
         if generation_mode == "r2v":
             # Skip auto-switch if user already selected an R2V model directly
             if not (model and model.endswith("-r2v")):
-                if model and model.startswith("jiucaihezi/"):
+                if _is_jiucaihezi_family_model(model):
                     # Jiucaihezi exposes provider-native R2V IDs that do not
-                    # necessarily use the legacy -r2v suffix (MiniMax H3).
+                    # necessarily use the legacy -r2v suffix (MiniMax H3), and
+                    # its catalog ids are flat (dola-seedance2.5) — a plain
+                    # "jiucaihezi/" prefix check would drop them into the
+                    # wan2.7-r2v fallback below and call the wrong provider.
                     pass
                 elif model and model.startswith("happyhorse-"):
                     model = "happyhorse-1.1-r2v"

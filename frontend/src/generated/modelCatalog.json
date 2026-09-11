@@ -881,8 +881,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
-      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "description": "deepseek-v4-flash via 韭菜盒子",
+      "display_name": "deepseek-v4-flash",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3336,8 +3336,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
-      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "description": "deepseek-v4-flash via 韭菜盒子",
+      "display_name": "deepseek-v4-flash",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -8083,8 +8083,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
-      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "description": "deepseek-v4-flash via 韭菜盒子",
+      "display_name": "deepseek-v4-flash",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"

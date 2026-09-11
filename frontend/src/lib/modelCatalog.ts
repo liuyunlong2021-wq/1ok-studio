@@ -217,6 +217,21 @@ const SORTED_MODEL_ENTRIES = [...CATALOG_MODELS].sort((left, right) => {
     return left.display_name.localeCompare(right.display_name);
 });
 
+// 本安装只接韭菜盒子网关：其他 provider（DashScope 的 wan/qwen、Kling、Pixverse…）
+// 在这份 .env 里没有可用凭证，选中后必定失败（实测 DASHSCOPE_API_KEY 是占位符 → 401）。
+// 过滤点只有一个：getVisibleModels()。选择器列表和 resolveModelId() 都走它，
+// 所以"项目里存的旧 id"（wan2.7-image-pro / happyhorse-1.1-r2v）也会落到允许家族上。
+// 想恢复完整目录：把下面这行改成 `const ALLOWED_MODEL_FAMILIES: string[] | null = null;`
+const ALLOWED_MODEL_FAMILIES: string[] | null = ['jiucaihezi'];
+
+/** R2V 默认模型。目录默认值 happyhorse-1.1-r2v 不在白名单里，所以显式指定。 */
+const PREFERRED_R2V_MODEL_ID = 'dola-seedance2.5';
+
+function onlyAllowedModels(models: CatalogModel[]): CatalogModel[] {
+    const allowed = ALLOWED_MODEL_FAMILIES;
+    return allowed ? models.filter((model) => allowed.includes(model.family)) : models;
+}
+
 function isVisibleModel(model: CatalogModel, surface: VisibilitySurface): boolean {
     return (
         model.status !== 'planned' &&
@@ -227,6 +242,10 @@ function isVisibleModel(model: CatalogModel, surface: VisibilitySurface): boolea
 }
 
 function getVisibleModels(group: SelectionGroup, surface: VisibilitySurface): CatalogModel[] {
+    // 本安装只接韭菜盒子网关，所以「可见」= 目录可见 && 在允许家族内。
+    // 过滤放在这里而不是各个选择器里，是为了让 resolveModelId() 的兜底逻辑
+    // 也一起生效：项目里存的旧模型 id（如 wan2.7-image-pro / happyhorse-1.1-i2v）
+    // 会落到允许家族的同组模型上，而不是继续调用没配密钥的别家网关。
     // Strict match: model declared its primary selection_group as `group`.
     const direct = SORTED_MODEL_ENTRIES.filter(
         (model) => model.ui.selection_group === group && isVisibleModel(model, surface)
@@ -238,14 +257,16 @@ function getVisibleModels(group: SelectionGroup, surface: VisibilitySurface): Ca
     // catalog defaults — meaning user-picked t2i/i2i selections silently
     // revert on the next render. (See PR-3* assembly model picker bug.)
     if (direct.length > 0 || (group !== 't2i' && group !== 'i2i')) {
-        return direct;
+        return onlyAllowedModels(direct);
     }
     const capability = group; // 't2i' | 'i2i'
-    return SORTED_MODEL_ENTRIES.filter(
-        (model) =>
-            model.ui.selection_group === 'image' &&
-            model.capabilities.includes(capability) &&
-            isVisibleModel(model, surface)
+    return onlyAllowedModels(
+        SORTED_MODEL_ENTRIES.filter(
+            (model) =>
+                model.ui.selection_group === 'image' &&
+                model.capabilities.includes(capability) &&
+                isVisibleModel(model, surface)
+        )
     );
 }
 
@@ -297,7 +318,12 @@ function getConfiguredDefaultId(group: SelectionGroup): string {
 
 function getFallbackVisibleModelId(group: SelectionGroup, surface: VisibilitySurface): string {
     const visibleModels = getVisibleModels(group, surface);
-    const configuredDefaultId = getConfiguredDefaultId(group);
+    // 本安装只接韭菜盒子网关，R2V 默认就用用户实际在跑的那个模型，
+    // 而不是目录默认值（happyhorse-1.1-r2v 已被白名单滤掉，会让默认值漂移）。
+    const configuredDefaultId =
+        group === 'r2v' && visibleModels.some((model) => model.id === PREFERRED_R2V_MODEL_ID)
+            ? PREFERRED_R2V_MODEL_ID
+            : getConfiguredDefaultId(group);
 
     if (visibleModels.some((model) => model.id === configuredDefaultId)) {
         return configuredDefaultId;
@@ -325,6 +351,17 @@ function normalizeRequestedModelId(requestedId: string | null | undefined): stri
     return CANONICAL_MODEL_ID_ALIASES[requestedId] ?? requestedId;
 }
 
+/** 早期版本往项目设置里写过带家族前缀的 id（jiucaihezi/dola-seedance2.5），
+ *  目录里的真实 key 不带前缀。这里剥掉前缀换成真实 key，避免它被当成未知模型。
+ *  ponytail: 只做前缀剥离，不做全量数据迁移；下次保存项目设置就会写回标准 id。 */
+function toCatalogModelId(requestedId: string): string | undefined {
+    if (MODEL_CATALOG.models[requestedId]) {
+        return requestedId;
+    }
+    const stripped = requestedId.split('/').pop();
+    return stripped && MODEL_CATALOG.models[stripped] ? stripped : undefined;
+}
+
 export function resolveModelId(
     group: SelectionGroup,
     requestedId: string | null | undefined,
@@ -335,6 +372,19 @@ export function resolveModelId(
 
     if (normalizedRequestedId && visibleModels.some((model) => model.id === normalizedRequestedId)) {
         return normalizedRequestedId;
+    }
+
+    // 白名单内、但不属于当前分组的模型要原样保留。实例：项目里把 r2v 的
+    // dola-seedance2.5 存进了 i2v_model —— 走分组兜底会被换成别家模型
+    // （happyhorse-1.1-i2v），而那份密钥没配，生成必定 401。
+    const requestedCatalogId = normalizedRequestedId ? toCatalogModelId(normalizedRequestedId) : undefined;
+    const requestedModel = requestedCatalogId ? MODEL_CATALOG.models[requestedCatalogId] : undefined;
+    if (
+        requestedModel &&
+        onlyAllowedModels([requestedModel]).length > 0 &&
+        !['deprecated', 'hidden', 'planned'].includes(requestedModel.status)
+    ) {
+        return requestedCatalogId as string;
     }
 
     const fallbackId = getFallbackVisibleModelId(group, surface);
@@ -379,6 +429,7 @@ export function getMaxReferenceImages(modelId?: string | null): number {
     return typeof maxReferenceImages === 'number' ? maxReferenceImages : 3;
 }
 
+// getVisibleModels() 已按允许家族过滤，所以这些选择器不需要再包一层。
 export const PROJECT_T2I_MODELS = getVisibleModels('t2i', 'project_settings').map(toSelectableModel);
 export const SERIES_T2I_MODELS = getVisibleModels('t2i', 'series_settings').map(toSelectableModel);
 export const GLOBAL_T2I_MODELS = getVisibleModels('t2i', 'global_settings').map(toSelectableModel);
@@ -435,10 +486,14 @@ for (const model of SORTED_MODEL_ENTRIES) {
     }
 }
 
-export const VIDEO_R2V_MODELS: I2VModelConfig[] = SORTED_MODEL_ENTRIES
-    .filter((model) => model.ui.selection_group === 'r2v' && isVisibleModel(model, 'video_sidebar'))
-    .map(toI2VModel);
-export const DEFAULT_R2V_MODEL_ID = VIDEO_R2V_MODELS[0]?.id ?? R2V_SELECTION_MODEL_ID;
+export const VIDEO_R2V_MODELS: I2VModelConfig[] = onlyAllowedModels(
+    SORTED_MODEL_ENTRIES.filter((model) => model.ui.selection_group === 'r2v' && isVisibleModel(model, 'video_sidebar'))
+).map(toI2VModel);
+// 默认取 PREFERRED_R2V_MODEL_ID（不是列表首个 —— 列表按 ui.order 排，会漂到 minimax）。
+export const DEFAULT_R2V_MODEL_ID =
+    VIDEO_R2V_MODELS.find((model) => model.id === PREFERRED_R2V_MODEL_ID)?.id
+    ?? VIDEO_R2V_MODELS[0]?.id
+    ?? R2V_SELECTION_MODEL_ID;
 
 /**
  * Given the currently selected I2V model, resolve the correct R2V route model.

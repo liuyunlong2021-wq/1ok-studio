@@ -40,6 +40,11 @@ interface VideoCreatorProps {
     onParamsChange: (params: Partial<VideoParams>) => void;
 }
 
+// Motion 提示词生成已改成后端后台任务：3 秒轮询一次，最多等 10 分钟
+//（上游 524 时后端会自动重试一次，所以单次等待可能接近 4 分钟）。
+const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
+const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
 export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, params, onParamsChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
     const currentProject = useProjectStore((state) => state.currentProject);
@@ -92,7 +97,17 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const [selectedFrameIds, setSelectedFrameIds] = useState<string[]>([]);
     const [frameSelectionAnchor, setFrameSelectionAnchor] = useState<string | null>(null);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+    const [promptJobStatus, setPromptJobStatus] = useState<"" | "queued" | "running">("");
     const [motionError, setMotionError] = useState("");
+    // 卸载后停止轮询，避免离开页面还在刷接口
+    const unmountedRef = useRef(false);
+    // 必须重置为 false：dev 的 React StrictMode 会 mount → cleanup → mount，
+    // 少了这行 ref 会永久停在 true，轮询直接被 while 条件跳过
+    // （表现：点「生成提示词」没反应，但后端任务其实跑完了、结果没人取）。
+    useEffect(() => {
+        unmountedRef.current = false;
+        return () => { unmountedRef.current = true; };
+    }, []);
     const [selectedPromptPreset, setSelectedPromptPreset] = useState<"r2v" | "r2v_minimax">("r2v");
     const [isUploadingReference, setIsUploadingReference] = useState(false);
     const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">("i2v"); // Local mode state
@@ -283,21 +298,55 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
 
     const generateMotionPrompt = async () => {
         if (!currentProject || !selectedFrameIds.length) return;
+        const scriptId = currentProject.id;
         setIsGeneratingPrompt(true);
         setMotionError("");
+        setPromptJobStatus("queued");
         try {
-            const result = await api.generateMotionPrompt(currentProject.id, {
+            const job = await api.generateMotionPrompt(scriptId, {
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 prompt_preset: selectedPromptPreset,
                 model: currentProject.model_settings?.text_model,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
-            setSegments([{ type: "text", value: result.prompt, id: `motion-${Date.now()}` }]);
+            // 后端已改成后台任务（一次生成可能 2 分钟，上游会 524），这里轮询拿结果。
+            const deadline = Date.now() + MOTION_PROMPT_POLL_TIMEOUT_MS;
+            while (Date.now() < deadline && !unmountedRef.current) {
+                await new Promise((resolve) => setTimeout(resolve, MOTION_PROMPT_POLL_INTERVAL_MS));
+                const state = await api.getMotionPromptJob(scriptId, job.job_id);
+                if (state.status === "done") {
+                    setSegments([{ type: "text", value: state.prompt, id: `motion-${Date.now()}` }]);
+                    return;
+                }
+                if (state.status === "failed") {
+                    setMotionError(state.error || "生成提示词失败");
+                    return;
+                }
+                setPromptJobStatus(state.status);
+            }
+            if (!unmountedRef.current) setMotionError("生成超时：后台可能仍在处理，稍后可重试");
         } catch (error: any) {
             setMotionError(error?.response?.data?.detail || "生成提示词失败");
         } finally {
             setIsGeneratingPrompt(false);
+            setPromptJobStatus("");
+        }
+    };
+
+    /** 本地拼装：不调 AI，直接按序号拼「参考图N + 镜头N」，秒出且不会失败。 */
+    const assembleMotionPrompt = async () => {
+        if (!currentProject || !selectedFrameIds.length) return;
+        setMotionError("");
+        try {
+            const result = await api.assembleMotionPrompt(currentProject.id, {
+                frame_ids: selectedFrameIds,
+                references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
+                ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
+            });
+            setSegments([{ type: "text", value: result.prompt, id: `motion-${Date.now()}` }]);
+        } catch (error: any) {
+            setMotionError(error?.response?.data?.detail || "拼装提示词失败");
         }
     };
 
@@ -530,7 +579,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const r2vUsesImages = true;
     const isSeedance25 = (params.model || "").includes("dola-seedance2.5");
     const referenceImageLimit = isSeedance25 ? 30 : 9;
-    const promptLimit = isSeedance25 ? 3000 : 12000;
+    const promptLimit = 12000;
     const handleCastSlotSelect = (_slotIndex: number, selected: { url: string; name: string }) => {
         const asset = availableReferenceImages.find((item) => item.url === selected.url);
         if (asset) addReference(asset);
@@ -795,10 +844,23 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <label className="text-sm font-medium text-text-secondary">连续镜头</label>
-                                    <span className="text-xs text-text-muted">
+                                    <span className="flex items-center gap-2 text-xs text-text-muted">
                                         {selectedFrameIds.length
                                             ? `已选 ${selectedFrameIds.length} 个镜头 · 输出固定 30 秒`
                                             : "点击起点，再点击终点"}
+                                        {selectedFrameIds.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedFrameIds([]);
+                                                    setFrameSelectionAnchor(null);
+                                                }}
+                                                className="flex items-center gap-1 rounded border border-glass-border px-2 py-0.5 font-medium text-text-secondary hover:border-primary/50 hover:text-primary"
+                                            >
+                                                <X size={10} />
+                                                清空
+                                            </button>
+                                        )}
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto custom-scrollbar pr-2">
@@ -1035,8 +1097,12 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                                     <option value="r2v">提示词配置 · R2V</option>
                                     <option value="r2v_minimax">MiniMax 参考生视频 Skill</option>
                                 </select>
+                                <button type="button" onClick={assembleMotionPrompt} disabled={isGeneratingPrompt || !selectedFrameIds.length} className="rounded border border-glass-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/50 hover:text-primary disabled:opacity-40">
+                                    拼装提示词
+                                </button>
                                 <button type="button" onClick={generateMotionPrompt} disabled={isGeneratingPrompt || !selectedFrameIds.length} className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40">
-                                    {isGeneratingPrompt ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Wand2 size={13} className="mr-1 inline" />}生成提示词
+                                    {isGeneratingPrompt ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Wand2 size={13} className="mr-1 inline" />}
+                                    {promptJobStatus === "running" ? "生成中..." : promptJobStatus === "queued" ? "排队中..." : "生成提示词"}
                                 </button>
                             </div>
                             {motionError && <p className="text-xs text-red-400">{motionError}</p>}

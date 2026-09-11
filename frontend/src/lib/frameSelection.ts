@@ -3,6 +3,16 @@ type FrameSelection = {
     anchorId: string | null;
 };
 
+/**
+ * 「连续镜头」选区状态机：
+ * 1. 点未选中的镜头 → 加入「锚点 → 该镜头」整段，与现有选区取并集（只加不减）；
+ *    空选区时它就是新锚点（点起点 → 点终点）。
+ * 2. 点已选中的镜头 → 只取消它自己。不碰任何其他镜头。
+ * 3. 取消到空 → 回到初始状态（锚点清空）。
+ *
+ * 不变式：一次点击要么只增加，要么只删掉被点的那一张。
+ * （此前的「朝锚点收缩」会一次砍掉一串，导致“点一个镜头另一个也取消了”。）
+ */
 export function updateFrameSelection(
     frameIds: string[],
     selectedIds: string[],
@@ -11,38 +21,28 @@ export function updateFrameSelection(
 ): FrameSelection {
     const clickedIndex = frameIds.indexOf(clickedId);
     if (clickedIndex < 0) return { selectedIds, anchorId };
-    if (!anchorId) return { selectedIds: [clickedId], anchorId: clickedId };
 
-    const selectedIndexes = selectedIds
-        .map((id) => frameIds.indexOf(id))
-        .filter((index) => index >= 0)
-        .sort((a, b) => a - b);
-
+    // 点已选中的镜头 → 只取消它
     if (selectedIds.includes(clickedId)) {
-        if (selectedIndexes.length === 1) return { selectedIds: [], anchorId: null };
+        const next = selectedIds.filter((id) => id !== clickedId);
+        if (next.length === 0) return { selectedIds: [], anchorId: null };
+        // 锚点被取消时，改用剩余选区里最靠前的那张，后续仍然能拉区间
+        const nextAnchor = anchorId && next.includes(anchorId)
+            ? anchorId
+            : frameIds.find((id) => next.includes(id)) ?? next[0];
+        return { selectedIds: next, anchorId: nextAnchor };
+    }
 
-        const first = selectedIndexes[0];
-        const last = selectedIndexes[selectedIndexes.length - 1];
-        if (clickedIndex === first) {
-            const next = frameIds.slice(first + 1, last + 1);
-            return { selectedIds: next, anchorId: anchorId === clickedId ? next[next.length - 1] : anchorId };
-        }
-        if (clickedIndex === last) {
-            const next = frameIds.slice(first, last);
-            return { selectedIds: next, anchorId: anchorId === clickedId ? next[0] : anchorId };
-        }
-
-        const anchorIndex = frameIds.indexOf(anchorId);
-        const next = anchorIndex < clickedIndex
-            ? frameIds.slice(anchorIndex, clickedIndex)
-            : frameIds.slice(clickedIndex + 1, anchorIndex + 1);
-        return { selectedIds: next, anchorId };
+    // 点未选中的镜头 → 加一段（并集）。锚点丢了就只加它自己并把它作为新锚点。
+    if (!anchorId || !selectedIds.includes(anchorId)) {
+        const merged = new Set([...selectedIds, clickedId]);
+        return { selectedIds: frameIds.filter((id) => merged.has(id)), anchorId: clickedId };
     }
 
     const anchorIndex = frameIds.indexOf(anchorId);
-    if (anchorIndex < 0) return { selectedIds: [clickedId], anchorId: clickedId };
     const [from, to] = anchorIndex < clickedIndex
         ? [anchorIndex, clickedIndex]
         : [clickedIndex, anchorIndex];
-    return { selectedIds: frameIds.slice(from, to + 1), anchorId };
+    const merged = new Set([...selectedIds, ...frameIds.slice(from, to + 1)]);
+    return { selectedIds: frameIds.filter((id) => merged.has(id)), anchorId };
 }

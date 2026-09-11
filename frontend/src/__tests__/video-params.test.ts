@@ -8,11 +8,17 @@
  * - VideoParams 类型实例化
  */
 import { describe, it, expect } from 'vitest';
+import rawCatalog from '@/generated/modelCatalog.json';
 import {
     I2V_MODELS,
     GRID_COLS_CLASS,
     type ModelParamSupport,
 } from '@/store/projectStore';
+
+// 本安装的模型选择器只暴露韭菜盒子模型（见 modelCatalog.ts 的
+// ALLOWED_MODEL_FAMILIES），因此 I2V_MODELS 为空。目录数据本身是完整的，
+// 所以这些「非韭菜盒子模型的参数契约」测试按 id 直接读原始 catalog。
+const catalogModel = (id: string) => (rawCatalog as any).models[id];
 
 // ── I2V_MODELS 配置完整性 ─────────────────────────────────────────────
 
@@ -73,7 +79,6 @@ describe('Wan 2.6 模型参数', () => {
 // wan2.5-i2v-preview is now hidden in the catalog (visible_in: []), so
 // it doesn't appear in I2V_MODELS. Read its params directly from the
 // generated catalog to keep the wan2.5 contract documented and tested.
-import rawCatalog from '@/generated/modelCatalog.json';
 
 describe('Wan 2.5 模型参数', () => {
     const wan25Params = (rawCatalog as any).models['wan2.5-i2v-preview']?.params;
@@ -117,7 +122,7 @@ describe('Wan 2.2 模型参数', () => {
 
 describe('Kling v3 模型参数', () => {
     // Phase 2 split kling-v3 → kling-v3-i2v / kling-v3-r2v.
-    const kling = I2V_MODELS.find(m => m.id === 'kling-v3-i2v')!;
+    const kling = catalogModel('kling-v3-i2v');
     const p = kling.params;
 
     it('支持 negativePrompt, mode, sound, cfgScale', () => {
@@ -161,8 +166,8 @@ describe('Kling v3 模型参数', () => {
 
 describe('Vidu Q3 模型参数', () => {
     // Phase 2 split viduq3-pro / viduq3-turbo by modality suffix.
-    const viduPro = I2V_MODELS.find(m => m.id === 'viduq3-pro-i2v')!;
-    const viduTurbo = I2V_MODELS.find(m => m.id === 'viduq3-turbo-i2v')!;
+    const viduPro = catalogModel('viduq3-pro-i2v');
+    const viduTurbo = catalogModel('viduq3-turbo-i2v');
 
     it('Pro 和 Turbo 使用相同的参数配置', () => {
         expect(viduPro.params).toEqual(viduTurbo.params);
@@ -237,7 +242,7 @@ describe('GRID_COLS_CLASS', () => {
 describe('模型切换参数重置逻辑', () => {
     /** 模拟 VideoSidebar 中 updateParam("model", ...) 的重置逻辑 */
     function simulateModelSwitch(targetModelId: string): Record<string, any> {
-        const newModelConfig = I2V_MODELS.find(m => m.id === targetModelId);
+        const newModelConfig = catalogModel(targetModelId);
         const np = newModelConfig?.params ?? {};
         return {
             resolution: np.resolution?.default ?? "720p",

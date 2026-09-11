@@ -534,21 +534,146 @@ class GenerateMotionPromptRequest(BaseModel):
     prompt_preset: str = "r2v"
 
 
-@app.post("/projects/{script_id}/motion/generate_prompt")
-def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest):
-    """Generate one editable 30-second Motion prompt from consecutive storyboard frames."""
-    script = pipeline.get_script(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
-    if not request.frame_ids:
+# ─── Motion 提示词生成：提交任务 + 轮询 ────────────────────────────────────────
+# 这条生成实测要 60~130 秒。挂在请求生命周期里有两个死穴：上游超过 Cloudflare 的
+# 120 秒 Proxy Read Timeout 就直接 524，前端也只能一直转圈等。所以 POST 只做校验并
+# 立刻返回 job_id，真实调用扔到后台线程，前端 GET 轮询拿结果（后台还能自动重试）。
+# ponytail: 任务表放内存，进程重启即丢——生成任务本来就是一次性的；要跨重启就落库。
+_MOTION_PROMPT_JOBS: Dict[str, Dict[str, Any]] = {}
+_MOTION_PROMPT_JOBS_MAX = 20
+_MOTION_PROMPT_JOB_ATTEMPTS = 2
+_MOTION_PROMPT_JOB_RETRY_DELAY = 5.0
+_MOTION_PROMPT_JOB_FIELDS = ("job_id", "status", "prompt", "model", "skill_id", "skill_name", "error", "attempt")
+
+# 本地拼装时，固定在「参考图」和「镜头」之间的一句话，用来锁住资产一致性。
+MOTION_PROMPT_REFERENCE_LOCK = "所有镜头严格沿用对应参考图，身份、服装、材质、比例和关键特征保持锁定。"
+
+
+def _motion_prompt_reference_block(references: List["MotionPromptReference"]) -> str:
+    """参考图编号块：按提交顺序一一对应，是本地拼装和 AI 提示词共用的唯一来源。"""
+    return "\n".join(
+        f"参考图{index}：{item.name}（{item.asset_type}）"
+        for index, item in enumerate(references, 1)
+    )
+
+
+def _motion_prompt_shot_block(script, frame_ids: List[str]) -> str:
+    """连续镜头块：每个镜头一行，字段顺序固定。"""
+    frame_positions = {frame.id: index for index, frame in enumerate(script.frames)}
+    frames = [script.frames[frame_positions[frame_id]] for frame_id in frame_ids]
+    frame_lines = []
+    for index, frame in enumerate(frames, 1):
+        details = [
+            frame.visual_description or frame.action_description or frame.image_prompt or "",
+            f"角色表演：{frame.character_acting}" if frame.character_acting else "",
+            f"运镜：{frame.camera_movement or frame.camera_angle}" if (frame.camera_movement or frame.camera_angle) else "",
+            f"对白：{frame.dialogue}" if frame.dialogue else "",
+        ]
+        frame_lines.append(f"镜头{index}：" + "；".join(value for value in details if value))
+    return "\n".join(frame_lines)
+
+
+def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateMotionPromptRequest) -> str:
+    """Build the [参考图] + [连续镜头] user message for the Motion prompt."""
+    reference_count = len(request.references)
+    if reference_count:
+        refs = (f"本次将绑定 {reference_count} 张参考图，按提交顺序编号如下：\n"
+                f"{_motion_prompt_reference_block(request.references)}\n"
+                "编号与提交顺序一一对应，不得重排；引用时必须沿用这些编号和名称，"
+                "不得输出原始文件名、上传文件名或 URL。")
+    else:
+        refs = "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。"
+    return f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
+固定输出时长：30秒
+画幅：{request.ratio}
+要求：保留镜头先后顺序；明确参考图编号与镜头内容的对应；总长度不超过12000字；只输出最终提示词，不要解释，不要 Markdown 代码块。
+
+[参考图]
+{refs}
+
+[连续镜头]
+{_motion_prompt_shot_block(script, frame_ids)}"""
+
+
+def _motion_prompt_job_snapshot(job: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: job.get(key) for key in _MOTION_PROMPT_JOB_FIELDS}
+
+
+def _run_motion_prompt_job(job_id: str, script_id: str, skill_content: str, skill_name: str, request: "GenerateMotionPromptRequest") -> None:
+    """Background worker: call the LLM (may take 2 minutes), retry once on failure."""
+    job = _MOTION_PROMPT_JOBS.get(job_id)
+    if not job:
+        return
+    job["status"] = "running"
+    last_error = ""
+    for attempt in range(1, _MOTION_PROMPT_JOB_ATTEMPTS + 1):
+        job["attempt"] = attempt
+        try:
+            script = pipeline.get_script(script_id)
+            if not script:
+                raise RuntimeError("Script not found")
+            from .llm_adapter import LLMAdapter
+            model = request.model or script.model_settings.text_model or pipeline.get_effective_polish_model(script)
+            result = LLMAdapter().chat([
+                {"role": "system", "content": skill_content},
+                {"role": "user", "content": _motion_prompt_user_message(script, request.frame_ids, request)},
+            ], model=model or None).strip()
+            result = result.replace("```text", "").replace("```markdown", "").replace("```", "").strip()
+            job.update(status="done", prompt=result, model=model or "system-default", error="")
+            return
+        except Exception as exc:
+            last_error = f"生成 Motion 提示词失败: {exc}"
+            job["error"] = last_error
+            logger.warning("motion prompt job %s attempt %s/%s failed: %s", job_id, attempt, _MOTION_PROMPT_JOB_ATTEMPTS, exc)
+            if attempt < _MOTION_PROMPT_JOB_ATTEMPTS:
+                time.sleep(_MOTION_PROMPT_JOB_RETRY_DELAY)
+    job.update(status="failed", prompt="")
+
+
+def _motion_frame_positions_or_400(script, frame_ids: List[str]) -> List[int]:
+    """校验所选镜头：存在、按顺序、连续。不合法直接抛 400。"""
+    if not frame_ids:
         raise HTTPException(status_code=400, detail="请先选择镜头")
     frame_positions = {frame.id: index for index, frame in enumerate(script.frames)}
     try:
-        positions = [frame_positions[frame_id] for frame_id in request.frame_ids]
+        positions = [frame_positions[frame_id] for frame_id in frame_ids]
     except KeyError:
         raise HTTPException(status_code=400, detail="所选镜头不存在")
     if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
         raise HTTPException(status_code=400, detail="只支持按顺序选择连续镜头")
+    return positions
+
+
+@app.post("/projects/{script_id}/motion/assemble_prompt")
+def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest):
+    """本地拼装提示词：不走 AI，直接把参考图和镜头按序号拼成可提交的提示词。
+
+    「参考图N 是什么 + 镜头N 的内容」是纯机械照抄，本地拼 0 延迟、不依赖上游、不会 524。
+    """
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    _motion_frame_positions_or_400(script, request.frame_ids)
+    if len(request.references) > 9:
+        raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
+    blocks = []
+    if request.references:
+        blocks.append(_motion_prompt_reference_block(request.references))
+        blocks.append(MOTION_PROMPT_REFERENCE_LOCK)
+    blocks.append(_motion_prompt_shot_block(script, request.frame_ids))
+    return {"prompt": "\n\n".join(blocks), "model": "本地拼装", "skill_name": "本地拼装"}
+
+
+@app.post("/projects/{script_id}/motion/generate_prompt")
+def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest, background_tasks: BackgroundTasks):
+    """Queue one editable 30-second Motion prompt from consecutive storyboard frames.
+
+    Returns a job_id immediately; the caller polls `GET .../generate_prompt/{job_id}`.
+    """
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    _motion_frame_positions_or_400(script, request.frame_ids)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
     selected_skill = next((item for item in _read_script_skills("motion") if item["id"] == request.skill_id), None) if request.skill_id else None
@@ -562,42 +687,32 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
         series = pipeline.get_series(script.series_id) if script.series_id else None
         skill_content, skill_name = pipeline.get_effective_prompt("r2v_polish", script, series), "提示词配置 · R2V"
 
-    frames = [script.frames[position] for position in positions]
-    frame_lines = []
-    for index, frame in enumerate(frames, 1):
-        details = [
-            frame.visual_description or frame.action_description or frame.image_prompt or "",
-            f"角色表演：{frame.character_acting}" if frame.character_acting else "",
-            f"运镜：{frame.camera_movement or frame.camera_angle}" if (frame.camera_movement or frame.camera_angle) else "",
-            f"对白：{frame.dialogue}" if frame.dialogue else "",
-            f"建议时长：{frame.duration}秒" if frame.duration else "",
-        ]
-        frame_lines.append(f"镜头{index}：" + "；".join(value for value in details if value))
-    reference_count = len(request.references)
-    refs = (f"本次将绑定 {reference_count} 张参考图，请使用稳定占位符‘参考图1’至‘参考图{reference_count}’，"
-            "不得输出原始文件名、上传文件名或 URL。" if reference_count else
-            "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。")
-    user_prompt = f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
-固定输出时长：30秒
-画幅：{request.ratio}
-要求：保留镜头先后顺序；明确参考图编号与镜头内容的对应；总长度不超过12000字；只输出最终提示词，不要解释，不要 Markdown 代码块。
+    job_id = str(uuid.uuid4())
+    _MOTION_PROMPT_JOBS[job_id] = {
+        "job_id": job_id,
+        "script_id": script_id,
+        "status": "queued",
+        "prompt": "",
+        "model": request.model or "",
+        "skill_id": request.skill_id,
+        "skill_name": skill_name,
+        "error": "",
+        "attempt": 0,
+    }
+    if len(_MOTION_PROMPT_JOBS) > _MOTION_PROMPT_JOBS_MAX:
+        finished = [key for key, item in _MOTION_PROMPT_JOBS.items() if item["status"] in ("done", "failed")]
+        for stale in finished[: len(_MOTION_PROMPT_JOBS) - _MOTION_PROMPT_JOBS_MAX]:
+            _MOTION_PROMPT_JOBS.pop(stale, None)
+    background_tasks.add_task(_run_motion_prompt_job, job_id, script_id, skill_content, skill_name, request)
+    return {"job_id": job_id, "status": "queued", "skill_name": skill_name}
 
-[参考图]
-{refs}
 
-[连续镜头]
-{chr(10).join(frame_lines)}"""
-    try:
-        from .llm_adapter import LLMAdapter
-        model = request.model or script.model_settings.text_model or pipeline.get_effective_polish_model(script)
-        result = LLMAdapter().chat([
-            {"role": "system", "content": skill_content},
-            {"role": "user", "content": user_prompt},
-        ], model=model or None).strip()
-        result = result.replace("```text", "").replace("```markdown", "").replace("```", "").strip()
-        return {"prompt": result, "model": model or "system-default", "skill_id": request.skill_id, "skill_name": skill_name}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"生成 Motion 提示词失败: {e}")
+@app.get("/projects/{script_id}/motion/generate_prompt/{job_id}")
+def get_motion_prompt_job(script_id: str, job_id: str):
+    job = _MOTION_PROMPT_JOBS.get(job_id)
+    if not job or job.get("script_id") != script_id:
+        raise HTTPException(status_code=404, detail="生成任务不存在或已过期")
+    return _motion_prompt_job_snapshot(job)
 
 @app.delete("/script-skills/{skill_id}")
 def delete_script_skill(skill_id: str):

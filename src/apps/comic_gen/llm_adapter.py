@@ -29,6 +29,10 @@ JIUCAIHEZI_MODELS = {
     "gpt-5.6-sol",
 }
 
+# 单次 chat 调用的超时秒数。长文生成（如 Motion 提示词要写几千字）经常跑过 60 秒，
+# 超时会一路冒泡成 502，把「还在生成」误判成失败。
+LLM_TIMEOUT_SECONDS = 180.0
+
 
 class LLMAdapter:
     """Unified LLM call interface supporting DashScope and OpenAI-compatible APIs."""
@@ -59,7 +63,7 @@ class LLMAdapter:
                 self._client = OpenAI(
                     api_key=os.getenv("OPENAI_API_KEY"),
                     base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-                    timeout=60.0,
+                    timeout=LLM_TIMEOUT_SECONDS,
                     max_retries=0,
                 )
             else:
@@ -67,7 +71,7 @@ class LLMAdapter:
                 self._client = OpenAI(
                     api_key=os.getenv("DASHSCOPE_API_KEY"),
                     base_url=f"{get_provider_base_url('DASHSCOPE')}/compatible-mode/v1",
-                    timeout=60.0,
+                    timeout=LLM_TIMEOUT_SECONDS,
                     max_retries=0,
                 )
         return self._client
@@ -87,7 +91,7 @@ class LLMAdapter:
             self._jiucaihezi_client = OpenAI(
                 api_key=key,
                 base_url=base_url,
-                timeout=60.0,
+                timeout=LLM_TIMEOUT_SECONDS,
                 max_retries=0,
             )
         return self._jiucaihezi_client
