@@ -71,9 +71,10 @@ case "$ARCH" in
 esac
 
 echo "  Target: ${TARGET}"
-# Remove the legacy onefile sidecar copied by the old externalBin layout; it
-# occupies the path now used by the onedir resource folder.
-rm -f "src-tauri/target/${TARGET}/release/lumenx-backend"
+# Remove the legacy sidecar copied by the old externalBin layout; it occupies the
+# path now used by the onedir resource folder. Leftover may be a file (old
+# onefile build) or a directory (older OUTPUT_DIR), so -rf rather than -f.
+rm -rf "src-tauri/target/${TARGET}/release/lumenx-backend"
 npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["lumenx-backend/","lumenx-demucs"]}}'
 
 APP_PATH="src-tauri/target/${TARGET}/release/bundle/macos/One OK Studio.app"
