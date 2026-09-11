@@ -4430,6 +4430,17 @@ def get_env_key():
     return {"key": os.getenv("JIUCAIHEZI_API_KEY", "")}
 
 
+@app.post("/config/jiucaihezi/open-keys")
+def open_jiucaihezi_keys():
+    """Open the fixed Jiucaihezi key-management page in the system browser."""
+    import webbrowser
+
+    url = "https://api.jiucaihezi.studio/keys"
+    if not webbrowser.open(url, new=2):
+        raise HTTPException(status_code=500, detail="无法打开系统浏览器")
+    return {"status": "ok"}
+
+
 
 
 

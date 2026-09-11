@@ -1261,6 +1261,10 @@ export const api = {
         return res.data.key;
     },
 
+    openJiucaiheziKeys: async (): Promise<void> => {
+        await axios.post(`${API_URL}/config/jiucaihezi/open-keys`);
+    },
+
     saveEnvConfig: async (config: EnvConfigPayload) => {
         const res = await axios.post(`${API_URL}/config/env`, config, {
             timeout: 60000, // 60 seconds timeout

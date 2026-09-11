@@ -312,6 +312,11 @@ export default function SettingsPage() {
     try { return await api.getEnvKey(); } catch { return undefined; }
   };
 
+  const openJiucaiheziKeys = async () => {
+    try { await api.openJiucaiheziKeys(); }
+    catch { toast.error("无法打开获取页面"); }
+  };
+
   const handleSaveModelDefaults = () => {
     const normalized = normalizeModelSettings(modelSettings, "global_settings");
     // T2I and I2I share one image model in the UI; persist both backend
@@ -621,7 +626,7 @@ export default function SettingsPage() {
           </FormRow>
 
           <div className="flex justify-end items-center gap-2 pt-4">
-            <button type="button" onClick={() => window.open("https://api.jiucaihezi.studio/keys", "_blank", "noopener,noreferrer")} className="inline-flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary hover:text-foreground text-sm font-medium rounded-lg transition-all">
+            <button type="button" onClick={openJiucaiheziKeys} className="inline-flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary hover:text-foreground text-sm font-medium rounded-lg transition-all">
               <ExternalLink size={15} /> 前往获取
             </button>
             <button

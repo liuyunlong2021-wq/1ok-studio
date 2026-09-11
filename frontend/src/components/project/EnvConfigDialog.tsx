@@ -62,6 +62,11 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
     }
   };
 
+  const openJiucaiheziKeys = async () => {
+    try { await api.openJiucaiheziKeys(); }
+    catch { alert("无法打开获取页面，请检查系统默认浏览器。"); }
+  };
+
   if (!isOpen) return null;
   const inputClass = "w-full bg-surface border border-glass-border rounded-lg px-4 py-2 text-foreground placeholder-text-muted focus:outline-none focus:border-primary/50 transition-colors";
 
@@ -101,7 +106,7 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
 
           <div className="flex justify-end gap-3 p-6 border-t border-glass-border">
             <button onClick={requestClose} disabled={!canClose} className="px-4 py-2 text-sm text-text-secondary disabled:opacity-40">{tc("cancel")}</button>
-            <button onClick={() => window.open("https://api.jiucaihezi.studio/keys", "_blank", "noopener,noreferrer")} className="flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary text-sm font-medium rounded-lg"><ExternalLink size={15} /> 前往获取</button>
+            <button onClick={openJiucaiheziKeys} className="flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary text-sm font-medium rounded-lg"><ExternalLink size={15} /> 前往获取</button>
             <button onClick={handleSave} disabled={saving || loading || !!loadError} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 text-foreground text-sm font-medium rounded-lg disabled:opacity-50">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               {saving ? t("savingConfig") : t("saveConfig")}
