@@ -100,20 +100,6 @@ export interface CustomVoice {
 }
 
 export interface EnvConfigPayload {
-    DASHSCOPE_API_KEY?: string;
-    ALIBABA_CLOUD_ACCESS_KEY_ID?: string;
-    ALIBABA_CLOUD_ACCESS_KEY_SECRET?: string;
-    OSS_BUCKET_NAME?: string;
-    OSS_ENDPOINT?: string;
-    OSS_BASE_PATH?: string;
-    OSS_ENABLE?: boolean;
-    KLING_PROVIDER_MODE?: ProviderMode;
-    VIDU_PROVIDER_MODE?: ProviderMode;
-    PIXVERSE_PROVIDER_MODE?: ProviderMode;
-    KLING_ACCESS_KEY?: string;
-    KLING_SECRET_KEY?: string;
-    VIDU_API_KEY?: string;
-    MULEROUTER_API_KEY?: string;
     JIUCAIHEZI_API_KEY?: string;
     endpoint_overrides?: Record<string, string>;
     // Secrets from GET are masked (bullets + last 4 chars). This map reports

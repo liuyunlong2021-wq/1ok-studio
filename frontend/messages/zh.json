@@ -547,7 +547,7 @@
     "secPromptsDesc": "新建项目的默认系统提示词（留空使用内置默认）。",
     "promptPlaceholder": "留空使用系统默认…",
     "secApiTitle": "供应商凭证",
-    "secApiDesc": "DashScope 优先；按需开启供应商直连。",
+    "secApiDesc": "统一使用韭菜盒子 API，一个凭证即可调用全部模型。",
     "loadingConfig": "加载配置中…",
     "dashscopeKeyLabel": "DashScope 密钥",
     "dashscopeKeyHint": "阿里云百炼 / 通义系列服务凭证（可选）。",

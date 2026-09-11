@@ -20,10 +20,8 @@ export default function EnvConfigChecker() {
   const checkEnvConfig = async () => {
     try {
       const config = await api.getEnvConfig();
-      // 韭菜盒子或 DashScope 任一主要凭证即可启动。
       const jiucaiheziKey = config.JIUCAIHEZI_API_KEY?.trim();
-      const dashscopeKey = config.DASHSCOPE_API_KEY?.trim();
-      const hasRequired = Boolean(jiucaiheziKey || dashscopeKey);
+      const hasRequired = Boolean(jiucaiheziKey);
       
       if (!hasRequired) {
         setEnvRequired(true);

@@ -1483,20 +1483,34 @@ async def import_file_confirm(request: ConfirmImportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class EnvConfig(ProviderRoutingConfig):
-    DASHSCOPE_API_KEY: Optional[str] = None
-    ALIBABA_CLOUD_ACCESS_KEY_ID: Optional[str] = None
-    ALIBABA_CLOUD_ACCESS_KEY_SECRET: Optional[str] = None
-    OSS_BUCKET_NAME: Optional[str] = None
-    OSS_ENDPOINT: Optional[str] = None
-    OSS_BASE_PATH: Optional[str] = None
-    OSS_ENABLE: bool = True
-    KLING_ACCESS_KEY: Optional[str] = None
-    KLING_SECRET_KEY: Optional[str] = None
-    VIDU_API_KEY: Optional[str] = None
-    MULEROUTER_API_KEY: Optional[str] = None
+class EnvConfig(BaseModel):
+    """User-editable runtime config for the Jiucaihezi-only product build."""
+
     JIUCAIHEZI_API_KEY: Optional[str] = None
     endpoint_overrides: Dict[str, str] = Field(default_factory=dict)
+
+
+LEGACY_USER_CONFIG_KEYS = {
+    "DASHSCOPE_API_KEY",
+    "ALIBABA_CLOUD_ACCESS_KEY_ID",
+    "ALIBABA_CLOUD_ACCESS_KEY_SECRET",
+    "OSS_BUCKET_NAME",
+    "OSS_ENDPOINT",
+    "OSS_BASE_PATH",
+    "OSS_ENABLE",
+    "KLING_PROVIDER_MODE",
+    "VIDU_PROVIDER_MODE",
+    "PIXVERSE_PROVIDER_MODE",
+    "KLING_ACCESS_KEY",
+    "KLING_SECRET_KEY",
+    "VIDU_API_KEY",
+    "MULEROUTER_API_KEY",
+    "DASHSCOPE_BASE_URL",
+    "KLING_BASE_URL",
+    "VIDU_BASE_URL",
+    "PIXVERSE_BASE_URL",
+    "MULEROUTER_BASE_URL",
+}
 
 
 def _normalize_provider_mode(value: Optional[str]) -> str:
@@ -1632,14 +1646,7 @@ def update_env_config(config: EnvConfig):
         for key, value in raw_config.items():
             if value is None:
                 continue
-            if isinstance(value, bool):
-                # Booleans (e.g. OSS_ENABLE) persist as "true"/"false" strings so
-                # they round-trip through os.environ and the .env/config.json store.
-                config_dict[key] = "true" if value else "false"
-            elif isinstance(value, ProviderBackend):
-                config_dict[key] = value.value
-            else:
-                config_dict[key] = value
+            config_dict[key] = value
 
         # Secret masking guard: GET /config/env returns secrets masked with the
         # bullet sentinel. If the frontend re-submits an unchanged secret it will
@@ -1650,8 +1657,7 @@ def update_env_config(config: EnvConfig):
                 config_dict.pop(field, None)
 
         # Process endpoint overrides: validate keys against known providers
-        from ...utils.endpoints import PROVIDER_DEFAULTS
-        allowed_keys = {f"{p}_BASE_URL" for p in PROVIDER_DEFAULTS}
+        allowed_keys = {"JIUCAIHEZI_BASE_URL"}
         keys_to_remove = []
         for env_key, value in endpoint_overrides.items():
             if env_key not in allowed_keys:
@@ -1670,6 +1676,14 @@ def update_env_config(config: EnvConfig):
 
         # Save to file
         save_user_config(config_dict)
+
+        # A successful save through the Jiucaihezi-only settings surface also
+        # cleans credentials and routing overrides that the product no longer
+        # supports. This keeps both .env and packaged config.json in sync with
+        # what the UI exposes.
+        for key in LEGACY_USER_CONFIG_KEYS:
+            os.environ.pop(key, None)
+        remove_user_config_keys(sorted(LEGACY_USER_CONFIG_KEYS))
         remove_user_config_keys(keys_to_remove)
 
         # Reset OSS singleton to pick up new config (non-blocking)
@@ -4384,17 +4398,8 @@ def trigger_mulerun_login():
         raise HTTPException(status_code=500, detail=f"启动登录失败: {e}")
 
 
-# Credential-like env fields that must never be returned in plaintext.
-SECRET_FIELDS = {
-    "DASHSCOPE_API_KEY",
-    "ALIBABA_CLOUD_ACCESS_KEY_ID",
-    "ALIBABA_CLOUD_ACCESS_KEY_SECRET",
-    "KLING_ACCESS_KEY",
-    "KLING_SECRET_KEY",
-    "VIDU_API_KEY",
-    "MULEROUTER_API_KEY",
-    "JIUCAIHEZI_API_KEY",
-}
+# The settings surface exposes one credential only.
+SECRET_FIELDS = {"JIUCAIHEZI_API_KEY"}
 
 # Bullet sentinel: never appears in a real key, so the save path can detect an
 # unchanged (still-masked) field and avoid overwriting the stored secret.
@@ -4417,19 +4422,13 @@ def get_env_config():
     """Get current environment configuration.
 
     Secrets are masked (bullets + last 4 chars) and never returned in
-    plaintext. `secrets_configured` reports which credential fields are set so
-    the frontend can drive required-field / validation logic without the raw
-    value. Non-secret config (OSS bucket/endpoint/base path, provider modes,
-    endpoint overrides) is returned as-is."""
+    plaintext. `secrets_configured` reports whether the Jiucaihezi credential
+    is set without exposing its raw value."""
     try:
-        from ...utils.endpoints import PROVIDER_DEFAULTS
-        from ...utils.oss_utils import is_oss_enabled
         endpoint_overrides = {}
-        for provider in PROVIDER_DEFAULTS:
-            env_key = f"{provider}_BASE_URL"
-            value = os.getenv(env_key)
-            if value:
-                endpoint_overrides[env_key] = value
+        jiucaihezi_base_url = os.getenv("JIUCAIHEZI_BASE_URL")
+        if jiucaihezi_base_url:
+            endpoint_overrides["JIUCAIHEZI_BASE_URL"] = jiucaihezi_base_url
 
         secrets_configured = {
             field: bool((os.getenv(field, "") or "").strip())
@@ -4437,24 +4436,7 @@ def get_env_config():
         }
 
         return {
-            # Masked secrets — never plaintext.
-            "DASHSCOPE_API_KEY": _mask_secret(os.getenv("DASHSCOPE_API_KEY")),
-            "ALIBABA_CLOUD_ACCESS_KEY_ID": _mask_secret(os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")),
-            "ALIBABA_CLOUD_ACCESS_KEY_SECRET": _mask_secret(os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")),
-            "KLING_ACCESS_KEY": _mask_secret(os.getenv("KLING_ACCESS_KEY")),
-            "KLING_SECRET_KEY": _mask_secret(os.getenv("KLING_SECRET_KEY")),
-            "VIDU_API_KEY": _mask_secret(os.getenv("VIDU_API_KEY")),
-            "MULEROUTER_API_KEY": _mask_secret(os.getenv("MULEROUTER_API_KEY")),
             "JIUCAIHEZI_API_KEY": _mask_secret(os.getenv("JIUCAIHEZI_API_KEY")),
-            # Non-secret config.
-            "OSS_BUCKET_NAME": os.getenv("OSS_BUCKET_NAME", ""),
-            "OSS_ENDPOINT": os.getenv("OSS_ENDPOINT", ""),
-            "OSS_BASE_PATH": os.getenv("OSS_BASE_PATH", ""),
-            "OSS_ENABLE": is_oss_enabled(),
-            "MULERUN_CLI_LOGGED_IN": _check_mulerun_cli_status(),
-            "KLING_PROVIDER_MODE": _normalize_provider_mode(os.getenv("KLING_PROVIDER_MODE")),
-            "VIDU_PROVIDER_MODE": _normalize_provider_mode(os.getenv("VIDU_PROVIDER_MODE")),
-            "PIXVERSE_PROVIDER_MODE": _normalize_provider_mode(os.getenv("PIXVERSE_PROVIDER_MODE")),
             "endpoint_overrides": endpoint_overrides,
             "secrets_configured": secrets_configured,
         }

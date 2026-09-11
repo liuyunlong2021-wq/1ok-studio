@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { Save, Loader2, ChevronDown, ChevronRight, FolderOpen, WifiOff, Copy, Check, Upload } from "lucide-react";
+import { Save, Loader2, WifiOff, Copy, Check, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { api, type EnvConfigPayload, type ProviderMode, API_URL } from "@/lib/api";
+import { api, type EnvConfigPayload, API_URL } from "@/lib/api";
 import { ASPECT_RATIOS } from "@/store/projectStore";
 import {
   DEFAULT_MODEL_SETTINGS,
@@ -21,7 +21,7 @@ import { Image, Video, Layout, User, Building, Box } from "lucide-react";
 import GroupedModelGrid from "@/components/common/GroupedModelGrid";
 import LumenXBranding from "@/components/layout/LumenXBranding";
 import UpdateChecker from "./UpdateChecker";
-type SettingsCategory = "general" | "models" | "prompts" | "apikeys" | "storage" | "about";
+type SettingsCategory = "general" | "models" | "prompts" | "apikeys" | "about";
 import {
   FormRow,
   FieldLabel,
@@ -34,74 +34,24 @@ import {
 const APP_VERSION = "v1.0.1";
 
 type EnvConfig = EnvConfigPayload & {
-  DASHSCOPE_API_KEY: string;
-  ALIBABA_CLOUD_ACCESS_KEY_ID: string;
-  ALIBABA_CLOUD_ACCESS_KEY_SECRET: string;
-  OSS_ENABLE: boolean;
-  OSS_BUCKET_NAME: string;
-  OSS_ENDPOINT: string;
-  OSS_BASE_PATH: string;
-  KLING_PROVIDER_MODE: ProviderMode;
-  VIDU_PROVIDER_MODE: ProviderMode;
-  PIXVERSE_PROVIDER_MODE: ProviderMode;
-  KLING_ACCESS_KEY: string;
-  KLING_SECRET_KEY: string;
-  VIDU_API_KEY: string;
-  MULEROUTER_API_KEY: string;
   JIUCAIHEZI_API_KEY: string;
-  MULERUN_CLI_LOGGED_IN?: boolean;
   endpoint_overrides: Record<string, string>;
 };
 
-const ENDPOINT_PROVIDERS = [
-  { key: "DASHSCOPE_BASE_URL", label: "DashScope", placeholder: "https://dashscope.aliyuncs.com" },
-  { key: "KLING_BASE_URL", label: "Kling", placeholder: "https://api-beijing.klingai.com/v1" },
-  { key: "VIDU_BASE_URL", label: "Vidu", placeholder: "https://api.vidu.cn/ent/v2" },
-  { key: "MULEROUTER_BASE_URL", label: "MuleRouter", placeholder: "https://api.mulerouter.ai" },
-  { key: "JIUCAIHEZI_BASE_URL", label: "韭菜盒子", placeholder: "https://api.jiucaihezi.studio" },
-];
-
 const DEFAULT_CONFIG: EnvConfig = {
-  DASHSCOPE_API_KEY: "",
-  ALIBABA_CLOUD_ACCESS_KEY_ID: "",
-  ALIBABA_CLOUD_ACCESS_KEY_SECRET: "",
-  OSS_ENABLE: true,
-  OSS_BUCKET_NAME: "",
-  OSS_ENDPOINT: "",
-  OSS_BASE_PATH: "",
-  KLING_PROVIDER_MODE: "dashscope",
-  VIDU_PROVIDER_MODE: "dashscope",
-  PIXVERSE_PROVIDER_MODE: "dashscope",
-  KLING_ACCESS_KEY: "",
-  KLING_SECRET_KEY: "",
-  VIDU_API_KEY: "",
-  MULEROUTER_API_KEY: "",
   JIUCAIHEZI_API_KEY: "",
   endpoint_overrides: {},
 };
 
-const normalizeProviderMode = (mode?: string): ProviderMode => (mode === "vendor" ? "vendor" : "dashscope");
-
 const normalizeEnvConfig = (existing: EnvConfig, data?: EnvConfigPayload): EnvConfig => ({
   ...existing,
   ...data,
-  KLING_PROVIDER_MODE: normalizeProviderMode(data?.KLING_PROVIDER_MODE ?? existing.KLING_PROVIDER_MODE),
-  VIDU_PROVIDER_MODE: normalizeProviderMode(data?.VIDU_PROVIDER_MODE ?? existing.VIDU_PROVIDER_MODE),
-  PIXVERSE_PROVIDER_MODE: normalizeProviderMode(data?.PIXVERSE_PROVIDER_MODE ?? existing.PIXVERSE_PROVIDER_MODE),
   endpoint_overrides: data?.endpoint_overrides ?? existing.endpoint_overrides ?? {},
 });
 
 const getValidationErrors = (env: EnvConfig): string[] => {
   const errors: string[] = [];
-  if (env.JIUCAIHEZI_API_KEY?.trim()) return errors;
-  if (!env.DASHSCOPE_API_KEY?.trim()) errors.push("韭菜盒子 API Key 或 DashScope API Key");
-  if (env.KLING_PROVIDER_MODE === "vendor") {
-    if (!env.KLING_ACCESS_KEY?.trim()) errors.push("Kling Access Key (vendor mode)");
-    if (!env.KLING_SECRET_KEY?.trim()) errors.push("Kling Secret Key (vendor mode)");
-  }
-  if (env.VIDU_PROVIDER_MODE === "vendor" && !env.VIDU_API_KEY?.trim()) {
-    errors.push("Vidu API Key (vendor mode)");
-  }
+  if (!env.JIUCAIHEZI_API_KEY?.trim()) errors.push("韭菜盒子 API Key");
   return errors;
 };
 
@@ -206,7 +156,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [endpointsOpen, setEndpointsOpen] = useState(false);
 
   // ── Default Model Settings ──
   const [modelSettings, setModelSettings] = useState<FrontendModelSettings>(() =>
@@ -355,19 +304,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Storage(OSS) 保存不应被 DashScope / 生成相关必填项挡住——它们与存储无关。
-  const handleSaveStorage = async () => {
-    setSaving(true);
-    try {
-      await api.saveEnvConfig(config);
-      toast.success(t("saveSuccess"));
-    } catch {
-      toast.error(t("saveConfigFailed"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleChange = (key: keyof EnvConfig, value: string) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
@@ -415,36 +351,6 @@ export default function SettingsPage() {
       /* clipboard blocked */
     }
   };
-
-  // MuleRun 登录轮询的 interval 句柄：卸载时清理，避免轮询泄漏 + setConfig-after-unmount。
-  const mulerunPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => () => {
-    if (mulerunPollRef.current) clearInterval(mulerunPollRef.current);
-  }, []);
-
-  const PathField = ({ value, label }: { value: string; label: string }) => (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={value || "—"}
-          disabled
-          className={settingsInputClass + " font-mono text-[0.71875rem] opacity-70 cursor-not-allowed"}
-        />
-        <button
-          type="button"
-          onClick={() => copyPath(value)}
-          disabled={!value}
-          title={t("copyPath")}
-          className="flex-shrink-0 px-3 rounded-md border border-glass-border bg-surface text-text-secondary hover:text-foreground transition-colors disabled:opacity-40 flex items-center gap-1.5 text-xs"
-        >
-          {copiedPath === value ? <Check size={13} className="text-emerald-400" /> : <FolderOpen size={13} />}
-          {copiedPath === value ? t("copied") : t("copy")}
-        </button>
-      </div>
-    </div>
-  );
 
   /* ── Section renderers ──────────────────────────────────────── */
 
@@ -707,7 +613,7 @@ export default function SettingsPage() {
         </div>
       ) : (
         <div className="space-y-1">
-          <FormRow label="韭菜盒子" hint="图片模型与 Seedance 2.5 视频模型">
+          <FormRow label="韭菜盒子" hint="LumenX 的文本、图片、视频与音频模型统一通过此 API 调用">
             <FieldLabel>JIUCAIHEZI_BASE_URL</FieldLabel>
             <input
               type="text"
@@ -724,183 +630,6 @@ export default function SettingsPage() {
             />
           </FormRow>
 
-          <FormRow label={t("dashscopeKeyLabel")} hint={t("dashscopeKeyHint")}>
-            <FieldLabel>DASHSCOPE_API_KEY</FieldLabel>
-            <KeyField
-              value={config.DASHSCOPE_API_KEY}
-              onChange={(v) => handleChange("DASHSCOPE_API_KEY", v)}
-              placeholder="sk-..."
-              status={
-                config.DASHSCOPE_API_KEY?.trim()
-                  ? { kind: "ok", text: t("filled") }
-                  : { kind: "warn", text: t("notConfiguredUnavailable") }
-              }
-            />
-          </FormRow>
-
-          <FormRow label={t("klingLabel")} hint={t("klingHint")}>
-            <ModeSegment
-              value={config.KLING_PROVIDER_MODE}
-              onChange={(v) => handleChange("KLING_PROVIDER_MODE", v)}
-              options={[
-                { id: "dashscope", label: "DashScope" },
-                { id: "vendor", label: t("vendorDirect") },
-              ]}
-            />
-            {config.KLING_PROVIDER_MODE === "vendor" && (
-              <div className="space-y-3 mt-3">
-                <div>
-                  <FieldLabel>KLING_ACCESS_KEY *</FieldLabel>
-                  <KeyField value={config.KLING_ACCESS_KEY} onChange={(v) => handleChange("KLING_ACCESS_KEY", v)} placeholder="Kling Access Key" />
-                </div>
-                <div>
-                  <FieldLabel>KLING_SECRET_KEY *</FieldLabel>
-                  <KeyField value={config.KLING_SECRET_KEY} onChange={(v) => handleChange("KLING_SECRET_KEY", v)} placeholder="Kling Secret Key" />
-                </div>
-              </div>
-            )}
-          </FormRow>
-
-          <FormRow label="Vidu" hint={t("viduHint")}>
-            <ModeSegment
-              value={config.VIDU_PROVIDER_MODE}
-              onChange={(v) => handleChange("VIDU_PROVIDER_MODE", v)}
-              options={[
-                { id: "dashscope", label: "DashScope" },
-                { id: "vendor", label: t("vendorDirect") },
-              ]}
-            />
-            {config.VIDU_PROVIDER_MODE === "vendor" && (
-              <div className="mt-3">
-                <FieldLabel>VIDU_API_KEY *</FieldLabel>
-                <KeyField value={config.VIDU_API_KEY} onChange={(v) => handleChange("VIDU_API_KEY", v)} placeholder="Vidu API Key" />
-              </div>
-            )}
-          </FormRow>
-
-          <FormRow label={t("mulerunLabel")} hint={t("mulerunHint")}>
-            {!config.MULEROUTER_API_KEY && !config.MULERUN_CLI_LOGGED_IN && (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await api.triggerMulerunLogin();
-                    if (mulerunPollRef.current) clearInterval(mulerunPollRef.current); // 重入守卫
-                    const stop = () => {
-                      if (mulerunPollRef.current) {
-                        clearInterval(mulerunPollRef.current);
-                        mulerunPollRef.current = null;
-                      }
-                    };
-                    mulerunPollRef.current = setInterval(async () => {
-                      try {
-                        const env = await api.getEnvConfig();
-                        if (env.MULERUN_CLI_LOGGED_IN) {
-                          stop();
-                          setConfig((c) => ({ ...c, MULERUN_CLI_LOGGED_IN: true }));
-                        }
-                      } catch {
-                        /* silent */
-                      }
-                    }, 3000);
-                    setTimeout(stop, 120000);
-                  } catch (err: any) {
-                    toast.error(err?.response?.data?.detail || t("loginFailed"));
-                  }
-                }}
-                className="w-full py-2.5 rounded-lg bg-primary text-on-accent text-sm font-medium hover:bg-primary-hover transition-colors mb-3"
-              >
-                {t("mulerunLogin")}
-              </button>
-            )}
-            {!config.MULEROUTER_API_KEY && config.MULERUN_CLI_LOGGED_IN && (
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex items-center gap-2 text-sm text-emerald-400">
-                  <Check size={16} />
-                  {t("mulerunLoggedIn")}
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await api.triggerMulerunLogin();
-                    } catch (err: any) {
-                      toast.error(err?.response?.data?.detail || t("loginFailed"));
-                    }
-                  }}
-                  className="text-xs text-text-secondary hover:text-foreground transition-colors underline underline-offset-2"
-                >
-                  {t("reLogin")}
-                </button>
-              </div>
-            )}
-            <FieldLabel>MULEROUTER_API_KEY</FieldLabel>
-            <KeyField
-              value={config.MULEROUTER_API_KEY}
-              onChange={(v) => setConfig((c) => ({ ...c, MULEROUTER_API_KEY: v }))}
-              placeholder="muk-..."
-            />
-            <details className="group mt-3">
-              <summary className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1">
-                <ChevronRight size={12} className="transition-transform group-open:rotate-90" />
-                {t("manualGetKey")}
-              </summary>
-              <div className="mt-2 space-y-2 pl-4 border-l border-glass-border">
-                {[
-                  { n: "1", label: t("stepInstallCli"), cmd: "npm i -g @mulerunai/cli" },
-                  { n: "2", label: t("stepBrowserLogin"), cmd: "mulerun login" },
-                  { n: "3", label: t("stepCopyKey"), cmd: "mulerun studio config" },
-                ].map((step) => (
-                  <div key={step.n} className="flex items-center gap-2 text-xs text-text-secondary">
-                    <span className="shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[0.625rem] font-bold">
-                      {step.n}
-                    </span>
-                    <span>{step.label}</span>
-                    <code
-                      className="ml-auto px-2 py-0.5 bg-glass rounded text-[0.6875rem] font-mono select-all cursor-pointer"
-                      onClick={(e) => {
-                        navigator.clipboard.writeText(step.cmd);
-                        const el = e.currentTarget;
-                        el.style.outline = "1px solid var(--color-primary)";
-                        setTimeout(() => (el.style.outline = ""), 800);
-                      }}
-                    >
-                      {step.cmd}
-                    </code>
-                  </div>
-                ))}
-                <p className="text-[0.6875rem] text-text-muted mt-1">{t("mulerunKeyHint")}</p>
-              </div>
-            </details>
-          </FormRow>
-
-          <FormRow label={t("advancedEndpointsLabel")} hint={t("advancedEndpointsHint")}>
-            <button
-              type="button"
-              onClick={() => setEndpointsOpen(!endpointsOpen)}
-              className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-foreground transition-colors"
-            >
-              {endpointsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              {endpointsOpen ? t("collapseEndpoints") : t("expandEndpoints")}
-            </button>
-            {endpointsOpen && (
-              <div className="mt-3 space-y-3">
-                {ENDPOINT_PROVIDERS.map(({ key, label, placeholder }) => (
-                  <div key={key}>
-                    <FieldLabel>{label} BASE URL</FieldLabel>
-                    <input
-                      type="text"
-                      value={config.endpoint_overrides[key] || ""}
-                      onChange={(e) => handleEndpointChange(key, e.target.value)}
-                      placeholder={placeholder}
-                      className={settingsInputClass + " font-mono text-[0.71875rem]"}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </FormRow>
-
           <div className="flex justify-end pt-4">
             <button
               type="button"
@@ -914,106 +643,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </Section>
-  );
-
-  const renderStorage = () => (
-    <Section
-      id="storage"
-      title={t("secStorageTitle")}
-      desc={t("secStorageDesc")}
-    >
-      <FormRow label={t("cloudStorageLabel")}>
-        <Toggle
-          checked={config.OSS_ENABLE}
-          onChange={(v) => setConfig((c) => ({ ...c, OSS_ENABLE: v }))}
-          label={t("enableCloudStorage")}
-          sub={t("enableCloudStorageSub")}
-          ariaLabel={t("enableCloudStorageAria")}
-        />
-      </FormRow>
-
-      <FormRow label={t("ossAkSkLabel")} hint={t("ossAkSkHint")}>
-        <div className="space-y-3">
-          <div>
-            <FieldLabel>ALIBABA_CLOUD_ACCESS_KEY_ID</FieldLabel>
-            <KeyField
-              value={config.ALIBABA_CLOUD_ACCESS_KEY_ID}
-              onChange={(v) => handleChange("ALIBABA_CLOUD_ACCESS_KEY_ID", v)}
-              placeholder={t("ossOptionalMirror")}
-            />
-          </div>
-          <div>
-            <FieldLabel>ALIBABA_CLOUD_ACCESS_KEY_SECRET</FieldLabel>
-            <KeyField
-              value={config.ALIBABA_CLOUD_ACCESS_KEY_SECRET}
-              onChange={(v) => handleChange("ALIBABA_CLOUD_ACCESS_KEY_SECRET", v)}
-              placeholder={t("ossOptionalMirror")}
-            />
-          </div>
-          <a
-            href="https://help.aliyun.com/zh/ram/user-guide/create-an-accesskey-pair"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[0.75rem] text-primary hover:underline"
-          >
-            {t("howToGetAccessKey")}
-          </a>
-        </div>
-      </FormRow>
-
-      <FormRow label={t("bucketLabel")} hint={t("bucketHint")}>
-        <FieldLabel>OSS_BUCKET</FieldLabel>
-        <input
-          type="text"
-          value={config.OSS_BUCKET_NAME}
-          onChange={(e) => handleChange("OSS_BUCKET_NAME", e.target.value)}
-          placeholder={t("bucketPlaceholder")}
-          className={settingsInputClass + " font-mono text-[0.71875rem]"}
-        />
-      </FormRow>
-
-      <FormRow label="Endpoint" hint={t("endpointHint")}>
-        <FieldLabel>OSS_ENDPOINT</FieldLabel>
-        <input
-          type="text"
-          value={config.OSS_ENDPOINT}
-          onChange={(e) => handleChange("OSS_ENDPOINT", e.target.value)}
-          placeholder={t("endpointPlaceholder")}
-          className={settingsInputClass + " font-mono text-[0.71875rem]"}
-        />
-      </FormRow>
-
-      <FormRow label="Base Path" hint={t("basePathHint")}>
-        <FieldLabel>OSS_BASE_PATH</FieldLabel>
-        <input
-          type="text"
-          value={config.OSS_BASE_PATH}
-          onChange={(e) => handleChange("OSS_BASE_PATH", e.target.value)}
-          placeholder="lumenx"
-          className={settingsInputClass + " font-mono text-[0.71875rem]"}
-        />
-      </FormRow>
-
-      <FormRow label={t("dataDirLabel")} hint={t("dataDirHint")}>
-        <PathField value={dataDir} label="DATA_DIR · MANAGED" />
-      </FormRow>
-
-      <FormRow label={t("logDirLabel")} hint={t("logDirHint")}>
-        <PathField value={logDir} label="LOG_DIR · MANAGED" />
-      </FormRow>
-
-      <div className="flex justify-end pt-4">
-        <button
-          type="button"
-          onClick={handleSaveStorage}
-          disabled={saving || loading || !online}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-on-accent text-sm font-medium rounded-lg transition-all disabled:opacity-50"
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {saving ? t("saving") : t("saveConfig")}
-        </button>
-      </div>
     </Section>
   );
 
@@ -1102,8 +731,6 @@ export default function SettingsPage() {
         return renderPrompts();
       case "apikeys":
         return renderApiKeys();
-      case "storage":
-        return renderStorage();
       case "about":
         return renderAbout();
       default:
@@ -1116,7 +743,6 @@ export default function SettingsPage() {
     models: t("eyebrowModels"),
     prompts: t("eyebrowPrompts"),
     apikeys: t("eyebrowApikeys"),
-    storage: t("eyebrowStorage"),
     about: t("eyebrowAbout"),
   };
 
@@ -1126,7 +752,6 @@ export default function SettingsPage() {
     { id: "models", label: t("tabModels") },
     { id: "prompts", label: t("eyebrowPrompts") },
     { id: "apikeys", label: t("eyebrowApikeys") },
-    { id: "storage", label: t("tabStorage") },
     { id: "about", label: t("eyebrowAbout") },
   ];
 

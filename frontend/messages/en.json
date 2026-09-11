@@ -547,7 +547,7 @@
     "secPromptsDesc": "Default system prompts for new projects (leave empty to use the built-in default).",
     "promptPlaceholder": "Leave empty to use the system default…",
     "secApiTitle": "Provider credentials",
-    "secApiDesc": "DashScope first; enable direct provider connections as needed.",
+    "secApiDesc": "All models use the Jiucaihezi API with a single credential.",
     "loadingConfig": "Loading config…",
     "dashscopeKeyLabel": "DashScope key",
     "dashscopeKeyHint": "Aliyun Bailian / Tongyi service credentials (optional).",
