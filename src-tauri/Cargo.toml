@@ -1,6 +1,6 @@
 [package]
 name = "lumenx-studio"
-version = "1.0.1"
+version = "1.0.2"
 description = "LumenX Studio - AI Comic Video Production Platform"
 authors = ["LumenX Team"]
 edition = "2021"
