@@ -145,6 +145,7 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
         "duration": 15,
         "resolution": "768p竖",
     }
+    assert post.call_args.kwargs["timeout"] == (15, 300)
 
     JiucaiheziVideoModel({}).generate(
         "prompt",
@@ -158,6 +159,19 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
         "prompt": "prompt",
         "ratio": "9:16",
     }
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_create_timeout_is_not_retried(post, tmp_path):
+    post.side_effect = requests.Timeout("gateway stalled")
+
+    with pytest.raises(RuntimeError, match="not retried to avoid duplicate billing"):
+        JiucaiheziVideoModel({}).generate(
+            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+        )
+
+    assert post.call_count == 1
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})

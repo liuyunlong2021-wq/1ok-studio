@@ -14,6 +14,7 @@ MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
 JIUCAIHEZI_BASE_URL = "https://api.jiucaihezi.studio"
 TEMP_UPLOAD_ATTEMPTS = 3
 TEMP_UPLOAD_TIMEOUT = (15, 120)
+VIDEO_CREATE_TIMEOUT = (15, 300)
 
 
 def _base_url() -> str:
@@ -246,7 +247,21 @@ class JiucaiheziVideoModel(VideoGenModel):
                 payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
         if images:
             payload["images"] = images[:30] if model_name == "dola-seedance2.5" else images[:9]
-        response = requests.post(f"{_base_url()}/v1/videos", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=120)
+        try:
+            response = requests.post(
+                f"{_base_url()}/v1/videos",
+                headers={**_headers(), "Content-Type": "application/json"},
+                json=payload,
+                timeout=VIDEO_CREATE_TIMEOUT,
+            )
+        except requests.Timeout as exc:
+            # Never retry a task-creation POST automatically: the gateway may
+            # already have accepted and billed it even though its response was
+            # lost. Retrying here could create and charge for a duplicate task.
+            raise RuntimeError(
+                "Jiucaihezi video task creation did not return within 300 seconds; "
+                "submission status is unknown and it was not retried to avoid duplicate billing"
+            ) from exc
         response.raise_for_status()
         task = response.json()
         task_id = task.get("task_id") or task.get("id")
