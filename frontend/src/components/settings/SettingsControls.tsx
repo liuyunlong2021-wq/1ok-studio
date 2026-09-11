@@ -79,11 +79,13 @@ export function KeyField({
   onChange,
   placeholder,
   status,
+  onReveal,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   status?: { kind: "ok" | "warn"; text: string };
+  onReveal?: () => Promise<string | undefined>;
 }) {
   const t = useTranslations("settings");
   const [revealed, setRevealed] = useState(false);
@@ -113,7 +115,13 @@ export function KeyField({
         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-0.5">
           <button
             type="button"
-            onClick={() => setRevealed((r) => !r)}
+            onClick={async () => {
+              if (!revealed && onReveal && value.includes("•")) {
+                const fullValue = await onReveal();
+                if (fullValue) onChange(fullValue);
+              }
+              setRevealed((r) => !r);
+            }}
             aria-label={revealed ? t("hideKey") : t("showKey")}
             title={revealed ? t("hide") : t("show")}
             className="w-7 h-7 rounded-md grid place-items-center text-text-muted hover:bg-hover-bg hover:text-foreground transition-colors"

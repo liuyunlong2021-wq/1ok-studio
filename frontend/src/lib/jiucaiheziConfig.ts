@@ -21,7 +21,5 @@ export const hasJiucaiheziKey = (config: Pick<JiucaiheziConfig, "JIUCAIHEZI_API_
 
 export const toJiucaiheziPayload = (config: JiucaiheziConfig): EnvConfigPayload => ({
   JIUCAIHEZI_API_KEY: config.JIUCAIHEZI_API_KEY,
-  endpoint_overrides: {
-    JIUCAIHEZI_BASE_URL: config.endpoint_overrides.JIUCAIHEZI_BASE_URL ?? "",
-  },
+  endpoint_overrides: {},
 });

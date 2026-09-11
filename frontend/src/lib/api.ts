@@ -1256,6 +1256,11 @@ export const api = {
         return res.data;
     },
 
+    getEnvKey: async (): Promise<string> => {
+        const res = await axios.get<{ key: string }>(`${API_URL}/config/env/key`);
+        return res.data.key;
+    },
+
     saveEnvConfig: async (config: EnvConfigPayload) => {
         const res = await axios.post(`${API_URL}/config/env`, config, {
             timeout: 60000, // 60 seconds timeout

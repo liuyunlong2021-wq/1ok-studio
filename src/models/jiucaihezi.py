@@ -11,10 +11,11 @@ from .image import ImageGenModel
 
 GROK_IMAGE_MODEL = "grok-imagine-image-2.0"
 MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
+JIUCAIHEZI_BASE_URL = "https://api.jiucaihezi.studio"
 
 
 def _base_url() -> str:
-    return (os.getenv("JIUCAIHEZI_BASE_URL") or "https://api.jiucaihezi.studio").rstrip("/")
+    return JIUCAIHEZI_BASE_URL
 
 
 def _headers() -> Dict[str, str]:

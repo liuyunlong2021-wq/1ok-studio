@@ -19,7 +19,7 @@ describe("Jiucaihezi-only configuration", () => {
     });
   });
 
-  it("submits only the Jiucaihezi endpoint override", () => {
+  it("submits the key without a user-configurable endpoint", () => {
     expect(toJiucaiheziPayload({
       JIUCAIHEZI_API_KEY: "jc-test",
       endpoint_overrides: {
@@ -28,7 +28,7 @@ describe("Jiucaihezi-only configuration", () => {
       },
     })).toEqual({
       JIUCAIHEZI_API_KEY: "jc-test",
-      endpoint_overrides: { JIUCAIHEZI_BASE_URL: "https://jiucai.example.com" },
+      endpoint_overrides: {},
     });
   });
 });

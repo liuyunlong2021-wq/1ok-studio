@@ -17,6 +17,8 @@ def get_provider_base_url(provider: str, default: str = None) -> str:
         provider: Provider key, e.g. "KLING", "DASHSCOPE"
         default: Fallback URL if env var is not set. If None, looks up PROVIDER_DEFAULTS.
     """
+    if provider.upper() == "JIUCAIHEZI":
+        return PROVIDER_DEFAULTS["JIUCAIHEZI"]
     env_key = f"{provider.upper()}_BASE_URL"
     fallback = default or PROVIDER_DEFAULTS.get(provider.upper(), "")
     return (os.getenv(env_key) or fallback).rstrip("/")

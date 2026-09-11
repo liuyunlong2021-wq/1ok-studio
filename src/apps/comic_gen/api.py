@@ -1505,6 +1505,7 @@ LEGACY_USER_CONFIG_KEYS = {
     "VIDU_BASE_URL",
     "PIXVERSE_BASE_URL",
     "MULEROUTER_BASE_URL",
+    "JIUCAIHEZI_BASE_URL",
 }
 
 
@@ -1651,19 +1652,8 @@ def update_env_config(config: EnvConfig):
             if field in SECRET_FIELDS and _MASK_CHAR in str(config_dict[field]):
                 config_dict.pop(field, None)
 
-        # Process endpoint overrides: validate keys against known providers
-        allowed_keys = {"JIUCAIHEZI_BASE_URL"}
-        keys_to_remove = []
-        for env_key, value in endpoint_overrides.items():
-            if env_key not in allowed_keys:
-                logger.warning(f"Ignoring unknown endpoint key: {env_key}")
-                continue
-            if value and value.strip():
-                config_dict[env_key] = value.strip()
-            else:
-                # Clear override: remove from env and config file
-                os.environ.pop(env_key, None)
-                keys_to_remove.append(env_key)
+        # The gateway endpoint is product-owned and never user-configurable.
+        os.environ.pop("JIUCAIHEZI_BASE_URL", None)
 
         # Update current process env
         for key, value in config_dict.items():
@@ -1679,7 +1669,7 @@ def update_env_config(config: EnvConfig):
         for key in LEGACY_USER_CONFIG_KEYS:
             os.environ.pop(key, None)
         remove_user_config_keys(sorted(LEGACY_USER_CONFIG_KEYS))
-        remove_user_config_keys(keys_to_remove)
+        remove_user_config_keys(["JIUCAIHEZI_BASE_URL"])
 
         # Reset OSS singleton to pick up new config (non-blocking)
         try:
@@ -4420,11 +4410,6 @@ def get_env_config():
     plaintext. `secrets_configured` reports whether the Jiucaihezi credential
     is set without exposing its raw value."""
     try:
-        endpoint_overrides = {}
-        jiucaihezi_base_url = os.getenv("JIUCAIHEZI_BASE_URL")
-        if jiucaihezi_base_url:
-            endpoint_overrides["JIUCAIHEZI_BASE_URL"] = jiucaihezi_base_url
-
         secrets_configured = {
             field: bool((os.getenv(field, "") or "").strip())
             for field in SECRET_FIELDS
@@ -4432,11 +4417,17 @@ def get_env_config():
 
         return {
             "JIUCAIHEZI_API_KEY": _mask_secret(os.getenv("JIUCAIHEZI_API_KEY")),
-            "endpoint_overrides": endpoint_overrides,
+            "endpoint_overrides": {},
             "secrets_configured": secrets_configured,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/config/env/key")
+def get_env_key():
+    """Return the locally stored key only after an explicit reveal action."""
+    return {"key": os.getenv("JIUCAIHEZI_API_KEY", "")}
 
 
 

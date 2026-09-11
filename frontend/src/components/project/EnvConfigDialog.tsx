@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Key, Loader2, Save, X } from "lucide-react";
+import { Eye, EyeOff, Key, Loader2, Save, X, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import {
@@ -24,12 +24,14 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
   const t = useTranslations("project");
   const tc = useTranslations("common");
 
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
+    setRevealed(false);
     setLoadError(null);
     api.getEnvConfig()
       .then((data) => setConfig(normalizeJiucaiheziConfig(data)))
@@ -72,7 +74,7 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
               <div className="p-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg"><Key size={20} className="text-amber-400" /></div>
               <div>
                 <h2 className="text-lg font-bold text-foreground">韭菜盒子 API</h2>
-                <p className="text-xs text-text-muted">一个凭证即可使用 LumenX 的全部模型能力</p>
+                <p className="text-xs text-text-muted">一个凭证即可使用全部模型能力</p>
               </div>
             </div>
             <button onClick={requestClose} disabled={!canClose} className="p-2 hover:bg-hover-bg rounded-lg disabled:opacity-40"><X size={20} className="text-text-secondary" /></button>
@@ -85,14 +87,13 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
             ) : loadError ? (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-sm text-red-300">{loadError}</div>
             ) : (
-              <div className="bg-glass border border-glass-border rounded-lg p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Base URL</label>
-                  <input type="text" value={config.endpoint_overrides.JIUCAIHEZI_BASE_URL || ""} onChange={(event) => setConfig((current) => ({ ...current, endpoint_overrides: { ...current.endpoint_overrides, JIUCAIHEZI_BASE_URL: event.target.value } }))} placeholder="https://api.jiucaihezi.studio" className={inputClass} />
-                </div>
+              <div className="bg-glass border border-glass-border rounded-lg p-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">API Key <span className="text-red-500">*</span></label>
-                  <input type="password" value={config.JIUCAIHEZI_API_KEY} onChange={(event) => setConfig((current) => ({ ...current, JIUCAIHEZI_API_KEY: event.target.value }))} placeholder="韭菜盒子 API Key" className={inputClass} />
+                  <div className="relative">
+                    <input type={revealed ? "text" : "password"} value={config.JIUCAIHEZI_API_KEY} onChange={(event) => setConfig((current) => ({ ...current, JIUCAIHEZI_API_KEY: event.target.value }))} placeholder="韭菜盒子 API Key" className={inputClass + " pr-11"} />
+                    <button type="button" onClick={async () => { if (!revealed && config.JIUCAIHEZI_API_KEY.includes("•")) { try { const full = await api.getEnvKey(); setConfig((current) => ({ ...current, JIUCAIHEZI_API_KEY: full })); } catch {} } setRevealed((current) => !current); }} aria-label={revealed ? "隐藏 API Key" : "显示完整 API Key"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-foreground">{revealed ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -100,6 +101,7 @@ export default function EnvConfigDialog({ isOpen, onClose, isRequired = false }:
 
           <div className="flex justify-end gap-3 p-6 border-t border-glass-border">
             <button onClick={requestClose} disabled={!canClose} className="px-4 py-2 text-sm text-text-secondary disabled:opacity-40">{tc("cancel")}</button>
+            <button onClick={() => window.open("https://api.jiucaihezi.studio/keys", "_blank", "noopener,noreferrer")} className="flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary text-sm font-medium rounded-lg"><ExternalLink size={15} /> 前往获取</button>
             <button onClick={handleSave} disabled={saving || loading || !!loadError} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 text-foreground text-sm font-medium rounded-lg disabled:opacity-50">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               {saving ? t("savingConfig") : t("saveConfig")}

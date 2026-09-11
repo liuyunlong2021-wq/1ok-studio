@@ -125,7 +125,7 @@ class PlaygroundService:
                     refs.append({"audio_url": upload_to_jiucaihezi(path, "audio")})
             if refs:
                 payload["metadata"] = {"references": refs}
-        base_url = (os.getenv("JIUCAIHEZI_BASE_URL") or "https://api.jiucaihezi.studio").rstrip("/")
+        base_url = "https://api.jiucaihezi.studio"
         key = os.getenv("JIUCAIHEZI_API_KEY")
         if not key:
             raise RuntimeError("JIUCAIHEZI_API_KEY not configured")

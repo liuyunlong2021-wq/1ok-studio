@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { Save, Loader2, WifiOff, Copy, Check, Upload } from "lucide-react";
+import { Save, Loader2, WifiOff, Copy, Check, Upload, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api, type EnvConfigPayload, API_URL } from "@/lib/api";
 import { ASPECT_RATIOS } from "@/store/projectStore";
@@ -308,11 +308,8 @@ export default function SettingsPage() {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleEndpointChange = (envKey: string, value: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      endpoint_overrides: { ...prev.endpoint_overrides, [envKey]: value },
-    }));
+  const revealApiKey = async () => {
+    try { return await api.getEnvKey(); } catch { return undefined; }
   };
 
   const handleSaveModelDefaults = () => {
@@ -613,24 +610,20 @@ export default function SettingsPage() {
         </div>
       ) : (
         <div className="space-y-1">
-          <FormRow label="韭菜盒子" hint="LumenX 的文本、图片、视频与音频模型统一通过此 API 调用">
-            <FieldLabel>JIUCAIHEZI_BASE_URL</FieldLabel>
-            <input
-              type="text"
-              value={config.endpoint_overrides["JIUCAIHEZI_BASE_URL"] || ""}
-              onChange={(e) => handleEndpointChange("JIUCAIHEZI_BASE_URL", e.target.value)}
-              placeholder="https://api.jiucaihezi.studio"
-              className={settingsInputClass + " font-mono text-[0.71875rem] mb-3"}
-            />
+          <FormRow label="韭菜盒子 API Key">
             <FieldLabel>JIUCAIHEZI_API_KEY *</FieldLabel>
             <KeyField
               value={config.JIUCAIHEZI_API_KEY}
               onChange={(v) => handleChange("JIUCAIHEZI_API_KEY", v)}
               placeholder="API Key"
+              onReveal={revealApiKey}
             />
           </FormRow>
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end items-center gap-2 pt-4">
+            <button type="button" onClick={() => window.open("https://api.jiucaihezi.studio/keys", "_blank", "noopener,noreferrer")} className="inline-flex items-center gap-2 px-4 py-2 border border-glass-border text-text-secondary hover:text-foreground text-sm font-medium rounded-lg transition-all">
+              <ExternalLink size={15} /> 前往获取
+            </button>
             <button
               type="button"
               onClick={handleSaveApiConfig}
