@@ -32,7 +32,7 @@ interface CharacterVoiceFaceProps {
     character: any;
 }
 
-type Busy = null | "description" | "prompt" | "reference" | "upload" | "preview" | "accept";
+type Busy = null | "description" | "prompt" | "reference" | "upload" | "preview" | "accept" | "rewrite";
 
 /** 跟 Motion Ref 那边的音频上传同一道门槛（10MB），别两处不一样。 */
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -53,6 +53,9 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
 
     const [descriptionDraft, setDescriptionDraft] = useState(character.voice_description || "");
     const [promptDraft, setPromptDraft] = useState(character.voice_prompt || "");
+    // 「AI 修改」—— 跟生图面描述那一列同一套：点开一个输入条，填一句要求让模型改。
+    const [showRewriteBar, setShowRewriteBar] = useState(false);
+    const [rewriteInstruction, setRewriteInstruction] = useState("");
     const [busy, setBusy] = useState<Busy>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [previewVoiceId, setPreviewVoiceId] = useState<string | null>(null);
@@ -123,6 +126,18 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
             await api.updateCharacterVoiceFields(project.id, character.id, {
                 voice_description: next,
             });
+        });
+    };
+
+    /** 「AI 修改」：把输入框里当前这版（可能刚手改过）+ 要求一起交给模型。 */
+    const handleRewriteDescription = async () => {
+        if (!rewriteInstruction.trim()) return;
+        await run("rewrite", async (project) => {
+            await api.rewriteCharacterVoiceDescription(
+                project.id, character.id, rewriteInstruction.trim(), descriptionDraft,
+            );
+            setRewriteInstruction("");
+            setShowRewriteBar(false);
         });
     };
 
@@ -379,14 +394,24 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                         <h3 className={titleClass}>{t("descriptionTitle")}</h3>
                         <p className={subTitleClass}>{t("descriptionHint")}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleExtractDescription}
-                        disabled={!!busy}
-                        className={linkButtonClass}
-                    >
-                        {busy === "description" ? t("descriptionExtracting") : t("descriptionExtract")}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowRewriteBar((v) => !v)}
+                            disabled={!!busy}
+                            className={linkButtonClass}
+                        >
+                            {t("descriptionRewrite")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExtractDescription}
+                            disabled={!!busy}
+                            className={linkButtonClass}
+                        >
+                            {busy === "description" ? t("descriptionExtracting") : t("descriptionExtract")}
+                        </button>
+                    </div>
                 </div>
                 <textarea
                     value={descriptionDraft}
@@ -395,6 +420,33 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                     placeholder={t("descriptionPlaceholder")}
                     className={textAreaClass}
                 />
+                {showRewriteBar && (
+                    <div className="rounded-xl border border-primary/25 bg-glass p-3">
+                        <div className="relative">
+                            <textarea
+                                value={rewriteInstruction}
+                                onChange={(e) => setRewriteInstruction(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        void handleRewriteDescription();
+                                    }
+                                }}
+                                placeholder={t("descriptionRewritePlaceholder")}
+                                disabled={busy === "rewrite"}
+                                className="min-h-[104px] w-full resize-none rounded-lg border border-glass-border bg-input-bg p-3 pb-11 text-xs leading-relaxed text-text-secondary outline-none focus:border-primary/60 placeholder:text-text-muted"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => void handleRewriteDescription()}
+                                disabled={busy === "rewrite"}
+                                className="absolute bottom-2 right-2 rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                            >
+                                {busy === "rewrite" ? t("descriptionRewriting") : t("descriptionRewriteRun")}
+                            </button>
+                        </div>
+                    </div>
+                )}
                 <p className="text-[0.6875rem] text-text-muted">
                     v{character.voice_description_version || 0}
                     {character.voice_description_source === "manual" ? " · 手工编辑" : ""}

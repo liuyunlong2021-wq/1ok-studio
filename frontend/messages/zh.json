@@ -1331,7 +1331,11 @@
     "audioTooLarge": "音频太大了（上限 10MB）",
     "referenceDelete": "删除",
     "takeUpload": "上传",
-    "takeVoice": "生成"
+    "takeVoice": "生成",
+    "descriptionRewrite": "AI 修改",
+    "descriptionRewritePlaceholder": "输入修改要求，例如：语气再老成一点、语速放慢",
+    "descriptionRewriteRun": "生成修改",
+    "descriptionRewriting": "生成中"
   },
   "vault": {
     "title": "一致性金库",

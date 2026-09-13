@@ -4800,6 +4800,58 @@ class ComicGenPipeline:
         self._save_data()
         return character
 
+    def rewrite_voice_description(
+        self, script_id: str, character_id: str, instruction: str, description: Optional[str] = None
+    ) -> Character:
+        """「AI 修改」：按一句要求把「声音描述」改一遍。
+
+        生图面描述那一列早就有这个动作（`rewrite_asset_description`）。这里**不
+        复用那个方法** —— 它的 persona 是「影视资产描述编辑器」，默认指令是「优
+        化为清晰、可视化、适合资产制作的描述」，会把模型往描述外貌上带。声音面
+        用自己已经调好的 `_VOICE_DESCRIPTION_SYSTEM_PROMPT`，也就完全不碰生图那
+        条已经在跑的链。
+
+        改出来的算 AI 来源（不是手工），并且进版本 —— 右列的提示词据此变过期，
+        跟手改一个待遇。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        current = (description if description is not None else character.voice_description or "").strip()
+        if not current:
+            raise ValueError(f"「{character.name}」还没有声音描述，先生成或写一段再来修改")
+
+        from .llm_adapter import LLMAdapter
+
+        adapter = LLMAdapter()
+        if not adapter.is_configured:
+            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+
+        ask = (instruction or "").strip() or "改得更具体、更能指导音色设计"
+        text = adapter.chat(
+            messages=[
+                {"role": "system", "content": self._VOICE_DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "user", "content": (
+                    f"当前声音描述：\n{current[:1200]}\n\n"
+                    f"修改要求：{ask}\n\n"
+                    "请输出修改后的声音描述，保持同样的篇幅与体例。"
+                )},
+            ],
+        )
+        cleaned = (text or "").strip()
+        if not cleaned:
+            raise ValueError("声音描述修改失败：模型返回了空内容")
+
+        character.voice_description = cleaned[:600]
+        character.voice_description_source = "ai"
+        character.voice_description_version += 1
+        character.voice_description_updated_at = time.time()
+        script.updated_at = time.time()
+        self._save_data()
+        return character
+
     def generate_voice_prompt(self, script_id: str, character_id: str) -> Character:
         """右列：由中列的「声音描述」生成音色提示词，并记下基于哪一版描述。"""
         script = self.get_script(script_id)

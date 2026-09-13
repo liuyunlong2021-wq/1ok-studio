@@ -3336,6 +3336,31 @@ def generate_character_voice_description(script_id: str, char_id: str):
     return signed_response(character)
 
 
+class RewriteVoiceDescriptionRequest(BaseModel):
+    instruction: str = ""
+    # 允许把「还没落库的那一版」传上来改（前端输入框里可能刚被手改过）。
+    # 不传就用角色身上现有的。
+    description: Optional[str] = None
+
+
+@app.post("/projects/{script_id}/characters/{char_id}/voice-description/rewrite")
+def rewrite_character_voice_description(
+    script_id: str, char_id: str, request: RewriteVoiceDescriptionRequest
+):
+    """中列的「AI 修改」：按一句要求把「声音描述」改一遍。
+
+    跟生图面描述那一列是同一个动作，只是换成了声音的 persona —— 见
+    pipeline.rewrite_voice_description 里为什么没有直接复用生图那个方法。
+    """
+    try:
+        character = pipeline.rewrite_voice_description(
+            script_id, char_id, instruction=request.instruction, description=request.description
+        )
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
 @app.post("/projects/{script_id}/characters/{char_id}/voice-prompt")
 def generate_character_voice_prompt(script_id: str, char_id: str):
     """右列：声音描述 → 音色提示词（并记下基于哪一版描述）。"""

@@ -537,3 +537,96 @@ def test_binding_a_builtin_voice_stays_system(monkeypatch):
     client.post(f"{BASE}/voice", json={"voice_id": "longxiaochun", "voice_name": "龙小淳"})
 
     assert _character(script).voice_origin == "system"
+
+
+# ---------------------------------------------------------------------------
+# 7. 「AI 修改」—— 跟生图面描述那一列同一个动作
+#
+# 生图面那列有「AI 修改」：输入一句要求（比如「补充服装细节」）让模型改描述。
+# 声音面镜像一份，改的是「声音描述」。这里只锁三件事：改了、进了版本、右列的
+# 提示词因此变过期。
+# ---------------------------------------------------------------------------
+
+def test_rewriting_the_voice_description_replaces_the_text(monkeypatch, llm_spy):
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={})
+    before = _character(script).voice_description_version
+
+    response = client.post(f"{BASE}/voice-description/rewrite",
+                           json={"instruction": "再老成一点，语速放慢"})
+
+    assert response.status_code == 200, response.text
+    char = _character(script)
+    assert char.voice_description == "沙哑的中年男声，语速偏慢，尾音略沉。"
+    assert char.voice_description_source == "ai", "AI 改出来的算 AI 来源，不是手工"
+    assert char.voice_description_version == before + 1, "改写也要进版本"
+
+
+def test_rewriting_makes_the_voice_prompt_stale(monkeypatch, llm_spy):
+    """改写声音描述之后，右列的提示词必须显成过期 —— 跟手改一个待遇。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={})
+    client.post(f"{BASE}/voice-prompt", json={})
+    fresh = _character(script).voice_prompt_description_version
+
+    client.post(f"{BASE}/voice-description/rewrite", json={"instruction": "换少女音"})
+
+    char = _character(script)
+    assert char.voice_prompt_description_version < char.voice_description_version
+    assert char.voice_prompt_description_version == fresh, "旧提示词的版本号不该被改"
+
+
+def test_rewriting_sends_the_instruction_to_the_model(monkeypatch, llm_spy):
+    """用户输入的要求必须真的到模型手里，不能只拿描述重新生成一遍。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={})
+    llm_spy.clear()
+
+    client.post(f"{BASE}/voice-description/rewrite",
+                json={"instruction": "再老成一点，语速放慢"})
+
+    assert llm_spy, "没调用模型"
+    payload = str(llm_spy[-1])
+    assert "再老成一点" in payload, "修改要求被吞了"
+
+
+def test_rewriting_uses_the_voice_persona_not_the_image_one(monkeypatch, llm_spy):
+    """不能直接把生图面那句「影视资产描述编辑器」搬过来 —— 它会去描述外貌。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={})
+    llm_spy.clear()
+
+    client.post(f"{BASE}/voice-description/rewrite", json={"instruction": "语速慢点"})
+
+    system = "".join(m["content"] for m in llm_spy[-1] if m["role"] == "system")
+    assert "声音" in system, "用的是声音的 persona"
+    assert "资产描述编辑器" not in system, "搬了生图面的 persona 过来"
+
+
+def test_rewriting_without_a_description_is_rejected(monkeypatch, llm_spy):
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    response = client.post(f"{BASE}/voice-description/rewrite", json={"instruction": "短一点"})
+
+    assert response.status_code == 400
+    assert "声音描述" in response.json()["detail"]
+
+
+def test_rewriting_rejects_an_empty_model_reply(monkeypatch, llm_spy):
+    from src.apps.comic_gen.llm_adapter import LLMAdapter
+
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={})
+    original = _character(script).voice_description
+    monkeypatch.setattr(LLMAdapter, "chat", lambda self, messages, **kwargs: "  ")
+
+    response = client.post(f"{BASE}/voice-description/rewrite", json={"instruction": "短一点"})
+
+    assert response.status_code == 400
+    assert _character(script).voice_description == original, "空回复不能把原描述冲掉"

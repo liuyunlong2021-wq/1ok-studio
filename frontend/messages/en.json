@@ -1331,7 +1331,11 @@
     "audioTooLarge": "Audio is too large (10MB max)",
     "referenceDelete": "Remove",
     "takeUpload": "Upload",
-    "takeVoice": "Take"
+    "takeVoice": "Take",
+    "descriptionRewrite": "AI rewrite",
+    "descriptionRewritePlaceholder": "Describe the change, e.g. make him sound older and slower",
+    "descriptionRewriteRun": "Rewrite",
+    "descriptionRewriting": "Rewriting"
   },
   "vault": {
     "title": "Consistency Vault",

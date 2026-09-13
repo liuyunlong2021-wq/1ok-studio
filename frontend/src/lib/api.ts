@@ -1201,6 +1201,31 @@ export const api = {
         return response.json();
     },
 
+    /** 中列的「AI 修改」：按一句要求把「声音描述」改一遍。
+     *
+     * 跟生图面描述那一列是同一个动作，只是后端换成声音的 persona。
+     * `description` 传当前输入框里的值，这样「手改一半再让 AI 改」也对。
+     */
+    rewriteCharacterVoiceDescription: async (
+        scriptId: string,
+        charId: string,
+        instruction: string,
+        description?: string,
+    ) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/voice-description/rewrite`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ instruction, description: description ?? null }),
+            },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音描述修改失败"));
+        }
+        return response.json();
+    },
+
     /** 把候选条里的某一版设为主音。
      *
      * 跟生图面的 setAssetVariant 是同一件事 —— 反复改提示词、每版都留档，
