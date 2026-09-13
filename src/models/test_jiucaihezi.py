@@ -426,3 +426,25 @@ def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
 
     with pytest.raises(RuntimeError, match="该模型未开通"):
         generate_audio("p", str(tmp_path / "out.mp3"))
+
+
+# ---------------------------------------------------------------------------
+# 合同补漏：input 必须 1-3000 字符（见 Seed Audio 1.0 接入合同）
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(strict=True, reason="待实现：空 input 要本地拦掉，别浪费一次请求")
+def test_generate_audio_rejects_blank_input(tmp_path):
+    """input 是必填且 1-3000 字符。空字符串上游会 400，不如在本地报清楚。"""
+    with pytest.raises(ValueError, match="1-3000"):
+        generate_audio("   ", str(tmp_path / "out.mp3"))
+
+
+def test_generate_audio_truncates_input_at_contract_limit(tmp_path):
+    """3000 是合同上限，超了要截断而不是原样发出去。"""
+    with patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"}), patch(
+        "src.models.jiucaihezi.requests.post"
+    ) as post:
+        post.return_value = _audio_response()
+        generate_audio("字" * 5000, str(tmp_path / "out.mp3"))
+
+    assert len(post.call_args.kwargs["json"]["input"]) == 3000
