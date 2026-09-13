@@ -214,20 +214,11 @@ def _safe_upload_ext(filename: Optional[str]) -> str:
 
 @app.get("/debug/config")
 def debug_config():
-    """Diagnostic endpoint to check OSS and path configuration."""
-    uploader = OSSImageUploader()
+    """Diagnostic endpoint for data-root and path configuration."""
     return {
-        "oss_configured": uploader.is_configured,
-        "oss_bucket_initialized": uploader.bucket is not None,
-        "oss_base_path": os.getenv("OSS_BASE_PATH", "lumenx"),
         "output_dir_exists": os.path.exists("output"),
         "output_contents": os.listdir("output") if os.path.exists("output") else [],
         "cwd": os.getcwd(),
-        "env_vars_present": {
-            "OSS_ENDPOINT": bool(os.getenv("OSS_ENDPOINT")),
-            "OSS_BUCKET_NAME": bool(os.getenv("OSS_BUCKET_NAME")),
-            "ALIBABA_CLOUD_ACCESS_KEY_ID": bool(os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")),
-        }
     }
 
 def signed_response(data):
