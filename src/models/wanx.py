@@ -14,7 +14,7 @@ from typing import Callable, Dict, List, Mapping, Optional, Tuple
 
 from ..utils.oss_utils import OSSImageUploader
 from ..utils.provider_media import resolve_media_input, resolve_media_inputs
-from ..utils.provider_registry import resolve_provider_backend
+from ..utils.provider_registry import UnknownProviderFamily, resolve_provider_backend
 
 logger = get_logger(__name__)
 
@@ -33,20 +33,18 @@ class WanxModel(VideoGenModel):
         return api_key
 
     def _resolve_provider_backend_for_model(self, model_name: str) -> str:
+        """模型没在目录里注册家族时回落 dashscope。
+
+        只吞 UnknownProviderFamily —— 目录缺失/损坏必须抛出去。
+        """
+        if not model_name:
+            return "dashscope"
         try:
             return resolve_provider_backend(model_name)
-        except (KeyError, ValueError):
+        except UnknownProviderFamily:
             logger.debug(
                 "Provider backend not registered for model %s, defaulting to dashscope.",
                 model_name,
-            )
-            return "dashscope"
-        except Exception as e:
-            logger.warning(
-                "Unexpected error resolving provider backend for model %s: %s. "
-                "Falling back to dashscope.",
-                model_name,
-                e,
             )
             return "dashscope"
 

@@ -7,6 +7,18 @@ from .model_catalog import build_provider_family_configs, load_generated_model_c
 SUPPORTED_PROVIDER_BACKENDS = ("dashscope", "vendor", "mulerouter", "jiucaihezi")
 
 
+class UnknownProviderFamily(KeyError):
+    """目录里没有匹配到该模型 id 的 provider 家族。
+
+    单独给一个类型，是为了让调用方能精确区分两种失败：
+    - 模型没注册 → 可以回落，是本异常；
+    - 目录加载不了（缺失 / 损坏）→ 必须抛出去。
+
+    两者混在一起时，打包漏带 `config/model_catalog/` 会被当成前者吞掉，表现成
+    一个莫名其妙的后端选择问题，真正的原因完全看不出来。
+    """
+
+
 @dataclass
 class ProviderFamilyConfig:
     model_family: str
@@ -48,7 +60,7 @@ class ProviderRegistry:
         for family in sorted(self._families.keys(), key=len, reverse=True):
             if normalized.startswith(family):
                 return self._families[family]
-        raise KeyError(f"No provider family registered for model '{model_name}'")
+        raise UnknownProviderFamily(f"No provider family registered for model '{model_name}'")
 
     def resolve_backend(self, model_name: str, env: Optional[Mapping[str, str]] = None) -> str:
         family = self.get_family_config(model_name)

@@ -14,7 +14,7 @@ from ..utils.media_refs import MEDIA_REF_UNKNOWN, classify_media_ref
 from ..utils.model_catalog import get_default_model_settings
 from ..utils.oss_utils import OSSImageUploader
 from ..utils.provider_media import resolve_media_input
-from ..utils.provider_registry import resolve_provider_backend
+from ..utils.provider_registry import UnknownProviderFamily, resolve_provider_backend
 
 logger = get_logger(__name__)
 
@@ -519,16 +519,15 @@ class WanxImageModel(ImageGenModel):
             return None
 
     def _resolve_provider_backend_for_model(self, model_name: str) -> str:
+        """模型没在目录里注册家族时回落 dashscope。
+
+        只吞 UnknownProviderFamily —— 目录缺失/损坏必须抛出去。
+        """
+        if not model_name:
+            return "dashscope"
         try:
             return resolve_provider_backend(model_name)
-        except (KeyError, ValueError):
-            # Keep image flows resilient for models not yet registered.
-            return "dashscope"
-        except Exception as e:
-            logger.warning(
-                f"Unexpected error resolving provider backend for model {model_name}: {e}. "
-                "Falling back to dashscope."
-            )
+        except UnknownProviderFamily:
             return "dashscope"
 
     def _encode_local_image_as_data_uri(self, path: str) -> str:

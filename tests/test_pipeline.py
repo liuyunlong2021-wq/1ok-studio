@@ -15,7 +15,7 @@ from unittest.mock import patch
 from src.apps.comic_gen.models import (
     Script, Character, Scene, StoryboardFrame, GenerationStatus,
 )
-from src.apps.comic_gen.pipeline import ComicGenPipeline
+from src.apps.comic_gen.pipeline import ComicGenPipeline, _is_jiucaihezi_family_model
 
 
 # ---------------------------------------------------------------------------
@@ -171,3 +171,52 @@ class TestGenerateAudio:
             pitch=speaker.voice_pitch,
             volume=speaker.voice_volume,
         )
+
+
+# ---------------------------------------------------------------------------
+# 目录不可用时的失败策略（不许静默降级）
+# ---------------------------------------------------------------------------
+
+class TestCatalogFailureIsLoud:
+    """目录读不出来时必须抛出去，不能猜一个答案继续跑。
+
+    历史上这两处都吞掉异常，后果是打包漏带 `config/model_catalog/` 时：
+    - `_resolve_video_backend` 假装「这个模型没注册家族」，回落 dashscope；
+    - `_is_jiucaihezi_family_model` 猜「不是韭菜盒子」，于是 R2V 自动切换分支
+      把任务改写成 happyhorse / kling 这些已删除 provider 的模型 id。
+
+    两条路都会把「目录缺失」伪装成别的问题，所以各留一条护栏。
+    """
+
+    @staticmethod
+    def _pipeline():
+        return ComicGenPipeline.__new__(ComicGenPipeline)
+
+    def test_unknown_family_falls_back_to_dashscope(self):
+        assert self._pipeline()._resolve_video_backend("some-unregistered-model") == "dashscope"
+
+    def test_empty_model_name_falls_back_to_dashscope(self):
+        assert self._pipeline()._resolve_video_backend("") == "dashscope"
+
+    def test_catalog_failure_propagates_from_video_backend(self):
+        with patch(
+            "src.apps.comic_gen.pipeline.resolve_provider_backend",
+            side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
+        ):
+            with pytest.raises(FileNotFoundError):
+                self._pipeline()._resolve_video_backend("dola-seedance2.5")
+
+    def test_catalog_failure_propagates_from_family_check(self):
+        with patch(
+            "src.apps.comic_gen.pipeline.get_catalog_accessor",
+            side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
+        ):
+            with pytest.raises(FileNotFoundError):
+                _is_jiucaihezi_family_model("dola-seedance2.5")
+
+    def test_flat_jiucaihezi_id_is_recognized_as_jiucaihezi(self):
+        """扁平 id（dola-seedance2.5）必须认成韭菜盒子，否则会被改成已删除的模型。"""
+        assert _is_jiucaihezi_family_model("dola-seedance2.5") is True
+        assert _is_jiucaihezi_family_model("jiucaihezi/gpt-image-2.5-1k") is True
+        assert _is_jiucaihezi_family_model("") is False
+        assert _is_jiucaihezi_family_model("happyhorse-1.1-r2v") is False

@@ -20,7 +20,7 @@ from .export import ExportManager
 from .skill_packages import SkillPackageStore
 from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
-from ...utils.provider_registry import resolve_provider_backend
+from ...utils.provider_registry import UnknownProviderFamily, resolve_provider_backend
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 
@@ -81,17 +81,15 @@ def _is_jiucaihezi_family_model(model_id: Optional[str]) -> bool:
 
     pipeline 里多处用 `model.startswith("jiucaihezi/")` 判断供应商，但目录里韭菜盒子
     的 R2V 模型 id 就是扁平形式（dola-seedance2.5 / minimax_h3_image_audio_to_video_v2_15s），
-    前缀判断会漏掉它们——漏掉的后果是 R2V 自动切换分支静默把模型换成 wan2.7-r2v，
-    请求被交给另一个供应商（DashScope key 无效时直接失败）。这里用目录的
-    legacy→canonical 映射兜住，查不到时退回前缀判断。
+    前缀判断会漏掉它们 —— 漏掉的后果是 R2V 自动切换分支静默把模型改写成
+    happyhorse / kling / pixverse 这些已删除 provider 的 id，请求被交给一个不存在的通道。
+
+    所以目录读不出来时**直接抛**，不退回前缀判断：那只会给出「不是韭菜盒子」这个
+    确定错误的答案，比失败更难查。
     """
     if not model_id:
         return False
-    canonical = model_id
-    try:
-        canonical = get_catalog_accessor().resolve_legacy_to_canonical(model_id) or model_id
-    except Exception:  # 目录不可用时不能让路由挂掉
-        pass
+    canonical = get_catalog_accessor().resolve_legacy_to_canonical(model_id) or model_id
     return canonical.startswith("jiucaihezi/")
 
 # --- Security helpers ---
@@ -431,20 +429,19 @@ class ComicGenPipeline:
             return True
 
     def _resolve_video_backend(self, model_name: str) -> str:
+        """模型没在目录里注册家族时回落 dashscope。
+
+        只吞 UnknownProviderFamily —— 目录缺失/损坏必须抛出去，不能被伪装成
+        一个后端选择问题。
+        """
+        if not model_name:
+            return "dashscope"
         try:
             return resolve_provider_backend(model_name)
-        except (KeyError, ValueError):
+        except UnknownProviderFamily:
             logger.debug(
                 "Provider backend not registered for video model %s, defaulting to dashscope.",
                 model_name,
-            )
-            return "dashscope"
-        except Exception as e:
-            logger.warning(
-                "Unexpected error resolving provider backend for video model %s: %s. "
-                "Falling back to dashscope.",
-                model_name,
-                e,
             )
             return "dashscope"
 
