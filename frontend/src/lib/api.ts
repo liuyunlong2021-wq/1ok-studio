@@ -1177,11 +1177,15 @@ export const api = {
         return response.json();
     },
 
-    /** 手改声音面的两个文本框。改「声音描述」会让右列的提示词变过期。 */
+    /** 手改声音面：两个文本框 + 指一个上传好的参考音。
+     *
+     * 改「声音描述」会让右列的提示词变过期。上传参考音走的是现成的 POST /upload
+     * —— 它已经处理了扩展名与 OSS/本地二选一，这里只负责把结果记到角色身上。
+     */
     updateCharacterVoiceFields: async (
         scriptId: string,
         charId: string,
-        fields: { voice_description?: string; voice_prompt?: string },
+        fields: { voice_description?: string; voice_prompt?: string; reference_audio_url?: string },
     ) => {
         const response = await fetch(
             `${API_URL}/projects/${scriptId}/characters/${charId}/voice-fields`,

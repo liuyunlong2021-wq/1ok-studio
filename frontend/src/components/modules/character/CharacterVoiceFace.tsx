@@ -30,11 +30,12 @@ import VoicePickerModal from "../cast/VoicePickerModal";
 interface CharacterVoiceFaceProps {
     /** 同一个角色对象（来自 currentProject.characters）。 */
     character: any;
-    /** 左列「上传本地音频」交给外层 —— 上传后要刷新项目，走现成的上传通道。 */
-    onUploadReferenceAudio?: () => void;
 }
 
-type Busy = null | "description" | "prompt" | "reference" | "preview" | "accept";
+type Busy = null | "description" | "prompt" | "reference" | "upload" | "preview" | "accept";
+
+/** 跟 Motion Ref 那边的音频上传同一道门槛（10MB），别两处不一样。 */
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
 const columnClass =
     "min-w-0 min-h-0 border-r border-glass-border p-5 flex flex-col gap-3 bg-surface overflow-y-auto last:border-r-0";
@@ -45,7 +46,7 @@ const textAreaClass =
     "min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60";
 const linkButtonClass = "text-xs text-primary disabled:opacity-50";
 
-export default function CharacterVoiceFace({ character, onUploadReferenceAudio }: CharacterVoiceFaceProps) {
+export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProps) {
     const t = useTranslations("characterVoice");
     const currentProject = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -59,6 +60,7 @@ export default function CharacterVoiceFace({ character, onUploadReferenceAudio }
     const [playing, setPlaying] = useState(false);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     // 切角色时把播放停掉，否则会在另一个角色的面板上继续响。
     useEffect(() => () => { audioRef.current?.pause(); audioRef.current = null; }, [character.id]);
 
@@ -171,6 +173,27 @@ export default function CharacterVoiceFace({ character, onUploadReferenceAudio }
     };
 
     /* ── 左列 ─────────────────────────────────────────────────── */
+    /** 上传一段现成的录音当参考音（克隆音色本来就有源音频，不需要模型念）。 */
+    const handleReferenceUpload = async (file?: File | null) => {
+        if (!file) return;
+        if (!file.type.startsWith("audio/")) {
+            toast.error(t("audioOnly"));
+            return;
+        }
+        if (file.size > MAX_AUDIO_BYTES) {
+            toast.error(t("audioTooLarge"));
+            return;
+        }
+        await run("upload", async (project) => {
+            // 先走现成的通用上传拿路径（它管扩展名 + OSS/本地二选一），
+            // 再把路径指到角色身上。
+            const { url } = await api.uploadFile(file);
+            await api.updateCharacterVoiceFields(project.id, character.id, {
+                reference_audio_url: url,
+            });
+        });
+    };
+
     const hasReference = !!character.reference_audio_url;
     const promptStale =
         !!character.voice_prompt &&
@@ -235,16 +258,26 @@ export default function CharacterVoiceFace({ character, onUploadReferenceAudio }
                 </div>
 
                 <div className="flex items-center justify-end gap-2">
-                    {onUploadReferenceAudio && (
-                        <button
-                            type="button"
-                            onClick={onUploadReferenceAudio}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary"
-                        >
-                            <Upload size={13} />
-                            {t("referenceUpload")}
-                        </button>
-                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="audio/*"
+                        className="hidden"
+                        onChange={(e) => {
+                            void handleReferenceUpload(e.target.files?.[0]);
+                            // 清掉 value，否则选同一个文件不会再触发 onChange
+                            e.target.value = "";
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!!busy}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {busy === "upload" ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                        {busy === "upload" ? t("referenceUploading") : t("referenceUpload")}
+                    </button>
                     <button
                         type="button"
                         onClick={() => run("reference", async (project) => {

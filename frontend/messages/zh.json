@@ -1325,7 +1325,10 @@
     "previewFirst": "先试听一次，再决定用不用",
     "needPrompt": "先有音色提示词才能试听",
     "bound": "已绑定「{name}」",
-    "playFailed": "播放失败"
+    "playFailed": "播放失败",
+    "referenceUploading": "上传中…",
+    "audioOnly": "参考音必须是音频文件",
+    "audioTooLarge": "音频太大了（上限 10MB）"
   },
   "vault": {
     "title": "一致性金库",

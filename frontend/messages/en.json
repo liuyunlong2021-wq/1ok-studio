@@ -1325,7 +1325,10 @@
     "previewFirst": "Preview once before accepting",
     "needPrompt": "A voice prompt is needed before previewing",
     "bound": "Bound to “{name}”",
-    "playFailed": "Playback failed"
+    "playFailed": "Playback failed",
+    "referenceUploading": "Uploading…",
+    "audioOnly": "Reference audio must be an audio file",
+    "audioTooLarge": "Audio is too large (10MB max)"
   },
   "vault": {
     "title": "Consistency Vault",

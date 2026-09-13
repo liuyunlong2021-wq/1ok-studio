@@ -10,7 +10,7 @@ import subprocess
 import threading
 import platform
 import sys
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from .models import (
     AudioTake,
     EpisodeAudioPlan,
@@ -4864,17 +4864,22 @@ class ComicGenPipeline:
         logger.info("[voice-face] reference audio for %s → %s", character_id, output_path)
         return character
 
+    # 参考音只认这些扩展名。客户端已经用 accept="audio/*" 挡了一道，这里再挡一道：
+    # 传上来一个 .jpg 的话，要到真正生成音频时才炸，而且炸在网关上、报错看不懂。
+    REFERENCE_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".webm")
+
     def update_voice_fields(
         self,
         script_id: str,
         character_id: str,
         voice_description: Optional[str] = None,
         voice_prompt: Optional[str] = None,
+        reference_audio_url: Optional[str] = None,
     ) -> Character:
-        """手改声音面的两个文本框。
+        """手改声音面：两个文本框 + 直接指一个上传好的参考音。
 
         改「声音描述」要进版本 —— 右列的提示词据此变「过期」。改提示词则是手工
-        覆盖，它对当前这一版描述就是新鲜的。
+        覆盖，它对当前这一版描述就是新鲜的。换参考音不影响描述的版本。
         """
         script = self.get_script(script_id)
         if not script:
@@ -4892,9 +4897,28 @@ class ComicGenPipeline:
             character.voice_prompt_source = "manual"
             character.voice_prompt_description_version = character.voice_description_version
 
+        if reference_audio_url is not None and reference_audio_url.strip() != (character.reference_audio_url or ""):
+            candidate = reference_audio_url.strip()
+            self._assert_audio_reference(candidate, character.name)
+            character.reference_audio_url = candidate
+
         script.updated_at = time.time()
         self._save_data()
         return character
+
+    def _assert_audio_reference(self, url: str, character_name: str) -> None:
+        """上传的参考音必须真是一个音频文件（或至少长得像）。
+
+        只看 URL 的路径部分（OSS 链接后面可能挂 query），而且**没有扩展名就放行**
+        —— 认不出来不等于错，不要把合法的没后缀链接挡在外面。
+        """
+        path = urlparse(url).path if url.startswith(("http://", "https://")) else url
+        ext = os.path.splitext(path)[1].lower()
+        if ext and ext not in self.REFERENCE_AUDIO_EXTS:
+            raise ValueError(
+                f"「{character_name}」的参考音必须是音频文件（{ext} 不行），"
+                f"支持：{'、'.join(self.REFERENCE_AUDIO_EXTS)}"
+            )
 
     # ------------------------------------------------------------------
     # 声音设计（可选步骤）：全局声音导演稿 + 全集声音

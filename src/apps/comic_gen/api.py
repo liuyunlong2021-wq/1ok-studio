@@ -3300,6 +3300,8 @@ def update_voice_params(script_id: str, char_id: str, request: UpdateVoiceParams
 class UpdateVoiceFieldsRequest(BaseModel):
     voice_description: Optional[str] = None
     voice_prompt: Optional[str] = None
+    # 上传完的参考音（走现成的 POST /upload 拿路径，再指过来）
+    reference_audio_url: Optional[str] = None
 
 
 class GenerateReferenceAudioRequest(BaseModel):
@@ -3360,12 +3362,17 @@ def generate_character_reference_audio(
 def update_character_voice_fields(
     script_id: str, char_id: str, request: UpdateVoiceFieldsRequest
 ):
-    """手改声音面的两个文本框。改「声音描述」会让右列的提示词变过期。"""
+    """手改声音面：两个文本框 + 指一个上传好的参考音。
+
+    改「声音描述」会让右列的提示词变过期。上传参考音走的是现成的 POST /upload
+    —— 它已经处理了扩展名与 OSS/本地二选一，这里只负责把结果记到角色身上。
+    """
     try:
         character = pipeline.update_voice_fields(
             script_id, char_id,
             voice_description=request.voice_description,
             voice_prompt=request.voice_prompt,
+            reference_audio_url=request.reference_audio_url,
         )
     except Exception as exc:
         raise _voice_face_error(exc)

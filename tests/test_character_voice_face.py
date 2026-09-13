@@ -322,6 +322,63 @@ def test_reference_audio_requires_a_bound_voice(monkeypatch, tts_spy):
     assert not tts_spy, "没音色就别去调 TTS"
 
 
+def test_reference_audio_can_be_an_uploaded_file(monkeypatch):
+    """上传的参考音走现成的 POST /upload 拿路径，再由 PATCH 指过来。
+
+    克隆音色本来就没有源音频、也不想让模型念 —— 这时候上传一段真人录音才是对的。
+    """
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    response = client.patch(f"{BASE}/voice-fields",
+                            json={"reference_audio_url": "uploads/abc123.wav"})
+
+    assert response.status_code == 200, response.text
+    assert _character(script).reference_audio_url == "uploads/abc123.wav"
+
+    # 上传完就该能当参考音用了
+    assert api_mod.pipeline.resolve_character_reference_audios(PROJECT_ID, [CHAR_ID]) == \
+        ["uploads/abc123.wav"]
+
+
+def test_reference_audio_rejects_a_non_audio_upload(monkeypatch):
+    """传成 jpg 要在这一步就说清楚 —— 否则要到真正生成音频时才炸在网关上。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    response = client.patch(f"{BASE}/voice-fields",
+                            json={"reference_audio_url": "uploads/portrait.jpg"})
+
+    assert response.status_code == 400
+    assert "音频文件" in response.json()["detail"]
+    assert _character(script).reference_audio_url is None, "不能把错的路径存下来"
+
+
+def test_reference_audio_accepts_a_remote_url_without_an_extension(monkeypatch):
+    """OSS 链接后面可能挂 query、也可能没有扩展名 —— 认不出来不等于错，要放行。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    response = client.patch(
+        f"{BASE}/voice-fields",
+        json={"reference_audio_url": "https://cdn.example.com/voice/ref-1?sign=xyz"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert _character(script).reference_audio_url == "https://cdn.example.com/voice/ref-1?sign=xyz"
+
+
+def test_changing_the_reference_audio_does_not_bump_the_description_version(monkeypatch):
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/voice-description", json={}, )
+    before = _character(script).voice_description_version
+
+    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.mp3"})
+
+    assert _character(script).voice_description_version == before, "换素材不该动中列的版本"
+
+
 # ---------------------------------------------------------------------------
 # 5. 参考音优先级（喂给「声音」步骤的那条链）
 # ---------------------------------------------------------------------------
