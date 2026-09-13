@@ -33,7 +33,11 @@ disallow_untyped_defs = false
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# src/ 下也散着测试文件（`src/apps/**/test_*.py`、`src/models/test_*.py`）。
+# 只收 tests/ 的话它们不会被收集，等于长期静默不跑 —— 曾经因此漏掉 73 个测试。
+# 这类 in-tree 测试依赖 `src/apps/__init__.py` 才能按 src.apps.* 的包名导入，
+# 缺了那个文件会导致相对导入越界、整个 run 直接中断。
+testpaths = ["tests", "src"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

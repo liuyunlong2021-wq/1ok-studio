@@ -12,9 +12,14 @@ echo "Port: 17177"
 echo "Proxy Bypass: *.aliyuncs.com"
 echo "========================================"
 
-# 确保在项目根目录
-cd "$(dirname "$0")"
+# 数据目录：后端所有 output/ 相对路径都以此为根（与打包 App 保持一致）
+DATA_DIR="${ONEOKSTUDIO_DATA_DIR:-$HOME/.1okstudio}"
+mkdir -p "$DATA_DIR"
+cd "$DATA_DIR"
+
+# uvicorn 需要从仓库根目录 import src.*，所以用 --app-dir 而不是切回仓库
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 启动 uvicorn
-python -m uvicorn src.apps.comic_gen.api:app --reload --port 17177 --host 0.0.0.0
+exec python -m uvicorn --app-dir "$REPO_DIR" --reload --port 17177 --host 0.0.0.0 src.apps.comic_gen.api:app
 

@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import json
 import os
 import re
+import shutil
 import time
 import uuid
 import subprocess
@@ -21,9 +22,58 @@ from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 from ...utils.provider_registry import resolve_provider_backend
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
-from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings
+from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 
 logger = get_logger(__name__)
+
+
+def _atomic_write_json(path: str, payload: Any) -> None:
+    """Write JSON via tmp+rename, keeping the previous good file as ``.bak``.
+
+    A plain ``open(path, "w")`` truncates before writing, so any interruption
+    (Ctrl-C, ``uvicorn --reload``, OOM) left a half-written file behind. Rename
+    is atomic on POSIX, so a reader sees either the complete old file or the
+    complete new one, never a partial one.
+    """
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+    if os.path.exists(path):
+        try:
+            shutil.copy2(path, f"{path}.bak")
+        except OSError as exc:
+            logger.warning("Could not refresh backup for %s: %s", path, exc)
+    os.replace(tmp_path, path)
+
+
+def _load_json_store(path: str, label: str) -> Optional[Any]:
+    """Read a JSON store, refusing to report corruption as "no data".
+
+    Returns ``None`` when the file genuinely does not exist. Raises when it
+    exists but cannot be parsed. The earlier behaviour -- log and return an
+    empty store -- made a truncated file look like a fresh install, and the
+    next save wrote that emptiness back over the real data.
+    """
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except (ValueError, OSError) as exc:
+        preserved = f"{path}.corrupt-{time.strftime('%Y%m%d-%H%M%S')}"
+        try:
+            shutil.copy2(path, preserved)
+        except OSError:
+            preserved = path
+        backup = f"{path}.bak"
+        hint = f"the last good version is at {backup}" if os.path.exists(backup) else "no .bak backup exists"
+        raise RuntimeError(
+            f"{label} could not be parsed ({exc}). It was NOT overwritten; a copy is at "
+            f"{preserved}, and {hint}. Restore or remove the file and restart."
+        ) from exc
 
 
 def _is_jiucaihezi_family_model(model_id: Optional[str]) -> bool:
@@ -413,23 +463,16 @@ class ComicGenPipeline:
         return self.scripts.get(script_id)
 
     def _load_data(self) -> Dict[str, Script]:
-        if not os.path.exists(self.data_file):
+        data = _load_json_store(self.data_file, "projects.json")
+        if data is None:
             return {}
-        try:
-            with open(self.data_file, 'r') as f:
-                data = json.load(f)
-                return {k: Script(**v) for k, v in data.items()}
-        except Exception as e:
-            logger.error(f"Failed to load data: {e}")
-            return {}
+        return {k: Script(**v) for k, v in data.items()}
 
     def _save_data(self):
         """Save data with thread lock to prevent concurrent write issues."""
         with self._save_lock:
             try:
-                os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
-                with open(self.data_file, 'w') as f:
-                    json.dump({k: v.dict() for k, v in self.scripts.items()}, f, indent=2)
+                _atomic_write_json(self.data_file, {k: v.dict() for k, v in self.scripts.items()})
             except Exception as e:
                 logger.error(f"Failed to save data: {e}")
 
@@ -1590,6 +1633,7 @@ class ComicGenPipeline:
                 prop_ids=prop_ids,
                 action_description=frame_data.get("action_summary", frame_data.get("action_description", "")),
                 visual_atmosphere=frame_data.get("visual_atmosphere"),
+                visual_description=frame_data.get("visual_description"),
                 shot_size=frame_data.get("shot_size"),
                 camera_angle=frame_data.get("camera_angle", "平视"),
                 camera_movement=frame_data.get("camera_movement"),
@@ -2284,7 +2328,7 @@ class ComicGenPipeline:
                 raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
             duration = 30
             resolution = "720p"
-        if isinstance(model, str) and model.endswith("minimax_h3_image_audio_to_video_v2_15s"):
+        if isinstance(model, str) and is_minimax_h3_model(model):
             prompt = (prompt or "").strip()
             if not 1 <= len(prompt) <= 12000:
                 raise ValueError("MiniMax H3 prompt must contain 1-12000 characters")
@@ -2306,12 +2350,10 @@ class ComicGenPipeline:
                     # necessarily use the legacy -r2v suffix (MiniMax H3), and
                     # its catalog ids are flat (dola-seedance2.5) — a plain
                     # "jiucaihezi/" prefix check would drop them into the
-                    # wan2.7-r2v fallback below and call the wrong provider.
+                    # fallback below and call the wrong provider.
                     pass
                 elif model and model.startswith("happyhorse-"):
                     model = "happyhorse-1.1-r2v"
-                elif model and model.startswith("wan2.7-"):
-                    model = "wan2.7-r2v"
                 elif model and model.startswith("kling"):
                     model = "kling-v3-r2v"
                 elif model and model.startswith("pixverse"):
@@ -2321,7 +2363,9 @@ class ComicGenPipeline:
                 elif model and model.startswith("seedance"):
                     model = "seedance-2.0-r2v"
                 else:
-                    model = "wan2.7-r2v"
+                    # 兜底取目录默认值，不硬编码：写死的 id 一旦下线就会指向不存在的
+                    # 模型（wan2.7-r2v 就是这么被删掉的）。
+                    model = get_default_model_settings().r2v_model
 
         # Defensive guard against model⇄mode⇄refs mismatch. Every R2V
         # model needs reference inputs; without them the underlying
@@ -2770,7 +2814,7 @@ class ComicGenPipeline:
             if getattr(sys, "frozen", False):
                 helper = os.path.join(
                     os.path.dirname(os.path.dirname(sys.executable)),
-                    "lumenx-demucs",
+                    "1okstudio-demucs",
                 )
                 result = subprocess.run(
                     [helper, "--input", extracted_audio, "--out", work_dir],
@@ -3411,7 +3455,7 @@ class ComicGenPipeline:
             prompt=prompt or f"Cinematic shot of {target_asset.name}",
             status="pending",
             duration=duration,
-            model=script.model_settings.r2v_model if hasattr(script.model_settings, 'r2v_model') and script.model_settings.r2v_model else "wan2.7-r2v",
+            model=script.model_settings.r2v_model if hasattr(script.model_settings, 'r2v_model') and script.model_settings.r2v_model else get_default_model_settings().r2v_model,
             generation_mode="r2v",
             created_at=time.time()
         )
@@ -3500,7 +3544,7 @@ class ComicGenPipeline:
             use_jiucaihezi = backend == "jiucaihezi" or model_name in {
                 "dola-seedance2.5",
                 "minimax_h3_image_audio_to_video_v2_15s",
-            }
+            } or is_minimax_h3_model(model_name)
 
             if use_jiucaihezi:
                 if self._jiucaihezi_video_model is None:
@@ -4111,22 +4155,18 @@ class ComicGenPipeline:
     # ============================================================
 
     def _load_series_data(self) -> Dict[str, Series]:
-        if not os.path.exists(self.series_data_file):
+        data = _load_json_store(self.series_data_file, "series.json")
+        if data is None:
             return {}
-        try:
-            with open(self.series_data_file, 'r') as f:
-                data = json.load(f)
-                return {k: Series(**v) for k, v in data.items()}
-        except Exception as e:
-            logger.error(f"Failed to load series data: {e}")
-            return {}
+        return {k: Series(**v) for k, v in data.items()}
 
     def _save_series_data_unlocked(self):
         """Save series data without acquiring the lock (caller must hold self._save_lock)."""
         try:
-            os.makedirs(os.path.dirname(self.series_data_file) or ".", exist_ok=True)
-            with open(self.series_data_file, 'w') as f:
-                json.dump({k: v.model_dump() for k, v in self.series_store.items()}, f, indent=2)
+            _atomic_write_json(
+                self.series_data_file,
+                {k: v.model_dump() for k, v in self.series_store.items()},
+            )
         except Exception as e:
             logger.error(f"Failed to save series data: {e}")
 
@@ -4140,22 +4180,15 @@ class ComicGenPipeline:
     # ============================================================
 
     def _load_library_data(self) -> GlobalAssetLibrary:
-        if not os.path.exists(self.library_data_file):
+        data = _load_json_store(self.library_data_file, "library_assets.json")
+        if data is None:
             return GlobalAssetLibrary()
-        try:
-            with open(self.library_data_file, 'r') as f:
-                data = json.load(f)
-                return GlobalAssetLibrary(**data)
-        except Exception as e:
-            logger.error(f"Failed to load library data: {e}")
-            return GlobalAssetLibrary()
+        return GlobalAssetLibrary(**data)
 
     def _save_library_data_unlocked(self):
         """Save global library data without acquiring the lock (caller must hold self._save_lock)."""
         try:
-            os.makedirs(os.path.dirname(self.library_data_file) or ".", exist_ok=True)
-            with open(self.library_data_file, 'w') as f:
-                json.dump(self.library_store.model_dump(), f, indent=2)
+            _atomic_write_json(self.library_data_file, self.library_store.model_dump())
         except Exception as e:
             logger.error(f"Failed to save library data: {e}")
 
@@ -4804,54 +4837,53 @@ class ComicGenPipeline:
                 episodes.append(script)
         return episodes
 
+    #: 资产分层，低层给高层让路（按 id，本地永远赢）。
+    _ASSET_LAYER_KEYS = ("characters", "scenes", "props")
+
+    def resolve_episode_assets_with_source(
+        self, episode: Script, series: Optional[Series] = None
+    ) -> Dict[str, List[Tuple[Any, str]]]:
+        """三层资产合并，并给每个资产标出它来自哪一层。
+
+        优先级按 id：Episode > Series > Global，返回顺序也是这个层序。
+        每个资产的来源是 `"episode" | "series" | "global"`，前端靠它区分
+        资产归属（`ConsistencyVault` 会把 global 显示成「全局模板库」）。
+
+        分层逻辑只在这里实现一次。API 层曾经自己手写了一遍两层合并
+        （只有 Episode + Series），导致全局模板库的资产永远不出现在项目里，
+        所以现在 endpoint 一律走这里。
+        """
+        if not series and episode.series_id:
+            series = self.series_store.get(episode.series_id)
+
+        layers: List[Tuple[str, Tuple[List[Any], List[Any], List[Any]]]] = [
+            ("episode", (episode.characters, episode.scenes, episode.props)),
+        ]
+        if series:
+            layers.append(("series", (series.characters, series.scenes, series.props)))
+        layers.append(
+            ("global", (self.library_store.characters, self.library_store.scenes, self.library_store.props))
+        )
+
+        resolved: Dict[str, List[Tuple[Any, str]]] = {key: [] for key in self._ASSET_LAYER_KEYS}
+        seen: Dict[str, set] = {key: set() for key in self._ASSET_LAYER_KEYS}
+        for source, groups in layers:
+            for key, group in zip(self._ASSET_LAYER_KEYS, groups):
+                for asset in group:
+                    if asset.id in seen[key]:
+                        continue
+                    seen[key].add(asset.id)
+                    resolved[key].append((asset, source))
+        return resolved
+
     def resolve_episode_assets(self, episode: Script, series: Optional[Series] = None) -> Dict[str, List]:
-        """Merge Episode-local assets with Series shared assets and the
-        project-independent global asset library. Priority by ID:
-        Episode > Series > Global (local always wins). The global library
-        is the lowest layer and applies to every project, with or without
-        a parent series. When the global library is empty this behaves
-        identically to the previous two-layer (Episode/Series) merge."""
-        if not series:
-            # Auto-lookup series if episode has series_id
-            if episode.series_id:
-                series = self.series_store.get(episode.series_id)
-        if not series:
-            # No parent series — episode-local assets sit on top of the
-            # global library (lowest layer). With an empty library this
-            # yields the episode's own assets (back-compat).
-            ep_char_ids = {c.id for c in episode.characters}
-            ep_scene_ids = {s.id for s in episode.scenes}
-            ep_prop_ids = {p.id for p in episode.props}
-            return {
-                "characters": list(episode.characters) + [c for c in self.library_store.characters if c.id not in ep_char_ids],
-                "scenes": list(episode.scenes) + [s for s in self.library_store.scenes if s.id not in ep_scene_ids],
-                "props": list(episode.props) + [p for p in self.library_store.props if p.id not in ep_prop_ids],
-            }
-        # Build lookup by ID for episode-local assets
-        ep_char_ids = {c.id for c in episode.characters}
-        ep_scene_ids = {s.id for s in episode.scenes}
-        ep_prop_ids = {p.id for p in episode.props}
+        """合并 Episode 本地资产、Series 共享资产与项目无关的全局模板库。
 
-        merged_characters = list(episode.characters) + [c for c in series.characters if c.id not in ep_char_ids]
-        merged_scenes = list(episode.scenes) + [s for s in series.scenes if s.id not in ep_scene_ids]
-        merged_props = list(episode.props) + [p for p in series.props if p.id not in ep_prop_ids]
-
-        # Fold the global library underneath as the lowest layer — only
-        # ids absent from both the Episode and Series layers. No-op when
-        # the library is empty (back-compat).
-        merged_char_ids = {c.id for c in merged_characters}
-        merged_scene_ids = {s.id for s in merged_scenes}
-        merged_prop_ids = {p.id for p in merged_props}
-
-        merged_characters += [c for c in self.library_store.characters if c.id not in merged_char_ids]
-        merged_scenes += [s for s in self.library_store.scenes if s.id not in merged_scene_ids]
-        merged_props += [p for p in self.library_store.props if p.id not in merged_prop_ids]
-
-        return {
-            "characters": merged_characters,
-            "scenes": merged_scenes,
-            "props": merged_props,
-        }
+        按 id 的优先级：Episode > Series > Global（本地永远赢）。全局库是
+        最低层，对每个项目都生效，无论有没有父系列；全局库为空时行为与原先的
+        两层（Episode/Series）合并完全一致。"""
+        layered = self.resolve_episode_assets_with_source(episode, series)
+        return {key: [asset for asset, _source in items] for key, items in layered.items()}
 
     # ============================================================
     # File Import & Episode Splitting

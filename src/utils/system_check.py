@@ -9,6 +9,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+#: 打包成 App 后 must 显式检查的 ffmpeg 位置。
+#:
+#: 从 Finder 启动的 GUI 进程**不继承**登录 shell 的 PATH（launchd 只给
+#: `/usr/bin:/bin:/usr/sbin:/sbin`），而 macOS 不自带 `/usr/bin/ffmpeg`。
+#: 所以用户即使 `brew install ffmpeg`，`shutil.which()` 也找不到它。
+POSIX_FFMPEG_FALLBACKS = (
+    "/opt/homebrew/bin/ffmpeg",  # Homebrew（Apple Silicon）
+    "/usr/local/bin/ffmpeg",     # Homebrew（Intel）/ 手动安装
+    "/opt/local/bin/ffmpeg",     # MacPorts
+)
+
 
 def get_ffmpeg_path() -> str:
     """
@@ -44,6 +55,18 @@ def get_ffmpeg_path() -> str:
     if system_ffmpeg:
         logger.info(f"Using system ffmpeg at: {system_ffmpeg}")
         return system_ffmpeg
+
+    # GUI 进程的 PATH 是 launchd 默认值，找不到 Homebrew / MacPorts 装的
+    # ffmpeg，所以在这些位置显式找一遍。
+    if platform.system() != "Windows":
+        for path in POSIX_FFMPEG_FALLBACKS:
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                logger.info(f"Using ffmpeg found at common macOS path: {path}")
+                return path
+        logger.warning(
+            "FFmpeg not found in bundle or PATH. "
+            "Install it with `brew install ffmpeg` and restart the application."
+        )
 
     # On Windows, shutil.which() may fail if PATH wasn't refreshed after install.
     # Check common Windows installation paths as fallback.

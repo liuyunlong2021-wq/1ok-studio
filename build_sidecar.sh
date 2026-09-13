@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "╔═══════════════════════════════════════════════════╗"
-echo "║  LumenX Studio — Python Sidecar Builder          ║"
+echo "║  One OK Studio — Python Sidecar Builder          ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo ""
 
@@ -20,8 +20,8 @@ case "$ARCH" in
     *)             echo "❌ Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-BINARY_NAME="lumenx-backend"
-DEMUCS_NAME="lumenx-demucs"
+BINARY_NAME="1okstudio-backend"
+DEMUCS_NAME="1okstudio-demucs"
 OUTPUT_DIR="src-tauri"
 
 echo "→ Building for architecture: ${TAURI_ARCH}"
@@ -93,6 +93,7 @@ echo "→ Running PyInstaller..."
     --exclude-module=sympy \
     --add-data "src:src" \
     --add-data "config:config" \
+    --add-data "skills:skills" \
     --distpath "$OUTPUT_DIR" \
     sidecar_entry.py
 

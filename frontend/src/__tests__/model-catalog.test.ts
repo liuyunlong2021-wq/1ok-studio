@@ -41,16 +41,11 @@ afterEach(() => {
 
 describe('model catalog selectors', () => {
     it('derives visible model selectors from catalog defaults', () => {
-        // Defaults follow the catalog upgrade to wan2.7 (Phase 2, 2026-Q1).
+        // 与目录里的默认值对齐，不写死具体模型 id——换默认模型（wan2.7-image-pro
+        // 已下线，默认改为 jiucaihezi/gpt-image-2.5-1k）时这里不该失败。
         // The unified `image_model` surface replaces the per-mode t2i/i2i
         // settings at the consumer layer.
-        expect(DEFAULT_MODEL_SETTINGS).toMatchObject({
-            t2i_model: 'wan2.7-image-pro',
-            i2i_model: 'wan2.7-image-pro',
-            i2v_model: 'happyhorse-1.1-i2v',
-            image_model: 'wan2.7-image-pro',
-            text_model: 'gpt-5.6-sol',
-        });
+        expect(DEFAULT_MODEL_SETTINGS).toMatchObject(rawCatalog.defaults.model_settings);
 
         // The 't2i' and 'i2i' selection_group surfaces moved to 'image'
         // in Phase 2. The resolver now falls through to visible image-group
@@ -84,10 +79,11 @@ describe('model catalog selectors', () => {
         for (const models of selectors) {
             expect(models.every((model) => model.family === 'jiucaihezi')).toBe(true);
         }
-        // 反向确认：r2v 组确实留下了韭菜盒子的两个模型，不是被误清空
+        // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
             'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
+            'minimax_h3_zm_u24',
         ]);
         // 默认必须是 dola-seedance2.5（列表顺序是按 ui.order 排的，不是默认值）
         expect(DEFAULT_R2V_MODEL_ID).toBe('dola-seedance2.5');
@@ -110,10 +106,11 @@ describe('model catalog selectors', () => {
 
 describe('model catalog fallbacks', () => {
     it('falls back unknown and legacy-surface ids to catalog defaults', () => {
-        // 本安装只接韭菜盒子网关（modelCatalog.ts 的 ALLOWED_MODEL_FAMILIES），
-        // 所以「目录默认值」wan2.7-image-pro / happyhorse-1.1-i2v 不再可达：
-        // 未知 id 落到允许家族里排序最靠前的 image 模型（grok，order=1001）。
-        // i2v 组允许家族为空 → 保留目录默认值（该字段在本安装里是惰性的）。
+        // 本安装只接韭菜盒子网关（modelCatalog.ts 的 ALLOWED_MODEL_FAMILIES）。
+        // 兜底顺序：目录默认值（只要它在白名单里且可见）→ 否则可见列表首个。
+        // 目录默认值已改为 jiucaihezi/gpt-image-2.5-1k，它在白名单内，所以
+        // 未知 id 会落到它身上，不再绕到 grok。断言直接读目录，不写死 id。
+        const imageDefault = rawCatalog.defaults.model_settings.i2i_model;
         expect(
             resolveModelSettings(
                 {
@@ -124,12 +121,12 @@ describe('model catalog fallbacks', () => {
                 'global_settings'
             )
         ).toMatchObject({
-            t2i_model: 'jiucaihezi/grok-imagine-image-2.0',
-            i2i_model: 'jiucaihezi/grok-imagine-image-2.0',
+            t2i_model: imageDefault,
+            i2i_model: imageDefault,
             i2v_model: 'happyhorse-1.1-i2v',
         });
 
-        // 真实世界的脏数据：老项目里存的就是这两个（output/projects.json）。
+        // 真实世界的脏数据：老项目里存的就是 wan2.7-image-pro（该模型已从目录删除），
         // 读项目时必须落到韭菜盒子的 image 模型上，否则生图会打 DashScope 拿 401。
         const stale = resolveModelSettings(
             {
@@ -142,8 +139,8 @@ describe('model catalog fallbacks', () => {
             },
             'project_settings'
         );
-        expect(stale.t2i_model).toBe('jiucaihezi/grok-imagine-image-2.0');
-        expect(stale.image_model).toBe('jiucaihezi/grok-imagine-image-2.0');
+        expect(stale.t2i_model).toBe(imageDefault);
+        expect(stale.image_model).toBe(imageDefault);
         expect(stale.r2v_model).toBe('dola-seedance2.5');
         expect(stale.text_model).toBe('gpt-5.6-sol');
         // 韭菜盒子自家的模型即使不在该分组里也要保留：项目把 r2v 的
@@ -252,16 +249,19 @@ describe('model catalog runtime helpers', () => {
     });
 
     it('reads per-model reference image limits from catalog metadata', () => {
-        // getMaxReferenceImages routes the input through resolveModelId
-        // for the 'i2i' surface — when the literal id isn't visible in
-        // that surface (post-Phase 2 the wan2.6 ids moved to the
-        // 'image' selection_group, and 本安装 only allows 韭菜盒子), the
-        // resolver falls back to the top visible image model
-        // (jiucaihezi/grok-imagine-image-2.0, which advertises 8 refs).
-        // The behavior is correct given how callers (PropertiesPanel)
-        // use the project's i2i_model setting.
-        expect(getMaxReferenceImages('wan2.6-image')).toBe(8);
-        expect(getMaxReferenceImages('wan2.5-i2i-preview')).toBe(8);
+        // 声明了上限的模型读它自己的值。
+        expect(getMaxReferenceImages('jiucaihezi/grok-imagine-image-2.0')).toBe(8);
+
+        // 没声明的模型回落到代码里的保守默认值。注意 getMaxReferenceImages 会先过
+        // 一层 resolveModelId('i2i')：旧 id（wan2.6-image 等）不在白名单里，会落到
+        // 目录默认模型上，所以这里跟着目录走，不写死数字。
+        const resolvedDefault = rawCatalog.defaults.model_settings.i2i_model;
+        const declared = (rawCatalog.models as Record<string, { inputs?: { reference_images?: { max?: number } } }>)[
+            resolvedDefault
+        ]?.inputs?.reference_images?.max;
+        const expected = typeof declared === 'number' ? declared : 3;
+        expect(getMaxReferenceImages('wan2.6-image')).toBe(expected);
+        expect(getMaxReferenceImages('wan2.5-i2i-preview')).toBe(expected);
     });
 });
 

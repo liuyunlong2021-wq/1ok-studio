@@ -13,6 +13,7 @@ Configuration via environment variables:
   OPENAI_MODEL=gpt-4o
 """
 import os
+import time
 import logging
 from typing import Dict, List, Optional, Any
 
@@ -29,9 +30,39 @@ JIUCAIHEZI_MODELS = {
     "gpt-5.6-sol",
 }
 
+# 韭菜盒子链路里"另一个模型也依旧救得回来"的兜底选项。
+JIUCAIHEZI_FALLBACK_MODEL = "gpt-5.6-sol"
+
+# 网关源站超过 Cloudflare 的 120 秒代理读超时后回 524。这多半是源站瞬时过载，
+# Cloudflare 自己的建议就是稍等重试，所以对同一个模型再试一次。退避时间刻意
+# 不照抄它建议的 120 秒——后台任务干等两分钟不如快速失败让用户重试。
+TRANSIENT_TOKENS = ("524", "timeout", "timed out", "connection")
+TRANSIENT_RETRY_BACKOFF_SECONDS = 5.0
+
 # 单次 chat 调用的超时秒数。长文生成（如 Motion 提示词要写几千字）经常跑过 60 秒，
 # 超时会一路冒泡成 502，把「还在生成」误判成失败。
+#
+# 注意：韭菜盒子经 Cloudflare，边缘的代理读超时是 120 秒。客户端超时必须比它短，
+# 否则永远等不到自己的超时，只会拿到边缘的 524。
 LLM_TIMEOUT_SECONDS = 180.0
+JIUCAIHEZI_TIMEOUT_SECONDS = 115.0
+
+
+def _is_transient_gateway_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(token in message for token in TRANSIENT_TOKENS)
+
+
+def _readable_gateway_error(exc: Exception) -> str:
+    """把 Cloudflare 那一整块 JSON 压成一句能直接展示给用户的话。"""
+    message = str(exc)
+    if "524" in message:
+        return (
+            "Jiucaihezi 网关超时（524）：源站没有在 Cloudflare 的 120 秒代理读超时内返回。"
+            "这通常是网关侧瞬时过载，等 1-2 分钟后重试；若持续出现，可在项目设置里"
+            "换一个更快的文本模型，或把剧本拆短后再生成。"
+        )
+    return message
 
 
 class LLMAdapter:
@@ -91,7 +122,7 @@ class LLMAdapter:
             self._jiucaihezi_client = OpenAI(
                 api_key=key,
                 base_url=base_url,
-                timeout=LLM_TIMEOUT_SECONDS,
+                timeout=JIUCAIHEZI_TIMEOUT_SECONDS,
                 max_retries=0,
             )
         return self._jiucaihezi_client
@@ -136,22 +167,43 @@ class LLMAdapter:
                     client, model, messages, response_format, "Jiucaihezi"
                 )
             except RuntimeError as exc:
-                transient = any(
-                    token in str(exc).lower()
-                    for token in ("524", "timeout", "timed out", "connection")
-                )
-                if not transient or model == "gpt-5.6-sol":
+                if not _is_transient_gateway_error(exc):
                     raise
-                logger.warning("%s failed temporarily; falling back to gpt-5.6-sol", model)
-                return self._chat_once(
-                    client, "gpt-5.6-sol", messages, response_format, "Jiucaihezi"
+                if model != JIUCAIHEZI_FALLBACK_MODEL:
+                    logger.warning(
+                        "%s failed temporarily; falling back to %s",
+                        model,
+                        JIUCAIHEZI_FALLBACK_MODEL,
+                    )
+                    return self._chat_once(
+                        client,
+                        JIUCAIHEZI_FALLBACK_MODEL,
+                        messages,
+                        response_format,
+                        "Jiucaihezi",
+                    )
+                # 已经在兜底模型上：换模型这条退路不存在，但"网关瞬时过载"仍然
+                # 值得按 Cloudflare 的建议重试一次。旧代码在这里直接 raise，
+                # 于是一次重试都没发生，用户只看到一整块 Cloudflare JSON。
+                logger.warning(
+                    "%s transient failure (%s); retrying once in %.0fs",
+                    model,
+                    exc,
+                    TRANSIENT_RETRY_BACKOFF_SECONDS,
                 )
+                time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS)
+                try:
+                    return self._chat_once(
+                        client, model, messages, response_format, "Jiucaihezi"
+                    )
+                except RuntimeError as retry_exc:
+                    raise RuntimeError(_readable_gateway_error(retry_exc)) from None
 
         # When only the Jiucaihezi credential is configured, do not silently
         # fall through to DashScope's default qwen model.
         if not model and self.provider != "openai" and os.getenv("JIUCAIHEZI_API_KEY") and not os.getenv("DASHSCOPE_API_KEY"):
             return self._chat_once(
-                self._get_jiucaihezi_client(), "gpt-5.6-sol", messages, response_format, "Jiucaihezi"
+                self._get_jiucaihezi_client(), JIUCAIHEZI_FALLBACK_MODEL, messages, response_format, "Jiucaihezi"
             )
 
         client = self._get_client()

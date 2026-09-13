@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSettingsStore, type ThemePreset } from "@/store/settingsStore";
 
-interface LumenXBrandingProps {
+interface OneOkBrandingProps {
   size?: "sm" | "md";
   showSlogan?: boolean;
 }
@@ -17,7 +17,7 @@ const LOGO_SRC: Record<ThemePreset, string> = {
   "brand-light": "/1ok-logo-preview.svg",
 };
 
-export default function LumenXBranding({ size = "md", showSlogan = true }: LumenXBrandingProps) {
+export default function OneOkBranding({ size = "md", showSlogan = true }: OneOkBrandingProps) {
   const logoSize = size === "sm" ? "w-9 h-9" : "w-14 h-14";
   const titleSize = size === "sm" ? "text-lg" : "text-xl";
 

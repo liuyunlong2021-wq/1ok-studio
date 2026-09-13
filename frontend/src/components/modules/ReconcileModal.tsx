@@ -118,7 +118,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
             onApplied?.();
             onClose();
             if (navigateToCast) {
-                document.dispatchEvent(new CustomEvent("lumenx:navigateStep", { detail: "cast" }));
+                document.dispatchEvent(new CustomEvent("1okstudio:navigateStep", { detail: "cast" }));
             }
         } catch (err: any) {
             setError(err?.response?.data?.detail || err?.message || "Apply failed");

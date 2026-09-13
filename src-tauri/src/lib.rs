@@ -91,7 +91,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .on_menu_event(|app, event| {
@@ -113,9 +112,9 @@ pub fn run() {
             }
             // External links: open in default browser
             match id {
-                "docs" => { let _ = open::that("https://github.com/alibaba/lumenx/wiki"); }
-                "release_notes" => { let _ = open::that("https://github.com/alibaba/lumenx/releases"); }
-                "report_issue" => { let _ = open::that("https://github.com/alibaba/lumenx/issues/new"); }
+                "docs" => { let _ = open::that("https://github.com/liuyunlong2021-wq/1ok-studio#readme"); }
+                "release_notes" => { let _ = open::that("https://github.com/liuyunlong2021-wq/1ok-studio/releases"); }
+                "report_issue" => { let _ = open::that("https://github.com/liuyunlong2021-wq/1ok-studio/issues/new"); }
                 _ => {}
             }
         })

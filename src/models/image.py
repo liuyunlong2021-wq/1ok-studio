@@ -11,6 +11,7 @@ from dashscope import ImageSynthesis
 from ..utils import get_logger
 from ..utils.endpoints import get_provider_base_url
 from ..utils.media_refs import MEDIA_REF_UNKNOWN, classify_media_ref
+from ..utils.model_catalog import get_default_model_settings
 from ..utils.oss_utils import OSSImageUploader
 from ..utils.provider_media import resolve_media_input
 from ..utils.provider_registry import resolve_provider_backend
@@ -65,15 +66,16 @@ class WanxImageModel(ImageGenModel):
             
         # Remove duplicates
         all_ref_paths = list(set(all_ref_paths))
-        # Model selection priority: explicit model_name > config params > defaults
+        # Model selection priority: explicit model_name > config params > catalog default.
+        # 默认值从目录读，不写死：硬编码的 id 一旦下线就会指向不存在的模型。
         if model_name:
             final_model_name = model_name
         elif all_ref_paths:
-            # For I2I, use i2i_model_name if configured, otherwise default to wan2.7-image
-            final_model_name = self.params.get('i2i_model_name', 'wan2.7-image')
+            # For I2I, use i2i_model_name if configured, otherwise the catalog default.
+            final_model_name = self.params.get('i2i_model_name') or get_default_model_settings().i2i_model
         else:
-            # For T2I, use model_name if configured, otherwise default to wan2.7-image-pro
-            final_model_name = self.params.get('model_name', 'wan2.7-image-pro')
+            # For T2I, use model_name if configured, otherwise the catalog default.
+            final_model_name = self.params.get('model_name') or get_default_model_settings().t2i_model
 
         if all_ref_paths:
             logger.info(f"Using I2I model: {final_model_name} with {len(all_ref_paths)} reference images")

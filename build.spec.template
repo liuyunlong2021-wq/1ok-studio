@@ -15,6 +15,9 @@ ROOT_DIR = os.path.abspath('.')
 datas = [
     ('static', 'static'),
     ('src/apps/comic_gen/style_presets.json', 'src/apps/comic_gen'),
+    # 随包分发的 Skill：SkillPackageStore 从 <_MEIPASS>/skills 读内置包，
+    # 这样用户不必每台机器重新上传。
+    ('skills', 'skills'),
 ]
 
 # 如果存在 .env 文件，也打包进去

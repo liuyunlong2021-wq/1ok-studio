@@ -6,6 +6,8 @@ import { X, FileText, RotateCcw, ChevronDown, ChevronRight, Loader2, Upload } fr
 import { useTranslations } from 'next-intl';
 import { useProjectStore } from '@/store/projectStore';
 import { api } from '@/lib/api';
+import type { SkillPackageSummary } from '@/lib/api';
+import SkillPicker, { skillNameFor } from '@/components/shared/SkillPicker';
 import { DEFAULT_MODEL_SETTINGS, GLOBAL_TEXT_MODELS } from '@/lib/modelCatalog';
 
 interface PromptConfigModalProps {
@@ -67,16 +69,30 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [skillPackages, setSkillPackages] = useState<SkillPackageSummary[]>([]);
+    const [boundSkillNames, setBoundSkillNames] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (isOpen && currentProject) {
             setIsLoading(true);
             setLoadError(null);
             setExpandedDefault(null);
+            // 可选项列表：不阻断弹窗——拿不到时就只剩“上传 Skill”可用。
+            api.listSkillPackages()
+                .then(setSkillPackages)
+                .catch((err) => {
+                    console.warn("Failed to list skill packages:", err);
+                    setSkillPackages([]);
+                });
             api.getPromptConfig(currentProject.id)
                 .then((data) => {
                     setConfig(data.prompt_config);
                     setDefaults(data.defaults);
+                    setBoundSkillNames(Object.fromEntries(
+                        Object.entries(data.skill_packages || {})
+                            .filter(([, detail]: [string, any]) => detail?.name)
+                            .map(([stage, detail]: [string, any]) => [stage, detail.name]),
+                    ));
                 })
                 .catch((err) => {
                     console.error("Failed to load prompt config:", err);
@@ -117,7 +133,15 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
         }
         api.uploadSkillPackage(file).then((pkg) => {
             setConfig(prev => ({ ...prev, [key]: '', skill_bindings: { ...prev.skill_bindings, [key]: pkg.id } }));
+            // 新传的包要立即可选，否则刚绑上却在列表里找不到名字。
+            setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name } as SkillPackageSummary]);
         }).catch((error) => alert(error?.response?.data?.detail || error?.message || 'Skill 包上传失败'));
+    };
+
+    // 与上传同语义：绑定优先于文本框（见 pipeline.get_effective_prompt），
+    // 所以选完顺手清掉该阶段的文本，避免两个来源打架。
+    const handleSkillSelect = (key: keyof PromptDefaults, packageId: string) => {
+        setConfig(prev => ({ ...prev, [key]: '', skill_bindings: { ...prev.skill_bindings, [key]: packageId } }));
     };
 
     if (!isOpen) return null;
@@ -197,20 +221,21 @@ export default function PromptConfigModal({ isOpen, onClose }: PromptConfigModal
 
                                 {SECTIONS.map((section) => (
                                     <div key={section.key} className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="min-w-0">
                                                 <h3 className="text-sm font-bold text-foreground">{section.label}</h3>
                                                 <p className="text-[0.625rem] text-text-muted mt-0.5">{section.description}</p>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <label className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg cursor-pointer">
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <SkillPicker packages={skillPackages} onSelect={(id) => handleSkillSelect(section.key, id)} />
+                                                <label className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg cursor-pointer whitespace-nowrap">
                                                     <Upload size={10} /> 上传 Skill
                                                     <input type="file" accept=".zip,.md,.markdown,.txt,application/zip,text/markdown,text/plain" className="hidden" onChange={(e) => handleSkillUpload(section.key, e.target.files?.[0])} />
                                                 </label>
-                                                <button onClick={() => handleReset(section.key)} disabled={!config[section.key] && !config.skill_bindings?.[section.key]} className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><RotateCcw size={10} /> {t("resetToDefault")}</button>
+                                                <button onClick={() => handleReset(section.key)} disabled={!config[section.key] && !config.skill_bindings?.[section.key]} className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg transition-colors whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"><RotateCcw size={10} /> {t("resetToDefault")}</button>
                                             </div>
                                         </div>
-                                        {config.skill_bindings?.[section.key] && <p className="text-[0.625rem] text-emerald-400">已绑定 Skill Package：{config.skill_bindings[section.key]}</p>}
+                                        {config.skill_bindings?.[section.key] && <p className="text-[0.625rem] text-emerald-400">已绑定 Skill：{skillNameFor(config.skill_bindings[section.key], skillPackages, boundSkillNames[section.key])}</p>}
 
                                         <textarea
                                             value={config[section.key]}

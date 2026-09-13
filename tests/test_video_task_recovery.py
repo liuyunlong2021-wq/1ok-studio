@@ -262,8 +262,9 @@ def test_model_settings_persists_r2v_model(pipeline):
     )
     pipeline.scripts = {"p1": script}
 
-    # Default value is wan2.7-r2v per ModelSettings field default.
-    assert script.model_settings.r2v_model == "wan2.7-r2v"
+    # 默认值来自目录（ModelSettings 不再把它写死在字段上）。
+    from src.utils.model_catalog import get_default_model_settings
+    assert script.model_settings.r2v_model == get_default_model_settings().r2v_model
 
     # Update through the pipeline path the API endpoint uses.
     with patch.object(pipeline, "_save_data"):

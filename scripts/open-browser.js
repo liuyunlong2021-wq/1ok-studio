@@ -5,7 +5,7 @@ const URL = 'http://localhost:3008';
 setTimeout(() => {
   console.log('\n  ╔══════════════════════════════════════════╗');
   console.log('  ║                                          ║');
-  console.log('  ║   LumenX AI Comic Platform Ready!        ║');
+  console.log('  ║   One OK Studio — AI Comic Platform Ready!   ║');
   console.log('  ║                                          ║');
   console.log('  ║   Frontend:  http://localhost:3008       ║');
   console.log('  ║   Backend:   http://localhost:17177      ║');

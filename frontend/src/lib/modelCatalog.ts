@@ -256,16 +256,17 @@ function getVisibleModels(group: SelectionGroup, surface: VisibilitySurface): Ca
     // capability. Without this, resolveModelId() always falls through to
     // catalog defaults — meaning user-picked t2i/i2i selections silently
     // revert on the next render. (See PR-3* assembly model picker bug.)
-    if (direct.length > 0 || (group !== 't2i' && group !== 'i2i')) {
+    if (direct.length > 0) {
         return onlyAllowedModels(direct);
     }
-    const capability = group; // 't2i' | 'i2i'
+    // Capability fallback: 某个分组没有任何模型把 selection_group 声明成它时，
+    // 接受声明了该能力的可见模型。t2i/i2i 早在 Phase 2 就靠这条兜底（目录只发
+    // image 组模型）；当目录只剩「两个全能模型」时，i2v / t2v / v2v 同样需要它，
+    // 否则 Step 5 的 i2v 选择器会是空的、resolveModelId 也会无处可回退。
     return onlyAllowedModels(
         SORTED_MODEL_ENTRIES.filter(
             (model) =>
-                model.ui.selection_group === 'image' &&
-                model.capabilities.includes(capability) &&
-                isVisibleModel(model, surface)
+                model.capabilities.includes(group) && isVisibleModel(model, surface)
         )
     );
 }

@@ -80,7 +80,7 @@ frontend/.vercel
 # Logs
 *.log
 logs/
-.lumen-x/
+.1okstudio/
 
 # Secrets (extra safety)
 *secret*
@@ -138,6 +138,6 @@ frontend/docs/
 # Tauri
 src-tauri/target/
 src-tauri/binaries/*.app
-src-tauri/lumenx-backend/
-src-tauri/lumenx-demucs
+src-tauri/1okstudio-backend/
+src-tauri/1okstudio-demucs
 src-tauri/gen/

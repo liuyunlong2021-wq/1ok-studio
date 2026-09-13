@@ -7,8 +7,12 @@ import re
 import shutil
 import uuid
 import zipfile
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional
+
+from ...utils import get_logger
+
+logger = get_logger(__name__)
 
 
 ALLOWED_TEXT_EXTENSIONS = {".md", ".markdown", ".txt", ".json", ".yaml", ".yml"}
@@ -20,14 +24,25 @@ REFERENCE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Skills shipped with the app live in `skills/<name>/SKILL.md`. `parents[3]`
+# resolves to the repo root in a checkout and to `_MEIPASS` in the PyInstaller
+# sidecar (see `--add-data "skills:skills"` in build_sidecar.sh), so the same
+# lookup works in both. They are read-only: the repo is the single source of
+# truth, so an app upgrade refreshes them instead of leaving stale copies in
+# the user data dir.
+BUILTIN_PREFIX = "builtin:"
+BUILTIN_ID_RE = re.compile(r"^builtin:[a-z0-9][a-z0-9-]*$")
+BUILTIN_ROOT = Path(__file__).resolve().parents[3] / "skills"
+
 
 class SkillPackageError(ValueError):
     pass
 
 
 class SkillPackageStore:
-    def __init__(self, root: str = "output/skill_packages"):
+    def __init__(self, root: str = "output/skill_packages", builtin_root: Optional[Path] = None):
         self.root = root
+        self.builtin_root = Path(builtin_root) if builtin_root else BUILTIN_ROOT
 
     @staticmethod
     def _safe_path(path: str) -> str:
@@ -95,10 +110,6 @@ class SkillPackageStore:
         validation = self.validate_files(normalized, entry)
         if validation["errors"]:
             raise SkillPackageError("；".join(validation["errors"]))
-        digest = hashlib.sha256()
-        for path in sorted(normalized):
-            digest.update(path.encode())
-            digest.update(normalized[path].encode())
         package_id = f"skillpkg_{uuid.uuid4().hex}"
         metadata = {
             "id": package_id,
@@ -106,9 +117,10 @@ class SkillPackageStore:
             "source_name": source_name,
             "entry": entry,
             "files": [{"path": path, "size": len(content.encode())} for path, content in sorted(normalized.items())],
-            "sha256": digest.hexdigest(),
+            "sha256": self._digest(normalized),
             "validation": validation,
             "version": 1,
+            "builtin": False,
         }
         package_dir = os.path.join(self.root, package_id)
         os.makedirs(package_dir, exist_ok=False)
@@ -121,7 +133,99 @@ class SkillPackageStore:
         match = re.search(r"^name:\s*[\"']?([^\n\"']+)", content, re.MULTILINE | re.IGNORECASE)
         return match.group(1).strip() if match else os.path.splitext(os.path.basename(fallback))[0]
 
+    @staticmethod
+    def _digest(files: Dict[str, str]) -> str:
+        digest = hashlib.sha256()
+        for path in sorted(files):
+            digest.update(path.encode())
+            digest.update(files[path].encode())
+        return digest.hexdigest()
+
+    @staticmethod
+    def is_builtin(package_id: str) -> bool:
+        return bool(package_id) and package_id.startswith(BUILTIN_PREFIX)
+
+    def _builtin_names(self) -> List[str]:
+        if not self.builtin_root.is_dir():
+            return []
+        return sorted(
+            entry.name
+            for entry in self.builtin_root.iterdir()
+            if entry.is_dir()
+            and (entry / "SKILL.md").is_file()
+            and re.fullmatch(r"[a-z0-9][a-z0-9-]*", entry.name)
+        )
+
+    def _builtin_package(self, name: str) -> Dict[str, Any]:
+        """Build the package dict for a bundled skill, reading it from disk.
+
+        Read on demand rather than copied into the user data dir on first run:
+        copying would pin an old version on every machine that already started
+        the app once, and the repo is the source of truth.
+        """
+        directory = self.builtin_root / name
+        files: Dict[str, str] = {}
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file():
+                continue
+            relative = self._safe_path(path.relative_to(directory).as_posix())
+            if os.path.splitext(relative)[1].lower() not in ALLOWED_TEXT_EXTENSIONS:
+                continue
+            if path.stat().st_size > MAX_FILE_BYTES:
+                raise SkillPackageError(f"内置 Skill 文件超过 512KB: {relative}")
+            if len(files) >= MAX_FILES:
+                raise SkillPackageError(f"内置 Skill 文件数超过 {MAX_FILES}")
+            files[relative] = path.read_text(encoding="utf-8-sig")
+        entry = next((path for path in files if path.lower() == "skill.md"), None)
+        if not entry:
+            raise SkillPackageError(f"内置 Skill 缺少 SKILL.md: {name}")
+        return {
+            "metadata": {
+                "id": f"{BUILTIN_PREFIX}{name}",
+                "name": self._skill_name(files[entry], name),
+                "source_name": name,
+                "entry": entry,
+                "files": [{"path": path, "size": len(content.encode())} for path, content in sorted(files.items())],
+                "sha256": self._digest(files),
+                "validation": self.validate_files(files, entry),
+                "version": 1,
+                "builtin": True,
+            },
+            "contents": files,
+        }
+
+    def list(self) -> List[Dict[str, Any]]:
+        """Every selectable package: bundled built-ins first, then uploads."""
+        packages: List[Dict[str, Any]] = []
+        for name in self._builtin_names():
+            try:
+                packages.append(self._builtin_package(name)["metadata"])
+            except (SkillPackageError, OSError) as exc:
+                # One bad bundled skill must not blank the whole picker.
+                logger.warning("Skipping unreadable built-in skill %s: %s", name, exc)
+        if os.path.isdir(self.root):
+            for entry in sorted(os.listdir(self.root)):
+                path = os.path.join(self.root, entry, "package.json")
+                if not os.path.exists(path):
+                    continue
+                try:
+                    with open(path, encoding="utf-8") as handle:
+                        metadata = json.load(handle)["metadata"]
+                except (OSError, ValueError, KeyError) as exc:
+                    logger.warning("Skipping malformed skill package %s: %s", entry, exc)
+                    continue
+                metadata["builtin"] = False
+                packages.append(metadata)
+        return packages
+
     def get(self, package_id: str) -> Dict[str, Any]:
+        if self.is_builtin(package_id):
+            if not BUILTIN_ID_RE.fullmatch(package_id):
+                raise SkillPackageError("无效的 Skill Package ID")
+            name = package_id[len(BUILTIN_PREFIX):]
+            if name not in self._builtin_names():
+                raise SkillPackageError("内置 Skill 不存在")
+            return self._builtin_package(name)
         if not re.fullmatch(r"skillpkg_[a-f0-9]{32}", package_id or ""):
             raise SkillPackageError("无效的 Skill Package ID")
         path = os.path.join(self.root, package_id, "package.json")
@@ -134,6 +238,8 @@ class SkillPackageStore:
         return self.get(package_id)["metadata"]
 
     def delete(self, package_id: str) -> None:
+        if self.is_builtin(package_id):
+            raise SkillPackageError("内置 Skill 随应用分发，请直接删除 skills/ 下的目录")
         self.get(package_id)
         shutil.rmtree(os.path.join(self.root, package_id))
 

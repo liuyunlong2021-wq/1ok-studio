@@ -24,7 +24,19 @@ fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
 /// In production: runs the bundled PyInstaller binary
 pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
     if let Some(health) = backend_health() {
-        if cfg!(debug_assertions) || backend_matches_current_build(app_handle, &health) {
+        // "Healthy on 17177" is not the same as "the backend this build would
+        // run". A leftover release sidecar — or an orphan whose app already
+        // quit — answers /health too, and it serves whatever code it was built
+        // from, plus the project list it read into memory back then; on its
+        // next save that stale list is written back over the real data. So dev
+        // adopts only a dev backend, release only a sidecar matching its own
+        // mtime.
+        let reusable = if cfg!(debug_assertions) {
+            listener_is_dev_backend()
+        } else {
+            backend_matches_current_build(app_handle, &health)
+        };
+        if reusable {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Reusing matching backend on port 17177");
             show_main_window(app_handle, cfg!(debug_assertions));
@@ -99,20 +111,50 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
     }
 }
 
+/// Mirrors `src/utils/__init__.py::get_user_data_dir`.
+///
+/// The backend resolves all of its runtime paths relatively (`output/projects.json`,
+/// `output/assets/...`, the `/files` mounts), so its cwd has to be the user data
+/// dir. Dev mode used to inherit the repo root instead, producing a second,
+/// invisible `projects.json` that the packaged build never saw.
+fn user_data_dir() -> std::path::PathBuf {
+    let configured = std::env::var("ONEOKSTUDIO_DATA_DIR").unwrap_or_default();
+    let trimmed = configured.trim();
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = std::env::var_os("HOME") {
+            return std::path::PathBuf::from(home).join(rest);
+        }
+    }
+    if !trimmed.is_empty() {
+        return std::path::PathBuf::from(trimmed);
+    }
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join(".1okstudio")
+}
+
 fn start_dev_backend() -> Result<Child, std::io::Error> {
     let project_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("src-tauri has no parent directory");
+    let data_dir = user_data_dir();
+    std::fs::create_dir_all(&data_dir)?;
     Command::new("python")
-        .current_dir(project_root)
+        .current_dir(&data_dir)
         .args([
             "-m",
             "uvicorn",
-            "src.apps.comic_gen.api:app",
+            // cwd is the data dir now, so the repo has to be added to sys.path.
+            "--app-dir",
+        ])
+        .arg(project_root)
+        .args([
             "--host",
             "0.0.0.0",
             "--port",
             "17177",
+            "src.apps.comic_gen.api:app",
         ])
         .spawn()
 }
@@ -139,15 +181,12 @@ fn prod_sidecar_path(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf
     app_handle
         .path()
         .resource_dir()
-        .map(|path| path.join("lumenx-backend/lumenx-backend"))
+        .map(|path| path.join("1okstudio-backend/1okstudio-backend"))
         .map_err(std::io::Error::other)
 }
 
 pub fn sidecar_log_path() -> std::path::PathBuf {
-    std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir)
-        .join(".lumen-x/logs/sidecar.log")
+    user_data_dir().join("logs/sidecar.log")
 }
 
 fn append_sidecar_log(message: &str) {
@@ -197,13 +236,7 @@ fn terminate_stale_backend(health: &serde_json::Value) -> bool {
         .and_then(|value| value.as_u64())
         .or_else(listener_pid);
     let Some(pid) = pid else { return false };
-    let command = Command::new("/bin/ps")
-        .args(["-p", &pid.to_string(), "-o", "command="])
-        .output()
-        .ok()
-        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-        .unwrap_or_default();
-    if !command.contains("lumenx-backend") {
+    if !process_command(pid).contains("1okstudio-backend") {
         return false;
     }
     let Ok(status) = Command::new("/bin/kill").arg(pid.to_string()).status() else {
@@ -231,6 +264,24 @@ fn listener_pid() -> Option<u64> {
         .next()?
         .parse()
         .ok()
+}
+
+fn process_command(pid: u64) -> String {
+    Command::new("/bin/ps")
+        .args(["-p", &pid.to_string(), "-o", "command="])
+        .output()
+        .ok()
+        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+        .unwrap_or_default()
+}
+
+/// True when whatever holds 17177 is what `start_dev_backend` would have
+/// spawned, i.e. a dev uvicorn. The bundled release sidecar is a PyInstaller
+/// binary named `1okstudio-backend` and must never be adopted by a dev build.
+fn listener_is_dev_backend() -> bool {
+    let Some(pid) = listener_pid() else { return false };
+    let command = process_command(pid);
+    command.contains("uvicorn") && !command.contains("1okstudio-backend")
 }
 
 fn is_backend_ready() -> bool {

@@ -31,7 +31,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as output_dir, patch(
             "src.apps.playground.service.IMAGE_OUTPUT_DIR", output_dir
         ), patch("src.apps.playground.service.VIDEO_OUTPUT_DIR", output_dir):
-            service._process_image_generation(_generation("jiucaihezi/gpt-image-2-1k", PlaygroundMode.T2I))
+            service._process_image_generation(_generation("jiucaihezi/gpt-image-2.5-1k", PlaygroundMode.T2I))
             service._process_video_generation(_generation("dola-seedance2.5", PlaygroundMode.R2V))
             service._process_image_generation(_generation("wan2.7-image-pro", PlaygroundMode.T2I))
 

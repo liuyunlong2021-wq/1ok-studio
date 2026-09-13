@@ -227,6 +227,19 @@ export interface RefineSSEEvent {
     error?: string;
 }
 
+/** A selectable Skill: either bundled with the app (`builtin: true`) or uploaded.
+ *  Built-ins live in the repo's `skills/` and ship inside the sidecar, so they
+ *  need no per-machine upload. */
+export interface SkillPackageSummary {
+    id: string;
+    name: string;
+    entry: string;
+    builtin: boolean;
+    source_name: string;
+    files: { path: string; size: number }[];
+    validation: { errors: string[]; warnings: string[]; references?: string[] };
+}
+
 export const api = {
     createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>) => {
         const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig }, {
@@ -721,6 +734,10 @@ export const api = {
         body.append("file", file);
         const res = await axios.post(`${API_URL}/skill-packages`, body);
         return res.data as { id: string; name: string; entry: string; files: { path: string; size: number }[]; validation: { errors: string[]; warnings: string[] } };
+    },
+    listSkillPackages: async (): Promise<SkillPackageSummary[]> => {
+        const res = await axios.get(`${API_URL}/skill-packages`);
+        return res.data;
     },
     generateAssetPrompt: async (scriptId: string, assetType: string, name: string, description: string, assetId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/generate_prompt`, { asset_type: assetType, asset_id: assetId, name, description });

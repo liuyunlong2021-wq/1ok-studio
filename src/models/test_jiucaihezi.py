@@ -8,6 +8,7 @@ import requests
 from src.models.jiucaihezi import (
     JiucaiheziImageModel,
     JiucaiheziVideoModel,
+    _align_ratio_with_resolution,
     upload_to_jiucaihezi,
 )
 
@@ -121,13 +122,13 @@ def test_grok_reference_images_use_image_array_fields(post, get, _sleep, _downlo
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi._download")
+@patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
 @patch("src.models.jiucaihezi.requests.get")
 @patch("src.models.jiucaihezi.requests.post")
-def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
+def test_video_uses_public_api_model_names(post, get, _sleep, _download_content):
     post.return_value = _response({"task_id": "task-1"})
-    get.return_value = _response({"status": "completed", "video_url": "https://example.com/video.mp4"})
+    get.return_value = _response({"status": "completed"})
 
     JiucaiheziVideoModel({}).generate(
         "prompt",
@@ -145,7 +146,8 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_mock):
         "duration": 15,
         "resolution": "768p竖",
     }
-    assert post.call_args.kwargs["timeout"] == (15, 300)
+    assert post.call_args.kwargs["timeout"] == (15, 180)
+    _download_content.assert_called_once_with("task-1", "/tmp/output.mp4")
 
     JiucaiheziVideoModel({}).generate(
         "prompt",
@@ -195,3 +197,163 @@ def test_video_downloads_content_endpoint_when_completed_task_has_no_url(post, g
     assert output_path.read_bytes() == b"video-bytes"
     assert get.call_args_list[1].args[0].endswith("/v1/videos/task-content/content")
     assert get.call_args_list[1].kwargs["headers"] == {"Authorization": "Bearer test"}
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_keeps_polling_queued_and_in_progress(post, get, _sleep, _download_content, tmp_path):
+    post.return_value = _response({"task_id": "task-slow"})
+    get.side_effect = [
+        _response({"status": "queued"}),
+        _response({"status": "in_progress"}),
+        _response({"status": "completed"}),
+    ]
+
+    _, elapsed = JiucaiheziVideoModel({}).generate(
+        "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+    )
+
+    assert get.call_count == 3
+    assert post.call_count == 1
+    _download_content.assert_called_once_with("task-slow", str(tmp_path / "output.mp4"))
+    assert elapsed >= 0
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_poll_failures_are_retried_without_recreating_the_task(post, get, _sleep, tmp_path):
+    post.return_value = _response({"task_id": "task-flaky"})
+    content = _response({})
+    content.content = b"video-bytes"
+
+    def _get(url, **kwargs):
+        _get.calls = getattr(_get, "calls", 0) + 1
+        if _get.calls == 1:
+            raise requests.ConnectionError("gateway dropped")
+        if url.endswith("/content"):
+            return content
+        return _response({"status": "completed"})
+
+    get.side_effect = _get
+    output_path = tmp_path / "output.mp4"
+
+    JiucaiheziVideoModel({}).generate("prompt", str(output_path), model_name="dola-seedance2.5")
+
+    assert post.call_count == 1
+    assert output_path.read_bytes() == b"video-bytes"
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_failure_surfaces_structured_error_message(post, get, _sleep, tmp_path):
+    post.return_value = _response({"task_id": "task-bad"})
+    get.return_value = _response({
+        "status": "failed",
+        "error": {"message": "素材下载失败：cdn.example.com 无法访问"},
+    })
+
+    with pytest.raises(RuntimeError, match="cdn.example.com 无法访问"):
+        JiucaiheziVideoModel({}).generate(
+            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+        )
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_create_rejection_surfaces_structured_error_message(post, tmp_path):
+    rejected = _response({"error": {"message": "images[0] 素材格式不受支持"}})
+    rejected.ok = False
+    rejected.status_code = 400
+    rejected.text = ""
+    post.return_value = rejected
+
+    with pytest.raises(RuntimeError, match="images\\[0\\] 素材格式不受支持"):
+        JiucaiheziVideoModel({}).generate(
+            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+        )
+
+    assert post.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# MiniMax H3 系列：同配置不同名 + ratio/resolution 一致性
+# ---------------------------------------------------------------------------
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_minimax_sibling_model_shares_the_same_config(post, get, _sleep, _download_content):
+    """minimax_h3_zm_u24 与 v2_15s 同规格：必须拿到 duration/resolution/audios。
+
+    这条是回归防线：门控曾经是 `model_name == "minimax_h3_image_audio_to_video_v2_15s"`
+    精确匹配，加同规格兄弟模型时会静默丢掉这三个字段。
+    """
+    post.return_value = _response({"task_id": "task-1"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt",
+        "/tmp/output.mp4",
+        model_name="jiucaihezi/minimax_h3_zm_u24",
+        duration=12,
+        resolution="768p竖",
+        aspect_ratio="16:9",  # 与 768p竖 矛盾的旧值，应被 resolution 纠正
+        reference_audio_urls=["https://example.com/bgm.mp3"],
+    )
+
+    payload = post.call_args.kwargs["json"]
+    assert payload["model"] == "minimax_h3_zm_u24"
+    assert payload["duration"] == 12
+    assert payload["resolution"] == "768p竖"
+    assert payload["audios"] == ["https://example.com/bgm.mp3"]
+    assert payload["ratio"] == "9:16"
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_dola_never_receives_minimax_only_fields(post, get, _sleep, _download_content):
+    """反向守：只有 MiniMax H3 系列能带 duration/resolution/audios。"""
+    post.return_value = _response({"task_id": "task-1"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt",
+        "/tmp/output.mp4",
+        model_name="dola-seedance2.5",
+        duration=12,
+        resolution="768p竖",
+    )
+
+    payload = post.call_args.kwargs["json"]
+    assert payload == {"model": "dola-seedance2.5", "prompt": "prompt", "ratio": "16:9"}
+
+
+@pytest.mark.parametrize(
+    "ratio,resolution,expected",
+    [
+        ("16:9", "768p横", "16:9"),   # 一致，原样保留
+        ("9:16", "768p竖", "9:16"),   # 一致，原样保留
+        ("16:9", "768p竖", "9:16"),   # 矛盾，以 resolution 为准
+        ("9:16", "768p横", "16:9"),   # 矛盾，以 resolution 为准
+        ("21:9", "768p横", "21:9"),   # 同向（都是横），不强行改成 16:9
+        ("1:1", "768p横", "1:1"),     # 方形不表态，保留
+        ("16:9", "720p", "16:9"),     # resolution 不带横竖，不受影响
+        ("9:16", "", "9:16"),         # resolution 缺失，不受影响
+    ],
+)
+def test_align_ratio_with_resolution(ratio, resolution, expected):
+    assert _align_ratio_with_resolution(ratio, resolution) == expected
+

@@ -8,17 +8,54 @@ import requests
 
 from .base import VideoGenModel
 from .image import ImageGenModel
+from ..utils.model_catalog import is_minimax_h3_model
 
 GROK_IMAGE_MODEL = "grok-imagine-image-2.0"
 MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
 JIUCAIHEZI_BASE_URL = "https://api.jiucaihezi.studio"
 TEMP_UPLOAD_ATTEMPTS = 3
 TEMP_UPLOAD_TIMEOUT = (15, 120)
-VIDEO_CREATE_TIMEOUT = (15, 300)
+# Task creation returns the task id in milliseconds; the transfer of reference
+# assets and the upstream submission now happen in the background.
+VIDEO_CREATE_TIMEOUT = (15, 180)
+VIDEO_POLL_INTERVAL = 10
+VIDEO_POLL_REQUEST_TIMEOUT = 60
+VIDEO_POLL_TIMEOUT = 30 * 60
 
 
 def _base_url() -> str:
     return JIUCAIHEZI_BASE_URL
+
+
+# `resolution` 的 横/竖 后缀已经决定了横竖，`ratio` 是同一件事的冗余表达。
+# 上游两个字段都收，所以传一对矛盾的组合（16:9 + 768p竖）行为不可预期。
+# 规则：以 resolution 为准，且只在两者**横竖相反**时才纠正 —— 同向的合法组合原样保留。
+_ORIENTATION_SUFFIXES = ("横", "竖")
+
+
+def _ratio_orientation(ratio: str) -> str:
+    """'16:9' -> '横'，'9:16' -> '竖'，'1:1' / 格式无法解析 -> ''。"""
+    parts = str(ratio).split(":")
+    if len(parts) != 2:
+        return ""
+    try:
+        width, height = int(parts[0]), int(parts[1])
+    except ValueError:
+        return ""
+    if width > height:
+        return "横"
+    if height > width:
+        return "竖"
+    return ""
+
+
+def _align_ratio_with_resolution(ratio: str, resolution: str) -> str:
+    suffix = str(resolution)[-1:] if resolution else ""
+    if suffix not in _ORIENTATION_SUFFIXES:
+        return ratio
+    if _ratio_orientation(ratio) in ("", suffix):
+        return ratio
+    return "16:9" if suffix == "横" else "9:16"
 
 
 def _headers() -> Dict[str, str]:
@@ -41,9 +78,31 @@ def _download_video_content(task_id: str, output_path: str) -> None:
         headers=_headers(),
         timeout=300,
     )
-    response.raise_for_status()
+    if not response.ok:
+        raise RuntimeError(
+            f"Jiucaihezi video content download failed ({response.status_code}): "
+            f"{_error_message(response)}"
+        )
     with open(output_path, "wb") as output:
         output.write(response.content)
+
+
+def _error_message(response) -> str:
+    """Return the gateway's structured ``error.message`` when it provides one."""
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict) and error.get("message"):
+            return str(error["message"])
+        if isinstance(error, str) and error:
+            return error
+        for key in ("message", "detail"):
+            if payload.get(key):
+                return str(payload[key])
+    return (getattr(response, "text", "") or "").strip()[:300]
 
 
 def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
@@ -115,7 +174,7 @@ class JiucaiheziImageModel(ImageGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
         refs = kwargs.get("ref_image_paths") or ([] if not kwargs.get("ref_image_path") else [kwargs["ref_image_path"]])
-        model = kwargs.get("model_name") or "gpt-image-2-1k"
+        model = kwargs.get("model_name") or "gpt-image-2.5-1k"
         model = model.split("/", 1)[-1].split("#", 1)[0]
         size = (kwargs.get("size") or "1024*1024").replace("*", "x")
         if model == GROK_IMAGE_MODEL:
@@ -236,10 +295,17 @@ class JiucaiheziVideoModel(VideoGenModel):
         if kwargs.get("img_path"):
             images.insert(0, kwargs["img_path"])
         images = [_public_media_url(ref, "image") for ref in dict.fromkeys(images)]
-        payload = {"model": model_name, "prompt": prompt, "ratio": kwargs.get("aspect_ratio") or kwargs.get("ratio") or "16:9"}
-        if model_name == "minimax_h3_image_audio_to_video_v2_15s":
+        resolution = str(kwargs.get("resolution") or "")
+        ratio = kwargs.get("aspect_ratio") or kwargs.get("ratio") or "16:9"
+        # 横/竖 是 MiniMax H3 独有的 resolution 约定，只有它的 resolution 会发给上游。
+        # 别的模型（dola 用 "720p"，resolution 根本不进 payload）不能因为调用方传了个
+        # 带 横/竖 的值就改掉它的 ratio。
+        if is_minimax_h3_model(model_name):
+            ratio = _align_ratio_with_resolution(ratio, resolution)
+        payload = {"model": model_name, "prompt": prompt, "ratio": ratio}
+        if is_minimax_h3_model(model_name):
             payload["duration"] = int(kwargs.get("duration") or 5)
-            payload["resolution"] = kwargs.get("resolution") or "768p横"
+            payload["resolution"] = resolution or "768p横"
             audio_refs = list(kwargs.get("reference_audio_urls") or [])
             if kwargs.get("audio_url"):
                 audio_refs.insert(0, kwargs["audio_url"])
@@ -259,26 +325,44 @@ class JiucaiheziVideoModel(VideoGenModel):
             # already have accepted and billed it even though its response was
             # lost. Retrying here could create and charge for a duplicate task.
             raise RuntimeError(
-                "Jiucaihezi video task creation did not return within 300 seconds; "
+                "Jiucaihezi video task creation did not return within 180 seconds; "
                 "submission status is unknown and it was not retried to avoid duplicate billing"
             ) from exc
-        response.raise_for_status()
+        if not response.ok:
+            # The create endpoint returns a structured error.message for 4xx.
+            raise RuntimeError(
+                f"Jiucaihezi video task creation rejected ({response.status_code}): "
+                f"{_error_message(response)}"
+            )
         task = response.json()
         task_id = task.get("task_id") or task.get("id")
         if not task_id:
             raise RuntimeError(f"Jiucaihezi video response missing task id: {task}")
-        for _ in range(180):
-            time.sleep(10)
-            poll = requests.get(f"{_base_url()}/v1/videos/{task_id}", headers=_headers(), timeout=60)
-            poll.raise_for_status()
+
+        deadline = time.monotonic() + VIDEO_POLL_TIMEOUT
+        poll_url = f"{_base_url()}/v1/videos/{task_id}"
+        while True:
+            if time.monotonic() >= deadline:
+                # Re-polling the same task id is safe; re-creating it would
+                # submit and bill a duplicate task.
+                raise TimeoutError(
+                    f"Jiucaihezi video task {task_id} still running after "
+                    f"{VIDEO_POLL_TIMEOUT // 60} minutes; retry by polling the same task id"
+                )
+            time.sleep(VIDEO_POLL_INTERVAL)
+            try:
+                poll = requests.get(poll_url, headers=_headers(), timeout=VIDEO_POLL_REQUEST_TIMEOUT)
+            except (requests.Timeout, requests.ConnectionError):
+                continue
+            if not poll.ok:
+                continue
             result = poll.json()
-            if result.get("status") in ("completed", "succeeded"):
-                url = result.get("video_url")
-                if url:
-                    _download(url, output_path)
-                else:
-                    _download_video_content(task_id, output_path)
+            status = str(result.get("status") or "").lower()
+            if status in ("completed", "succeeded"):
+                # Always fetch the artifact from the content endpoint; the
+                # poll response's url field is not authoritative.
+                _download_video_content(task_id, output_path)
                 return output_path, time.time() - started
-            if result.get("status") in ("failed", "error", "cancelled"):
-                raise RuntimeError(f"Jiucaihezi video failed: {result}")
-        raise TimeoutError("Jiucaihezi video task timed out")
+            if status in ("failed", "error", "cancelled"):
+                raise RuntimeError(f"Jiucaihezi video failed: {_error_message(poll)}")
+            # queued / in_progress / pending: keep polling until the deadline.

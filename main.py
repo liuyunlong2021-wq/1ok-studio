@@ -23,10 +23,10 @@ cwd = application_path
 
 from starlette.staticfiles import StaticFiles
 
-# 切换到用户数据目录
-path = os.path.expanduser("~/.lumen-x")
-os.makedirs(path, exist_ok=True)
-os.chdir(path)
+# 切换到用户数据目录（所有 output/ 相对路径都以此为根）
+from src.utils import ensure_user_data_dir
+
+path = ensure_user_data_dir()
 
 # 配置日志文件路径
 log_dir = os.path.join(path, "logs")
@@ -125,14 +125,14 @@ def open_webview():
         webview.start(
             gui='edgechromium',
             private_mode=False,
-            storage_path=os.path.expanduser("~/.lumen-x/webview_storage")
+            storage_path=os.path.join(path, "webview_storage")
         )
     else:
         # private_mode=False: 禁用隐私模式,允许保存 cookies 和 localStorage
         # storage_path: 指定持久化存储路径,确保 localStorage 数据不会丢失
         webview.start(
             private_mode=False,
-            storage_path=os.path.expanduser("~/.lumen-x/webview_storage")
+            storage_path=os.path.join(path, "webview_storage")
         )
 
     # WebView 关闭后，退出整个进程

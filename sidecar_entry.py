@@ -1,8 +1,6 @@
 """Standalone FastAPI entry point for the Tauri sidecar."""
 
 import argparse
-import os
-from pathlib import Path
 
 
 def main() -> None:
@@ -10,13 +8,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=17177)
     args = parser.parse_args()
 
-    data_dir = Path(os.environ.get("LUMENX_DATA_DIR", "~/.lumen-x")).expanduser()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    os.chdir(data_dir)
-
     import uvicorn
+    from src.utils import ensure_user_data_dir
     from src.apps.comic_gen.api import app
 
+    # Anchors the cwd to the user data dir; api.py imports the same helper, so
+    # this is just an explicit statement of where the data lives.
+    ensure_user_data_dir()
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="info")
 
 

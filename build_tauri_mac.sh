@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# build_tauri_mac.sh — One-click build for LumenX Studio macOS app (.app + .dmg)
-# Produces: src-tauri/target/release/bundle/dmg/LumenX Studio_*.dmg
+# build_tauri_mac.sh — One-click build for One OK Studio macOS app (.app + .dmg)
+# Produces: src-tauri/target/release/bundle/dmg/One OK Studio_*.dmg
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "╔═══════════════════════════════════════════════════╗"
-echo "║  LumenX Studio — Tauri macOS Build               ║"
+echo "║  One OK Studio — Tauri macOS Build               ║"
 echo "╚═══════════════════════════════════════════════════╝"
 echo ""
 
@@ -34,7 +34,7 @@ echo "  ✓ Rust $(rustc --version | awk '{print $2}')"
 echo "  ✓ Node $(node --version)"
 echo ""
 
-if pgrep -f 'One OK Studio\.app/Contents/(MacOS/lumenx-studio|Resources/lumenx-backend/lumenx-backend)' >/dev/null; then
+if pgrep -f 'One OK Studio\.app/Contents/(MacOS/one-ok-studio|Resources/1okstudio-backend/1okstudio-backend)' >/dev/null; then
     echo "❌ One OK Studio is running. Quit the app before rebuilding."
     exit 1
 fi
@@ -74,8 +74,8 @@ echo "  Target: ${TARGET}"
 # Remove the legacy sidecar copied by the old externalBin layout; it occupies the
 # path now used by the onedir resource folder. Leftover may be a file (old
 # onefile build) or a directory (older OUTPUT_DIR), so -rf rather than -f.
-rm -rf "src-tauri/target/${TARGET}/release/lumenx-backend"
-npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["lumenx-backend/","lumenx-demucs"]}}'
+rm -rf "src-tauri/target/${TARGET}/release/1okstudio-backend"
+npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["1okstudio-backend/","1okstudio-demucs"]}}'
 
 APP_PATH="src-tauri/target/${TARGET}/release/bundle/macos/One OK Studio.app"
 DMG_PATH="src-tauri/target/${TARGET}/release/bundle/dmg/One OK Studio_$(node -p "require('./src-tauri/tauri.conf.json').version")_${TARGET%%-*}.dmg"
@@ -84,7 +84,7 @@ NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
 # Tauri cannot copy PyInstaller's framework symlinks as resources, so the
 # sidecar build materializes them. Restore the canonical framework layout in
 # the final app before signing; notarization rejects the expanded aliases.
-PYTHON_FRAMEWORK="${APP_PATH}/Contents/Resources/lumenx-backend/_internal/Python.framework"
+PYTHON_FRAMEWORK="${APP_PATH}/Contents/Resources/1okstudio-backend/_internal/Python.framework"
 python3 - "$PYTHON_FRAMEWORK" <<'PY'
 import pathlib
 import shutil

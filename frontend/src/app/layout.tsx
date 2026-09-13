@@ -15,7 +15,7 @@ export default function RootLayout({
         <link rel="icon" href="/1ok-logo-preview.svg" type="image/svg+xml" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var P=["atelier-dark","bridge-dark","brand-dark","atelier-light","brand-light"];var d=JSON.parse(localStorage.getItem("lumenx-settings")||"{}");var t=d.state&&d.state.theme;document.documentElement.className=P.indexOf(t)>=0?t:"atelier-dark";}catch(e){document.documentElement.className="atelier-dark";}})();`,
+            __html: `(function(){try{var P=["atelier-dark","bridge-dark","brand-dark","atelier-light","brand-light"];var d=JSON.parse(localStorage.getItem("1okstudio-settings")||"{}");var t=d.state&&d.state.theme;document.documentElement.className=P.indexOf(t)>=0?t:"atelier-dark";}catch(e){document.documentElement.className="atelier-dark";}})();`,
           }}
         />
         {/* Desktop app: compact font-size for embedded windows (Tauri / pywebview).

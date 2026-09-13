@@ -105,7 +105,7 @@ def _family_source_paths(catalog_root: Path) -> List[Path]:
 def _build_schema_stub() -> Dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "LumenX Model Catalog",
+        "title": "One OK Studio Model Catalog",
         "type": "object",
         "required": ["version", "defaults", "families", "models"],
         "properties": {
@@ -958,7 +958,6 @@ def load_generated_model_catalog(path: Path = GENERATED_MODEL_CATALOG_PATH) -> D
             return json.load(f)
     return build_catalog_dict(MODEL_CATALOG_ROOT)
 
-
 def load_frontend_generated_model_catalog(
     path: Path = FRONTEND_GENERATED_MODEL_CATALOG_PATH,
 ) -> Dict[str, Any]:
@@ -966,6 +965,22 @@ def load_frontend_generated_model_catalog(
         raise FileNotFoundError(f"Frontend generated catalog is missing: {path}")
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def is_minimax_h3_model(model_id: Optional[str]) -> bool:
+    """MiniMax H3 系列共用一个上游契约。
+
+    共用内容：时长 slider 1-15s、`resolution` 带 横/竖 后缀、最多 9 张参考图 + 3 段参考音频、
+    且 `duration`/`resolution`/`audios` 三个字段只对它们有效。
+
+    按前缀判断而不是精确匹配：同规格的兄弟模型（如 minimax_h3_zm_u24）自动生效，
+    避免再加一个「同配置不同名」的模型时漏改某处门控，静默丢掉时长/分辨率/音频。
+    天花板：将来若出现 minimax_h3_* 但限制不同的模型，这里要改成白名单。
+    """
+    if not model_id:
+        return False
+    bare = str(model_id).split("/")[-1].split("#")[0]
+    return bare.startswith("minimax_h3")
 
 
 # ---------------------------------------------------------------------------

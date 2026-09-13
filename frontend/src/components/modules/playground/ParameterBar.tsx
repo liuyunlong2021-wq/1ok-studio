@@ -5,6 +5,19 @@ import { usePlaygroundStore } from './usePlaygroundStore';
 import { getModelParams, getModelDuration } from './playgroundModels';
 import { ChevronDown, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  ASPECT_RATIO_PRESETS,
+  CUSTOM_RATIO,
+  CUSTOM_SIZE_RULES,
+  formatSizeLabel,
+  parseImageSize,
+  presetRatioForSize,
+  presetResolutionForSize,
+  resolvePresetSize,
+  validateCustomSize,
+  type AspectRatioPreset,
+  type Resolution,
+} from '@/lib/imageSizePresets';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -110,6 +123,146 @@ function formatImageSize(size: string): string {
   const normalized = size.replace(/[*x]/g, '×');
   const ratio = sizeToRatioLabel(size);
   return ratio ? `${normalized} (${ratio})` : normalized;
+}
+
+/**
+ * `768p竖` -> `9:16`；不带 横/竖 后缀的（如 `720p`）返回 null。
+ *
+ * resolution 自带横竖时它是唯一事实源，aspect_ratio 跟着它走，
+ * 这样状态里不会留下与界面不符的旧比例。
+ */
+function ratioForOrientedResolution(resolution: string): string | null {
+  const suffix = resolution.slice(-1);
+  if (suffix !== '横' && suffix !== '竖') return null;
+  return suffix === '横' ? '16:9' : '9:16';
+}
+
+// ---------------------------------------------------------------------------
+// SizePresetPicker — 分辨率 + 画面比例 两个下拉（GPT Image 2.5 系列）
+// ---------------------------------------------------------------------------
+//
+// 只把 `size` 存进 parameters，分辨率和比例都从像素反查出来：
+// 表里每个 size 全局唯一，所以反查是确定的，不用再存第二份状态，
+// 也就不会出现「比例显示 7:3、实际选了 21:9」这种漂移。
+
+function SizePresetPicker({
+  resolutions,
+  size,
+  onChange,
+}: {
+  resolutions: Resolution[];
+  size: string;
+  onChange: (size: string) => void;
+}) {
+  const t = useTranslations('playground');
+  const [customOpen, setCustomOpen] = useState(false);
+  // 自定义像素时分辨率下拉锁住，但离开自定义要回到用户上一档，所以记住它
+  const [lastResolution, setLastResolution] = useState<Resolution>(resolutions[0] ?? '1K');
+  const [customInput, setCustomInput] = useState(() => {
+    const parsed = parseImageSize(size);
+    return { w: String(parsed?.width ?? 1024), h: String(parsed?.height ?? 1024) };
+  });
+
+  const sizeResolution = presetResolutionForSize(size);
+  const sizeRatio = presetRatioForSize(size);
+  // 同步 effect 跑之前 parameters.size 可能还是空的（或上一个模型的旧值），
+  // 这时先把 UI 当成 1:1 展示，避免闪一下「自定义」输入框。
+  const parsedSize = parseImageSize(size);
+  const isCustom = !!parsedSize && (customOpen || sizeRatio === CUSTOM_RATIO);
+
+  useEffect(() => {
+    if (sizeResolution) setLastResolution(sizeResolution);
+  }, [sizeResolution]);
+
+  const shownResolution = sizeResolution ?? lastResolution;
+  const width = parseInt(customInput.w, 10) || 0;
+  const height = parseInt(customInput.h, 10) || 0;
+  const customResult = isCustom ? validateCustomSize(width, height) : null;
+
+  const pickRatio = (next: string) => {
+    if (next === CUSTOM_RATIO) {
+      // 进自定义时用当前像素做初值，SizePresetPicker 只在换模型时重挂载，
+      // 所以这里显式种一遍。
+      const parsed = parseImageSize(size);
+      setCustomInput({
+        w: String(parsed?.width ?? 1024),
+        h: String(parsed?.height ?? 1024),
+      });
+      setCustomOpen(true);
+      return;
+    }
+    setCustomOpen(false);
+    const resolved = resolvePresetSize(shownResolution, next as AspectRatioPreset);
+    if (resolved) onChange(resolved.size);
+  };
+
+  const pickResolution = (next: string) => {
+    setLastResolution(next as Resolution);
+    // 保持比例只换档；比例是自定义像素时没有档位概念，等用户选回预设比例
+    if (sizeRatio !== CUSTOM_RATIO) {
+      const resolved = resolvePresetSize(next as Resolution, sizeRatio);
+      if (resolved) onChange(resolved.size);
+    }
+  };
+
+  const typeCustom = (axis: 'w' | 'h', value: string) => {
+    const next = { ...customInput, [axis]: value.replace(/[^\d]/g, '') };
+    setCustomInput(next);
+    const parsed = validateCustomSize(parseInt(next.w, 10) || 0, parseInt(next.h, 10) || 0);
+    // 只在合法时提交，避免把 1920x10 这种中间态发给后端
+    if (parsed.size) onChange(parsed.size);
+  };
+
+  const parsed = parseImageSize(size);
+
+  return (
+    <div className="col-span-2 flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <ParamDropdown
+          label={t('parameters.resolution')}
+          value={shownResolution}
+          options={resolutions}
+          onChange={pickResolution}
+          disabled={isCustom}
+        />
+        <ParamDropdown
+          label={t('parameters.aspectRatio')}
+          value={parsedSize ? sizeRatio : '1:1'}
+          options={[...ASPECT_RATIO_PRESETS, CUSTOM_RATIO]}
+          onChange={pickRatio}
+        />
+      </div>
+
+      {isCustom ? (
+        <div className="flex flex-col gap-[6px]">
+          <div className="flex items-center gap-2">
+            {(['w', 'h'] as const).map((axis, index) => (
+              <div key={axis} className="flex items-center gap-2 flex-1">
+                {index === 1 && <span className="text-text-muted text-xs">×</span>}
+                <input
+                  inputMode="numeric"
+                  value={customInput[axis]}
+                  onChange={(e) => typeCustom(axis, e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-[14px] bg-surface-inset border border-border-subtle text-foreground text-xs font-medium outline-none focus:border-foreground/30"
+                />
+              </div>
+            ))}
+          </div>
+          <span className="text-[0.6875rem] text-text-muted">
+            {customResult?.errors.length
+              ? customResult.errors[0]
+              : `${parsed ? formatSizeLabel(parsed) : ''} · ${
+                  CUSTOM_SIZE_RULES.multipleOf
+                } 的倍数，单边 ≤ ${CUSTOM_SIZE_RULES.maxSide}`}
+          </span>
+        </div>
+      ) : (
+        <span className="text-[0.6875rem] text-text-muted">
+          {parsed ? formatSizeLabel(parsed) : ''}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -255,12 +408,24 @@ export default function ParameterBar() {
 
   const sizeOptions = modelParams?.size?.options ?? [];
   const sizeDefault = modelParams?.size?.default ?? sizeOptions[0] ?? '1024*1024';
+  // 目录声明了 resolutions 的模型（GPT Image 2.5 系列）走「分辨率 + 画面比例」，
+  // 像素表在前端 imageSizePresets.ts；没声明的（gemini / grok）继续走旧单下拉。
+  const sizeResolutions = modelParams?.size?.resolutions ?? [];
+  const usesSizePresets = sizeResolutions.length > 0;
   const ratioOptions = modelParams?.ratio?.options ?? FALLBACK_RATIOS;
   const ratioDefault = modelParams?.ratio?.default ?? ratioOptions[0];
   const resolutionOptions = modelParams?.resolution?.options ?? FALLBACK_RESOLUTIONS;
   const resolutionDefault = modelParams?.resolution?.default ?? resolutionOptions[0];
   const qualityOptions = modelParams?.quality?.options ?? [];
   const qualityDefault = modelParams?.quality?.default ?? qualityOptions[0] ?? 'high';
+
+  // 有些模型的 resolution 选项自带 横/竖（如 480p横 / 768p竖），横竖已经由它决定。
+  // 这时再显示「画面比例」就是两个控件表达同一件事，必然打架（16:9 + 768p竖）。
+  // 以 resolution 为准隐藏 ratio；后端也会在两者矛盾时纠正 ratio，双保险。
+  const resolutionEncodesOrientation = resolutionOptions.some(
+    (o) => ratioForOrientedResolution(o) !== null,
+  );
+  const showRatio = hasRatio && !resolutionEncodesOrientation;
 
   // Boolean feature flags from model
   const supportsSeed = modelParams?.seed !== false;
@@ -274,7 +439,16 @@ export default function ParameterBar() {
 
     if (hasSize) {
       const cur = parameters.size as string | undefined;
-      if (cur && !sizeOptions.includes(cur)) patches.size = sizeDefault;
+      if (usesSizePresets) {
+        // 走预设表的模型：值必须落在该模型声明的分辨率档里，
+        // 否则切模型后（1K 模型 → 超分模型，或反过来）会留着一个非法尺寸。
+        const curResolution = cur ? presetResolutionForSize(cur) : null;
+        if (!curResolution || !sizeResolutions.includes(curResolution)) {
+          patches.size = resolvePresetSize(sizeResolutions[0] ?? '1K', '1:1')?.size ?? sizeDefault;
+        }
+      } else if (cur && !sizeOptions.includes(cur)) {
+        patches.size = sizeDefault;
+      }
     }
     if (hasRatio) {
       const cur = parameters.aspect_ratio as string | undefined;
@@ -282,7 +456,13 @@ export default function ParameterBar() {
     }
     if (hasResolution) {
       const cur = parameters.resolution as string | undefined;
-      if (cur && !resolutionOptions.includes(cur)) patches.resolution = resolutionDefault;
+      const next = cur && resolutionOptions.includes(cur) ? cur : resolutionDefault;
+      if (next !== cur) patches.resolution = next;
+      // 自带 横/竖 的模型：aspect_ratio 必须跟着 resolution，否则会发出矛盾组合
+      const impliedRatio = ratioForOrientedResolution(next);
+      if (impliedRatio && parameters.aspect_ratio !== impliedRatio) {
+        patches.aspect_ratio = impliedRatio;
+      }
     }
     if (hasQuality) {
       const cur = parameters.quality as string | undefined;
@@ -309,6 +489,14 @@ export default function ParameterBar() {
   const updateParam = (key: string, value: any) => {
     setParameters({ ...parameters, [key]: value });
   };
+
+  // 一次改多个参数：分别调用 updateParam 会在同一个 stale parameters 上展开，后者覆盖前者。
+  const updateParams = (patch: Record<string, any>) => {
+    setParameters({ ...parameters, ...patch });
+  };
+
+  // resolution 的 横/竖 后缀 -> 对应比例，让 aspect_ratio 跟它保持一致，
+  // 不会出现「界面显示 768p竖、状态里还存着 16:9」。
 
   // Duration state (video only)
   const durationValue = (parameters.duration as number | undefined)
@@ -347,15 +535,23 @@ export default function ParameterBar() {
         {!isVideoMode && !isAudioMode && (
           <>
             {/* Size (image-specific, replaces resolution) */}
-            {hasSize && (
-              <ParamDropdown
-                label={t('parameters.imageSize')}
-                value={(parameters.size as string) ?? sizeDefault}
-                options={sizeOptions}
-                onChange={(v) => updateParam('size', v)}
-                formatOption={formatImageSize}
-              />
-            )}
+            {hasSize &&
+              (usesSizePresets ? (
+                <SizePresetPicker
+                  key={modelId}
+                  resolutions={sizeResolutions}
+                  size={(parameters.size as string) ?? sizeDefault}
+                  onChange={(v) => updateParam('size', v)}
+                />
+              ) : (
+                <ParamDropdown
+                  label={t('parameters.imageSize')}
+                  value={(parameters.size as string) ?? sizeDefault}
+                  options={sizeOptions}
+                  onChange={(v) => updateParam('size', v)}
+                  formatOption={formatImageSize}
+                />
+              ))}
 
             {/* Quality (GPT-Image-2 specific) */}
             {hasQuality && (
@@ -377,8 +573,8 @@ export default function ParameterBar() {
         {/* ── VIDEO MODE PARAMS ── */}
         {isVideoMode && (
           <>
-            {/* Ratio */}
-            {hasRatio && (
+            {/* Ratio —— resolution 自带 横/竖 时隐藏，避免两个控件打架 */}
+            {showRatio && (
               <ParamDropdown
                 label={t('parameters.aspectRatio')}
                 value={(parameters.aspect_ratio as string) ?? ratioDefault}
@@ -393,7 +589,10 @@ export default function ParameterBar() {
                 label={t('parameters.resolution')}
                 value={(parameters.resolution as string) ?? resolutionDefault}
                 options={resolutionOptions}
-                onChange={(v) => updateParam('resolution', v)}
+                onChange={(v) => {
+                  const impliedRatio = ratioForOrientedResolution(v);
+                  updateParams(impliedRatio ? { resolution: v, aspect_ratio: impliedRatio } : { resolution: v });
+                }}
               />
             )}
 

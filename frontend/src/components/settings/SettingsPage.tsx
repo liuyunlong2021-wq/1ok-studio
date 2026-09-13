@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { Save, Loader2, WifiOff, Copy, Check, Upload, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api, type EnvConfigPayload, API_URL } from "@/lib/api";
+import type { SkillPackageSummary } from "@/lib/api";
+import SkillPicker, { skillNameFor } from "@/components/shared/SkillPicker";
 import { ASPECT_RATIOS } from "@/store/projectStore";
 import {
   DEFAULT_MODEL_SETTINGS,
@@ -19,7 +21,7 @@ import { toast } from "@/store/toastStore";
 import { rovingKeyDown } from "@/lib/a11y";
 import { Image, Video, Layout, User, Building, Box } from "lucide-react";
 import GroupedModelGrid from "@/components/common/GroupedModelGrid";
-import LumenXBranding from "@/components/layout/LumenXBranding";
+import OneOkBranding from "@/components/layout/OneOkBranding";
 import UpdateChecker from "./UpdateChecker";
 type SettingsCategory = "general" | "models" | "prompts" | "apikeys" | "about";
 import {
@@ -55,8 +57,8 @@ const getValidationErrors = (env: EnvConfig): string[] => {
   return errors;
 };
 
-const LS_KEY_MODEL = "lumenx_default_model_settings";
-const LS_KEY_PROMPT = "lumenx_default_prompt_config";
+const LS_KEY_MODEL = "1okstudio_default_model_settings";
+const LS_KEY_PROMPT = "1okstudio_default_prompt_config";
 
 interface DefaultPromptConfig {
   storyboard_polish: string;
@@ -174,6 +176,17 @@ export default function SettingsPage() {
     loadFromLS<{ skill_bindings?: Record<string, string> }>(LS_KEY_PROMPT, {}).skill_bindings || {}
   );
   const [promptDefaults, setPromptDefaults] = useState<Record<string, string>>({});
+  // 可选 Skill：内置（随包）+ 已上传。拿不到就不阻断设置页，只剩“上传”可用。
+  const [skillPackages, setSkillPackages] = useState<SkillPackageSummary[]>([]);
+
+  useEffect(() => {
+    api.listSkillPackages()
+      .then(setSkillPackages)
+      .catch((error) => {
+        console.warn("Failed to list skill packages:", error);
+        setSkillPackages([]);
+      });
+  }, []);
 
   // ── About / system ──
   const [online, setOnline] = useState(true);
@@ -573,9 +586,9 @@ export default function SettingsPage() {
       <div className="space-y-5">
         {PROMPT_FIELDS.map((f) => (
           <div key={f.key} className="space-y-2">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-foreground">{f.label}</h3><label className="cursor-pointer text-xs text-primary"><Upload size={12} className="mr-1 inline" />上传 Skill 包<input type="file" accept=".zip,.md,.markdown,.txt" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const pkg = await api.uploadSkillPackage(file); setPromptSkillBindings(prev => ({ ...prev, [f.key]: pkg.id })); } catch (error: any) { toast.error(error?.response?.data?.detail || 'Skill 包上传失败'); } }} /></label></div>
+            <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold text-foreground">{f.label}</h3><div className="flex items-center gap-1 shrink-0"><SkillPicker packages={skillPackages} onSelect={(id) => setPromptSkillBindings(prev => ({ ...prev, [f.key]: id }))} /><label className="cursor-pointer text-xs text-primary whitespace-nowrap"><Upload size={12} className="mr-1 inline" />上传 Skill 包<input type="file" accept=".zip,.md,.markdown,.txt" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const pkg = await api.uploadSkillPackage(file); setPromptSkillBindings(prev => ({ ...prev, [f.key]: pkg.id })); setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name } as SkillPackageSummary]); } catch (error: any) { toast.error(error?.response?.data?.detail || 'Skill 包上传失败'); } }} /></label></div></div>
             <p className="text-[0.6875rem] text-text-muted">{f.desc}</p>
-            {promptSkillBindings[f.key] && <div className="flex items-center justify-between"><p className="text-[0.625rem] text-emerald-400">已绑定：{promptSkillBindings[f.key]}</p><button type="button" onClick={() => setPromptSkillBindings(prev => { const next = { ...prev }; delete next[f.key]; return next; })} className="text-[0.625rem] text-text-muted hover:text-foreground">解除绑定</button></div>}
+            {promptSkillBindings[f.key] && <div className="flex items-center justify-between"><p className="text-[0.625rem] text-emerald-400">已绑定：{skillNameFor(promptSkillBindings[f.key], skillPackages)}</p><button type="button" onClick={() => setPromptSkillBindings(prev => { const next = { ...prev }; delete next[f.key]; return next; })} className="text-[0.625rem] text-text-muted hover:text-foreground">解除绑定</button></div>}
             <textarea
               value={promptConfig[f.key]}
               onChange={(e) => setPromptConfig((prev) => ({ ...prev, [f.key]: e.target.value }))}
@@ -656,7 +669,7 @@ export default function SettingsPage() {
       <Section id="about" title={t("secAboutTitle")}>
         {/* Line B brand signature block — teal-glow logo, serif name, amber tagline */}
         <div className="flex flex-col items-start gap-3 pb-6 mb-6 border-b border-glass-border">
-          <LumenXBranding size="md" showSlogan={false} />
+          <OneOkBranding size="md" showSlogan={false} />
           <p className="font-display atelier-display text-base italic text-accent leading-snug">
             “Render Noise into Narrative”
           </p>

@@ -59,7 +59,7 @@ export const useDesktopStore = create<DesktopState>((set, get) => ({
             if (Date.now() >= deadline) {
                 set({
                     backendChecking: false,
-                    backendError: '服务启动失败。请重试；仍失败请查看 ~/.lumen-x/logs/sidecar.log',
+                    backendError: '服务启动失败。请重试；仍失败请查看 ~/.1okstudio/logs/sidecar.log',
                 });
                 return;
             }

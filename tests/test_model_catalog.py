@@ -137,10 +137,18 @@ class TestModelCatalog:
     def test_default_model_settings_come_from_catalog(self):
         defaults = get_default_model_settings(MODEL_CATALOG_ROOT)
 
-        assert defaults.t2i_model == "wan2.7-image-pro"
-        assert defaults.i2i_model == "wan2.7-image-pro"
-        assert defaults.i2v_model == "happyhorse-1.1-i2v"
-        assert defaults.r2v_model == "happyhorse-1.1-r2v"
+        # 不写死具体模型 id：真正要守的是「代码读到的默认值 == catalog.meta.yaml 里写的」，
+        # 以及默认值确实还在目录里（删模型时最容易漏的就是这两个）。
+        meta = yaml.safe_load(
+            (Path(MODEL_CATALOG_ROOT) / "catalog.meta.yaml").read_text(encoding="utf-8")
+        )
+        expected = meta["defaults"]["model_settings"]
+        for field in ("t2i_model", "i2i_model", "i2v_model", "r2v_model", "image_model"):
+            assert getattr(defaults, field) == expected[field], f"{field} 与 catalog.meta.yaml 不一致"
+
+        models = build_catalog_dict(MODEL_CATALOG_ROOT)["models"]
+        for field in ("t2i_model", "i2i_model", "i2v_model", "r2v_model", "image_model"):
+            assert getattr(defaults, field) in models, f"{field} 指向了不存在的模型"
 
     def test_validation_report_passes_for_repo_catalog(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
@@ -149,7 +157,7 @@ class TestModelCatalog:
 
         assert report.ok is True
         assert report.errors == ()
-        assert report.stats["defaults"]["t2i_model"] == "wan2.7-image-pro"
+        assert report.stats["defaults"]["t2i_model"] == catalog["defaults"]["model_settings"]["t2i_model"]
         assert report.stats["surface_summary"]["video_sidebar"]["i2v"]
 
     def test_validation_report_detects_frontend_catalog_drift(self):

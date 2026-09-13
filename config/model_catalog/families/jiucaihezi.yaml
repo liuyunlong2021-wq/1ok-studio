@@ -69,9 +69,9 @@ models:
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: true, badges: [韭菜盒子]}
-  - id: jiucaihezi/gpt-image-2-1k
-    display_name: "GPT Image 2 1K · 韭菜盒子"
-    description: "GPT Image 2 via 韭菜盒子"
+  - id: jiucaihezi/gpt-image-2.5-1k
+    display_name: "GPT Image 2.5 1K · 韭菜盒子"
+    description: "GPT Image 2.5 via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
@@ -83,14 +83,22 @@ models:
       order: 1000
       recommended: false
       badges: [韭菜盒子]
-    params: &jiucaihezi_image_params
+    params: &gpt_image_25_params_1k
+      # 像素尺寸的事实源在前端 frontend/src/lib/imageSizePresets.ts（一张表管住 17 个比例
+      # × 1K/2K/4K）。目录只声明「这个模型支持哪几档分辨率」，不要再把像素枚举一遍。
+      # options 仅为旧版单下拉的兼容回退，新 UI 不看它。
       size:
-        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048", "2048x1536", "1536x2048", "3840x2160", "2160x3840"]
+        resolutions: ["1K"]
+        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
         default: "1024x1024"
       negativePrompt: false
       seed: false
       promptExtend: false
       watermark: false
+    # 上游 /v1/images/edits 最多接 16 张参考图。只声明在本模型上：同家族的
+    # gemini / grok 是别的上游模型，上限各不相同，不能跟着锚点套。
+    inputs:
+      reference_images: {max: 16, reference_type: image}
   - id: jiucaihezi/gemini-3-pro-image-preview
     display_name: "Gemini 3 Pro Image · 韭菜盒子"
     description: "Gemini 3 Pro Image via 韭菜盒子"
@@ -105,67 +113,72 @@ models:
       order: 999
       recommended: false
       badges: [韭菜盒子]
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/gpt-image-2-低质量
-    display_name: "GPT Image 2 低质量 · 韭菜盒子"
-    description: "GPT Image 2 低质量 via 韭菜盒子"
+    # gemini 自己的尺寸集，跟 GPT Image 2.5 的 17 比例表不同，所以不给它 resolutions，
+    # 它会继续走旧的单下拉 UI。
+    params:
+      size:
+        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048", "2048x1536", "1536x2048", "3840x2160", "2160x3840"]
+        default: "1024x1024"
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
+  - id: jiucaihezi/gpt-image-2.5-sunburst-1k
+    display_name: "GPT Image 2.5 Sunburst 1K · 韭菜盒子"
+    description: "GPT Image 2.5 Sunburst，固定 1K，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/gpt-image-2-中质量
-    display_name: "GPT Image 2 中质量 · 韭菜盒子"
-    description: "GPT Image 2 中质量 via 韭菜盒子"
+    params: *gpt_image_25_params_1k
+    inputs:
+      reference_images: {max: 16, reference_type: image}
+  - id: jiucaihezi/gpt-image-2.5-flare-1k
+    display_name: "GPT Image 2.5 Flare 1K · 韭菜盒子"
+    description: "GPT Image 2.5 Flare，固定 1K，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 997, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/gpt-image-2-vip
-    display_name: "GPT Image 2 VIP · 韭菜盒子"
-    description: "GPT Image 2 VIP via 韭菜盒子"
+    params: *gpt_image_25_params_1k
+    inputs:
+      reference_images: {max: 16, reference_type: image}
+  - id: jiucaihezi/gpt-image-2.5-sunburst-CF-超分
+    display_name: "GPT Image 2.5 Sunburst CF 超分 · 韭菜盒子"
+    description: "GPT Image 2.5 Sunburst CF 超分，1K/2K/4K，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/gpt-image-2-官方
-    display_name: "GPT Image 2 官方 · 韭菜盒子"
-    description: "GPT Image 2 官方 via 韭菜盒子"
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: false, badges: [韭菜盒子, 超分]}
+    params: &gpt_image_25_params_full
+      size:
+        resolutions: ["1K", "2K", "4K"]
+        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
+        default: "1024x1024"
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
+    inputs:
+      reference_images: {max: 16, reference_type: image}
+  - id: jiucaihezi/gpt-image-2.5-flare-CF-超分
+    display_name: "GPT Image 2.5 Flare CF 超分 · 韭菜盒子"
+    description: "GPT Image 2.5 Flare CF 超分，1K/2K/4K，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/[按token]gpt-image-2
-    display_name: "GPT Image 2 Token · 韭菜盒子"
-    description: "GPT Image 2 Token via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
-  - id: jiucaihezi/gemini-3.1-flash-image-preview
-    display_name: "Gemini 3.1 Flash Image · 韭菜盒子"
-    description: "Gemini 3.1 Flash Image via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 993, recommended: false, badges: [韭菜盒子]}
-    params: *jiucaihezi_image_params
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子, 超分]}
+    params: *gpt_image_25_params_full
+    inputs:
+      reference_images: {max: 16, reference_type: image}
   - id: jiucaihezi/grok-imagine-image-2.0
     display_name: "Grok Imagine Image 2.0 · 韭菜盒子"
     description: "Grok Imagine Image 2.0 via 韭菜盒子"
@@ -186,11 +199,13 @@ models:
     inputs:
       reference_images: {max: 8, reference_type: image}
   - id: dola-seedance2.5
-    display_name: "Seedance 2.5 R2V · 韭菜盒子"
-    description: "Seedance 2.5 参考生视频 via 韭菜盒子"
+    display_name: "Seedance 2.5 · 韭菜盒子"
+    description: "文生 / 图生 / 参考生 / 编辑全能，via 韭菜盒子"
     status: active
     release_stage: stable
-    capabilities: [r2v]
+    # 能力顺序决定 capabilitiy[0]，但本条目有显式 ui.selection_group（优先级更高），
+    # 所以分组仍是 r2v；后面三个能力是给「只有韭菜盒子」的目录当全能模型兜底用的。
+    capabilities: [r2v, i2v, t2v, v2v]
     docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -206,11 +221,12 @@ models:
     inputs:
       reference_images: {max: 9, reference_type: image}
   - id: minimax_h3_image_audio_to_video_v2_15s
-    display_name: "MiniMax H3 参考生视频 · 韭菜盒子"
-    description: "MiniMax H3 图片/音频参考生视频 via 韭菜盒子"
+    display_name: "MiniMax H3 · 韭菜盒子"
+    description: "图片/音频参考生视频及文生、图生、编辑全能，via 韭菜盒子"
     status: active
     release_stage: stable
-    capabilities: [r2v]
+    # 同 dola-seedance2.5：显式 selection_group 优先，分组仍是 r2v。
+    capabilities: [r2v, i2v, t2v, v2v]
     docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -219,13 +235,34 @@ models:
       order: 1001
       recommended: false
       badges: [韭菜盒子, MiniMax]
-    duration: {type: slider, min: 1, max: 15, step: 1, default: 5}
-    params:
+    duration: &minimax_h3_duration {type: slider, min: 1, max: 15, step: 1, default: 5}
+    params: &minimax_h3_params
+      # resolution 的 横/竖 后缀是横竖的唯一事实源，ratio 只是它的冗余表达。
+      # 所以：UI 在有 横/竖 时不渲染「画面比例」；后端在两者矛盾时以 resolution 为准。
       resolution: {options: ["480p横", "768p横", "480p竖", "768p竖"], default: "768p横"}
       ratio: {options: ["16:9", "9:16"], default: "16:9"}
       negativePrompt: false
       promptExtend: false
       audio: true
-    inputs:
+    inputs: &minimax_h3_inputs
       reference_images: {max: 9, reference_type: image}
       reference_audio: {max: 3, reference_type: audio}
+  - id: minimax_h3_zm_u24
+    display_name: "MiniMax H3 zm-u24 · 韭菜盒子"
+    description: "图片/音频参考生视频及文生、图生、编辑全能，via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [r2v, i2v, t2v, v2v]
+    docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1002
+      recommended: false
+      badges: [韭菜盒子, MiniMax]
+    # 与 minimax_h3_image_audio_to_video_v2_15s 同规格，用锚点锁死一致性：
+    # 以后改那个模型的时长/分辨率/参考图上限，这个自动跟着变。
+    duration: *minimax_h3_duration
+    params: *minimax_h3_params
+    inputs: *minimax_h3_inputs

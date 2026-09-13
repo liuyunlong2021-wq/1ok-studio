@@ -1,12 +1,12 @@
 [package]
-name = "lumenx-studio"
+name = "one-ok-studio"
 version = "1.0.2"
-description = "LumenX Studio - AI Comic Video Production Platform"
-authors = ["LumenX Team"]
+description = "One OK Studio - AI Comic Video Production Platform"
+authors = ["One OK Studio"]
 edition = "2021"
 
 [lib]
-name = "lumenx_studio_lib"
+name = "oneok_studio_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
@@ -16,7 +16,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }

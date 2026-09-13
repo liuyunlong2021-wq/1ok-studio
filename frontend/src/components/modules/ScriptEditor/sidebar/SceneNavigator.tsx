@@ -136,7 +136,7 @@ export default function SceneNavigator({ editor }: SceneNavigatorProps) {
   const [sceneColors, setSceneColors] = useState<Record<string, string | null>>({});
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const dragIdRef = useRef<string | null>(null);
-  const colorStorageKey = 'lumenx:script-editor:scene-colors';
+  const colorStorageKey = '1okstudio:script-editor:scene-colors';
 
   useEffect(() => {
     try {

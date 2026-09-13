@@ -174,8 +174,8 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
                 setActiveStep(detail);
             }
         };
-        document.addEventListener("lumenx:navigateStep", handler);
-        return () => document.removeEventListener("lumenx:navigateStep", handler);
+        document.addEventListener("1okstudio:navigateStep", handler);
+        return () => document.removeEventListener("1okstudio:navigateStep", handler);
     }, [steps]);
 
     useEffect(() => {
@@ -311,7 +311,7 @@ function EntityExtractionConfirm() {
             await confirmExtraction();
             const refreshed = useProjectStore.getState().currentProject;
             if (refreshed?.series_id) {
-                document.dispatchEvent(new CustomEvent("lumenx:openReconcile"));
+                document.dispatchEvent(new CustomEvent("1okstudio:openReconcile"));
             }
         } catch {
             const { toast } = await import("@/store/toastStore");

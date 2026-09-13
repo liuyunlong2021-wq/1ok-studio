@@ -95,6 +95,16 @@ def _validate_skill_bindings(bindings: Dict[str, str]) -> None:
 # Setup logging to user directory
 setup_logging()
 
+# NOTE — data root contract
+# Everything below uses relative `output/**` paths (these makedirs, the /files
+# StaticFiles mounts, ComicGenPipeline's JSON stores). Those must resolve against
+# the user data dir, so the LAUNCHER is responsible for chdir'ing there first
+# (see `src.utils.ensure_user_data_dir`, used by sidecar_entry.py and main.py,
+# plus the cwd set by scripts/start-backend.js, start_backend.sh, dev.bat and
+# src-tauri/src/sidecar.rs). Do NOT chdir here: importing this module is not
+# starting the app, and import-time chdir silently relocated the cwd for any
+# process that merely needed a request model from it.
+
 # Use absolute path for .env file (api.py is in src/apps/comic_gen/)
 _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 env_path = os.path.join(_project_root, ".env")
@@ -1520,12 +1530,12 @@ def get_user_config_path() -> str:
     """
     Returns the path to the user config file.
     - Development mode: Uses .env in project root
-    - Packaged app mode: Uses ~/.lumen-x/config.json
+    - Packaged app mode: Uses ~/.1okstudio/config.json
     """
     from ...utils import get_user_data_dir
     
     # Check if running in packaged mode (e.g., via environment variable or frozen check)
-    is_packaged = os.getenv("LUMEN_X_PACKAGED", "false").lower() == "true" or getattr(sys, 'frozen', False)
+    is_packaged = os.getenv("ONEOKSTUDIO_PACKAGED", "false").lower() == "true" or getattr(sys, 'frozen', False)
     
     if is_packaged:
         # Use user home directory for packaged app
@@ -1620,7 +1630,7 @@ load_user_config()
 def get_config_info():
     """Returns information about the current config storage mode."""
     config_path = get_user_config_path()
-    is_packaged = os.getenv("LUMEN_X_PACKAGED", "false").lower() == "true" or getattr(sys, 'frozen', False)
+    is_packaged = os.getenv("ONEOKSTUDIO_PACKAGED", "false").lower() == "true" or getattr(sys, 'frozen', False)
     return {
         "mode": "packaged" if is_packaged else "development",
         "config_path": config_path,
@@ -1689,10 +1699,11 @@ def update_env_config(config: EnvConfig):
 
 @app.get("/projects/{script_id}")
 def get_project(script_id: str):
-    """Retrieves a project by ID. When the project belongs to a
-    Series, the response merges series-shared characters / scenes /
-    props on top of the episode-local lists. Each item carries a
-    `source` field ("episode" | "series" | "global") so the frontend can
+    """Retrieves a project by ID.
+
+    Assets are merged across the three layers (Episode > Series > Global)
+    by `pipeline.resolve_episode_assets_with_source`, and every item carries
+    a `source` field ("episode" | "series" | "global") so the frontend can
     visually distinguish where the asset lives and route writes
     appropriately (per A2 design decision — shared writes default to
     the series side; local writes stay episode-side; the helper
@@ -1707,39 +1718,11 @@ def get_project(script_id: str):
 
     payload = script.model_dump()
 
-    # Episode-local entries always carry source="episode".
-    for asset_list in (payload.get("characters", []),
-                      payload.get("scenes", []),
-                      payload.get("props", [])):
-        for item in asset_list:
-            item["source"] = "episode"
-
-    # Merge series-shared assets on top (any id not already present
-    # locally — episode-local overrides series). Without this step
-    # the user "loses" characters when switching between episodes of
-    # the same series, because the series shared pool isn't
-    # reflected on each episode's response.
-    if script.series_id:
-        series = pipeline.get_series(script.series_id)
-        if series:
-            ep_char_ids = {c.id for c in script.characters}
-            ep_scene_ids = {s.id for s in script.scenes}
-            ep_prop_ids = {p.id for p in script.props}
-            for ch in series.characters:
-                if ch.id not in ep_char_ids:
-                    d = ch.model_dump()
-                    d["source"] = "series"
-                    payload["characters"].append(d)
-            for sc in series.scenes:
-                if sc.id not in ep_scene_ids:
-                    d = sc.model_dump()
-                    d["source"] = "series"
-                    payload["scenes"].append(d)
-            for pr in series.props:
-                if pr.id not in ep_prop_ids:
-                    d = pr.model_dump()
-                    d["source"] = "series"
-                    payload["props"].append(d)
+    # 分层合并只走 pipeline 那一个实现：本函数原先自己手写了两层
+    # （Episode + Series）合并，漏掉 Global 层，导致全局模板库的资产
+    # 永远不出现在项目里，且与 pipeline 内部四处调用点的行为不一致。
+    for key, items in pipeline.resolve_episode_assets_with_source(script).items():
+        payload[key] = [{**asset.model_dump(), "source": source} for asset, source in items]
 
     return signed_response(payload)
 
@@ -3137,6 +3120,12 @@ def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/skill-packages")
+def list_skill_packages():
+    """Every selectable Skill: bundled built-ins first, then uploads."""
+    return pipeline.skill_packages.list()
+
+
 @app.post("/skill-packages")
 def upload_skill_package(file: UploadFile = File(...)):
     try:
@@ -3157,6 +3146,8 @@ def get_skill_package(package_id: str):
 @app.delete("/skill-packages/{package_id}")
 def delete_skill_package(package_id: str):
     try:
+        if pipeline.skill_packages.is_builtin(package_id):
+            raise HTTPException(status_code=400, detail="内置 Skill 随应用分发，不能删除")
         for owner in [*pipeline.scripts.values(), *pipeline.series_store.values()]:
             if package_id in (getattr(owner.prompt_config, "skill_bindings", {}) or {}).values():
                 raise HTTPException(status_code=409, detail="Skill Package 仍被项目或系列使用")

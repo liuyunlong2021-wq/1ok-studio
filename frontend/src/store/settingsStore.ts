@@ -47,7 +47,7 @@ export const useSettingsStore = create<SettingsStore>()(
             setAnimations: (animations: boolean) => set({ animations }),
         }),
         {
-            name: 'lumenx-settings',
+            name: '1okstudio-settings',
             version: 1,
             // v0→v1：旧版只有 'dark' | 'light'。按产品决策，统一升级到新默认
             // atelier-dark（不保留旧观感）。非法/缺失值同样回落默认。
