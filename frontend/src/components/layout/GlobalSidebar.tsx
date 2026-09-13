@@ -4,6 +4,7 @@ import { LayoutGrid, Layers, Wand2, Settings, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import OneOkBranding from "./OneOkBranding";
+import { APP_VERSION } from "@/lib/version";
 
 export type GlobalTab = "workspace" | "library" | "editor" | "playground" | "settings";
 
@@ -21,8 +22,6 @@ export const GLOBAL_NAV_ITEMS: { id: GlobalTab; icon: typeof LayoutGrid; hash: s
   { id: "playground", icon: Wand2, hash: "#/playground" },
   { id: "settings", icon: Settings, hash: "#/settings" },
 ];
-
-const APP_VERSION = "v1.0.1";
 
 function NavButton({
   active,

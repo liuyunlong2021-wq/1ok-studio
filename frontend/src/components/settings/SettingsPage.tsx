@@ -32,8 +32,7 @@ import {
   ModeSegment,
   settingsInputClass,
 } from "./SettingsControls";
-
-const APP_VERSION = "v1.0.1";
+import { APP_VERSION, APP_BUILD_DATE } from "@/lib/version";
 
 type EnvConfig = EnvConfigPayload & {
   JIUCAIHEZI_API_KEY: string;
@@ -674,7 +673,7 @@ export default function SettingsPage() {
             “Render Noise into Narrative”
           </p>
           <div className="font-mono text-[0.625rem] tracking-[0.08em] text-text-muted uppercase">
-            VERSION {APP_VERSION.replace(/^v/, "")} · BUILD 20260613
+            VERSION {APP_VERSION.replace(/^v/, "")} · BUILD {APP_BUILD_DATE}
           </div>
           <p className="text-[0.78125rem] text-text-secondary leading-relaxed max-w-md">
             {t("aboutTagline")}
