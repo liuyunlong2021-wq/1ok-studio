@@ -24,8 +24,13 @@ const env = {
 };
 
 const backend = spawn(pythonPath, [
-  '-m', 'uvicorn', 'src.apps.comic_gen.api:app',
-  '--reload', '--port', '17177', '--host', '0.0.0.0'
+  '-m', 'uvicorn',
+  // cwd 是数据目录，src.* 只能靠 --app-dir 暴露给 uvicorn 的 import。
+  // start_backend.sh 一直是这么做的；这里当初只加了 cwd 忘了这个 flag，
+  // 于是 `npm run dev` 的后端从那时起就起不来（reload 子进程 ImportError）。
+  '--app-dir', path.join(__dirname, '..'),
+  '--reload', '--port', '17177', '--host', '0.0.0.0',
+  'src.apps.comic_gen.api:app'
 ], {
   stdio: 'inherit',
   cwd: dataDir,
