@@ -44,6 +44,27 @@ def test_ensure_user_data_dir_creates_dir_and_chdirs(tmp_path):
         os.chdir(original_cwd)
 
 
+def test_sidecar_entry_anchors_cwd_before_importing_api():
+    """``sidecar_entry.py`` must chdir before it imports the API module.
+
+    ``api.py`` runs ``os.makedirs("output", ...)`` at import time, against the
+    inherited cwd. The packaged app is launched by Finder/``open``, whose cwd is
+    the read-only sealed system volume (``/``), so importing the API first made
+    the whole sidecar die with ``OSError: [Errno 30]``. Ordering is the entire
+    contract here, so assert on the source.
+    """
+    source = (Path(__file__).resolve().parent.parent / "sidecar_entry.py").read_text(encoding="utf-8")
+    lines = source.splitlines()
+
+    chdir_at = next(i for i, l in enumerate(lines) if "ensure_user_data_dir()" in l)
+    api_import_at = next(i for i, l in enumerate(lines) if "comic_gen.api import app" in l)
+
+    assert chdir_at < api_import_at, (
+        f"sidecar_entry.py imports the API at line {api_import_at + 1} but only "
+        f"anchors the cwd at line {chdir_at + 1}; the import must come second."
+    )
+
+
 # ---------------------------------------------------------------------------
 # _load_json_store — corruption must never look like "no data"
 # ---------------------------------------------------------------------------

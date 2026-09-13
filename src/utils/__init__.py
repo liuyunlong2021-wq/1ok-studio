@@ -50,8 +50,12 @@ def ensure_user_data_dir() -> str:
 
     The two roots silently diverged: projects created under one launcher were
     invisible under the other, and two concurrent backends could overwrite each
-    other's full-file saves. Anchoring cwd here (called once at API import)
-    removes the drift, so no code below depends on the inherited cwd.
+    other's full-file saves. Anchoring cwd here removes the drift, so no code
+    below depends on the inherited cwd.
+
+    The launcher must call this BEFORE importing ``src.apps.comic_gen.api``:
+    that module runs ``os.makedirs("output", ...)`` at import time, against
+    whatever cwd it happens to inherit.
     """
     data_dir = get_user_data_dir()
     os.makedirs(data_dir, exist_ok=True)
