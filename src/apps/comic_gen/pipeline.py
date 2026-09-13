@@ -480,10 +480,21 @@ class ComicGenPipeline:
         return {k: Script(**v) for k, v in data.items()}
 
     def _save_data(self):
-        """Save data with thread lock to prevent concurrent write issues."""
+        """Save data with thread lock to prevent concurrent write issues.
+
+        先取 items 的快照再序列化。调用方是在这个锁**外面**改 self.scripts 的
+        （create_project / reparse_project / delete_project），序列化途中字典
+        尺寸一变就抛 "dictionary changed size during iteration"，而下面那个
+        except 会把它当成普通写盘失败吞掉 —— 结果整次保存被静默跳过。
+        快照在 GIL 下是一条不可打断的 C 级循环，拿不到变更就是一种合法结果：
+        下一次保存自然会带上。
+        """
         with self._save_lock:
             try:
-                _atomic_write_json(self.data_file, {k: v.dict() for k, v in self.scripts.items()})
+                _atomic_write_json(
+                    self.data_file,
+                    {k: v.dict() for k, v in list(self.scripts.items())},
+                )
             except Exception as e:
                 logger.error(f"Failed to save data: {e}")
 
@@ -4051,7 +4062,7 @@ class ComicGenPipeline:
         try:
             _atomic_write_json(
                 self.series_data_file,
-                {k: v.model_dump() for k, v in self.series_store.items()},
+                {k: v.model_dump() for k, v in list(self.series_store.items())},
             )
         except Exception as e:
             logger.error(f"Failed to save series data: {e}")

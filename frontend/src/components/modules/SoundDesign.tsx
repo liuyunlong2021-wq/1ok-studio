@@ -216,6 +216,10 @@ export default function SoundDesign() {
     const [progressMs, setProgressMs] = useState(0);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    /** 「设为当前」的请求序号 —— 只有最后发出的那次才允许回填。 */
+    const selectSeq = useRef(0);
+    /** 出全集声音期间不回填选版本的结果（那一版响应更全）。 */
+    const takeInFlight = useRef(false);
 
     // 后端外部改动（重新生成/切版本）后把输入框同步回来；用户正在打字时不覆盖。
     useEffect(() => {
@@ -326,21 +330,28 @@ export default function SoundDesign() {
             return;
         }
         setBusy("take");
+        takeInFlight.current = true;
         try {
             const { audio_plan } = await api.generateEpisodeAudio(currentProject.id, characterIds);
             adoptPlan(audio_plan);
         } catch (e: any) {
             toast.error(t("generateFailed"), { body: e?.message });
         } finally {
+            takeInFlight.current = false;
             setBusy(null);
         }
     };
 
     const handleSelectTake = async (takeId: string) => {
         if (!currentProject || plan?.selected_take_id === takeId) return;
+        // 每次请求返回的都是「当时的整份方案」快照，所以响应到达顺序不等于
+        // 发出顺序：连点两行「设为当前」时，先发的那次可能后到，把 UI 回退成
+        // 旧选中项。用请求序号挡掉旧响应；正在出全集声音时就干脆不回填 ——
+        // 那一版的响应会带上最终状态（含刚加的这一版和新的选中项）。
+        const seq = ++selectSeq.current;
         try {
             const { audio_plan } = await api.updateAudioPlan(currentProject.id, { selected_take_id: takeId });
-            adoptPlan(audio_plan);
+            if (seq === selectSeq.current && !takeInFlight.current) adoptPlan(audio_plan);
         } catch (e: any) {
             toast.error(t("loadFailed"), { body: e?.message });
         }
