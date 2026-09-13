@@ -6,6 +6,24 @@ from types import SimpleNamespace
 from src.apps.comic_gen.models import Character, Scene, Script, StoryboardFrame
 from src.apps.comic_gen.pipeline import ComicGenPipeline
 from src.models.wanx import WanxModel
+from src.utils.provider_registry import ProviderFamilyConfig, ProviderRegistry
+
+
+# 产品目录现在只注册 jiucaihezi 一家，而本文件的流程走的是 wanx/DashScope 媒体
+# 兼容路径（oss:// 临时 URL + resolve header），所以自己装家族配置。
+# image → 多模态，reference_video → 临时 URL：wanx 先试 image，拿到 data URI 再
+# 换成 reference_video 重解析。
+WANX_COMPAT_REGISTRY = ProviderRegistry(
+    [
+        ProviderFamilyConfig(
+            model_family="wan2.6-",
+            backend_default="dashscope",
+            image_input_mode={"dashscope": "dashscope_multimodal_message"},
+            audio_input_mode={"dashscope": "dashscope_temp_file_url"},
+            reference_video_input_mode={"dashscope": "dashscope_temp_file_url"},
+        )
+    ]
+)
 
 
 PNG_1X1_BASE64 = (
@@ -25,8 +43,6 @@ def _build_pipeline(script: Script, wanx_model: WanxModel) -> ComicGenPipeline:
     pipeline = ComicGenPipeline.__new__(ComicGenPipeline)
     pipeline.scripts = {script.id: script}
     pipeline._save_data = lambda: None
-    pipeline._kling_model = None
-    pipeline._vidu_model = None
     pipeline.video_generator = SimpleNamespace(model=wanx_model)
     pipeline.get_script = lambda script_id: pipeline.scripts.get(script_id)
     return pipeline
@@ -38,7 +54,13 @@ def test_local_only_pipeline_flow_without_oss(monkeypatch):
     - local uploaded/generated/storyboard refs stay as stable project refs
     - video task snapshots local input under output/video_inputs
     - DashScope I2V media prep works without OSS via temp oss:// URL + resolve header
+
+    走的是 wanx/DashScope 兼容路径，所以固定用 WANX_COMPAT_REGISTRY。
     """
+    monkeypatch.setattr(
+        "src.utils.provider_media.get_default_provider_registry",
+        lambda: WANX_COMPAT_REGISTRY,
+    )
     monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
     for key in (
         "ALIBABA_CLOUD_ACCESS_KEY_ID",

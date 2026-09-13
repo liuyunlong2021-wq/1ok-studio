@@ -55,11 +55,10 @@ describe('model catalog selectors', () => {
         expect(GLOBAL_I2I_MODELS.map((model) => model.id)).toEqual(GLOBAL_IMAGE_MODELS.map((m) => m.id));
 
         // Ordered DESC by ui.order; ties broken by display_name asc.
-        // 本安装只接韭菜盒子网关（modelCatalog.ts 的 ALLOWED_MODEL_FAMILIES），
-        // 而目录里的 i2v 模型全是别家（happyhorse / kling / pixverse / seedance /
-        // wan / vidu）→ 选择器为空是**刻意的**：这些模型的凭证没配（DashScope
-        // key 是占位符），留在列表里只会让用户选中后失败。
-        expect(GLOBAL_I2V_MODELS).toEqual([]);
+        // i2v 分组现在由韭菜盒子的 r2v 模型填充（同一批模型同时挂在两个分组上）。
+        // 只断言「非空 + 只含白名单家族」，不写死具体 id，也不写死空数组。
+        expect(GLOBAL_I2V_MODELS.length).toBeGreaterThan(0);
+        expect(GLOBAL_I2V_MODELS.every((model) => model.family === 'jiucaihezi')).toBe(true);
     });
 
     it('所有模型选择器只暴露韭菜盒子（本安装只接该网关）', () => {
@@ -123,7 +122,7 @@ describe('model catalog fallbacks', () => {
         ).toMatchObject({
             t2i_model: imageDefault,
             i2i_model: imageDefault,
-            i2v_model: 'happyhorse-1.1-i2v',
+            i2v_model: rawCatalog.defaults.model_settings.i2v_model,
         });
 
         // 真实世界的脏数据：老项目里存的就是 wan2.7-image-pro（该模型已从目录删除），
@@ -202,9 +201,8 @@ describe('model catalog fallbacks', () => {
 
         // After 524f3a1 deprecated the wan2.6 series, 'wan2.6-i2v' is hidden
         // (visible_in: []), so the canonical → legacy normalization is filtered
-        // out by the visibility check and the resolver falls back to the first
-        // allowed i2v model. 本安装只接韭菜盒子，而韭菜盒子没有 i2v 模型，
-        // 所以 i2v 组为空 → 回落链最终停在目录默认值 happyhorse-1.1-i2v。
+        // out by the visibility check and the resolver falls back to the
+        // catalog default i2v model.
         expect(
             resolveCompatModelSettings(
                 {
@@ -212,11 +210,11 @@ describe('model catalog fallbacks', () => {
                 },
                 'global_settings'
             ).i2v_model
-        ).toBe('happyhorse-1.1-i2v');
+        ).toBe(rawCatalog.defaults.model_settings.i2v_model);
 
         // An r2v canonical id normalizes to the matching legacy id
         // (wan2.6-r2v), which is hidden in the i2v surface — so the
-        // resolver falls back to the i2v default (happyhorse-1.1-i2v).
+        // resolver falls back to the i2v default.
         // Previously this assertion expected the resolver to remap r2v into
         // the parent i2v legacy id; that behavior was dropped when r2v ids
         // gained explicit modality suffixes.
@@ -227,7 +225,7 @@ describe('model catalog fallbacks', () => {
                 },
                 'global_settings'
             ).i2v_model
-        ).toBe('happyhorse-1.1-i2v');
+        ).toBe(rawCatalog.defaults.model_settings.i2v_model);
 
         expect(compatI2vModels.map((model) => model.id)).not.toContain('wan2.6-i2v');
         expect(compatI2vModels.some((model) => model.id === 'wan/wan2.6-video#i2v')).toBe(false);
@@ -266,43 +264,50 @@ describe('model catalog runtime helpers', () => {
 });
 
 describe('model catalog phase 2 canonical helpers', () => {
+    // 全部从当前目录推导（默认 r2v 模型），不写死已删除的 wan2.6 系列 id。
+    const legacyId = rawCatalog.defaults.model_settings.r2v_model;
+    const canonicalId = rawCatalog.compat.legacy_model_ids[legacyId as keyof typeof rawCatalog.compat.legacy_model_ids];
+    const mode = rawCatalog.modes[canonicalId as keyof typeof rawCatalog.modes];
+    const lineId = mode.model_line_id;
+    const family = mode.family;
+    const runtime = mode.runtime as Record<string, { gateway: string }>;
+    // getModeGateway 的 backend 默认值是 'dashscope'；单家族产品必须显式传后端。
+    const backend = Object.keys(runtime)[0];
+
     it('resolves legacy flat id to canonical mode id', () => {
-        expect(getCanonicalModeId('wan2.6-i2v')).toBe('wan/wan2.6-video#i2v');
-        expect(getCanonicalModeId('wan2.6-r2v')).toBe('wan/wan2.6-video#r2v');
+        expect(getCanonicalModeId(legacyId)).toBe(canonicalId);
         expect(getCanonicalModeId('nonexistent')).toBeUndefined();
     });
 
     it('resolves canonical mode id back to legacy flat id', () => {
-        expect(getLegacyModelId('wan/wan2.6-video#i2v')).toBe('wan2.6-i2v');
-        expect(getLegacyModelId('wan/wan2.6-video#r2v')).toBe('wan2.6-r2v');
+        expect(getLegacyModelId(canonicalId)).toBe(legacyId);
         expect(getLegacyModelId('nonexistent')).toBeUndefined();
     });
 
     it('reads canonical mode entry with full metadata', () => {
-        const entry = getCanonicalModeEntry('wan/wan2.6-video#i2v');
+        const entry = getCanonicalModeEntry(canonicalId);
         expect(entry).not.toBeNull();
-        expect(entry?.model_line_id).toBe('wan/wan2.6-video');
-        expect(entry?.legacy_model_id).toBe('wan2.6-i2v');
-        expect(entry?.mode).toBe('i2v');
-        expect(entry?.family).toBe('wan');
+        expect(entry?.model_line_id).toBe(lineId);
+        expect(entry?.legacy_model_id).toBe(legacyId);
+        expect(entry?.mode).toBe(mode.mode);
+        expect(entry?.family).toBe(family);
 
         expect(getCanonicalModeEntry('nonexistent')).toBeNull();
     });
 
     it('reads model line entry', () => {
-        const line = getModelLineEntry('wan/wan2.6-video');
+        const line = getModelLineEntry(lineId);
         expect(line).not.toBeNull();
-        expect(line?.family).toBe('wan');
-        expect(line?.modes).toContain('wan/wan2.6-video#i2v');
-        expect(line?.modes).toContain('wan/wan2.6-video#r2v');
-        expect(line?.legacy_model_ids).toContain('wan2.6-i2v');
+        expect(line?.family).toBe(family);
+        expect(line?.modes).toContain(canonicalId);
+        expect(line?.legacy_model_ids).toContain(legacyId);
 
         expect(getModelLineEntry('nonexistent')).toBeNull();
     });
 
     it('reads gateway metadata from canonical mode runtime', () => {
-        expect(getModeGateway('wan/wan2.6-video#r2v')).toBe('dashscope');
-        expect(getModeGateway('wan/wan2.6-video#r2v', 'vendor')).toBeUndefined();
+        expect(getModeGateway(canonicalId, backend)).toBe(runtime[backend].gateway);
+        expect(getModeGateway(canonicalId, 'vendor')).toBeUndefined();
         expect(getModeGateway('nonexistent')).toBeUndefined();
     });
 

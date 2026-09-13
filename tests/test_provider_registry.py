@@ -1,59 +1,71 @@
+import pytest
+
 from src.apps.comic_gen.models import ProviderBackend, ProviderRoutingConfig
+from src.utils.model_catalog import build_catalog_dict, build_provider_family_configs, MODEL_CATALOG_ROOT
 from src.utils.provider_registry import ProviderFamilyConfig, ProviderRegistry, get_default_provider_registry
 
 
 class TestProviderRegistryRouting:
-    def test_wan26_models_route_to_dashscope(self):
-        registry = get_default_provider_registry()
+    """resolve_backend 的契约：家族前缀 → backend_default，env 可覆盖。
 
-        assert registry.resolve_backend("wan2.6-t2i") == "dashscope"
-        assert registry.resolve_backend("wan2.6-image") == "dashscope"
-        assert registry.resolve_backend("wan2.6-i2v") == "dashscope"
+    用注入的合成家族，不靠产品目录：当前目录只有 jiucaihezi 一家，而且模型 id
+    是不带家族前缀的扁平名（如 dola-seedance2.5），匹配不上 routing_prefixes，
+    所以目录本身测不了这段逻辑。
+    """
 
-    def test_kling_defaults_to_dashscope_when_mode_is_unset(self):
-        registry = get_default_provider_registry()
-
-        assert registry.resolve_backend("kling-v1") == "dashscope"
-        assert registry.resolve_backend("kling-v1", env={"KLING_PROVIDER_MODE": ""}) == "dashscope"
-
-    def test_vidu_defaults_to_dashscope_when_mode_is_unset(self):
-        registry = get_default_provider_registry()
-
-        assert registry.resolve_backend("vidu2.0") == "dashscope"
-        assert registry.resolve_backend("vidu2.0", env={"VIDU_PROVIDER_MODE": ""}) == "dashscope"
-
-    def test_pixverse_defaults_to_dashscope_when_mode_is_unset(self):
-        registry = get_default_provider_registry()
-
-        assert registry.resolve_backend("pixverse-v4-i2v") == "dashscope"
-        assert (
-            registry.resolve_backend(
-                "pixverse-v4-i2v",
-                env={"PIXVERSE_PROVIDER_MODE": ""},
+    @staticmethod
+    def _registry() -> ProviderRegistry:
+        registry = ProviderRegistry()
+        registry.register_family(
+            ProviderFamilyConfig(
+                model_family="demo-",
+                backend_default="dashscope",
+                backend_env_key="DEMO_PROVIDER_MODE",
             )
-            == "dashscope"
         )
+        return registry
 
-    def test_kling_vidu_and_pixverse_can_route_to_vendor(self):
-        registry = get_default_provider_registry()
-        env = {
-            "KLING_PROVIDER_MODE": "vendor",
-            "VIDU_PROVIDER_MODE": "vendor",
-            "PIXVERSE_PROVIDER_MODE": "vendor",
+    def test_family_prefix_selects_backend_default(self):
+        assert self._registry().resolve_backend("demo-v1") == "dashscope"
+
+    def test_blank_env_falls_back_to_default(self):
+        registry = self._registry()
+
+        assert registry.resolve_backend("demo-v1", env={"DEMO_PROVIDER_MODE": ""}) == "dashscope"
+
+    def test_env_override_wins_over_default(self):
+        registry = self._registry()
+
+        assert registry.resolve_backend("demo-v1", env={"DEMO_PROVIDER_MODE": "vendor"}) == "vendor"
+
+    def test_invalid_env_value_falls_back_to_default(self):
+        registry = self._registry()
+        env = {"DEMO_PROVIDER_MODE": "not-a-valid-backend"}
+
+        assert registry.resolve_backend("demo-v1", env=env) == "dashscope"
+
+    def test_unregistered_model_raises(self):
+        with pytest.raises(KeyError, match="No provider family registered"):
+            self._registry().resolve_backend("no-such-family-v1")
+
+    def test_catalog_derives_no_legacy_provider_family(self):
+        """回归护栏：家族收敛成单一 provider 后，目录里不该再派生历史家族。"""
+        catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
+        families = {config.model_family for config in build_provider_family_configs(catalog)}
+        legacy = {
+            "kling/", "kling-", "vidu", "vidu/", "pixverse-", "pixverse/",
+            "wan2.6-", "wan2.7-", "qwen-image-",
         }
 
-        assert registry.resolve_backend("kling-v1", env=env) == "vendor"
-        assert registry.resolve_backend("vidu2.0", env=env) == "vendor"
-        # Pixverse currently has no vendor backend (catalog defines
-        # supported_backends: [dashscope] only and no backend_env_key).
-        # Stays on dashscope regardless of the env override.
-        assert registry.resolve_backend("pixverse-v4-i2v", env=env) == "dashscope"
+        assert not (families & legacy), f"目录里残留了历史家族: {families & legacy}"
 
-    def test_invalid_provider_mode_falls_back_to_default_backend(self):
+    def test_default_registry_ignores_legacy_provider_models(self):
+        """已删除的 provider 模型不该再解析出后端。"""
         registry = get_default_provider_registry()
-        env = {"KLING_PROVIDER_MODE": "not-a-valid-backend"}
 
-        assert registry.resolve_backend("kling-v1", env=env) == "dashscope"
+        for stale_model in ("kling-v1", "vidu2.0", "pixverse-v4-i2v"):
+            with pytest.raises(KeyError):
+                registry.resolve_backend(stale_model)
 
     def test_future_pixverse_family_can_be_registered_without_resolver_changes(self):
         registry = ProviderRegistry()

@@ -22,41 +22,37 @@ def _write_yaml(path: Path, payload) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def _meta_defaults() -> dict:
+    """catalog.meta.yaml 里的默认模型设置。
+
+    测试一律从这里取期望值，不写死模型 id —— 换模型时测试不用改，也不会在
+    默认值变更后静默失效（破坏一个无关模型，校验自然不报错）。
+    """
+    meta = yaml.safe_load(
+        (Path(MODEL_CATALOG_ROOT) / "catalog.meta.yaml").read_text(encoding="utf-8")
+    )
+    return meta["defaults"]["model_settings"]
+
+
 class TestModelCatalog:
-    def test_repo_catalog_builds_with_phase1_compatibility_defaults_and_legacy_model_ids(self):
+    def test_repo_catalog_builds_with_compatibility_defaults_and_legacy_model_ids(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
 
         assert catalog["version"] == 1
-        # Defaults point at the wan2.7 image family plus the HappyHorse 1.1
-        # video line (2026-07 catalog upgrade) and include the unified
-        # image_model surface used by the Atelier/Studio image path.
-        assert catalog["defaults"]["model_settings"] == {
-            "t2i_model": "wan2.7-image-pro",
-            "i2i_model": "wan2.7-image-pro",
-            "image_model": "wan2.7-image-pro",
-            "i2v_model": "happyhorse-1.1-i2v",
-            "r2v_model": "happyhorse-1.1-r2v",
-        }
+
+        # 不写死具体模型 id：要守的是「目录里的默认值 == catalog.meta.yaml 写的」
+        # 且默认值确实指向存在的模型。换模型时这条测试不用改。
+        assert catalog["defaults"]["model_settings"] == _meta_defaults()
 
         models = catalog["models"]
-        # wan2.6 entries remain in the catalog (hidden / legacy-visible)
-        # so existing project files keep round-tripping.
-        assert "wan2.6-t2i" in models
-        assert "wan2.6-image" in models
-        assert "wan2.6-i2v" in models
-        assert "wan2.6-r2v" in models
-        # The kling / vidu legacy ids gained an explicit modality suffix
-        # during Phase 2 to disambiguate i2v vs r2v entries.
-        assert "kling-v3-i2v" in models
-        assert "viduq3-pro-i2v" in models
-        assert "pixverse-v4-i2v" in models
+        assert models, "目录不能为空"
+        for field, model_id in _meta_defaults().items():
+            assert model_id in models, f"默认值 {field}={model_id} 不在目录里"
 
-        # wan2.6 video entries are deprecated and no longer surface in
-        # any UI, but keep round-tripping for existing project files.
-        assert models["wan2.6-i2v"]["status"] == "deprecated"
-        assert models["wan2.6-i2v"]["ui"]["visible_in"] == []
-        assert models["wan2.6-r2v"]["status"] == "deprecated"
-        assert models["wan2.6-r2v"]["ui"]["visible_in"] == []
+        # 每个模型都要有 legacy -> canonical 映射，且 canonical 指向真实 mode。
+        for model_id in models:
+            canonical_id = catalog["compat"]["legacy_model_ids"][model_id]
+            assert canonical_id in catalog["modes"], model_id
 
     def test_repo_catalog_emits_additive_mode_aware_sections(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
@@ -65,24 +61,35 @@ class TestModelCatalog:
         assert "modes" in catalog
         assert "compat" in catalog
         assert "legacy_model_ids" in catalog["compat"]
+        assert catalog["model_lines"], "model_lines 不能为空"
+        assert catalog["modes"], "modes 不能为空"
 
-        assert "wan2.6-i2v" in catalog["models"]
-        assert "wan2.6-r2v" in catalog["models"]
-        assert "wan/wan2.6-video" in catalog["model_lines"]
-        assert "wan/wan2.6-video#i2v" in catalog["modes"]
-        assert "wan/wan2.6-video#r2v" in catalog["modes"]
-        assert catalog["compat"]["legacy_model_ids"]["wan2.6-i2v"] == "wan/wan2.6-video#i2v"
-        assert catalog["compat"]["legacy_model_ids"]["wan2.6-r2v"] == "wan/wan2.6-video#r2v"
+        # 对每个真实模型：legacy -> canonical -> mode 三段必须对得上。
+        for model_id in catalog["models"]:
+            canonical_id = catalog["compat"]["legacy_model_ids"][model_id]
+            mode = catalog["modes"].get(canonical_id)
+            assert mode is not None, f"{model_id} 的 canonical mode 缺失"
+            assert mode["legacy_model_id"] == model_id
+            assert mode["model_line_id"] in catalog["model_lines"]
 
     def test_mode_runtime_gateway_metadata_is_additive_and_routing_stays_family_based(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
 
-        canonical_mode_id = catalog["compat"]["legacy_model_ids"]["wan2.6-r2v"]
-        assert catalog["modes"][canonical_mode_id]["runtime"]["dashscope"]["gateway"] == "dashscope"
+        # 用当前的默认 r2v 模型，不写死已删家族的 id。
+        default_r2v = _meta_defaults()["r2v_model"]
+        canonical_mode_id = catalog["compat"]["legacy_model_ids"][default_r2v]
+        runtime = catalog["modes"][canonical_mode_id]["runtime"]
+        assert runtime, f"{canonical_mode_id} 缺少 runtime 元数据"
+        assert all("gateway" in entry for entry in runtime.values())
 
+        # 路由仍按 family 推导：每个家族都应产出 provider 配置。
         family_configs = build_provider_family_configs(catalog)
-        family_map = {config.model_family: config for config in family_configs}
-        assert family_map["wan2.6-"].backend_default == "dashscope"
+        assert family_configs
+        families = {model["family"] for model in catalog["models"].values()}
+        for family in families:
+            assert any(
+                config.model_family.startswith(family) for config in family_configs
+            ), f"家族 '{family}' 没有派生 provider 配置"
 
     def test_visible_models_must_link_to_context_hub_docs(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
@@ -120,19 +127,16 @@ class TestModelCatalog:
         family_configs = build_provider_family_configs(catalog)
         family_map = {config.model_family: config for config in family_configs}
 
-        assert "wan2.6-" in family_map
-        assert "wan2.5-" in family_map
-        assert "wan2.2-" in family_map
-        assert "kling-" in family_map
-        assert "vidu" in family_map
-        assert "pixverse-" in family_map
+        assert family_map, "目录应至少派生出一个 provider 家族配置"
+        # 产品当前只接韭菜盒子：目录里出现的每个家族都要能派生配置。
+        for model_id, model in catalog["models"].items():
+            family = model["family"]
+            matches = [cfg for name, cfg in family_map.items() if name.startswith(family)]
+            assert matches, f"{model_id} 的 family '{family}' 没有派生配置"
 
-        assert family_map["kling-"].backend_env_key == "KLING_PROVIDER_MODE"
-        assert family_map["vidu"].backend_env_key == "VIDU_PROVIDER_MODE"
-        # Pixverse has no vendor backend yet — all pixverse routing
-        # currently goes through dashscope, so no PROVIDER_MODE env
-        # switch is wired in the catalog. Document the current state.
-        assert family_map["pixverse-"].backend_env_key is None
+        assert family_map.get("jiucaihezi/") is not None, (
+            "韭菜盒子应派生一个带路由前缀的家族配置"
+        )
 
     def test_default_model_settings_come_from_catalog(self):
         defaults = get_default_model_settings(MODEL_CATALOG_ROOT)
@@ -158,7 +162,9 @@ class TestModelCatalog:
         assert report.ok is True
         assert report.errors == ()
         assert report.stats["defaults"]["t2i_model"] == catalog["defaults"]["model_settings"]["t2i_model"]
-        assert report.stats["surface_summary"]["video_sidebar"]["i2v"]
+        # video_sidebar 是 {分组: [模型 id]}，至少要有一个分组挂上了模型 ——
+        # 不写死具体分组名，免得分组归属变了（i2v → r2v）就挂。
+        assert any(len(ids) > 0 for ids in report.stats["surface_summary"]["video_sidebar"].values())
 
     def test_validation_report_detects_frontend_catalog_drift(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
@@ -172,11 +178,12 @@ class TestModelCatalog:
 
     def test_validation_report_detects_default_visibility_regression(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
+        # 直接拿当前默认 i2v 模型来破坏。写死具体 id 的话，换默认模型后这条测试
+        # 会静默失效 —— 破坏了一个无关模型，校验自然不会报错。
+        default_i2v = _meta_defaults()["i2v_model"]
+
         broken_catalog = deepcopy(catalog)
-        # Target the current default I2V model (happyhorse-1.1-i2v after
-        # the HappyHorse 1.0→1.1 upgrade) so the validation actually
-        # fires — older defaults are no longer authoritative.
-        broken_catalog["models"]["happyhorse-1.1-i2v"]["ui"]["visible_in"] = [
+        broken_catalog["models"][default_i2v]["ui"]["visible_in"] = [
             "project_settings",
             "series_settings",
             "global_settings",
@@ -203,6 +210,8 @@ class TestModelCatalogValidation:
                         # work) — synthetic test catalogs must include it.
                         "image_model": "wan2.6-t2i",
                         "i2v_model": "wan2.6-i2v",
+                        # text_model 也成了必填项（文本模型接入后加的校验）。
+                        "text_model": "wan2.6-t2i",
                     }
                 },
             },
@@ -265,6 +274,8 @@ class TestModelCatalogValidation:
                         # work) — synthetic test catalogs must include it.
                         "image_model": "wan2.6-t2i",
                         "i2v_model": "wan2.6-i2v",
+                        # text_model 也成了必填项（文本模型接入后加的校验）。
+                        "text_model": "wan2.6-t2i",
                     }
                 },
             },
@@ -362,77 +373,92 @@ class TestPhase2CatalogContract:
     def test_runtime_gateway_present_where_defined(self):
         catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
 
-        wan_video_modes = [
-            mid for mid in catalog["modes"]
-            if mid.startswith("wan/wan2.6-video#")
+        modes_with_runtime = [
+            (mid, mode) for mid, mode in catalog["modes"].items() if mode.get("runtime")
         ]
-        assert wan_video_modes, "Expected wan2.6-video modes to exist"
-
-        for mode_id in wan_video_modes:
-            mode = catalog["modes"][mode_id]
-            dashscope_runtime = mode["runtime"].get("dashscope", {})
-            assert "gateway" in dashscope_runtime, (
-                f"{mode_id} missing runtime.dashscope.gateway"
-            )
+        assert modes_with_runtime, "应至少有一个 mode 声明了 runtime"
+        for mid, mode in modes_with_runtime:
+            for backend, entry in mode["runtime"].items():
+                assert "gateway" in entry, f"{mid} 的 {backend} 缺少 gateway"
 
 
 class TestCatalogAccessor:
-    """Phase 2: Test the CatalogAccessor helper API."""
+    """Phase 2: Test the CatalogAccessor helper API.
+
+    一律用目录里真实存在的 id（首个模型 / 默认 r2v 模型），不写死具体模型名。
+    """
+
+    @staticmethod
+    def _catalog():
+        return build_catalog_dict(MODEL_CATALOG_ROOT)
 
     def test_resolve_legacy_to_canonical(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
 
-        assert accessor.resolve_legacy_to_canonical("wan2.6-i2v") == "wan/wan2.6-video#i2v"
-        assert accessor.resolve_legacy_to_canonical("wan2.6-r2v") == "wan/wan2.6-video#r2v"
+        for legacy_id, canonical_id in catalog["compat"]["legacy_model_ids"].items():
+            assert accessor.resolve_legacy_to_canonical(legacy_id) == canonical_id
         assert accessor.resolve_legacy_to_canonical("nonexistent") is None
 
     def test_resolve_canonical_to_legacy(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
 
-        assert accessor.resolve_canonical_to_legacy("wan/wan2.6-video#i2v") == "wan2.6-i2v"
-        assert accessor.resolve_canonical_to_legacy("wan/wan2.6-video#r2v") == "wan2.6-r2v"
+        for legacy_id, canonical_id in catalog["compat"]["legacy_model_ids"].items():
+            assert accessor.resolve_canonical_to_legacy(canonical_id) == legacy_id
         assert accessor.resolve_canonical_to_legacy("nonexistent") is None
 
     def test_resolve_to_flat_accepts_both_id_forms(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
+        legacy_id, canonical_id = next(iter(catalog["compat"]["legacy_model_ids"].items()))
 
-        assert accessor.resolve_to_flat("wan2.6-i2v") == "wan2.6-i2v"
-        assert accessor.resolve_to_flat("wan/wan2.6-video#i2v") == "wan2.6-i2v"
+        assert accessor.resolve_to_flat(legacy_id) == legacy_id
+        assert accessor.resolve_to_flat(canonical_id) == legacy_id
         assert accessor.resolve_to_flat("unknown-id") == "unknown-id"
 
     def test_get_mode_entry_returns_full_metadata(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
+        legacy_id, canonical_id = next(iter(catalog["compat"]["legacy_model_ids"].items()))
+        expected = catalog["modes"][canonical_id]
 
-        entry = accessor.get_mode_entry("wan/wan2.6-video#i2v")
+        entry = accessor.get_mode_entry(canonical_id)
         assert entry is not None
-        assert entry["model_line_id"] == "wan/wan2.6-video"
-        assert entry["legacy_model_id"] == "wan2.6-i2v"
-        assert entry["mode"] == "i2v"
-        assert entry["family"] == "wan"
+        assert entry["model_line_id"] == expected["model_line_id"]
+        assert entry["legacy_model_id"] == legacy_id
+        assert entry["mode"] == expected["mode"]
+        assert entry["family"] == catalog["models"][legacy_id]["family"]
 
     def test_get_mode_runtime(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
+        canonical_id = catalog["compat"]["legacy_model_ids"][_meta_defaults()["r2v_model"]]
 
-        runtime = accessor.get_mode_runtime("wan/wan2.6-video#r2v")
-        assert runtime is not None
-        assert "dashscope" in runtime
-
+        runtime = accessor.get_mode_runtime(canonical_id)
+        assert runtime
         assert accessor.get_mode_runtime("nonexistent") is None
 
     def test_get_mode_product(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
+        legacy_id, canonical_id = next(iter(catalog["compat"]["legacy_model_ids"].items()))
 
-        ui = accessor.get_mode_product("wan/wan2.6-video#i2v")
+        ui = accessor.get_mode_product(canonical_id)
         assert ui is not None
-        assert ui["selection_group"] == "i2v"
-
+        assert ui["selection_group"] == catalog["models"][legacy_id]["ui"]["selection_group"]
         assert accessor.get_mode_product("nonexistent") is None
 
     def test_get_gateway(self):
-        accessor = get_catalog_accessor(build_catalog_dict(MODEL_CATALOG_ROOT))
+        catalog = self._catalog()
+        accessor = get_catalog_accessor(catalog)
+        canonical_id = catalog["compat"]["legacy_model_ids"][_meta_defaults()["r2v_model"]]
+        runtime = catalog["modes"][canonical_id]["runtime"]
+        backend, entry = next(iter(runtime.items()))
 
-        assert accessor.get_gateway("wan/wan2.6-video#r2v") == "dashscope"
-        assert accessor.get_gateway("wan/wan2.6-video#r2v", "vendor") is None
+        # 注意：backend 默认值是 "dashscope"，单家族产品里必须显式传后端。
+        assert accessor.get_gateway(canonical_id, backend) == entry["gateway"]
+        assert accessor.get_gateway(canonical_id, "no-such-backend") is None
         assert accessor.get_gateway("nonexistent") is None
 
     def test_enumeration_helpers(self):
@@ -458,40 +484,32 @@ class TestCatalogAccessor:
 
 
 class TestGetGatewayForModel:
-    """Phase 2 Task 6: Tests for provider_registry.get_gateway_for_model()."""
+    """Phase 2 Task 6: Tests for provider_registry.get_gateway_for_model().
+
+    用目录里真实存在的 id；曾经的 kling/vidu vendor 后端随家族删除一起消失，
+    所以不再测「路由到 vendor 适配器」。
+    """
+
+    @staticmethod
+    def _expected_gateway() -> tuple:
+        """返回 (flat_id, canonical_id, backend, gateway)，全部从目录推导。"""
+        catalog = build_catalog_dict(MODEL_CATALOG_ROOT)
+        legacy_id = _meta_defaults()["r2v_model"]
+        canonical_id = catalog["compat"]["legacy_model_ids"][legacy_id]
+        backend, entry = next(iter(catalog["modes"][canonical_id]["runtime"].items()))
+        return legacy_id, canonical_id, backend, entry["gateway"]
 
     def test_gateway_lookup_with_flat_id(self):
         from src.utils.provider_registry import get_gateway_for_model
 
-        result = get_gateway_for_model("wan2.6-i2v")
-        assert result == "dashscope"
+        legacy_id, _canonical, backend, gateway = self._expected_gateway()
+        assert get_gateway_for_model(legacy_id, backend=backend) == gateway
 
     def test_gateway_lookup_with_canonical_id(self):
         from src.utils.provider_registry import get_gateway_for_model
 
-        result = get_gateway_for_model("wan/wan2.6-video#i2v")
-        assert result == "dashscope"
-
-    def test_gateway_lookup_vendor_backend(self):
-        from src.utils.provider_registry import get_gateway_for_model
-
-        # Phase 2 catalog migration split kling-v3 into mode-suffixed
-        # legacy ids (kling-v3-i2v / kling-v3-r2v).
-        result = get_gateway_for_model("kling-v3-i2v", backend="vendor")
-        assert result == "kling"
-
-    def test_gateway_lookup_dashscope_backend_for_dual_provider(self):
-        from src.utils.provider_registry import get_gateway_for_model
-
-        result = get_gateway_for_model("kling-v3-i2v", backend="dashscope")
-        assert result == "dashscope"
-
-    def test_gateway_lookup_vidu_vendor(self):
-        from src.utils.provider_registry import get_gateway_for_model
-
-        # viduq3-pro likewise split into viduq3-pro-i2v / -r2v.
-        result = get_gateway_for_model("viduq3-pro-i2v", backend="vendor")
-        assert result == "vidu"
+        _flat, canonical_id, backend, gateway = self._expected_gateway()
+        assert get_gateway_for_model(canonical_id, backend=backend) == gateway
 
     def test_gateway_lookup_returns_none_for_unknown_model(self):
         from src.utils.provider_registry import get_gateway_for_model
@@ -499,9 +517,9 @@ class TestGetGatewayForModel:
         result = get_gateway_for_model("nonexistent-model")
         assert result is None
 
-    def test_gateway_defaults_to_dashscope_when_backend_omitted(self):
+    def test_gateway_lookup_returns_none_for_unregistered_backend(self):
         from src.utils.provider_registry import get_gateway_for_model
 
-        result_explicit = get_gateway_for_model("wan2.6-r2v", backend="dashscope")
-        result_default = get_gateway_for_model("wan2.6-r2v")
-        assert result_explicit == result_default == "dashscope"
+        # 单家族产品：目录里没有 vendor 后端，显式指定应取不到 gateway。
+        _flat, _canonical, _backend, _gateway = self._expected_gateway()
+        assert get_gateway_for_model(_flat, backend="vendor") is None

@@ -3,9 +3,9 @@
  *
  * Covers:
  * - I2V_MODELS 配置完整性
- * - ModelParamSupport 各模型参数正确性
+ * - 目录里在架视频模型的参数契约（详见「视频模型参数契约」）
  * - GRID_COLS_CLASS 工具映射
- * - VideoParams 类型实例化
+ * - 切换模型时的参数重置逻辑
  */
 import { describe, it, expect } from 'vitest';
 import rawCatalog from '@/generated/modelCatalog.json';
@@ -16,8 +16,8 @@ import {
 } from '@/store/projectStore';
 
 // 本安装的模型选择器只暴露韭菜盒子模型（见 modelCatalog.ts 的
-// ALLOWED_MODEL_FAMILIES），因此 I2V_MODELS 为空。目录数据本身是完整的，
-// 所以这些「非韭菜盒子模型的参数契约」测试按 id 直接读原始 catalog。
+// ALLOWED_MODEL_FAMILIES）。下面的参数契约测试直接读生成的目录数据，
+// 断言目录里实际存在的模型，不写死具体模型 id。
 const catalogModel = (id: string) => (rawCatalog as any).models[id];
 
 // ── I2V_MODELS 配置完整性 ─────────────────────────────────────────────
@@ -43,164 +43,61 @@ describe('I2V_MODELS 配置', () => {
     });
 });
 
-// ── Wan 2.6 参数 ───────────────────────────────────────────────────────
+// ── 视频模型参数契约 ──────────────────────────────────────────────────
 
-// wan2.6-i2v is now hidden in the catalog (deprecated in 524f3a1, visible_in:
-// []), so it no longer appears in I2V_MODELS. Read its params directly from the
-// generated catalog to keep the wan2.6 contract documented and tested.
-describe('Wan 2.6 模型参数', () => {
-    const p = (rawCatalog as any).models['wan2.6-i2v']?.params as ModelParamSupport;
+// 家族收敛后目录里只剩韭菜盒子的视频模型，所以按「目录里带 duration 的模型」逐个
+// 校验参数契约；不再给 wan2.6 / wan2.5 / wan2.2 这些已删除的家族写死断言。
+const VIDEO_MODELS = Object.entries(rawCatalog.models).filter(
+    ([, model]) => (model as { duration?: unknown }).duration
+) as [string, { duration: any; params: ModelParamSupport }][];
 
-    it('支持所有 Wan 系列参数', () => {
-        expect(p.resolution).toBeDefined();
-        expect(p.seed).toBe(true);
-        expect(p.negativePrompt).toBe(true);
-        expect(p.promptExtend).toBe(true);
-        expect(p.shotType).toBe(true);
-        expect(p.audio).toBe(true);
+describe('视频模型参数契约', () => {
+    it('目录里确实有视频模型（防止下面的断言空跑）', () => {
+        expect(VIDEO_MODELS.map(([id]) => id).sort()).toEqual([
+            'dola-seedance2.5',
+            'minimax_h3_image_audio_to_video_v2_15s',
+            'minimax_h3_zm_u24',
+        ]);
     });
 
-    it('resolution 包含 480p/720p/1080p', () => {
-        expect(p.resolution!.options).toEqual(['480p', '720p', '1080p']);
-        expect(p.resolution!.default).toBe('720p');
+    it('duration 配置形状合法', () => {
+        for (const [id, model] of VIDEO_MODELS) {
+            expect(['slider', 'buttons', 'fixed'], `${id}.duration.type`).toContain(model.duration.type);
+            if (model.duration.type === 'slider') {
+                expect(model.duration.default, `${id}.duration.default`).toBeGreaterThanOrEqual(model.duration.min);
+                expect(model.duration.default, `${id}.duration.default`).toBeLessThanOrEqual(model.duration.max);
+                expect(model.duration.step, `${id}.duration.step`).toBeGreaterThan(0);
+            }
+            if (model.duration.type === 'fixed') {
+                expect(model.duration.value, `${id}.duration.value`).toBeGreaterThan(0);
+            }
+            expect(model.params, `${id} 缺少 params`).toBeDefined();
+        }
     });
 
-    it('不支持 Kling/Vidu 独有参数', () => {
-        expect(p.mode).toBeUndefined();
-        expect(p.sound).toBeUndefined();
-        expect(p.cfgScale).toBeUndefined();
-        expect(p.viduAudio).toBeUndefined();
-        expect(p.movementAmplitude).toBeUndefined();
-    });
-});
-
-// ── Wan 2.5 参数 ───────────────────────────────────────────────────────
-
-// wan2.5-i2v-preview is now hidden in the catalog (visible_in: []), so
-// it doesn't appear in I2V_MODELS. Read its params directly from the
-// generated catalog to keep the wan2.5 contract documented and tested.
-
-describe('Wan 2.5 模型参数', () => {
-    const wan25Params = (rawCatalog as any).models['wan2.5-i2v-preview']?.params;
-    const p = wan25Params as ModelParamSupport;
-
-    it('支持 resolution, seed, negativePrompt, audio', () => {
-        expect(p.resolution).toBeDefined();
-        expect(p.seed).toBe(true);
-        expect(p.negativePrompt).toBe(true);
-        expect(p.audio).toBe(true);
+    it('枚举型参数的 default 必须落在 options 内', () => {
+        for (const [id, model] of VIDEO_MODELS) {
+            for (const key of ['ratio', 'resolution'] as const) {
+                const option = model.params[key];
+                if (!option) continue;
+                expect(option.options.length, `${id}.${key}`).toBeGreaterThan(0);
+                expect(option.options, `${id}.${key}`).toContain(option.default);
+            }
+        }
     });
 
-    it('不支持 promptExtend 和 shotType', () => {
-        expect(p.promptExtend).toBeUndefined();
-        expect(p.shotType).toBeUndefined();
-    });
-});
-
-// ── Wan 2.2 参数 ───────────────────────────────────────────────────────
-
-describe('Wan 2.2 模型参数', () => {
-    // wan2.2-i2v-plus is now hidden in the catalog. Read params directly
-    // from the raw catalog so the legacy contract stays documented.
-    const wan22Params = (rawCatalog as any).models['wan2.2-i2v-plus']?.params;
-    const p = wan22Params as ModelParamSupport;
-
-    it('支持 resolution, seed, negativePrompt', () => {
-        expect(p.resolution).toBeDefined();
-        expect(p.seed).toBe(true);
-        expect(p.negativePrompt).toBe(true);
+    it('Seedance 2.5 固定 30 秒，不接受音频输入', () => {
+        const model = catalogModel('dola-seedance2.5');
+        expect(model.duration).toEqual({ type: 'fixed', value: 30 });
+        expect(model.params.audio).toBeUndefined();
     });
 
-    it('不支持 promptExtend, shotType, audio', () => {
-        expect(p.promptExtend).toBeUndefined();
-        expect(p.shotType).toBeUndefined();
-        expect(p.audio).toBeUndefined();
-    });
-});
-
-// ── Kling v3 参数 ──────────────────────────────────────────────────────
-
-describe('Kling v3 模型参数', () => {
-    // Phase 2 split kling-v3 → kling-v3-i2v / kling-v3-r2v.
-    const kling = catalogModel('kling-v3-i2v');
-    const p = kling.params;
-
-    it('支持 negativePrompt, mode, sound, cfgScale', () => {
-        expect(p.negativePrompt).toBe(true);
-        expect(p.mode).toBeDefined();
-        expect(p.sound).toBe(true);
-        expect(p.cfgScale).toBeDefined();
-    });
-
-    it('mode 选项为 std/pro，默认 std', () => {
-        expect(p.mode!.options).toEqual(['std', 'pro']);
-        expect(p.mode!.default).toBe('std');
-    });
-
-    it('cfgScale 范围 0-1，步长 0.1', () => {
-        expect(p.cfgScale!.min).toBe(0);
-        expect(p.cfgScale!.max).toBe(1);
-        expect(p.cfgScale!.step).toBe(0.1);
-        expect(p.cfgScale!.default).toBe(0.5);
-    });
-
-    it('不支持 Wan 独有参数', () => {
-        // Phase 2 per-model catalog params list unsupported flags explicitly as
-        // `false` instead of omitting them, so assert falsy (false | undefined)
-        // for "not supported".
-        expect(p.resolution).toBeFalsy();
-        expect(p.seed).toBeFalsy();
-        expect(p.promptExtend).toBeFalsy();
-        expect(p.shotType).toBeFalsy();
-        // kling-v3-i2v exposes `sound` (asserted above), not `audio`.
-        expect(p.audio).toBeFalsy();
-    });
-
-    it('不支持 Vidu 独有参数', () => {
-        expect(p.viduAudio).toBeFalsy();
-        expect(p.movementAmplitude).toBeFalsy();
-    });
-});
-
-// ── Vidu Q3 参数 ───────────────────────────────────────────────────────
-
-describe('Vidu Q3 模型参数', () => {
-    // Phase 2 split viduq3-pro / viduq3-turbo by modality suffix.
-    const viduPro = catalogModel('viduq3-pro-i2v');
-    const viduTurbo = catalogModel('viduq3-turbo-i2v');
-
-    it('Pro 和 Turbo 使用相同的参数配置', () => {
-        expect(viduPro.params).toEqual(viduTurbo.params);
-    });
-
-    const p = viduPro.params;
-
-    it('支持 resolution, seed, viduAudio, movementAmplitude', () => {
-        expect(p.resolution).toBeDefined();
-        expect(p.seed).toBe(true);
-        expect(p.viduAudio).toBe(true);
-        expect(p.movementAmplitude).toBeDefined();
-    });
-
-    it('resolution 包含 540p/720p/1080p', () => {
-        expect(p.resolution!.options).toEqual(['540p', '720p', '1080p']);
-    });
-
-    it('movementAmplitude 选项为 auto/small/medium/large', () => {
-        expect(p.movementAmplitude!.options).toEqual(['auto', 'small', 'medium', 'large']);
-        expect(p.movementAmplitude!.default).toBe('auto');
-    });
-
-    it('不支持 Kling/Wan 独有参数', () => {
-        // Per-model catalog params list unsupported flags explicitly as
-        // `false`; assert falsy (false | undefined) for "not supported".
-        expect(p.negativePrompt).toBeFalsy();
-        expect(p.promptExtend).toBeFalsy();
-        expect(p.shotType).toBeFalsy();
-        expect(p.audio).toBeFalsy();
-        expect(p.mode).toBeFalsy();
-        expect(p.sound).toBeFalsy();
-        expect(p.cfgScale).toBeFalsy();
+    it('MiniMax H3 两个档位参数一致，且都声明音频输入', () => {
+        const h3 = catalogModel('minimax_h3_image_audio_to_video_v2_15s');
+        const zm = catalogModel('minimax_h3_zm_u24');
+        expect(h3.params).toEqual(zm.params);
+        expect(h3.params.audio).toBe(true);
+        expect(h3.duration.type).toBe('slider');
     });
 });
 
@@ -246,6 +143,7 @@ describe('模型切换参数重置逻辑', () => {
         const np = newModelConfig?.params ?? {};
         return {
             resolution: np.resolution?.default ?? "720p",
+            ratio: np.ratio?.default ?? "16:9",
             promptExtend: !!np.promptExtend,
             negativePrompt: "",
             shotType: "single",
@@ -259,29 +157,28 @@ describe('模型切换参数重置逻辑', () => {
         };
     }
 
-    it('切换到 Kling → mode 默认 std', () => {
-        const result = simulateModelSwitch('kling-v3-i2v');
-        expect(result.mode).toBe('std');
-        expect(result.cfgScale).toBe(0.5);
-        expect(result.promptExtend).toBe(false);
+    it('切换到目录默认视频模型 → ratio/resolution 取该模型自己的默认值', () => {
+        const id = rawCatalog.defaults.model_settings.r2v_model;
+        const np = catalogModel(id).params;
+        const result = simulateModelSwitch(id);
+
+        expect(result.ratio).toBe(np.ratio?.default ?? '16:9');
+        expect(result.resolution).toBe(np.resolution?.default ?? '720p');
     });
 
-    it('切换到 Vidu → movementAmplitude 默认 auto', () => {
-        const result = simulateModelSwitch('viduq3-pro-i2v');
-        expect(result.movementAmplitude).toBe('auto');
-        expect(result.viduAudio).toBe(true);
+    it('切换模型会清掉上一模型的音频与负向提示', () => {
+        const result = simulateModelSwitch('minimax_h3_image_audio_to_video_v2_15s');
+
+        expect(result.negativePrompt).toBe('');
+        expect(result.audioUrl).toBe('');
+        expect(result.generateAudio).toBe(false);
+        expect(result.sound).toBe(false);
+        expect(result.shotType).toBe('single');
     });
 
-    it('切换到 Wan 2.7 → promptExtend 默认 true', () => {
-        // wan2.6 was deprecated/hidden (524f3a1); wan2.7-i2v is the current
-        // visible Wan I2V model. Its resolution default is 1080p.
-        const result = simulateModelSwitch('wan2.7-i2v');
-        expect(result.promptExtend).toBe(true);
-        expect(result.resolution).toBe('1080p');
-    });
-
-    it('切换到 Wan 2.2 → 无 promptExtend', () => {
-        const result = simulateModelSwitch('wan2.2-i2v-plus');
-        expect(result.promptExtend).toBe(false);
+    it('未声明 promptExtend 的模型 → 关闭增强', () => {
+        const model = catalogModel('dola-seedance2.5');
+        expect(model.params.promptExtend).toBeUndefined();
+        expect(simulateModelSwitch('dola-seedance2.5').promptExtend).toBe(false);
     });
 });

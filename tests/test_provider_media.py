@@ -8,11 +8,43 @@ from src.utils.provider_media import (
     resolve_media_input,
     resolve_media_inputs,
 )
+from src.utils.provider_registry import ProviderFamilyConfig, ProviderRegistry
 
 
 PNG_1X1_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4//8/AwAI/AL+"
     "X2VINQAAAABJRU5ErkJggg=="
+)
+
+
+# resolve_media_input 的 registry 参数就是留给测试隔离的注入点。产品目录现在只剩
+# jiucaihezi 一家（image → 多模态、audio/ref_video → 临时 URL），不提供这里要验的
+# dashscope / vendor 家族，所以夹具自己声明，测试不依赖 catalog。
+# ponytail: 家族名沿用各 input_mode 自带的 dashscope/kling/vidu 命名，别读成现存模型。
+TEST_MEDIA_REGISTRY = ProviderRegistry(
+    [
+        ProviderFamilyConfig(
+            model_family="wan2.6-",
+            backend_default="dashscope",
+            image_input_mode={"dashscope": "dashscope_multimodal_message"},
+            audio_input_mode={"dashscope": "dashscope_temp_file_url"},
+            reference_video_input_mode={"dashscope": "dashscope_temp_file_url"},
+        ),
+        ProviderFamilyConfig(
+            model_family="kling-",
+            backend_default="vendor",
+            image_input_mode={"vendor": "kling_vendor_base64_image"},
+            audio_input_mode={"vendor": "kling_vendor_audio_url"},
+            reference_video_input_mode={"vendor": "kling_vendor_video_url"},
+        ),
+        ProviderFamilyConfig(
+            model_family="vidu",
+            backend_default="vendor",
+            image_input_mode={"vendor": "vidu_vendor_image_url"},
+            audio_input_mode={"vendor": "vidu_vendor_audio_url"},
+            reference_video_input_mode={"vendor": "vidu_vendor_video_url"},
+        ),
+    ]
 )
 
 
@@ -51,6 +83,7 @@ def test_dashscope_image_local_without_oss_uses_data_uri(tmp_path):
         backend="dashscope",
         modality="image",
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
     )
 
@@ -74,6 +107,7 @@ def test_dashscope_non_image_local_without_oss_uses_temp_url_and_header(tmp_path
         backend="dashscope",
         modality=modality,
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
         dashscope_temp_url_resolver=fake_temp_url_resolver,
     )
@@ -96,6 +130,7 @@ def test_dashscope_non_image_local_without_oss_and_without_temp_resolver_fails_f
             backend="dashscope",
             modality="audio",
             uploader=uploader,
+            registry=TEST_MEDIA_REGISTRY,
             project_root=str(tmp_path),
         )
 
@@ -110,6 +145,7 @@ def test_dashscope_local_uses_oss_signed_url_when_configured(tmp_path):
         backend="dashscope",
         modality="image",
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
     )
 
@@ -128,6 +164,7 @@ def test_vendor_kling_image_local_uses_plain_base64(tmp_path):
         backend="vendor",
         modality="image",
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
     )
 
@@ -147,6 +184,7 @@ def test_vendor_vidu_image_local_requires_url_capability(tmp_path):
             backend="vendor",
             modality="image",
             uploader=uploader,
+            registry=TEST_MEDIA_REGISTRY,
             project_root=str(tmp_path),
         )
 
@@ -161,6 +199,7 @@ def test_vendor_vidu_image_local_with_oss_uses_signed_url(tmp_path):
         backend="vendor",
         modality="image",
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
     )
 
@@ -179,6 +218,7 @@ def test_resolver_does_not_mutate_input_refs(tmp_path):
         backend="dashscope",
         modality="image",
         uploader=uploader,
+        registry=TEST_MEDIA_REGISTRY,
         project_root=str(tmp_path),
     )
 

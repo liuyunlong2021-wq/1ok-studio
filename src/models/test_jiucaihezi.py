@@ -1,3 +1,4 @@
+import base64
 import os
 import tempfile
 from unittest.mock import Mock, patch
@@ -70,14 +71,10 @@ def test_local_media_upload_rejects_missing_url_without_oss_fallback(post, tmp_p
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
 @patch("src.models.jiucaihezi.requests.post")
-def test_grok_text_to_image_uses_async_video_contract(post, get, _sleep, download):
-    post.return_value = _response({"task_id": "task-1"})
-    get.return_value = _response(
-        {"status": "completed", "metadata": {"url": "https://example.com/image.png"}}
-    )
+def test_grok_text_to_image_uses_openai_image_channel(post, download):
+    """Grok 图片走韭菜盒子 OpenAI 兼容图片通道，不是历史 /v1/videos 异步方案。"""
+    post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
 
     JiucaiheziImageModel({}).generate(
         "prompt",
@@ -86,27 +83,21 @@ def test_grok_text_to_image_uses_async_video_contract(post, get, _sleep, downloa
         size="2048x1152",
     )
 
-    assert post.call_args.args[0].endswith("/v1/videos")
+    assert post.call_args.args[0].endswith("/v1/images/generations")
     assert post.call_args.kwargs["json"] == {
         "model": "grok-imagine-image-2.0",
         "prompt": "prompt",
         "size": "2048x1152",
+        "n": 1,
         "response_format": "url",
     }
-    assert get.call_args.args[0].endswith("/v1/videos/task-1")
     download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png")
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
 @patch("src.models.jiucaihezi.requests.post")
-def test_grok_reference_images_use_image_array_fields(post, get, _sleep, _download_mock):
-    post.return_value = _response({"id": "task-2"})
-    get.return_value = _response(
-        {"status": "completed", "metadata": {"url": "https://example.com/image.png"}}
-    )
+def test_grok_reference_images_use_edits_endpoint(post):
+    post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
 
     with tempfile.NamedTemporaryFile(suffix=".png") as reference:
         JiucaiheziImageModel({}).generate(
@@ -116,9 +107,11 @@ def test_grok_reference_images_use_image_array_fields(post, get, _sleep, _downlo
             ref_image_paths=[reference.name],
         )
 
-    assert post.call_args.args[0].endswith("/v1/videos")
+    assert post.call_args.args[0].endswith("/v1/images/edits")
     assert "json" not in post.call_args.kwargs
-    assert [field for field, _file in post.call_args.kwargs["files"]] == ["image[]"]
+    assert post.call_args.kwargs["data"]["model"] == "grok-imagine-image-2.0"
+    # 网关合同的多图字段名是 `image`（见 /v1/images/edits 的 -F image=@...）。
+    assert [field for field, _file in post.call_args.kwargs["files"]] == ["image"]
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
