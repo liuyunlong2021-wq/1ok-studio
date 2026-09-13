@@ -93,10 +93,11 @@ Windows 使用 `py -3.11 -m venv .venv` 和 `.venv\\Scripts\\pip install -r requ
 ```dotenv
 DASHSCOPE_API_KEY=你的阿里云百炼Key
 JIUCAIHEZI_API_KEY=你的韭菜盒子Key
-JIUCAIHEZI_BASE_URL=https://api.jiucaihezi.studio
 ```
 
 不同模型需要不同服务商的 Key；不使用的服务可以留空。API Key 会产生对应服务商的费用，请不要把自己的 `.env` 发给别人。
+
+> 网关地址由产品内置，**不可配置**：`JIUCAIHEZI_BASE_URL` 即使写在 `.env` 里也会被忽略（后端会主动把它从环境变量和已保存配置中清除），避免请求被指向其它地址。
 
 ### 启动
 

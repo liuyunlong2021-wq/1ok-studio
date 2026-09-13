@@ -70,7 +70,6 @@ One OK Studio **只接韭菜盒子一个通道**：图像、视频、文本、�
 ### 视功能而定
 
 - `DASHSCOPE_API_KEY`：文本模型与配音（TTS）走它，用到这两类功能时必填。
-- `JIUCAIHEZI_BASE_URL`：默认 `https://api.jiucaihezi.studio`，一般不用改。
 
 ---
 
