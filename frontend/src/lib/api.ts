@@ -1133,6 +1133,70 @@ export const api = {
         return response.json();
     },
 
+    // ── 角色工作台「声音面」────────────────────────────────────────
+    // 生图面的镜像：左列是实物，中列是人改的那层，右列由中列生成。
+    // 这几个都直接返回更新后的角色对象；调用方拉一次项目即可。
+
+    /** 中列：角色设定 → 一段人话的声音描述。 */
+    generateCharacterVoiceDescription: async (scriptId: string, charId: string) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/voice-description`,
+            { method: "POST" },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音描述生成失败"));
+        }
+        return response.json();
+    },
+
+    /** 右列：声音描述 → 音色提示词。没描述时后端会报「先生成声音描述」。 */
+    generateCharacterVoicePrompt: async (scriptId: string, charId: string) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/voice-prompt`,
+            { method: "POST" },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "音色提示词生成失败"));
+        }
+        return response.json();
+    },
+
+    /** 左列：用角色绑定的音色念一句，产出真实的参考音文件。 */
+    generateCharacterReferenceAudio: async (scriptId: string, charId: string, text?: string) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/reference-audio`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text ?? null }),
+            },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "参考音生成失败"));
+        }
+        return response.json();
+    },
+
+    /** 手改声音面的两个文本框。改「声音描述」会让右列的提示词变过期。 */
+    updateCharacterVoiceFields: async (
+        scriptId: string,
+        charId: string,
+        fields: { voice_description?: string; voice_prompt?: string },
+    ) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/voice-fields`,
+            {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(fields),
+            },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音设置保存失败"));
+        }
+        return response.json();
+    },
+
     generateAudio: async (scriptId: string) => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/generate_audio`, {
             method: "POST",

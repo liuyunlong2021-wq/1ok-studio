@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, RefreshCw, Check, AlertTriangle, Image as ImageIcon, Lock, Unlock, ChevronRight, Maximize2, Video, Upload } from "lucide-react";
 import { api, API_URL } from "@/lib/api";
 import UploadAssetModal from "../modals/UploadAssetModal";
+import CharacterVoiceFace from "./character/CharacterVoiceFace";
 
 import { VariantSelector } from "../common/VariantSelector";
 import { VideoVariantSelector } from "../common/VideoVariantSelector";
@@ -32,6 +33,11 @@ interface CharacterWorkbenchProps {
 
 export default function CharacterWorkbench({ asset, assetType = "character", onClose, onUpdateDescription, onRewriteDescription, onGenerate, onGeneratePrompt, generatingTypes = [], stylePrompt = "", styleNegativePrompt = "", onGenerateVideo, onDeleteVideo, isGeneratingVideo }: CharacterWorkbenchProps) {
     const tc = useTranslations("character");
+    const tv = useTranslations("characterVoice");
+    // 工作台有两面镜子：生图 / 声音。左=素材、中=人的描述、右=给模型的提示词，
+    // 两面结构一模一样，只是换一套数据绑。场/道具没有「声音」这个概念，只有角色有。
+    const [face, setFace] = useState<"image" | "voice">("image");
+    const showFaceSwitch = assetType === "character";
     const [activePanel, setActivePanel] = useState<"full_body" | "three_view" | "headshot" | "video">("full_body");
     const updateProject = useProjectStore(state => state.updateProject);
     const currentProject = useProjectStore(state => state.currentProject);
@@ -353,12 +359,38 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                 <div className="h-16 border-b border-glass-border flex justify-between items-center px-6 bg-surface">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold text-foreground">{asset.name} <span className="text-text-muted font-normal text-sm ml-2">{tc("workbench")}</span></h2>
+                        {showFaceSwitch && (
+                            <div className="flex items-center gap-1 rounded-xl border border-glass-border bg-glass p-1" role="tablist">
+                                {([
+                                    { id: "image" as const, label: tv("faceImage") },
+                                    { id: "voice" as const, label: tv("faceVoice") },
+                                ]).map((option) => (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={face === option.id}
+                                        onClick={() => setFace(option.id)}
+                                        className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+                                            face === option.id
+                                                ? "bg-primary text-foreground shadow-sm"
+                                                : "text-text-secondary hover:bg-hover-bg hover:text-foreground"
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-hover-bg rounded-full text-text-secondary hover:text-foreground transition-colors">
                         <X size={24} />
                     </button>
                 </div>
 
+                {showFaceSwitch && face === "voice" ? (
+                    <CharacterVoiceFace character={asset} />
+                ) : (
                 <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,32%)_minmax(280px,34%)_minmax(320px,34%)] overflow-hidden">
                     <section className="min-w-0 min-h-0 border-r border-glass-border p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
                         <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">主参考图</h3><p className="text-xs text-text-muted mt-1">统一资产图片，可上传或生成</p></div><span className="text-[0.625rem] uppercase tracking-wider text-primary">Static</span></div>
@@ -396,8 +428,12 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         </div>
                     </section>
                 </div>
+                )}
 
-                {/* Footer: Negative Prompt & Art Direction Settings */}
+                {/* Footer: Negative Prompt & Art Direction Settings
+                    这块是生图面专用的（应用艺术指导风格 / 负向提示词），
+                    声音面没有「风格」这个概念，不能跟着一起显示。 */}
+                {!(showFaceSwitch && face === "voice") && (
                 <div className="shrink-0 border-t border-glass-border bg-surface flex flex-col">
                     <div className="px-6 py-3 flex justify-end">
                         <div>
@@ -457,6 +493,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         </div>
                     )}
                 </div>
+                )}
             </motion.div>
             {currentProject && (
                 <UploadAssetModal
