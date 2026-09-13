@@ -197,7 +197,7 @@ models:
       promptExtend: false
       watermark: false
     inputs:
-      reference_images: {max: 8, reference_type: image}
+      reference_images: {max: 5, reference_type: image}
   - id: dola-seedance2.5
     display_name: "Seedance 2.5 · 韭菜盒子"
     description: "文生 / 图生 / 参考生 / 编辑全能，via 韭菜盒子"

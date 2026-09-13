@@ -247,8 +247,13 @@ describe('model catalog runtime helpers', () => {
     });
 
     it('reads per-model reference image limits from catalog metadata', () => {
-        // 声明了上限的模型读它自己的值。
-        expect(getMaxReferenceImages('jiucaihezi/grok-imagine-image-2.0')).toBe(8);
+        // 声明了上限的模型读它自己的值 —— 从目录推，改上限时这里跟着走。
+        const grokId = 'jiucaihezi/grok-imagine-image-2.0';
+        const grokDeclared = (
+            rawCatalog.models as Record<string, { inputs?: { reference_images?: { max?: number } } }>
+        )[grokId]?.inputs?.reference_images?.max;
+        expect(grokDeclared).toBeGreaterThan(0);
+        expect(getMaxReferenceImages(grokId)).toBe(grokDeclared);
 
         // 没声明的模型回落到代码里的保守默认值。注意 getMaxReferenceImages 会先过
         // 一层 resolveModelId('i2i')：旧 id（wan2.6-image 等）不在白名单里，会落到

@@ -2022,7 +2022,7 @@
       "id": "jiucaihezi/grok-imagine-image-2.0",
       "inputs": {
         "reference_images": {
-          "max": 8,
+          "max": 5,
           "reference_type": "image"
         }
       },
@@ -3377,7 +3377,7 @@
       "id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
       "inputs": {
         "reference_images": {
-          "max": 8,
+          "max": 5,
           "reference_type": "image"
         }
       },
