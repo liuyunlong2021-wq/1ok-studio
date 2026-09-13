@@ -21,5 +21,6 @@ cd "$DATA_DIR"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 启动 uvicorn
-exec python -m uvicorn --app-dir "$REPO_DIR" --reload --port 17177 --host 0.0.0.0 src.apps.comic_gen.api:app
+# cwd 是数据目录 ⇒ 不指定 --reload-dir 的话 --reload 只盯数据目录，改 src/ 永远不重启。
+exec python -m uvicorn --app-dir "$REPO_DIR" --reload-dir "$REPO_DIR" --reload --port 17177 --host 0.0.0.0 src.apps.comic_gen.api:app
 
