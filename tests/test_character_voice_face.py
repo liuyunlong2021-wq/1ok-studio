@@ -379,6 +379,37 @@ def test_changing_the_reference_audio_does_not_bump_the_description_version(monk
     assert _character(script).voice_description_version == before, "换素材不该动中列的版本"
 
 
+def test_reference_audio_can_be_cleared(monkeypatch):
+    """显式传 null = 清掉。否则上传错了文件就再也撤不回来。
+
+    只摘指针，不删磁盘上的文件 —— 那个文件可能是某个克隆音色的源音频，
+    别的角色还在用。
+    """
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.wav"})
+    assert _character(script).reference_audio_url == "uploads/abc123.wav"
+
+    response = client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": None})
+
+    assert response.status_code == 200, response.text
+    assert _character(script).reference_audio_url is None
+    assert response.json()["reference_audio_url"] is None
+
+
+def test_omitting_the_field_leaves_the_reference_audio_alone(monkeypatch):
+    """不传这个字段 ≠ 清掉。改声音描述不能顺手把参考音弄没。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.wav"})
+
+    response = client.patch(f"{BASE}/voice-fields", json={"voice_description": "换成清亮的少年音"})
+
+    assert response.status_code == 200
+    assert _character(script).reference_audio_url == "uploads/abc123.wav", \
+        "只是改了描述，参考音不该被清掉"
+
+
 # ---------------------------------------------------------------------------
 # 5. 参考音优先级（喂给「声音」步骤的那条链）
 # ---------------------------------------------------------------------------

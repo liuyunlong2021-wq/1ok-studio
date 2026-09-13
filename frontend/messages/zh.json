@@ -1328,7 +1328,8 @@
     "playFailed": "播放失败",
     "referenceUploading": "上传中…",
     "audioOnly": "参考音必须是音频文件",
-    "audioTooLarge": "音频太大了（上限 10MB）"
+    "audioTooLarge": "音频太大了（上限 10MB）",
+    "referenceDelete": "删除"
   },
   "vault": {
     "title": "一致性金库",

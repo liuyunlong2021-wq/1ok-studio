@@ -4875,11 +4875,15 @@ class ComicGenPipeline:
         voice_description: Optional[str] = None,
         voice_prompt: Optional[str] = None,
         reference_audio_url: Optional[str] = None,
+        clear_reference_audio: bool = False,
     ) -> Character:
-        """手改声音面：两个文本框 + 直接指一个上传好的参考音。
+        """手改声音面：两个文本框 + 指一个上传好的参考音 + 把它清掉。
 
         改「声音描述」要进版本 —— 右列的提示词据此变「过期」。改提示词则是手工
         覆盖，它对当前这一版描述就是新鲜的。换参考音不影响描述的版本。
+
+        清参考音只摘指针，**不删磁盘上的文件**：那可能是某个克隆音色的源音频，
+        别的角色或音色还在用。宁可留个孤儿文件，也不要删掉别人还在引用的东西。
         """
         script = self.get_script(script_id)
         if not script:
@@ -4897,7 +4901,9 @@ class ComicGenPipeline:
             character.voice_prompt_source = "manual"
             character.voice_prompt_description_version = character.voice_description_version
 
-        if reference_audio_url is not None and reference_audio_url.strip() != (character.reference_audio_url or ""):
+        if clear_reference_audio:
+            character.reference_audio_url = None
+        elif reference_audio_url is not None and reference_audio_url.strip() != (character.reference_audio_url or ""):
             candidate = reference_audio_url.strip()
             self._assert_audio_reference(candidate, character.name)
             character.reference_audio_url = candidate

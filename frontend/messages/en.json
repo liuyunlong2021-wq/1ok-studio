@@ -1328,7 +1328,8 @@
     "playFailed": "Playback failed",
     "referenceUploading": "Uploading…",
     "audioOnly": "Reference audio must be an audio file",
-    "audioTooLarge": "Audio is too large (10MB max)"
+    "audioTooLarge": "Audio is too large (10MB max)",
+    "referenceDelete": "Remove"
   },
   "vault": {
     "title": "Consistency Vault",

@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-    AudioWaveform, Check, Loader2, Play, RefreshCw, Square, Upload, UserRound, Wand2,
+    AudioWaveform, Check, Loader2, Play, RefreshCw, Square, Trash2, Upload, UserRound, Wand2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
@@ -195,6 +195,14 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
     };
 
     const hasReference = !!character.reference_audio_url;
+
+    const handleReferenceDelete = () => run("reference", async (project) => {
+        stopAudio();
+        await api.updateCharacterVoiceFields(project.id, character.id, {
+            // 显式 null = 清掉（只摘指针，磁盘上的文件留着）
+            reference_audio_url: null,
+        });
+    });
     const promptStale =
         !!character.voice_prompt &&
         (character.voice_prompt_description_version ?? 0) < (character.voice_description_version ?? 0);
@@ -219,14 +227,26 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                             <div className="flex h-24 w-full items-center justify-center text-primary/70">
                                 <AudioWaveform size={72} strokeWidth={1.2} />
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => (playing ? stopAudio() : playUrl(character.reference_audio_url))}
-                                className="inline-flex items-center gap-2 rounded-full border border-glass-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary"
-                            >
-                                {playing ? <Square size={11} /> : <Play size={12} />}
-                                {playing ? t("referenceStop") : t("referencePlay")}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => (playing ? stopAudio() : playUrl(character.reference_audio_url))}
+                                    className="inline-flex items-center gap-2 rounded-full border border-glass-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary"
+                                >
+                                    {playing ? <Square size={11} /> : <Play size={12} />}
+                                    {playing ? t("referenceStop") : t("referencePlay")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleReferenceDelete}
+                                    disabled={!!busy}
+                                    title={t("referenceDelete")}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-surface px-3 py-2 text-xs font-medium text-text-muted transition-colors hover:border-red-400/50 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Trash2 size={12} />
+                                    {t("referenceDelete")}
+                                </button>
+                            </div>
                         </>
                     ) : (
                         <>
