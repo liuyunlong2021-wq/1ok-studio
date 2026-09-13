@@ -81,7 +81,9 @@ LumenX Core              # 共享后端/运行时/API capability
 - **LumenX Atelier**：全新 graph-first 创作壳，面向个人创作者。"Seed → Plan → Draft Nodes → Generation → Takes → Judgment → Branches → Sequence → Export"。Agent 可在画布上提议、生成、变体探索。Atelier 代码在独立分支开发中（如 `feat/atelier-v4-canvas-uplift`），尚未合入 main。
 - **LumenX Core**：共享 model catalog、provider routing、media、generation jobs、export 等原语。Studio 与 Atelier 不共享前端状态，只共享 Core capability。
 
-技术栈：Next.js 14 前端 + FastAPI 后端，集成阿里云 DashScope/Qwen/Wanx、Kling、Vidu、PixVerse、HappyHorse、MuleRouter（Seedance/GPT-Image-2）等 provider。
+技术栈：Next.js 14 前端 + FastAPI 后端。生成通道只有韭菜盒子网关一家（`jiucaihezi/`）；
+DashScope 仅用于文本模型与 TTS。目录里的图片/视频模型（gpt-image、grok、gemini、
+MiniMax H3、Seedance 等）都经同一网关，模型名由 `config/model_catalog/` 声明。
 
 ## Architecture
 
@@ -163,19 +165,17 @@ src/
 │   ├── assets.py / storyboard.py / video.py / audio.py / export.py
 │   └── test_pipeline.py
 ├── models/                         # AI 模型 wrapper
-│   ├── factory.py                  # 模型路由工厂（model name → adapter）
-│   ├── base.py                     # 基类
-│   ├── kling.py                    # Kling 视频模型
-│   ├── vidu.py                     # Vidu 视频模型
-│   ├── wanx.py                     # 通义万相图像模型
-│   ├── qwen_vl.py                  # Qwen VL 多模态（OpenAI 兼容接口）
-│   ├── mulerouter.py               # ★ MuleRouter/MuleRun 适配器（Seedance 2.0 视频 + GPT-Image-2 图像）
-│   └── image.py                    # 图像生成通用逻辑
+│   ├── base.py                     # VideoGenModel 基类
+│   ├── image.py                    # ImageGenModel 基类
+│   └── jiucaihezi.py               # ★ 韭菜盒子适配器（图像 + 视频，唯一在架的）
 ├── audio/
 │   └── tts.py                      # CosyVoice TTS（voice ID 自动匹配 model 版本）
 ├── utils/                          # 工具（OSS 等）
 └── config.py
 ```
+
+> 家族收敛前的适配器（`wanx.py` / `kling.py` / `vidu.py` / `mulerouter.py` /
+> `doubao.py` / `qwen_vl.py` / `factory.py`）已全部删除，不要再按 provider 分派。
 
 > **未来拆分计划**：Atelier 域将迁出到 `src/apps/atelier/`，前端 shell 迁到 `frontend/src/app/atelier/`，共享客户端到 `packages/lumenx-core-client/`。当前在同一仓库内仅作为 Atelier-domain APIs 存在，不可让 Studio 状态成为 Atelier canvas 状态的父级。
 
@@ -381,7 +381,9 @@ Agent runtime（Codex 风格 approval + 独立 planner）：
 - **DashScope 必须用 OpenAI 兼容接口**: `qwen3.6-plus` 等新模型不支持旧 `dashscope.Generation.call()` SDK，只能通过 `https://dashscope.aliyuncs.com/compatible-mode/v1` 调用
 - **LLM Adapter**: `src/apps/comic_gen/llm_adapter.py` 统一封装，DashScope 和第三方 OpenAI API 都走 openai 库；DashScope 默认模型走 fallback chain `["qwen3.6-plus", "qwen-plus"]`
 - **QwenVL 也用 OpenAI 兼容接口**: `qwen3.6-plus` 同时支持文本和多模态(VL)
-- **MuleRouter**: `src/models/mulerouter.py` 是 Seedance 2.0（视频）和 GPT-Image-2（图像）的适配器，支持 MuleRun CLI 模式和 MuleRouter HTTP API 模式。`factory.py` 按 model name 路由到对应适配器
+- **单一家族**: 图像/视频生成只有韭菜盒子一个适配器（`src/models/jiucaihezi.py`）。
+  图片走 OpenAI 兼容的 `/v1/images/generations|edits`，视频走 `/v1/videos` 任务制。
+  契约见 `docs/1-api-reference/`，别猜上游参数。
 - **CosyVoice TTS**: voice ID 必须匹配 model 版本（`_v2` → `cosyvoice-v2`，`_v3` → `cosyvoice-v3-flash`），通过 `_resolve_model_for_voice()` 自动匹配
 - **PolishError 契约**: `polish_*_prompt` 函数抛 `PolishError` → HTTP 502 + reason 码；默认模型 qwen3.6-plus
 

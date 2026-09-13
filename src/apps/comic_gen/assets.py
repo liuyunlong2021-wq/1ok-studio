@@ -4,7 +4,7 @@ import time
 from typing import Dict, Any, List
 from urllib.parse import quote
 from .models import Character, Scene, Prop, GenerationStatus, ImageAsset, ImageVariant, MAX_VARIANTS_PER_ASSET
-from ...models.image import WanxImageModel, ImageGenModel
+from ...models.jiucaihezi import JiucaiheziImageModel
 from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 
@@ -49,24 +49,10 @@ ASPECT_RATIO_TO_SIZE = {
 class AssetGenerator:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.model = WanxImageModel(self.config.get('model', {}))
-        self._mulerouter_image_model = None
-        self._jiucaihezi_image_model = None
+        # 目录里的图片模型只有韭菜盒子一家（grok / gpt-image / gemini 这些上游都走
+        # 同一个网关），所以只有一个适配器，不需要按 model_name 路由。
+        self.model = JiucaiheziImageModel(self.config.get('model', {}))
         self.output_dir = self.config.get('output_dir', 'output/assets')
-
-    def _get_model_for(self, model_name: str) -> "ImageGenModel":
-        """Route to the correct image adapter based on model name."""
-        if model_name and model_name.startswith("gpt-image"):
-            if self._mulerouter_image_model is None:
-                from ...models.mulerouter import MuleRouterImageModel
-                self._mulerouter_image_model = MuleRouterImageModel({})
-            return self._mulerouter_image_model
-        if model_name and model_name.startswith("jiucaihezi/"):
-            if self._jiucaihezi_image_model is None:
-                from ...models.jiucaihezi import JiucaiheziImageModel
-                self._jiucaihezi_image_model = JiucaiheziImageModel({})
-            return self._jiucaihezi_image_model
-        return self.model
 
     def generate_character(self, character: Character, generation_type: str = "all", prompt: str = "", positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, i2i_model_name: str = None, size: str = None) -> Character:
         """
@@ -98,7 +84,7 @@ class AssetGenerator:
                         sheet_path = os.path.join(self.output_dir, 'characters', f"{character.id}_refsheet_{variant_id}.png")
                         os.makedirs(os.path.dirname(sheet_path), exist_ok=True)
 
-                        self._get_model_for(model_name).generate(
+                        self.model.generate(
                             effective_prompt, sheet_path,
                             negative_prompt=negative_prompt,
                             model_name=model_name,
@@ -235,7 +221,7 @@ class AssetGenerator:
                                 effective_generation_prompt = f"{reverse_enhancement}{generation_prompt}"
                                 logger.debug(f"Reverse generation enhanced prompt: {effective_generation_prompt[:100]}...")
                         
-                        self._get_model_for(effective_model_name).generate(effective_generation_prompt, fullbody_path, ref_image_path=ref_image_path, negative_prompt=negative_prompt, model_name=effective_model_name, size=effective_size)
+                        self.model.generate(effective_generation_prompt, fullbody_path, ref_image_path=ref_image_path, negative_prompt=negative_prompt, model_name=effective_model_name, size=effective_size)
                         
                         rel_fullbody_path = os.path.relpath(fullbody_path, "output")
                         
@@ -382,7 +368,7 @@ class AssetGenerator:
                         variant_id = str(uuid.uuid4())
                         sheet_path = os.path.join(self.output_dir, 'characters', f"{character.id}_sheet_{variant_id}.png")
                         
-                        self._get_model_for(i2i_model_name).generate(generation_prompt, sheet_path, ref_image_path=fullbody_path, negative_prompt=sheet_negative, ref_strength=0.8, model_name=i2i_model_name)
+                        self.model.generate(generation_prompt, sheet_path, ref_image_path=fullbody_path, negative_prompt=sheet_negative, ref_strength=0.8, model_name=i2i_model_name)
                         
                         rel_sheet_path = os.path.relpath(sheet_path, "output")
                         
@@ -460,7 +446,7 @@ class AssetGenerator:
                         variant_id = str(uuid.uuid4())
                         avatar_path = os.path.join(self.output_dir, 'characters', f"{character.id}_avatar_{variant_id}.png")
                         
-                        self._get_model_for(i2i_model_name).generate(generation_prompt, avatar_path, ref_image_path=fullbody_path, negative_prompt=negative_prompt, ref_strength=0.8, model_name=i2i_model_name)
+                        self.model.generate(generation_prompt, avatar_path, ref_image_path=fullbody_path, negative_prompt=negative_prompt, ref_strength=0.8, model_name=i2i_model_name)
                         
                         rel_avatar_path = os.path.relpath(avatar_path, "output")
                         
@@ -552,7 +538,7 @@ class AssetGenerator:
                 output_path = os.path.join(self.output_dir, 'scenes', f"{scene.id}_{variant_id}.png")
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 
-                image_path, _ = self._get_model_for(model_name).generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
+                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
                 
                 rel_path = os.path.relpath(output_path, "output")
                 
@@ -614,7 +600,7 @@ class AssetGenerator:
                 output_path = os.path.join(self.output_dir, 'props', f"{prop.id}_{variant_id}.png")
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 
-                image_path, _ = self._get_model_for(model_name).generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
+                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
                 
                 rel_path = os.path.relpath(output_path, "output")
                 

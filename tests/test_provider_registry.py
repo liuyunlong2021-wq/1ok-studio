@@ -1,6 +1,5 @@
 import pytest
 
-from src.apps.comic_gen.models import ProviderBackend, ProviderRoutingConfig
 from src.utils.model_catalog import build_catalog_dict, build_provider_family_configs, MODEL_CATALOG_ROOT
 from src.utils.provider_registry import ProviderFamilyConfig, ProviderRegistry, get_default_provider_registry
 
@@ -120,22 +119,3 @@ class TestProviderRegistryRouting:
             == "vendor"
         )
 
-
-class TestProviderRoutingConfig:
-    def test_provider_modes_default_to_dashscope(self):
-        config = ProviderRoutingConfig()
-
-        assert config.KLING_PROVIDER_MODE == ProviderBackend.DASHSCOPE
-        assert config.VIDU_PROVIDER_MODE == ProviderBackend.DASHSCOPE
-        assert config.PIXVERSE_PROVIDER_MODE == ProviderBackend.DASHSCOPE
-
-    def test_provider_modes_accept_vendor_override(self):
-        config = ProviderRoutingConfig(
-            KLING_PROVIDER_MODE="vendor",
-            VIDU_PROVIDER_MODE="vendor",
-            PIXVERSE_PROVIDER_MODE="vendor",
-        )
-
-        assert config.KLING_PROVIDER_MODE == ProviderBackend.VENDOR
-        assert config.VIDU_PROVIDER_MODE == ProviderBackend.VENDOR
-        assert config.PIXVERSE_PROVIDER_MODE == ProviderBackend.VENDOR

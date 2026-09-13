@@ -21,23 +21,26 @@ def _generation(model_id, mode):
 
 
 class JiucaiheziRoutingTest(unittest.TestCase):
-    def test_jiucaihezi_and_wan_routes(self):
+    def test_every_model_routes_to_the_single_jiucaihezi_adapter(self):
+        """目录里只有韭菜盒子一家：不管 model_id 是什么都走同一个适配器。
+
+        这里原来断言 `jiucaihezi/…` → jiucaihezi、`wan2.7-image-pro` → wanx。后者已
+        随家族收敛删除；已下线的旧 id 不再在本地猜一个适配器，交给网关按模型名报错。
+        """
         service = PlaygroundService(Mock())
         service._generate_image_jiucaihezi = Mock()
-        service._generate_image_wanx = Mock()
         service._generate_video_jiucaihezi = Mock()
-        service._generate_video_wanx = Mock()
 
         with tempfile.TemporaryDirectory() as output_dir, patch(
             "src.apps.playground.service.IMAGE_OUTPUT_DIR", output_dir
         ), patch("src.apps.playground.service.VIDEO_OUTPUT_DIR", output_dir):
             service._process_image_generation(_generation("jiucaihezi/gpt-image-2.5-1k", PlaygroundMode.T2I))
             service._process_video_generation(_generation("dola-seedance2.5", PlaygroundMode.R2V))
+            # 已下线的旧 id 同样落到唯一适配器
             service._process_image_generation(_generation("wan2.7-image-pro", PlaygroundMode.T2I))
 
-        service._generate_image_jiucaihezi.assert_called_once()
+        assert service._generate_image_jiucaihezi.call_count == 2
         service._generate_video_jiucaihezi.assert_called_once()
-        service._generate_image_wanx.assert_called_once()
 
     def test_public_minimax_model_and_parameters_reach_adapter(self):
         service = PlaygroundService(Mock())

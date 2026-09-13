@@ -43,8 +43,6 @@ from .skill_packages import SkillPackageError
 from .models import (
     ArtDirection,
     PromptConfig,
-    ProviderBackend,
-    ProviderRoutingConfig,
     Script,
     Series,
     StoryboardFrame,
@@ -1510,13 +1508,6 @@ LEGACY_USER_CONFIG_KEYS = {
 }
 
 
-def _normalize_provider_mode(value: Optional[str]) -> str:
-    normalized = (value or "").strip().lower()
-    if normalized in (ProviderBackend.DASHSCOPE.value, ProviderBackend.VENDOR.value):
-        return normalized
-    return ProviderBackend.DASHSCOPE.value
-
-
 def get_user_config_path() -> str:
     """
     Returns the path to the user config file.
@@ -2449,17 +2440,6 @@ def generate_storyboard(script_id: str):
     """Triggers storyboard generation."""
     try:
         updated_script = pipeline.generate_storyboard(script_id)
-        return signed_response(updated_script)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
-@app.post("/projects/{script_id}/generate_video", response_model=Script)
-def generate_video(script_id: str):
-    """Triggers video generation."""
-    try:
-        updated_script = pipeline.generate_video(script_id)
         return signed_response(updated_script)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -4332,38 +4312,6 @@ def polish_r2v_prompt(request: PolishR2VPromptRequest):
 
 
 # ===== Environment Configuration Endpoints =====
-
-def _check_mulerun_cli_status() -> bool:
-    """Check if MuleRun CLI is installed and logged in."""
-    try:
-        import shutil, subprocess
-        if shutil.which("mulerun") is None:
-            return False
-        result = subprocess.run(
-            ["mulerun", "login", "status"],
-            capture_output=True, text=True, timeout=5
-        )
-        return result.returncode == 0
-    except Exception:
-        return False
-
-
-@app.post("/config/mulerun-login")
-def trigger_mulerun_login():
-    """Trigger mulerun login — opens browser for OAuth."""
-    import shutil, subprocess
-    if shutil.which("mulerun") is None:
-        raise HTTPException(status_code=400, detail="MuleRun CLI 未安装。请先运行: npm i -g @mulerunai/cli")
-    try:
-        subprocess.Popen(
-            ["mulerun", "login"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        return {"status": "ok", "message": "浏览器已打开，请完成登录"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"启动登录失败: {e}")
-
 
 # The settings surface exposes one credential only.
 SECRET_FIELDS = {"JIUCAIHEZI_API_KEY"}

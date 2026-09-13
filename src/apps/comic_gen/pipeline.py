@@ -20,7 +20,6 @@ from .export import ExportManager
 from .skill_packages import SkillPackageStore
 from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
-from ...utils.provider_registry import UnknownProviderFamily, resolve_provider_backend
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 
@@ -171,10 +170,7 @@ class ComicGenPipeline:
         self._prompt_generation_slots = threading.BoundedSemaphore(2)
         # Temporary cache for file import previews (import_id -> text)
         self._import_cache: Dict[str, str] = {}
-        # Cached model instances (lazily initialized)
-        self._kling_model = None
-        self._vidu_model = None
-        self._mulerouter_video_model = None
+        # 视频适配器缓存（目录里只有韭菜盒子一家）
         self._jiucaihezi_video_model = None
 
         # Recover orphan async tasks. FastAPI BackgroundTasks live in
@@ -427,25 +423,6 @@ class ComicGenPipeline:
             except Exception:
                 logger.warning("mark_video_task_failed: save failed")
             return True
-
-    def _resolve_video_backend(self, model_name: str) -> str:
-        """模型没在目录里注册家族时回落 dashscope。
-
-        只吞 UnknownProviderFamily —— 目录缺失/损坏必须抛出去，不能被伪装成
-        一个后端选择问题。
-        """
-        if not model_name:
-            return "dashscope"
-        try:
-            return resolve_provider_backend(model_name)
-        except UnknownProviderFamily:
-            logger.debug(
-                "Provider backend not registered for video model %s, defaulting to dashscope.",
-                model_name,
-            )
-            return "dashscope"
-
-    # ... (existing methods)
 
     def export_project(self, script_id: str, options: Dict[str, Any]) -> str:
         """Step 7: Export project to final video."""
@@ -2289,16 +2266,6 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def generate_video(self, script_id: str) -> Script:
-        """Step 4: Generate video clips."""
-        script = self.scripts.get(script_id)
-        if not script:
-            raise ValueError("Script not found")
-            
-        script = self.video_generator.generate_video(script)
-        self._save_data()
-        return script
-
     def create_video_task(self, script_id: str, image_url: str, prompt: str, duration: int = 5, seed: int = None, resolution: str = "720p", generate_audio: bool = False, audio_url: str = None, prompt_extend: bool = True, negative_prompt: str = None, model: Optional[str] = None, frame_id: str = None, shot_type: str = "single", generation_mode: str = "i2v", reference_video_urls: list = None, reference_image_urls: list = None, source_frame_ids: list = None, skill_id: str = None, skill_name: str = None, ratio: str = None, watermark: Optional[bool] = None, mode: str = None, sound: str = None, cfg_scale: float = None, vidu_audio: bool = None, movement_amplitude: str = None, workbench_tab: Optional[str] = None, reference_audio_urls: list = None) -> Tuple[Script, str]:
         """Creates a new video generation task."""
         if not model:
@@ -3481,154 +3448,34 @@ class ComicGenPipeline:
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
             # Handle Audio Logic
-            # 1. Silent: audio_url=None, audio=False
-            # 2. AI Sound: audio_url=None, audio=True
-            # 3. Sound Driven: audio_url=URL (audio param ignored)
-            
-            final_audio_url = None
-            final_generate_audio = False
-            
-            if task.audio_url:
-                # Sound Driven Mode
-                final_audio_url = task.audio_url
-                final_generate_audio = False # API says audio param ignored if url present, but let's be explicit
-            elif task.generate_audio:
-                # AI Sound Mode
-                final_audio_url = None
-                final_generate_audio = True
-            else:
-                # Silent Mode
-                final_audio_url = None
-                final_generate_audio = False
+            # 1. Silent: audio_url=None
+            # 2. AI Sound: audio_url=None
+            # 3. Sound Driven: audio_url=URL，作为参考音频发给上游
+            #
+            # ponytail: 模式 2（task.generate_audio）对当前模型是空操作 —— 上游契约
+            # 只有参考音频 audios（最多 3 段），没有「生成音频」开关。原实现把它作为
+            # audio 参数发给 DashScope wan 适配器，那个适配器已随家族收敛删除。
+            # 见 docs/1-api-reference/jiucaihezi-minimax-h3-image-audio-to-video-v2-15s.md
+            final_audio_url = task.audio_url or None
 
             # Ensure img_url is passed correctly for OSS
             img_url = task.image_url
 
-            # Route to the appropriate model based on task.model
-            model_name = task.model or ""
-            model_name_lower = model_name.lower()
-            backend = self._resolve_video_backend(model_name)
-            use_vendor_kling = backend == "vendor" and (
-                model_name_lower.startswith("kling-") or model_name_lower.startswith("kling/kling-")
+            # 目录里只有韭菜盒子一家，所以视频只有一个适配器。
+            #
+            # 这里原来按 provider 分派到 wanx / mulerouter / kling / vidu 四个适配器，
+            # 那些家族已随目录收敛删除。已下线的旧 task.model 不再有任何本地适配器
+            # 可退 —— 交给网关按模型名报错，比在本地挑一个猜的适配器清楚。
+            if self._jiucaihezi_video_model is None:
+                from ...models.jiucaihezi import JiucaiheziVideoModel
+                self._jiucaihezi_video_model = JiucaiheziVideoModel({})
+            video_path, _ = self._jiucaihezi_video_model.generate(
+                prompt=task.prompt, output_path=output_path, img_url=img_url, img_path=img_path,
+                model_name=task.model, duration=task.duration, resolution=task.resolution,
+                audio_url=final_audio_url, reference_audio_urls=task.reference_audio_urls or [],
+                aspect_ratio=task.ratio or "16:9",
+                ref_image_urls=task.reference_image_urls or [],
             )
-            use_vendor_vidu = backend == "vendor" and (
-                model_name_lower.startswith("vidu")
-                or model_name_lower.startswith("viduq2")
-                or model_name_lower.startswith("viduq3")
-                or model_name_lower.startswith("vidu/vidu")
-            )
-            use_mulerouter = backend == "mulerouter" and (
-                model_name_lower.startswith("seedance")
-            )
-            use_jiucaihezi = backend == "jiucaihezi" or model_name in {
-                "dola-seedance2.5",
-                "minimax_h3_image_audio_to_video_v2_15s",
-            } or is_minimax_h3_model(model_name)
-
-            if use_jiucaihezi:
-                if self._jiucaihezi_video_model is None:
-                    from ...models.jiucaihezi import JiucaiheziVideoModel
-                    self._jiucaihezi_video_model = JiucaiheziVideoModel({})
-                video_path, _ = self._jiucaihezi_video_model.generate(
-                    prompt=task.prompt, output_path=output_path, img_url=img_url, img_path=img_path,
-                    model_name=task.model, duration=task.duration, resolution=task.resolution,
-                    audio_url=final_audio_url, reference_audio_urls=task.reference_audio_urls or [],
-                    aspect_ratio=task.ratio or "16:9",
-                    ref_image_urls=task.reference_image_urls or [],
-                )
-            elif use_mulerouter:
-                if self._mulerouter_video_model is None:
-                    from ...models.mulerouter import MuleRouterVideoModel
-                    self._mulerouter_video_model = MuleRouterVideoModel({})
-                video_path, _ = self._mulerouter_video_model.generate(
-                    prompt=task.prompt,
-                    output_path=output_path,
-                    img_url=img_url,
-                    img_path=img_path,
-                    duration=task.duration,
-                    resolution=task.resolution,
-                    aspect_ratio=task.ratio or "16:9",
-                    seed=task.seed,
-                    watermark=bool(task.watermark) if task.watermark is not None else False,
-                    generation_mode=task.generation_mode,
-                    ref_image_urls=task.reference_image_urls if task.generation_mode == "r2v" else None,
-                )
-            elif use_vendor_kling:
-                # Use Kling model (cached)
-                if self._kling_model is None:
-                    from ...models.kling import KlingModel
-                    self._kling_model = KlingModel({})
-                video_path, _ = self._kling_model.generate(
-                    prompt=task.prompt,
-                    output_path=output_path,
-                    img_url=img_url,
-                    img_path=img_path,
-                    duration=task.duration,
-                    model=task.model,
-                    negative_prompt=task.negative_prompt,
-                    aspect_ratio="16:9",
-                    mode=task.mode or "std",
-                    sound=task.sound or "off",
-                    cfg_scale=task.cfg_scale,
-                )
-            elif use_vendor_vidu:
-                # Use Vidu model (cached)
-                if self._vidu_model is None:
-                    from ...models.vidu import ViduModel
-                    self._vidu_model = ViduModel({})
-                video_path, _ = self._vidu_model.generate(
-                    prompt=task.prompt,
-                    output_path=output_path,
-                    img_url=img_url,
-                    img_path=img_path,
-                    duration=task.duration,
-                    model=task.model,
-                    resolution=task.resolution,
-                    aspect_ratio="16:9",
-                    seed=task.seed or 0,
-                    audio=task.vidu_audio if task.vidu_audio is not None else True,
-                    movement_amplitude=task.movement_amplitude or "auto",
-                )
-            else:
-                # Default: Wanx model
-                # Issue 17: persist provider IDs (Bailian / DashScope task_id +
-                # request_id) onto our VideoTask the moment wanx gets them, BEFORE
-                # the long polling loop. Lets the user copy them from the queue
-                # panel even mid-generation if the task hangs.
-                def _capture_provider_ids(provider_name: str, ptask_id: Optional[str], preq_id: Optional[str]) -> None:
-                    task.provider_name = provider_name
-                    task.provider_task_id = ptask_id
-                    task.provider_request_id = preq_id
-                    try:
-                        self._save_data()
-                    except Exception:
-                        logger.warning("Failed to persist provider IDs mid-flight; will retry at task completion")
-                video_path, _ = self.video_generator.model.generate(
-                    prompt=task.prompt,
-                    output_path=output_path,
-                    img_path=img_path,
-                    img_url=img_url,
-                    duration=task.duration,
-                    seed=task.seed,
-                    resolution=task.resolution,
-                    # Pass new params
-                    audio_url=final_audio_url,
-                    audio=final_generate_audio,
-                    prompt_extend=task.prompt_extend,
-                    negative_prompt=task.negative_prompt,
-                    model=task.model,
-                    shot_type=task.shot_type,
-                    ref_video_urls=task.reference_video_urls if task.generation_mode == "r2v" else None,
-                    ref_image_urls=task.reference_image_urls if task.generation_mode == "r2v" else None,
-                    ratio=task.ratio,
-                    # Pass watermark explicitly; wanx.generate's default is False so
-                    # None becomes False, matching "leave to provider default = off".
-                    watermark=bool(task.watermark) if task.watermark is not None else False,
-                    audio_setting=task.audio_setting,
-                    camera_motion=None,
-                    subject_motion=None,
-                    on_provider_ids=_capture_provider_ids,
-                )
             
             task.video_url = os.path.relpath(output_path, "output")
             task.status = "completed"

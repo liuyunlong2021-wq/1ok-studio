@@ -16,6 +16,7 @@ from src.apps.comic_gen.models import (
     Script, Character, Scene, StoryboardFrame, GenerationStatus,
 )
 from src.apps.comic_gen.pipeline import ComicGenPipeline, _is_jiucaihezi_family_model
+from src.utils.provider_registry import resolve_provider_backend
 
 
 # ---------------------------------------------------------------------------
@@ -132,20 +133,6 @@ class TestGenerateStoryboard:
 # Step 4: Generate Video
 # ---------------------------------------------------------------------------
 
-class TestGenerateVideo:
-    def test_frames_receive_video_urls(self, pipeline, project):
-        def fake_generate(script):
-            for frame in script.frames:
-                frame.video_url = f"http://example.com/{frame.id}.mp4"
-            return script
-
-        pipeline.video_generator.generate_video.side_effect = fake_generate
-        result = pipeline.generate_video(project.id)
-        assert all(f.video_url for f in result.frames)
-        pipeline.video_generator.generate_video.assert_called_once_with(project)
-
-
-# ---------------------------------------------------------------------------
 # Step 5: Generate Audio
 # ---------------------------------------------------------------------------
 
@@ -192,20 +179,6 @@ class TestCatalogFailureIsLoud:
     def _pipeline():
         return ComicGenPipeline.__new__(ComicGenPipeline)
 
-    def test_unknown_family_falls_back_to_dashscope(self):
-        assert self._pipeline()._resolve_video_backend("some-unregistered-model") == "dashscope"
-
-    def test_empty_model_name_falls_back_to_dashscope(self):
-        assert self._pipeline()._resolve_video_backend("") == "dashscope"
-
-    def test_catalog_failure_propagates_from_video_backend(self):
-        with patch(
-            "src.apps.comic_gen.pipeline.resolve_provider_backend",
-            side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
-        ):
-            with pytest.raises(FileNotFoundError):
-                self._pipeline()._resolve_video_backend("dola-seedance2.5")
-
     def test_catalog_failure_propagates_from_family_check(self):
         with patch(
             "src.apps.comic_gen.pipeline.get_catalog_accessor",
@@ -213,6 +186,15 @@ class TestCatalogFailureIsLoud:
         ):
             with pytest.raises(FileNotFoundError):
                 _is_jiucaihezi_family_model("dola-seedance2.5")
+
+    def test_catalog_failure_propagates_from_backend_resolution(self):
+        """无适配器的模型请求也应把目录故障原样抛出去。"""
+        with patch(
+            "src.utils.provider_registry.load_generated_model_catalog",
+            side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
+        ):
+            with pytest.raises(FileNotFoundError):
+                resolve_provider_backend("dola-seedance2.5")
 
     def test_flat_jiucaihezi_id_is_recognized_as_jiucaihezi(self):
         """扁平 id（dola-seedance2.5）必须认成韭菜盒子，否则会被改成已删除的模型。"""

@@ -2,7 +2,7 @@ import os
 import time
 from typing import Dict, Any, List
 from .models import StoryboardFrame, Character, Scene, Prop, GenerationStatus, ImageAsset, ImageVariant
-from ...models.image import WanxImageModel
+from ...models.jiucaihezi import JiucaiheziImageModel
 from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 
@@ -11,7 +11,8 @@ logger = get_logger(__name__)
 class StoryboardGenerator:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
-        self.model = WanxImageModel(self.config.get('model', {}))
+        # 目录里的图片模型只有韭菜盒子一家，所以只有一个适配器。
+        self.model = JiucaiheziImageModel(self.config.get('model', {}))
         self.output_dir = self.config.get('output_dir', 'output/storyboard')
 
     def generate_storyboard(self, script: Any, characters: List[Character] = None, scenes: List[Scene] = None) -> Any:

@@ -1263,11 +1263,6 @@ export const api = {
         return response.json();
     },
 
-    generateVideo: async (scriptId: string) => {
-        const res = await axios.post(`${API_URL}/projects/${scriptId}/generate_video`);
-        return res.data;
-    },
-
     getEnvConfig: async (): Promise<EnvConfigPayload> => {
         const res = await axios.get<EnvConfigPayload>(`${API_URL}/config/env`);
         return res.data;
@@ -1286,11 +1281,6 @@ export const api = {
         const res = await axios.post(`${API_URL}/config/env`, config, {
             timeout: 60000, // 60 seconds timeout
         });
-        return res.data;
-    },
-
-    triggerMulerunLogin: async () => {
-        const res = await axios.post(`${API_URL}/config/mulerun-login`);
         return res.data;
     },
 
