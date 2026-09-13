@@ -3288,6 +3288,90 @@ def update_voice_params(script_id: str, char_id: str, request: UpdateVoiceParams
     return signed_response(script)
 
 
+# ─────────────────────────────────────────────────────────────
+# 角色工作台「声音面」—— 生图面的镜像
+#
+# 工作台有两面：生图、生声。三列职责一一对应 ——
+#   主参考音 ↔ 主参考图 · 声音描述 ↔ 描述 · 音色提示词 ↔ 生图提示词
+# 这几个接口就是声音面上每一列的动作，跟生图面的
+# updateAssetDescription / generateAssetPrompt / 生成图片 一一对应。
+# ─────────────────────────────────────────────────────────────
+
+class UpdateVoiceFieldsRequest(BaseModel):
+    voice_description: Optional[str] = None
+    voice_prompt: Optional[str] = None
+
+
+class GenerateReferenceAudioRequest(BaseModel):
+    # 留空就用默认试听词（带角色名）；用户可以改，改一改能顺便听出音色在不同
+    # 语气下的样子，对挑参考音有实际用处。
+    text: Optional[str] = None
+
+
+def _voice_face_error(exc: Exception) -> HTTPException:
+    """缺前置条件（没描述 / 没音色）是 400，其余是 500。
+
+    声音面这三步是串起来的，用户最常踩的是「顺序错了」—— 所以 ValueError
+    （前置条件）必须原样把话带到前端，别糊成 500。
+    """
+    if isinstance(exc, ValueError):
+        return HTTPException(status_code=400, detail=str(exc))
+    return HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/projects/{script_id}/characters/{char_id}/voice-description")
+def generate_character_voice_description(script_id: str, char_id: str):
+    """中列：角色设定 → 一段人话的「声音描述」。"""
+    try:
+        character = pipeline.generate_voice_description(script_id, char_id)
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
+@app.post("/projects/{script_id}/characters/{char_id}/voice-prompt")
+def generate_character_voice_prompt(script_id: str, char_id: str):
+    """右列：声音描述 → 音色提示词（并记下基于哪一版描述）。"""
+    try:
+        character = pipeline.generate_voice_prompt(script_id, char_id)
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
+@app.post("/projects/{script_id}/characters/{char_id}/reference-audio")
+def generate_character_reference_audio(
+    script_id: str, char_id: str, request: GenerateReferenceAudioRequest = None
+):
+    """左列：用这个角色绑的音色念一句，产出真实的参考音文件。
+
+    「音色设计」造出来的音色没有源音频，所以这是设计音色拿到参考音的唯一途径。
+    """
+    try:
+        character = pipeline.generate_reference_audio(
+            script_id, char_id, text=(request.text if request else None)
+        )
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
+@app.patch("/projects/{script_id}/characters/{char_id}/voice-fields")
+def update_character_voice_fields(
+    script_id: str, char_id: str, request: UpdateVoiceFieldsRequest
+):
+    """手改声音面的两个文本框。改「声音描述」会让右列的提示词变过期。"""
+    try:
+        character = pipeline.update_voice_fields(
+            script_id, char_id,
+            voice_description=request.voice_description,
+            voice_prompt=request.voice_prompt,
+        )
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
 @app.get("/voices")
 def get_voices():
     """Returns list of available voices."""

@@ -4691,13 +4691,16 @@ class ComicGenPipeline:
             logger.info(f"[voice/design] saved voice_id={voice_id} to series={series_id}")
             return custom
 
-    def translate_character_to_voice_prompt(self, description: str) -> str:
+    def translate_character_to_voice_prompt(self, description: str, source_label: str = "角色设定") -> str:
         """LLM helper: convert a character description into a CosyVoice
         voice_prompt suitable for /services/audio/tts/customization.
 
         The prompt should describe vocal qualities (timbre, pace, age, mood)
         in concise Chinese. CosyVoice voice_prompt cap is 500 chars; we
         target ~120-200 to leave headroom for tone hints.
+
+        ``source_label`` 只影响提示词里那行的抬头：音色设计弹窗喂的是角色设定，
+        工作台右列喂的是已经提炼过的「声音描述」，别让模型以为拿到的是人物小传。
         """
         from .llm_adapter import LLMAdapter
 
@@ -4712,7 +4715,7 @@ class ComicGenPipeline:
             "2. 用 100-200 字中文，单段无标题，不带引号或多余说明。"
             "3. 重点：性别·年龄·音色质感·语速·气质氛围。"
         )
-        user_prompt = f"角色设定：\n{description.strip()[:1000]}\n\n请输出音色描述。"
+        user_prompt = f"{source_label}：\n{description.strip()[:1000]}\n\n请输出音色描述。"
 
         text = adapter.chat(
             messages=[
@@ -4721,6 +4724,177 @@ class ComicGenPipeline:
             ],
         )
         return (text or "").strip()[:500]
+
+    # ------------------------------------------------------------------
+    # 角色工作台的「声音面」—— 生图面的镜像
+    #
+    # 工作台有两面：生图、生声。三列职责一一对应 ——
+    #   主参考音 ↔ 主参考图 · 声音描述 ↔ 描述 · 音色提示词 ↔ 生图提示词
+    # 所以这里的方法也照生图那套的形状写：左列是实物，中列是人改的那层，
+    # 右列由中列生成、并记下自己基于哪一版描述。
+    # ------------------------------------------------------------------
+
+    REFERENCE_AUDIO_DIR = "uploads/reference_audio"
+
+    # 默认试听词。带上角色名，人一听就知道这段是谁的；用户可以改。
+    REFERENCE_AUDIO_TEXT = "我是{name}。这段话是用来做声音参考的试听。"
+
+    _VOICE_DESCRIPTION_SYSTEM_PROMPT = (
+        "你是一个声音指导，擅长从人物设定里听出这个人该怎么说话。"
+        "输出要求："
+        "1. 只写声音：性别、年龄感、音色质感、语速、口音、说话习惯、情绪底色。"
+        "2. 不要外貌、不要剧情、不要服装。"
+        "3. 用 80-160 字中文，单段，不加标题、引号或分点。"
+    )
+
+    def _character_or_raise(self, script: Script, character_id: str) -> Character:
+        character = next((c for c in script.characters if c.id == character_id), None)
+        if character is None:
+            raise ValueError(f"角色不存在：{character_id}")
+        return character
+
+    def generate_voice_description(self, script_id: str, character_id: str) -> Character:
+        """中列：把角色设定提炼成一段人话的「声音描述」。
+
+        这是给人改的那一层 —— 之后右列的提示词由它生成。空回复直接报错，
+        不能存成空字符串让右列拿空描述去生成提示词。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        from .llm_adapter import LLMAdapter
+
+        adapter = LLMAdapter()
+        if not adapter.is_configured:
+            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+
+        source_text = (character.description or character.extracted_description or "").strip()
+        if not source_text:
+            raise ValueError(f"「{character.name}」还没有角色描述，先写点东西再来提取声音")
+
+        text = adapter.chat(
+            messages=[
+                {"role": "system", "content": self._VOICE_DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "user", "content": f"角色设定：\n{source_text[:1200]}\n\n请输出这个角色的声音描述。"},
+            ],
+        )
+        cleaned = (text or "").strip()
+        if not cleaned:
+            raise RuntimeError("声音描述生成失败：模型返回了空内容")
+
+        character.voice_description = cleaned[:600]
+        character.voice_description_source = "ai"
+        character.voice_description_version += 1
+        character.voice_description_updated_at = time.time()
+        script.updated_at = time.time()
+        self._save_data()
+        return character
+
+    def generate_voice_prompt(self, script_id: str, character_id: str) -> Character:
+        """右列：由中列的「声音描述」生成音色提示词，并记下基于哪一版描述。"""
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        description = (character.voice_description or "").strip()
+        if not description:
+            raise ValueError(f"「{character.name}」还没有声音描述，先生成或写一段再来生成音色提示词")
+
+        prompt = self.translate_character_to_voice_prompt(description, source_label="声音描述")
+        if not prompt:
+            raise RuntimeError("音色提示词生成失败：模型返回了空内容")
+
+        character.voice_prompt = prompt
+        character.voice_prompt_source = "ai"
+        character.voice_prompt_description_version = character.voice_description_version
+        script.updated_at = time.time()
+        self._save_data()
+        return character
+
+    def generate_reference_audio(
+        self, script_id: str, character_id: str, text: Optional[str] = None
+    ) -> Character:
+        """左列：用这个角色绑定的音色念一句，产出一个真实的参考音文件。
+
+        为什么必须有这一步：参考音要的是**实物**，而「音色设计」造出来的音色
+        天生没有源音频（只有「克隆」才有）。所以设计音色想当参考音，只能现场念一段。
+
+        存仓库内相对路径而不是网关 URL —— 网关临时素材 15 分钟失效，存了就是死链；
+        适配器在真正生成时再转存一次。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        if not character.voice_id:
+            raise ValueError(f"「{character.name}」还没有绑定音色，先选一个音色再生成参考音")
+
+        tts = getattr(self.audio_generator, "tts", None)
+        if not tts:
+            raise RuntimeError("TTS 服务不可用，请先配置 DASHSCOPE_API_KEY")
+
+        sample = (text or "").strip() or self.REFERENCE_AUDIO_TEXT.format(name=character.name)
+        output_path = os.path.join(self.REFERENCE_AUDIO_DIR, f"{character_id}.mp3")
+        os.makedirs(self.REFERENCE_AUDIO_DIR, exist_ok=True)
+
+        # 设计/克隆音色不在静态音色表里，得把它自己的 model/family 带上，
+        # 否则 TTS 会按默认版本去解析、报「音色不存在」。
+        custom = self.find_custom_voice(character.voice_id)
+        try:
+            tts.synthesize(
+                text=sample,
+                output_path=output_path,
+                voice=character.voice_id,
+                speech_rate=character.voice_speed,
+                pitch_rate=character.voice_pitch,
+                volume=character.voice_volume,
+                model_override=custom.target_model if custom else None,
+                family_override=custom.family if custom else None,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"参考音生成失败：{exc}") from exc
+
+        character.reference_audio_url = output_path
+        script.updated_at = time.time()
+        self._save_data()
+        logger.info("[voice-face] reference audio for %s → %s", character_id, output_path)
+        return character
+
+    def update_voice_fields(
+        self,
+        script_id: str,
+        character_id: str,
+        voice_description: Optional[str] = None,
+        voice_prompt: Optional[str] = None,
+    ) -> Character:
+        """手改声音面的两个文本框。
+
+        改「声音描述」要进版本 —— 右列的提示词据此变「过期」。改提示词则是手工
+        覆盖，它对当前这一版描述就是新鲜的。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        if voice_description is not None and voice_description.strip() != (character.voice_description or ""):
+            character.voice_description = voice_description.strip()
+            character.voice_description_source = "manual"
+            character.voice_description_version += 1
+            character.voice_description_updated_at = time.time()
+
+        if voice_prompt is not None and voice_prompt.strip() != (character.voice_prompt or ""):
+            character.voice_prompt = voice_prompt.strip()
+            character.voice_prompt_source = "manual"
+            character.voice_prompt_description_version = character.voice_description_version
+
+        script.updated_at = time.time()
+        self._save_data()
+        return character
 
     # ------------------------------------------------------------------
     # 声音设计（可选步骤）：全局声音导演稿 + 全集声音
@@ -4798,10 +4972,16 @@ class ComicGenPipeline:
     ) -> List[str]:
         """把角色 id 解析成参考音频的**本地路径**。
 
-        链路：``Character.voice_id`` → ``Series.custom_voices[].id`` →
-        ``source_audio_url``。取到的通常是 ``uploads/xxx`` 这种仓库内相对路径 ——
-        交给适配器在**生成时**转存成网关 URL 即可，这样天然避开网关临时素材
-        15 分钟失效的问题（存成网关 URL 就是死链）。
+        链路（工作台「声音面」补上了第一层）：
+        ``Character.reference_audio_url`` → ``Character.voice_id`` →
+        ``Series.custom_voices[].id`` → ``source_audio_url``。
+
+        第一层是给「音色设计」用的：设计出来的音色天生没有源音频，只能靠
+        「用这个音色念一句」产出一个真实文件。克隆音色仍然走后面那层。
+
+        取到的通常是 ``uploads/xxx`` 这种仓库内相对路径 —— 交给适配器在**生成时**
+        转存成网关 URL 即可，这样天然避开网关临时素材 15 分钟失效的问题（存成
+        网关 URL 就是死链）。
 
         勾了角色却没有参考音时报错而不是悄悄跳过：否则「我勾了 4 个只生效 2 个」
         会被误当成音色没听出来，很难查。
@@ -4830,6 +5010,10 @@ class ComicGenPipeline:
             character = characters.get(character_id)
             if character is None:
                 raise ValueError(f"角色不存在：{character_id}")
+            own = getattr(character, "reference_audio_url", None)
+            if own:
+                resolved.append(own)
+                continue
             voice = voices.get(character.voice_id) if character.voice_id else None
             if voice is not None and getattr(voice, "source_audio_url", None):
                 resolved.append(voice.source_audio_url)

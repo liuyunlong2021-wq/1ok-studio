@@ -318,6 +318,33 @@ class Character(BaseModel):
     # audio (PR-3h); 'design' = voice generated from text prompt (PR-3i).
     # Picker modal Tabs filter by this field (Q15.5 B).
     voice_origin: str = Field("system", description="Voice source: 'system' | 'clone' | 'design'")
+
+    # 那个角色工作台有两面镜子：一面生图，一面生声。左=素材、中=人的描述、
+    # 右=给模型的提示词，两边一一对应 —— 所以字段也照着生图那套镜像一份。
+    #
+    #   主参考音  ↔ 主参考图      reference_audio_url
+    #   声音描述  ↔ 描述          voice_description (+ _source / _version)
+    #   音色提示词 ↔ 生图提示词    voice_prompt (+ _source / _model / 描述版本)
+    #
+    # voice_description 是给人改的那一层，voice_prompt 由它生成。所以提示词要记下
+    # 自己基于哪一版描述（voice_prompt_description_version）—— 改了描述而版本落后
+    # 就是「过期」，跟生图面的 description_version 同一套语义。
+    reference_audio_url: Optional[str] = Field(
+        None, description="Local path of this character's own reference audio (mirror of the main reference image)")
+    voice_description: Optional[str] = Field(
+        None, description="Human-facing description of how this character sounds")
+    voice_description_source: Optional[str] = Field(
+        None, description="Where voice_description came from: 'ai' | 'manual'")
+    voice_description_updated_at: float = Field(0.0, description="Timestamp of last voice_description change")
+    voice_description_version: int = Field(0, description="Increments on every voice_description change")
+    voice_prompt: Optional[str] = Field(
+        None, description="Voice prompt handed to voice design / TTS customization")
+    voice_prompt_source: Optional[str] = Field(
+        None, description="Where voice_prompt came from: 'ai' | 'manual'")
+    voice_prompt_model: Optional[str] = Field(None, description="Model that produced voice_prompt")
+    voice_prompt_description_version: int = Field(
+        0, description="voice_description_version this voice_prompt was generated from; lags behind = stale")
+
     locked: bool = Field(False, description="Whether this asset is locked from regeneration")
     starred: bool = Field(False, description="User-starred flag for the asset library shortlist")
     status: GenerationStatus = GenerationStatus.PENDING
