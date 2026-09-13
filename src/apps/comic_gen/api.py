@@ -2489,8 +2489,8 @@ class CreateVideoTaskRequest(BaseModel):
     prompt_extend: bool = True
     negative_prompt: Optional[str] = None
     batch_size: int = 1
-    model: str = "wan2.6-i2v"
-    shot_type: str = "single"  # 'single' or 'multi' (only for wan2.6-i2v)
+    model: Optional[str] = None
+    shot_type: str = "single"  # 'single' or 'multi'
     generation_mode: str = "i2v"  # 'i2v' (image-to-video) or 'r2v' (reference-to-video)
     reference_video_urls: List[str] = []  # Reference video URLs for R2V (max 3)
     # Kling params

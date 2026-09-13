@@ -15,6 +15,7 @@ import time
 
 from src.apps.comic_gen.models import Script, StoryboardFrame
 from src.apps.comic_gen.pipeline import ComicGenPipeline
+from src.utils.model_catalog import get_default_model_settings
 
 
 def _pipeline_with_script() -> ComicGenPipeline:
@@ -68,8 +69,14 @@ def test_prefixed_jiucaihezi_id_is_not_switched():
     assert task.model == "jiucaihezi/dola-seedance2.5"
 
 
-def test_other_family_still_auto_switches_to_its_r2v_sibling():
-    """非韭菜盒子的 i2v 选择仍然按原逻辑切到同族 r2v（不能被这次改动破坏）。"""
+def test_unregistered_model_falls_back_to_catalog_r2v_default():
+    """已下线 provider 的旧 id 落到目录默认值，不能被改写成另一个写死的模型名。
+
+    这里曾断言 `happyhorse-1.1-i2v` → `happyhorse-1.1-r2v`。家族收敛后 happyhorse
+    已从目录删除，那些按族名硬编码的改写目标（happyhorse-1.1-r2v / kling-v3-r2v /
+    pixverse-c1-r2v / viduq3-pro-r2v / seedance-2.0-r2v）全都指向不存在的模型，
+    改写只会把请求发给不存在的通道。现在统一落到目录默认 R2V 模型。
+    """
     pipeline = _pipeline_with_script()
 
     _, task_id = pipeline.create_video_task(
@@ -78,4 +85,16 @@ def test_other_family_still_auto_switches_to_its_r2v_sibling():
     )
 
     task = _task_of(pipeline, task_id)
-    assert task.model == "happyhorse-1.1-r2v"
+    assert task.model == get_default_model_settings().r2v_model
+    assert task.model == "dola-seedance2.5"
+
+
+def test_missing_model_uses_catalog_i2v_default():
+    """不传 model 时要落到目录默认 i2v 模型，不是写死的 wan2.7-i2v（已下线）。"""
+    pipeline = _pipeline_with_script()
+
+    _, task_id = pipeline.create_video_task("project-1", "", "prompt")
+
+    task = _task_of(pipeline, task_id)
+    assert task.model == get_default_model_settings().i2v_model
+    assert not task.model.startswith("wan2.")

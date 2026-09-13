@@ -2299,8 +2299,11 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def create_video_task(self, script_id: str, image_url: str, prompt: str, duration: int = 5, seed: int = None, resolution: str = "720p", generate_audio: bool = False, audio_url: str = None, prompt_extend: bool = True, negative_prompt: str = None, model: str = "wan2.7-i2v", frame_id: str = None, shot_type: str = "single", generation_mode: str = "i2v", reference_video_urls: list = None, reference_image_urls: list = None, source_frame_ids: list = None, skill_id: str = None, skill_name: str = None, ratio: str = None, watermark: Optional[bool] = None, mode: str = None, sound: str = None, cfg_scale: float = None, vidu_audio: bool = None, movement_amplitude: str = None, workbench_tab: Optional[str] = None, reference_audio_urls: list = None) -> Tuple[Script, str]:
+    def create_video_task(self, script_id: str, image_url: str, prompt: str, duration: int = 5, seed: int = None, resolution: str = "720p", generate_audio: bool = False, audio_url: str = None, prompt_extend: bool = True, negative_prompt: str = None, model: Optional[str] = None, frame_id: str = None, shot_type: str = "single", generation_mode: str = "i2v", reference_video_urls: list = None, reference_image_urls: list = None, source_frame_ids: list = None, skill_id: str = None, skill_name: str = None, ratio: str = None, watermark: Optional[bool] = None, mode: str = None, sound: str = None, cfg_scale: float = None, vidu_audio: bool = None, movement_amplitude: str = None, workbench_tab: Optional[str] = None, reference_audio_urls: list = None) -> Tuple[Script, str]:
         """Creates a new video generation task."""
+        if not model:
+            # 目录默认值，不写死 id —— 写死的 id 一旦下线就会指向不存在的模型。
+            model = get_default_model_settings().i2v_model
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
@@ -2338,31 +2341,18 @@ class ComicGenPipeline:
         
         task_id = str(uuid.uuid4())
         
-        # If R2V mode is selected, use the appropriate R2V model
+        # R2V 模式：选中的不是 R2V 模型时，切到目录默认的 R2V 模型。
         if generation_mode == "r2v":
-            # Skip auto-switch if user already selected an R2V model directly
-            if not (model and model.endswith("-r2v")):
-                if _is_jiucaihezi_family_model(model):
-                    # Jiucaihezi exposes provider-native R2V IDs that do not
-                    # necessarily use the legacy -r2v suffix (MiniMax H3), and
-                    # its catalog ids are flat (dola-seedance2.5) — a plain
-                    # "jiucaihezi/" prefix check would drop them into the
-                    # fallback below and call the wrong provider.
-                    pass
-                elif model and model.startswith("happyhorse-"):
-                    model = "happyhorse-1.1-r2v"
-                elif model and model.startswith("kling"):
-                    model = "kling-v3-r2v"
-                elif model and model.startswith("pixverse"):
-                    model = "pixverse-c1-r2v"
-                elif model and model.startswith("vidu"):
-                    model = "viduq3-pro-r2v"
-                elif model and model.startswith("seedance"):
-                    model = "seedance-2.0-r2v"
-                else:
-                    # 兜底取目录默认值，不硬编码：写死的 id 一旦下线就会指向不存在的
-                    # 模型（wan2.7-r2v 就是这么被删掉的）。
-                    model = get_default_model_settings().r2v_model
+            # 两种情况都不动：
+            # 1. 已经直接选了带 -r2v 后缀的模型；
+            # 2. 选的是韭菜盒子自家的模型 —— 它的 R2V id 不一定带 -r2v 后缀
+            #    （dola-seedance2.5 / minimax_h3_zm_u24 都是扁平 id），按后缀判断
+            #    会把它当成没选 R2V 而覆盖掉。
+            # 其余（空、或 happyhorse / kling / pixverse / vidu / seedance 这类
+            # 已下线 provider 的旧 id）一律落到目录默认值，不按族名改写成某个写死的
+            # 模型名：那些 id 全都已经不存在了，改写只会把请求发给不存在的通道。
+            if not (model and model.endswith("-r2v")) and not _is_jiucaihezi_family_model(model):
+                model = get_default_model_settings().r2v_model
 
         # Defensive guard against model⇄mode⇄refs mismatch. Every R2V
         # model needs reference inputs; without them the underlying
@@ -2371,28 +2361,20 @@ class ComicGenPipeline:
         # inconsistency at task-creation time so the frontend gets a
         # clean 400 instead of a permanently-failed task.
         #
-        # Originally we only checked wan2.7-r2v / wan2.6-r2v (the
-        # first reported case). Production added happyhorse-1.0-r2v,
-        # kling-v3-r2v, pixverse-c1-r2v, pixverse-v5.6-r2v,
-        # viduq3-pro-r2v, viduq3-turbo-r2v — all need refs too. We
-        # now match on the "-r2v" suffix so new R2V families inherit
-        # the check automatically. Only wan2.6-r2v (legacy) takes
-        # video refs; everything else takes image refs.
+        # was: `needs_video_refs = model == "wan2.6-r2v"` —— 只有那个已下线的模型
+        # 取参考视频，现在所有 R2V 模型都取参考图，所以那个分支已删除。
+        #
+        # ponytail: 已知天花板 —— 判据是 `-r2v` 后缀，而韭菜盒子的 R2V id 是扁平的
+        # （dola-seedance2.5 / minimax_h3_zm_u24），所以这个校验对它们**不生效**。
+        # 不能简单换成 `generation_mode == "r2v"`：MiniMax H3 允许只带参考音频，
+        # 那样会把合法流程拦成 400。要收紧得先确认各模型的最低参考素材要求。
         is_r2v_model = isinstance(model, str) and model.endswith("-r2v")
-        if is_r2v_model:
-            needs_video_refs = model == "wan2.6-r2v"
-            refs = (
-                (reference_video_urls or []) if needs_video_refs
-                else (reference_image_urls or [])
+        if is_r2v_model and not (reference_image_urls or []):
+            raise ValueError(
+                f"Model '{model}' is reference-to-video and requires image references, "
+                "but none were provided. Attach reference images (use @ in the prompt "
+                "to reference characters / scenes / props) or switch to an I2V model."
             )
-            if not refs:
-                kind = "video" if needs_video_refs else "image"
-                raise ValueError(
-                    f"Model '{model}' is reference-to-video and requires {kind} references, "
-                    f"but none were provided. Attach reference {kind}s (use @ in the prompt "
-                    "to reference characters / scenes / props) or switch to an I2V model "
-                    "(e.g. wan2.7-i2v)."
-                )
 
         # Snapshot the input image to ensure consistency
         snapshot_url = image_url
