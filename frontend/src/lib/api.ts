@@ -1,5 +1,6 @@
 import axios from "axios";
 import { DEFAULT_I2V_MODEL_ID } from "@/lib/modelCatalog";
+import type { AudioPlan, AudioTake } from "@/store/projectStore";
 
 export type AssetContract = {
     id: string;
@@ -238,6 +239,13 @@ export interface SkillPackageSummary {
     source_name: string;
     files: { path: string; size: number }[];
     validation: { errors: string[]; warnings: string[]; references?: string[] };
+}
+
+/** Prefer the backend's `detail` so failures read as instructions
+ *  (e.g.「老师、路人 还没绑定参考音」) rather than a bare status code. */
+async function describeFailure(response: Response, fallback: string): Promise<string> {
+    const body = await response.json().catch(() => null);
+    return body?.detail || fallback;
 }
 
 export const api = {
@@ -1130,6 +1138,52 @@ export const api = {
             method: "POST",
         });
         if (!response.ok) throw new Error("Failed to generate audio");
+        return response.json();
+    },
+
+    // ── 声音步骤（可选）────────────────────────────────────────────
+    // 一期刻意不做分段、不关联分镜：这几步是给人听的参考物。
+
+    /** 生成/重建全剧声音导演稿（会覆盖 script_text，保留已生成的 take）。 */
+    generateAudioPlanScript: async (scriptId: string): Promise<{ audio_plan: AudioPlan }> => {
+        const response = await fetch(`${API_URL}/projects/${scriptId}/audio-plan/generate-script`, {
+            method: "POST",
+        });
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音导演稿生成失败"));
+        }
+        return response.json();
+    },
+
+    /** 出一版全集声音。character_ids 为空 = 纯音频（不带参考音）。 */
+    generateEpisodeAudio: async (
+        scriptId: string,
+        characterIds: string[] = [],
+    ): Promise<{ audio_plan: AudioPlan; take: AudioTake }> => {
+        const response = await fetch(`${API_URL}/projects/${scriptId}/audio-plan/generate-audio`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ character_ids: characterIds }),
+        });
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音生成失败"));
+        }
+        return response.json();
+    },
+
+    /** 手改导演稿 / 切换当前采用的 take。 */
+    updateAudioPlan: async (
+        scriptId: string,
+        patch: { script_text?: string; selected_take_id?: string },
+    ): Promise<{ audio_plan: AudioPlan }> => {
+        const response = await fetch(`${API_URL}/projects/${scriptId}/audio-plan`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch),
+        });
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "声音方案保存失败"));
+        }
         return response.json();
     },
 

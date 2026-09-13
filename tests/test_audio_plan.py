@@ -21,10 +21,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.apps.comic_gen import api as api_mod
-from src.apps.comic_gen.models import Character, Script, StoryboardFrame
+from src.apps.comic_gen.models import Character, CustomVoice, Script, Series, StoryboardFrame
 
 
 PROJECT_ID = "test-project"
+SERIES_ID = "test-series"
 PLAN_URL = f"/projects/{PROJECT_ID}/audio-plan"
 
 
@@ -38,6 +39,7 @@ def _script() -> Script:
         id=PROJECT_ID,
         title="声音测试",
         original_text="demo",
+        series_id=SERIES_ID,
         characters=[
             Character(id="char-1", name="小满", description="女主",
                       voice_id="voice-a", voice_name="清澈女声"),
@@ -52,13 +54,34 @@ def _script() -> Script:
     )
 
 
+def _series() -> Series:
+    """音色池：角色的参考音就存在这里（CustomVoice.source_audio_url）。"""
+    now = time.time()
+    return Series(
+        id=SERIES_ID,
+        title="声音测试系列",
+        created_at=now,
+        updated_at=now,
+        custom_voices=[
+            CustomVoice(id="voice-a", label="小满·清澈", origin="clone",
+                        source_audio_url="uploads/voice-a.wav"),
+            CustomVoice(id="voice-b", label="陈默·低沉", origin="clone",
+                        source_audio_url="uploads/voice-b.wav"),
+            # 设计音色没有源音频 —— 拿不到参考音时要报清楚
+            CustomVoice(id="voice-c", label="老师·温和", origin="design",
+                        voice_prompt="温和的中年女声"),
+        ],
+    )
+
+
 def _client(monkeypatch, script: Script) -> TestClient:
     """把 pipeline 的读写全部挡在内存里，不碰磁盘。"""
     monkeypatch.setattr(
         api_mod.pipeline, "get_script",
         lambda script_id: script if script_id == PROJECT_ID else None,
     )
-    monkeypatch.setattr(api_mod.pipeline, "get_series", lambda _sid: None)
+    monkeypatch.setattr(api_mod.pipeline, "get_series", lambda _sid: _series())
+    monkeypatch.setattr(api_mod.pipeline, "series_store", {SERIES_ID: _series()})
     monkeypatch.setattr(api_mod.pipeline, "_save_data", lambda: None)
     return TestClient(api_mod.app)
 
@@ -89,7 +112,6 @@ def audio_spy(monkeypatch):
 # 1. 数据模型 / 向后兼容
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：Script.audio_plan 字段")
 def test_project_without_audio_plan_still_loads():
     """老 project 没有 audio_plan 字段 —— 读了不能炸，值为 None。"""
     script = Script.model_validate({
@@ -103,7 +125,6 @@ def test_project_without_audio_plan_still_loads():
     assert script.audio_plan is None
 
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：AudioTake / EpisodeAudioPlan")
 def test_audio_plan_holds_director_script_and_takes():
     from src.apps.comic_gen.models import AudioTake, EpisodeAudioPlan
 
@@ -134,13 +155,16 @@ def test_audio_plan_holds_director_script_and_takes():
 # 2. 生成导演稿
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：/audio-plan/generate-script")
 def test_generate_script_saves_director_script_and_hash(monkeypatch):
+    """stub 在 LLM 层，让真实的 pipeline 逻辑跑起来（写盘、算 hash、存计划）。"""
+    from src.apps.comic_gen.llm_adapter import LLMAdapter
+
     script = _script()
     client = _client(monkeypatch, script)
+    monkeypatch.setattr(LLMAdapter, "is_configured", property(lambda self: True))
     monkeypatch.setattr(
-        api_mod.pipeline, "generate_audio_plan_script",
-        lambda script_id: "【全局声音导演稿】小满：……",
+        LLMAdapter, "chat",
+        lambda self, messages, **kwargs: "【全局声音导演稿】小满：……",
     )
 
     response = client.post(f"{PLAN_URL}/generate-script", json={})
@@ -150,13 +174,14 @@ def test_generate_script_saves_director_script_and_hash(monkeypatch):
     assert plan["script_text"].startswith("【全局声音导演稿】")
     assert plan["script_hash"], "要记 hash，改了导演稿才能标音频过期"
     assert plan["takes"] == []
+    # 真的落到 script 上了，不只是回显
+    assert script.audio_plan.script_text.startswith("【全局声音导演稿】")
 
 
 # ---------------------------------------------------------------------------
 # 3. 生成全集声音 —— 参考音按合同传
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：/audio-plan/generate-audio")
 def test_generate_audio_without_references_sends_no_metadata(monkeypatch, audio_spy):
     """不带参考音：纯文生音频。合同规定 references 是 1–3 项，空数组是非法的，
     所以整个 metadata 字段都不能出现。"""
@@ -172,17 +197,15 @@ def test_generate_audio_without_references_sends_no_metadata(monkeypatch, audio_
     assert audio_spy[0]["prompt"].startswith("【全局声音导演稿】")
 
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：/audio-plan/generate-audio")
 def test_generate_audio_resolves_character_reference_audio(monkeypatch, audio_spy):
-    """勾了角色 → 取这些角色绑定音色的参考音频（本地相对路径，生成时才转存，
-    避开网关临时素材 15 分钟失效）。"""
+    """勾了角色 → 取这些角色绑定音色的参考音频。走真实的解析链：
+    Character.voice_id → Series.custom_voices[].id → source_audio_url。
+
+    取的是 uploads/xxx 这种**本地相对路径**，生成时才转存，天然避开网关临时
+    素材 15 分钟失效。"""
     script = _script()
     client = _client(monkeypatch, script)
     script.audio_plan = _plan_with_script()
-    monkeypatch.setattr(
-        api_mod.pipeline, "resolve_character_reference_audios",
-        lambda script_id, character_ids: ["uploads/voice-a.wav", "uploads/voice-b.wav"],
-    )
 
     response = client.post(
         f"{PLAN_URL}/generate-audio", json={"character_ids": ["char-1", "char-2"]}
@@ -192,9 +215,31 @@ def test_generate_audio_resolves_character_reference_audio(monkeypatch, audio_sp
     assert audio_spy[0]["reference_audio_urls"] == [
         "uploads/voice-a.wav", "uploads/voice-b.wav"
     ]
+    # 版本里记下用了谁，方便对比着听
+    take = response.json()["take"]
+    assert take["reference_character_ids"] == ["char-1", "char-2"]
 
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：参考音上限校验")
+def test_generate_audio_reports_characters_without_reference_audio(monkeypatch, audio_spy):
+    """勾了没参考音的角色 → 报名字，不静默跳过。
+
+    悄悄少用一段会让人以为「音色没听出来」，比报错难查得多。
+    """
+    script = _script()
+    client = _client(monkeypatch, script)
+    script.audio_plan = _plan_with_script()
+
+    # char-3 绑的是设计音色（voice-c），没有 source_audio_url；char-4 根本没绑。
+    response = client.post(
+        f"{PLAN_URL}/generate-audio", json={"character_ids": ["char-3", "char-4"]}
+    )
+
+    assert response.status_code == 400, response.text
+    detail = response.json()["detail"]
+    assert "老师" in detail and "路人" in detail
+    assert audio_spy == [], "校验不通过就不该发起生成"
+
+
 def test_generate_audio_rejects_more_than_three_references(monkeypatch, audio_spy):
     """合同：最多 3 段。超了要报清楚，不能悄悄截断 —— 用户勾了 4 个却只生效 3 个
     会让人以为音色没生效。"""
@@ -211,7 +256,6 @@ def test_generate_audio_rejects_more_than_three_references(monkeypatch, audio_sp
     assert audio_spy == [], "校验不通过就不该发起生成"
 
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：没有导演稿不能生成音频")
 def test_generate_audio_requires_a_director_script(monkeypatch, audio_spy):
     from src.apps.comic_gen.models import EpisodeAudioPlan
 
@@ -225,7 +269,6 @@ def test_generate_audio_requires_a_director_script(monkeypatch, audio_spy):
     assert audio_spy == []
 
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：每次生成追加一个版本")
 def test_generate_audio_appends_a_take_and_selects_it(monkeypatch, audio_spy):
     """「绑定参考音了就多生成几段」—— 每次生成追加一个版本，并设为当前选中。"""
     script = _script()
@@ -248,7 +291,6 @@ def test_generate_audio_appends_a_take_and_selects_it(monkeypatch, audio_spy):
 # 4. 保存 / 编辑 / 选版本
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="一期未实现：PATCH /audio-plan")
 def test_patch_script_text_updates_hash_but_keeps_takes(monkeypatch, audio_spy):
     """改了导演稿：hash 变、已有版本留着（前端据此标「已过期」），不删不拦。"""
     script = _script()
@@ -266,6 +308,10 @@ def test_patch_script_text_updates_hash_but_keeps_takes(monkeypatch, audio_spy):
     assert plan["script_text"] == "【改过的导演稿】…"
     assert plan["script_hash"] != original_hash
     assert [t["id"] for t in plan["takes"]] == [before], "旧版本不能因为改稿就消失"
+    # 版本自带「我基于哪版稿子生成的」——前端靠它把过期的标出来，
+    # 刷新页面也认得出来（不是只有当场那次编辑才算过期）。
+    assert plan["takes"][0]["script_hash"] == original_hash, "版本要记住自己的稿子版本"
+    assert plan["takes"][0]["script_hash"] != plan["script_hash"], "改完稿，旧版本即过期"
 
 
 # ---------------------------------------------------------------------------

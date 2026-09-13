@@ -432,7 +432,6 @@ def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
 # 合同补漏：input 必须 1-3000 字符（见 Seed Audio 1.0 接入合同）
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=True, reason="待实现：空 input 要本地拦掉，别浪费一次请求")
 def test_generate_audio_rejects_blank_input(tmp_path):
     """input 是必填且 1-3000 字符。空字符串上游会 400，不如在本地报清楚。"""
     with pytest.raises(ValueError, match="1-3000"):

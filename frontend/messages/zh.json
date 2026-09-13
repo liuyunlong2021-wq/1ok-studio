@@ -22,7 +22,9 @@
     "mixSubtitle": "多轨道混音 · 时间线编辑 · 音量平衡",
     "exportTitle": "导出成片",
     "exportSubtitle": "选择分辨率与格式，渲染最终视频",
-    "comingSoon": "即将上线"
+    "comingSoon": "即将上线",
+    "soundTitle": "声音",
+    "soundSubtitle": "可选：先出一稿全剧声音参考，再照它配音与配乐"
   },
   "reconcile": {
     "title": "实体对齐到系列",
@@ -790,7 +792,8 @@
     "railAssemblyReady": "待合成",
     "railAssemblyGated": "待分镜完成",
     "gatedTooltip": "需先完成上游步骤",
-    "doneTooltip": "已完成"
+    "doneTooltip": "已完成",
+    "railSoundTakes": "{n} 版"
   },
   "assets": {
     "clickToZoom": "点击放大",
@@ -2039,5 +2042,40 @@
       "sceneHeading": "INT./EXT. 场景 - 时间",
       "startTyping": "开始输入..."
     }
+  },
+  "sound": {
+    "castTitle": "角色参考音",
+    "pillTakes": "版本",
+    "pillRefs": "参考音",
+    "castHint": "勾上的角色，生成时会把它的音色作为参考音传给模型（最多 3 个）。不勾 = 纯音频。",
+    "castUnbound": "未绑定音色",
+    "castGoBind": "去 Cast",
+    "castPreview": "试听参考音",
+    "castNoReference": "该角色还没有参考音",
+    "scriptTitle": "全局声音导演稿",
+    "scriptHint": "给人看的一稿，不做分段、不关联分镜。改完记得保存。",
+    "scriptGenerate": "生成导演稿",
+    "scriptRegenerate": "重新生成",
+    "scriptSave": "保存",
+    "scriptSaved": "已保存",
+    "scriptPlaceholder": "点「生成导演稿」，或直接手写这一集的声音该怎么走……",
+    "scriptEmptyHint": "还没有导演稿。可以先手动写，也可以让模型基于剧本出一稿。",
+    "takeTitle": "全集声音",
+    "takeHint": "一次出一整版。绑定参考音会多出几段；不绑定就是纯音频。",
+    "takeGenerate": "生成一版",
+    "takeGeneratePlain": "不带参考音出一版",
+    "takeEmptyHint": "还没有生成过。",
+    "takeCurrent": "当前采用",
+    "takeSetCurrent": "设为当前",
+    "takePlay": "播放",
+    "takeStop": "停止",
+    "takeWithRefs": "带参考音 · {names}",
+    "takePlain": "纯音频",
+    "takeStale": "导演稿改过，这一版是旧的",
+    "takeDownload": "下载",
+    "waveformHint": "波形图仅用于对齐节奏，不进数据。",
+    "generating": "生成中……",
+    "loadFailed": "加载失败",
+    "generateFailed": "生成失败"
   }
 }

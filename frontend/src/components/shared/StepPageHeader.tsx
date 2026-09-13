@@ -68,8 +68,8 @@ export default function StepPageHeader({
 export function StepPill({ label, value }: { label: string; value: ReactNode }) {
     return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-surface-inset px-2.5 py-1 font-mono text-[0.59375rem] text-text-secondary">
-            <span className="text-text-muted">{label}</span>
-            <span className="text-primary">{value}</span>
+            <span className="whitespace-nowrap text-text-muted">{label}</span>
+            <span className="whitespace-nowrap text-primary">{value}</span>
         </span>
     );
 }

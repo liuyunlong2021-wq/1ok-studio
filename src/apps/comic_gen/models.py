@@ -554,6 +554,41 @@ class PromptConfig(BaseModel):
     # 显式覆盖时用于切到 vision-capable 或更便宜的模型（qwen3.6-flash、kimi-k2.6 等）。
     polish_model: str = Field("", description="Override LLM model id used for polish calls; empty = use system default")
 
+class AudioTake(BaseModel):
+    """一版全集声音。
+
+    「绑定参考音了就多生成几段」—— 每次生成追加一版，人对比着听，程序不挑。
+    """
+    id: str = Field(..., description="Unique identifier for this take")
+    audio_url: str = Field(..., description="Local path (relative to output/) or URL of the audio")
+    duration_ms: Optional[int] = Field(None, description="Duration in milliseconds, for the timeline")
+    reference_character_ids: List[str] = Field(
+        default_factory=list,
+        description="Which characters' reference audio was attached to this take (record only)",
+    )
+    script_hash: Optional[str] = Field(
+        None,
+        description="Hash of the director script this take was generated from — "
+        "lets the UI flag takes that predate an edit",
+    )
+    created_at: float = Field(default_factory=time.time, description="Timestamp of creation")
+
+
+class EpisodeAudioPlan(BaseModel):
+    """全局声音导演稿 + 全集声音版本。
+
+    这一步的产出**纯粹给人听**：不参与任何自动决策，「哪几个分镜一组」仍由人听完
+    自己判断。整块可选 —— 没做这一步时本字段为 None，流程与之前完全一致。
+    """
+    script_text: Optional[str] = Field(None, description="Global voice direction script (director's draft)")
+    script_hash: Optional[str] = Field(
+        None,
+        description="Hash of script_text at audio generation time; a mismatch marks existing takes stale",
+    )
+    takes: List[AudioTake] = Field(default_factory=list, description="Generated full-episode audio takes")
+    selected_take_id: Optional[str] = Field(None, description="Take the user is currently listening to")
+
+
 class Script(BaseModel):
     id: str = Field(..., description="Unique identifier for the script project")
     title: str = Field(..., description="Title of the comic/video")
@@ -604,6 +639,13 @@ class Script(BaseModel):
     # Series association
     series_id: Optional[str] = Field(None, description="ID of the parent Series, None for standalone projects")
     episode_number: Optional[int] = Field(None, description="Episode number within the Series")
+
+    # 声音设计（可选步骤）—— 全局声音导演稿 + 全集声音版本。
+    # 纯参考物：不参与任何自动决策，跳过它就是 None，不影响其它任何步骤。
+    audio_plan: Optional["EpisodeAudioPlan"] = Field(
+        None,
+        description="Optional voice design: director script + full-episode audio takes (human reference only)",
+    )
 
     # R2V v2 Phase 3 — "Previously on..." panel cache.
     # Generated AI summary of the PREVIOUS episode's script (qwen3.6-plus),

@@ -129,13 +129,18 @@ def generate_audio(
     失败直接抛：网关会返回结构化 ``error.message``，调用方据此决定是中断还是降级。
     返回 ``output_path``。
     """
+    text = (prompt or "").strip()
+    if not text:
+        # 合同：input 必填、1–3000 字符。空字符串上游会 400，本地报清楚更省一次请求。
+        raise ValueError("Seed Audio input must contain 1-3000 characters")
+
     refs = [
         {"audio_url": _public_media_url(ref, "audio")}
         for ref in list(reference_audio_urls or [])[:AUDIO_MAX_REFERENCE_AUDIOS]
     ]
     payload: Dict[str, Any] = {
         "model": model_name or AUDIO_MODEL_DEFAULT,
-        "input": (prompt or "")[:AUDIO_MAX_INPUT_CHARS],
+        "input": text[:AUDIO_MAX_INPUT_CHARS],
         "response_format": response_format,
     }
     if refs:

@@ -1,4 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
+import hashlib
 import json
 import os
 import re
@@ -10,7 +11,20 @@ import threading
 import platform
 import sys
 from urllib.parse import quote
-from .models import Script, GenerationStatus, VideoTask, Character, Scene, StoryboardFrame, Series, PromptConfig, ArtDirection, GlobalAssetLibrary
+from .models import (
+    AudioTake,
+    EpisodeAudioPlan,
+    Script,
+    GenerationStatus,
+    VideoTask,
+    Character,
+    Scene,
+    StoryboardFrame,
+    Series,
+    PromptConfig,
+    ArtDirection,
+    GlobalAssetLibrary,
+)
 from .llm import ScriptProcessor
 from .assets import AssetGenerator
 from .storyboard import StoryboardGenerator
@@ -22,8 +36,31 @@ from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
+from ...models.jiucaihezi import AUDIO_MAX_REFERENCE_AUDIOS
 
 logger = get_logger(__name__)
+
+
+def _probe_audio_duration_ms(path: str) -> Optional[int]:
+    """用 ffprobe 读音频时长（毫秒）。读不到就 None。
+
+    时间轴是给人看的参考：没有时长只是不画刻度，不该让整个生成失败。
+    ffprobe 随 ffmpeg 一起装，而 ffmpeg 本来就是本应用的依赖（合成需要）。
+    """
+    try:
+        ffmpeg = get_ffmpeg_path()
+        ffprobe = os.path.join(os.path.dirname(ffmpeg or ""), "ffprobe")
+        if not os.path.exists(ffprobe):
+            ffprobe = shutil.which("ffprobe") or ffprobe
+        result = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            capture_output=True, text=True, timeout=15,
+        )
+        return int(float((result.stdout or "").strip()) * 1000)
+    except Exception:
+        logger.debug("ffprobe unavailable for %s; duration left unknown", path)
+        return None
 
 
 def _atomic_write_json(path: str, payload: Any) -> None:
@@ -4673,6 +4710,196 @@ class ComicGenPipeline:
             ],
         )
         return (text or "").strip()[:500]
+
+    # ------------------------------------------------------------------
+    # 声音设计（可选步骤）：全局声音导演稿 + 全集声音
+    #
+    # 这一步的产出纯粹给人听 —— 「哪几个分镜一组」由人听完自己判断，程序不参与。
+    # 所以这里没有分段、没有帧关联，只有一份导演稿和若干版音频。
+    # ------------------------------------------------------------------
+
+    def _audio_plan_of(self, script: Script) -> EpisodeAudioPlan:
+        """取（必要时初始化）本集的声音设计。整块是可选字段，读到 None 就建一个。"""
+        if script.audio_plan is None:
+            script.audio_plan = EpisodeAudioPlan()
+        return script.audio_plan
+
+    @staticmethod
+    def _voice_script_hash(text: str) -> str:
+        return hashlib.md5((text or "").encode("utf-8")).hexdigest()
+
+    def generate_audio_plan_script(self, script_id: str) -> EpisodeAudioPlan:
+        """生成全局声音导演稿（LLM）。
+
+        导演稿是「这一集的声音怎么演」的文字稿：谁在什么时候说什么、什么情绪、
+        要不要环境声。它同时是后面生成全集声音时喂给模型的正文，所以长度要压在
+        seed-audio-1.0 的输入上限（3000 字符）以内。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        from .llm_adapter import LLMAdapter
+
+        adapter = LLMAdapter()
+        if not adapter.is_configured:
+            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+
+        cast_lines = []
+        for character in script.characters:
+            voice = character.voice_name or ("未绑定音色" if not character.voice_id else character.voice_id)
+            cast_lines.append(f"- {character.name}（{voice}）：{character.description}")
+        cast_block = "\n".join(cast_lines) or "（暂无角色）"
+
+        system_prompt = (
+            "你是影视声音导演。请把剧本整理成一份「全局声音导演稿」，用于后续一次性生成"
+            "整集音频。\n"
+            "要求：\n"
+            "1. 按场景顺序写，每一段标明说话人、台词与情绪/语气提示；旁白单独成段。\n"
+            "2. 需要环境声或音效的地方用【】标注。\n"
+            "3. 只输出可以照着念/照着演的内容，不要写标题、说明或 Markdown 标记。\n"
+            "4. 全篇控制在 2500 个汉字以内（生成接口的输入上限是 3000 字符）。\n"
+            "5. 台词要口语化、能直接念；不要保留剧本里的运镜、画面描述。"
+        )
+        user_prompt = (
+            f"【角色与已绑定音色】\n{cast_block}\n\n"
+            f"【剧本】\n{(script.original_text or '')[:8000]}"
+        )
+
+        text = adapter.chat(messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ])
+        text = (text or "").strip()
+        if not text:
+            raise RuntimeError("声音导演稿生成失败：模型返回了空内容")
+
+        plan = self._audio_plan_of(script)
+        plan.script_text = text
+        plan.script_hash = self._voice_script_hash(text)
+        script.updated_at = time.time()
+        self._save_data()
+        logger.info("[voice-script] generated %d chars for script=%s", len(text), script_id)
+        return plan
+
+    def resolve_character_reference_audios(
+        self, script_id: str, character_ids: List[str]
+    ) -> List[str]:
+        """把角色 id 解析成参考音频的**本地路径**。
+
+        链路：``Character.voice_id`` → ``Series.custom_voices[].id`` →
+        ``source_audio_url``。取到的通常是 ``uploads/xxx`` 这种仓库内相对路径 ——
+        交给适配器在**生成时**转存成网关 URL 即可，这样天然避开网关临时素材
+        15 分钟失效的问题（存成网关 URL 就是死链）。
+
+        勾了角色却没有参考音时报错而不是悄悄跳过：否则「我勾了 4 个只生效 2 个」
+        会被误当成音色没听出来，很难查。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        wanted = [cid for cid in (character_ids or []) if cid]
+        if len(wanted) > AUDIO_MAX_REFERENCE_AUDIOS:
+            raise ValueError(
+                f"seed-audio-1.0 最多支持 {AUDIO_MAX_REFERENCE_AUDIOS} 段参考音频，"
+                f"当前选了 {len(wanted)} 个角色"
+            )
+
+        characters = {c.id: c for c in script.characters}
+        voices: Dict[str, Any] = {}
+        if script.series_id:
+            series = self.series_store.get(script.series_id)
+            for voice in (getattr(series, "custom_voices", None) or []) if series else []:
+                voices[voice.id] = voice
+
+        resolved: List[str] = []
+        missing: List[str] = []
+        for character_id in wanted:
+            character = characters.get(character_id)
+            if character is None:
+                raise ValueError(f"角色不存在：{character_id}")
+            voice = voices.get(character.voice_id) if character.voice_id else None
+            if voice is not None and getattr(voice, "source_audio_url", None):
+                resolved.append(voice.source_audio_url)
+            else:
+                missing.append(character.name)
+        if missing:
+            raise ValueError(
+                "这些角色还没有参考音，请先到 Cast 里绑定音色（或用参考音克隆）："
+                + "、".join(missing)
+            )
+        return resolved
+
+    def generate_episode_audio(self, script_id: str, character_ids: List[str]) -> AudioTake:
+        """用 seed-audio-1.0 生成一版全集声音，追加到 takes 并选中。
+
+        ``character_ids`` 可以为空 —— 那就是纯文生音频，只作为参考听；
+        也可以给 1–3 个角色带上他们的参考音。多生成几版对比着听是预期用法。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        plan = self._audio_plan_of(script)
+        if not (plan.script_text or "").strip():
+            raise ValueError("请先生成（或填写）全局声音导演稿，再生成全集声音")
+
+        references = self.resolve_character_reference_audios(script_id, character_ids)
+
+        from ...models.jiucaihezi import generate_audio
+
+        take_id = f"take_{uuid.uuid4().hex[:8]}"
+        output_path = os.path.join("output", "audio", f"episode_{script_id}_{take_id}.mp3")
+        generate_audio(
+            prompt=plan.script_text,
+            output_path=output_path,
+            reference_audio_urls=references,
+        )
+
+        take = AudioTake(
+            id=take_id,
+            audio_url=output_path,
+            duration_ms=_probe_audio_duration_ms(output_path),
+            reference_character_ids=list(character_ids or []),
+            script_hash=plan.script_hash,
+        )
+        plan.takes.append(take)
+        plan.selected_take_id = take.id
+        script.updated_at = time.time()
+        self._save_data()
+        logger.info(
+            "[episode-audio] take=%s refs=%d url=%s", take_id, len(references), output_path
+        )
+        return take
+
+    def update_audio_plan(
+        self,
+        script_id: str,
+        script_text: Optional[str] = None,
+        selected_take_id: Optional[str] = None,
+    ) -> EpisodeAudioPlan:
+        """保存导演稿 / 切换当前在听的版本。
+
+        改导演稿只更新 hash，**不删除已有版本** —— 前端据此把旧版本标成「已过期」，
+        听哪一版还是用户自己决定。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        plan = self._audio_plan_of(script)
+        if script_text is not None:
+            plan.script_text = script_text
+            plan.script_hash = self._voice_script_hash(script_text) if script_text.strip() else None
+        if selected_take_id is not None:
+            if selected_take_id and not any(t.id == selected_take_id for t in plan.takes):
+                raise ValueError(f"没有这个声音版本：{selected_take_id}")
+            plan.selected_take_id = selected_take_id or None
+
+        script.updated_at = time.time()
+        self._save_data()
+        return plan
 
     def get_series_episodes(self, series_id: str) -> List[Script]:
         """Get all Episodes belonging to a Series, in order."""

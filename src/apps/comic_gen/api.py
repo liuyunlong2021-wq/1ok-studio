@@ -2456,6 +2456,66 @@ def generate_audio(script_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# 声音设计（可选步骤）
+#
+# 产出纯粹给人听：不参与任何自动决策，「哪几个分镜一组」由人听完自己判断。
+# 整块可跳过 —— 不做这一步，后面所有步骤的行为与之前完全一致。
+# ---------------------------------------------------------------------------
+
+class GenerateEpisodeAudioRequest(BaseModel):
+    character_ids: List[str] = Field(
+        default_factory=list,
+        description="0–3 characters whose reference audio to attach. Empty = plain text-to-audio.",
+    )
+
+
+class UpdateAudioPlanRequest(BaseModel):
+    script_text: Optional[str] = Field(None, description="Replace the director script")
+    selected_take_id: Optional[str] = Field(None, description="Take the user is listening to")
+
+
+@app.post("/projects/{script_id}/audio-plan/generate-script")
+def generate_audio_plan_script(script_id: str):
+    """生成全局声音导演稿（LLM）。"""
+    try:
+        plan = pipeline.generate_audio_plan_script(script_id)
+        return signed_response({"audio_plan": plan.model_dump()})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/projects/{script_id}/audio-plan/generate-audio")
+def generate_episode_audio(script_id: str, request: GenerateEpisodeAudioRequest):
+    """生成一版全集声音（seed-audio-1.0），追加到版本列表并选中。"""
+    try:
+        take = pipeline.generate_episode_audio(script_id, request.character_ids)
+        plan = pipeline.get_script(script_id).audio_plan
+        return signed_response({"audio_plan": plan.model_dump(), "take": take.model_dump()})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/projects/{script_id}/audio-plan")
+def update_audio_plan(script_id: str, request: UpdateAudioPlanRequest):
+    """保存导演稿 / 切换当前在听的版本。改稿不删除已有版本。"""
+    try:
+        plan = pipeline.update_audio_plan(
+            script_id,
+            script_text=request.script_text,
+            selected_take_id=request.selected_take_id,
+        )
+        return signed_response({"audio_plan": plan.model_dump()})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 class CreateVideoTaskRequest(BaseModel):
     image_url: str

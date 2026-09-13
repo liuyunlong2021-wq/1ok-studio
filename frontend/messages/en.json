@@ -22,7 +22,9 @@
     "mixSubtitle": "Multi-track mixing · timeline editing · volume balance",
     "exportTitle": "Export",
     "exportSubtitle": "Pick resolution and format, render the final cut",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "soundTitle": "Sound",
+    "soundSubtitle": "Optional: draft one pass of the episode's sound as reference, then voice and score against it"
   },
   "reconcile": {
     "title": "Reconcile entities with the series",
@@ -790,7 +792,8 @@
     "railAssemblyReady": "Ready to assemble",
     "railAssemblyGated": "Awaiting storyboard",
     "gatedTooltip": "Complete upstream steps first",
-    "doneTooltip": "Completed"
+    "doneTooltip": "Completed",
+    "railSoundTakes": "{n} take(s)"
   },
   "assets": {
     "clickToZoom": "Click to zoom",
@@ -2039,5 +2042,40 @@
       "sceneHeading": "INT./EXT. SCENE - TIME",
       "startTyping": "Start typing..."
     }
+  },
+  "sound": {
+    "castTitle": "Character reference audio",
+    "pillTakes": "Takes",
+    "pillRefs": "Refs",
+    "castHint": "Checked characters are sent to the model as reference audio (max 3). Uncheck all for a plain audio pass.",
+    "castUnbound": "No voice bound",
+    "castGoBind": "Go to Cast",
+    "castPreview": "Preview reference audio",
+    "castNoReference": "This character has no reference audio",
+    "scriptTitle": "Episode sound director's script",
+    "scriptHint": "A human-readable draft. No segmentation, no shot linkage. Remember to save your edits.",
+    "scriptGenerate": "Generate draft",
+    "scriptRegenerate": "Regenerate",
+    "scriptSave": "Save",
+    "scriptSaved": "Saved",
+    "scriptPlaceholder": "Hit “Generate draft”, or write how this episode should sound…",
+    "scriptEmptyHint": "No draft yet. Write one yourself, or let the model draft from the script.",
+    "takeTitle": "Episode audio",
+    "takeHint": "Renders the whole episode in one pass. Bound reference audio adds segments; none gives a plain audio pass.",
+    "takeGenerate": "Generate a take",
+    "takeGeneratePlain": "Generate without references",
+    "takeEmptyHint": "Nothing generated yet.",
+    "takeCurrent": "In use",
+    "takeSetCurrent": "Use this take",
+    "takePlay": "Play",
+    "takeStop": "Stop",
+    "takeWithRefs": "With references · {names}",
+    "takePlain": "Plain audio",
+    "takeStale": "Draft changed — this take is stale",
+    "takeDownload": "Download",
+    "waveformHint": "The waveform is for pacing reference only; it is not stored.",
+    "generating": "Generating…",
+    "loadFailed": "Failed to load",
+    "generateFailed": "Generation failed"
   }
 }

@@ -1,23 +1,48 @@
 /**
- * 全集声音的时间轴刻度规格 —— **待实现**。
+ * 全集声音的时间轴刻度。
  *
- * 这一步的音频**纯粹给人听**，程序不做任何切分。UI 只要两样东西：
- * 波形（前端 decodeAudioData 现算，不落库）+ 30 秒刻度（视频模型单次上限）。
- *
- * 待实现 `@/lib/audioTimeline`：
- *
- *   buildThirtySecondMarks(durationMs: number, stepMs?: number): { ms: number; label: string }[]
- *   formatClock(ms: number): string     // "0:00" / "1:35"
- *
- * 纯函数，所以在 node 环境（vitest.config.mts）里就能测，不需要 jsdom。
+ * 音频纯粹给人听，程序不做任何切分。UI 只需要把「到这里是 30 秒」画出来
+ * （视频模型单次上限 30 秒），剩下的交给耳朵。
  */
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
+import { DEFAULT_STEP_MS, buildThirtySecondMarks, formatClock } from '@/lib/audioTimeline';
+
+const labels = (durationMs: number) =>
+    buildThirtySecondMarks(durationMs).map((mark) => mark.label);
 
 describe('全集声音的时间轴刻度', () => {
-    it.todo('95 秒 → 0:00 / 0:30 / 1:00 / 1:30 四个刻度');
-    it.todo('刻度不超出音频时长（95 秒不会画出 2:00）');
-    it.todo('恰好 30 秒 → 0:00 和 0:30 两个刻度');
-    it.todo('不足 30 秒 → 只有 0:00');
-    it.todo('时长为 0 / null / 负数 → 空数组，不画刻度');
-    it.todo('formatClock(95000) === "1:35"，秒数补零');
+    it('95 秒 → 0:00 / 0:30 / 1:00 / 1:30 四个刻度', () => {
+        expect(labels(95_000)).toEqual(['0:00', '0:30', '1:00', '1:30']);
+    });
+
+    it('刻度不超出音频时长', () => {
+        for (const mark of buildThirtySecondMarks(95_000)) {
+            expect(mark.ms).toBeLessThanOrEqual(95_000);
+        }
+    });
+
+    it('恰好 30 秒 → 0:00 和 0:30 两个刻度', () => {
+        expect(labels(30_000)).toEqual(['0:00', '0:30']);
+    });
+
+    it('不足 30 秒 → 只有 0:00', () => {
+        expect(labels(12_000)).toEqual(['0:00']);
+    });
+
+    it('时长为 0 / 非数字 / 负数 → 空数组，不画刻度', () => {
+        expect(buildThirtySecondMarks(0)).toEqual([]);
+        expect(buildThirtySecondMarks(Number.NaN)).toEqual([]);
+        expect(buildThirtySecondMarks(-1)).toEqual([]);
+    });
+
+    it('formatClock(95000) === "1:35"，秒数补零', () => {
+        expect(formatClock(95_000)).toBe('1:35');
+        expect(formatClock(5_000)).toBe('0:05');
+        expect(formatClock(3_600_000)).toBe('60:00');
+    });
+
+    it('默认刻度间隔是视频模型的单次上限 30 秒', () => {
+        expect(DEFAULT_STEP_MS).toBe(30_000);
+    });
 });

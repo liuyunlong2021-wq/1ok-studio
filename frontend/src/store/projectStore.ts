@@ -300,8 +300,28 @@ export interface Project {
     mix_settings?: Record<string, number>;
     series_id?: string;
     episode_number?: number;
+    /** 声音设计（可选步骤）—— 全局声音导演稿 + 全集声音版本。
+     *  纯参考物：不做分段、不关联分镜，跳过它就是 undefined。 */
+    audio_plan?: AudioPlan;
     /** T13 — user-starred (featured) flag; drives the amber-halation card. */
     starred?: boolean;
+}
+
+export interface AudioTake {
+    id: string;
+    audio_url: string;
+    duration_ms?: number | null;
+    reference_character_ids?: string[];
+    /** 这一版是基于哪版导演稿生成的；与 plan.script_hash 不同即「已过期」。 */
+    script_hash?: string | null;
+    created_at?: number;
+}
+
+export interface AudioPlan {
+    script_text?: string | null;
+    script_hash?: string | null;
+    takes?: AudioTake[];
+    selected_take_id?: string | null;
 }
 
 interface ProjectStore {

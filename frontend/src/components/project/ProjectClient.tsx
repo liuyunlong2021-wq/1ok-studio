@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Palette, Layout, Film, BookOpen, Users, Video, Settings, Key, MessageSquareCode, Clapperboard } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
+import { stepsForWorkflow } from "@/lib/projectSteps";
 import PipelineSidebar from "@/components/layout/PipelineSidebar";
 import EpisodeMiniList from "@/components/layout/EpisodeMiniList";
 import type { BreadcrumbSegment } from "@/components/layout/BreadcrumbBar";
@@ -12,6 +13,7 @@ import type { BreadcrumbSegment } from "@/components/layout/BreadcrumbBar";
 // have their own SidePanelHeader-driven side columns.
 import ScriptEditorShell from "@/components/modules/ScriptEditor/ScriptEditorShell";
 import Cast from "@/components/modules/Cast";
+import SoundDesign from "@/components/modules/SoundDesign";
 import VideoGenerator from "@/components/modules/VideoGenerator";
 import VideoAssembly from "@/components/modules/VideoAssembly";
 import ConsistencyVault from "@/components/modules/ConsistencyVault";
@@ -27,35 +29,6 @@ import { api } from "@/lib/api";
 import { toast } from "@/store/toastStore";
 
 const CreativeCanvas = dynamic(() => import("@/components/canvas/CreativeCanvas"), { ssr: false });
-
-// PR-3m · Steps 7-9 (Voice / Final Mix / Export) deprecated. Their
-// functionality moved into:
-//   - Voice  → Cast voice binding + Storyboard DialogueAudioRow (PR-3g-3j)
-//   - Mix    → Assembly Mix phase tab (PR-3k)
-//   - Export → Assembly Export phase tab (PR-3k)
-// Both legacy and unified projects now share the 6-step shape.
-const LEGACY_STEPS = [
-    { id: "script", label: "1. 剧本", icon: BookOpen },
-    { id: "art_direction", label: "2. 风格", icon: Palette },
-    { id: "assets", label: "3. 资产", icon: Users },
-    { id: "storyboard", label: "4. 分镜", icon: Layout },
-    { id: "motion", label: "5. 动作", icon: Video },
-    { id: "assembly", label: "6. 合成", icon: Film },
-];
-
-// PR-3f (r2v-workflow-v3) — Unified workflow: 5 steps including Cast.
-// Per-shot tabMode toggle (t2i_i2v vs direct_r2v) inside Storyboard
-// replaces the project-level i2v_legacy / r2v split. Backend enum
-// value remains "r2v" for backward compat — UI normalizes to "Unified".
-// Legacy `assets` step is dropped — Cast supersedes ConsistencyVault
-// for unified projects (ConsistencyVault stays only for legacy workflow).
-const UNIFIED_STEPS = [
-    { id: "script", label: "1. 剧本", icon: BookOpen },
-    { id: "art_direction", label: "2. 风格", icon: Palette },
-    { id: "cast", label: "3. Cast", icon: Users },
-    { id: "storyboard_r2v", label: "4. 分镜", icon: Clapperboard },
-    { id: "assembly", label: "5. 合成", icon: Film },
-];
 
 export default function ProjectClient({ id, breadcrumbSegments }: { id: string; breadcrumbSegments?: BreadcrumbSegment[] }) {
     const [activeStep, setActiveStep] = useState("script");
@@ -102,25 +75,14 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
     }, [currentProject?.series_id]);
 
     const steps = useMemo(() => {
-        // PR-3f routing: backend enum "r2v" → unified workbench (5 steps).
-        // Anything else (i2v_legacy, missing) → legacy 9-step path. Old
-        // projects without workflow_mode default to legacy for backward
-        // compat (spec §3.2).
-        let base;
-        if (currentProject?.workflow_mode !== "r2v") {
-            base = LEGACY_STEPS;
-        } else if (seriesContentMode === "freeform") {
-            // Phase 6 — freeform mode: skip Script step, episodes start at
-            // Style. Re-number labels accordingly.
-            base = UNIFIED_STEPS
-                .filter(s => s.id !== "script")
-                .map((s, i) => ({ ...s, label: s.label.replace(/^\d+\./, `${i + 1}.`) }));
-        } else {
-            // Scripted unified flow: Cast is always present (per-episode view
-            // of frame-referenced assets). Series-level shared assets are
-            // managed in SeriesDetailPage.
-            base = UNIFIED_STEPS;
-        }
+        // PR-3f routing: backend enum "r2v" → unified workbench, anything
+        // else (i2v_legacy, missing) → legacy path. Old projects without a
+        // workflow_mode default to legacy for backward compat (spec §3.2).
+        // 选表逻辑本身在 @/lib/projectSteps，这里只管按状态补 status。
+        const base = stepsForWorkflow({
+            workflowMode: currentProject?.workflow_mode,
+            seriesContentMode,
+        });
 
         // Per-step stage status (conservative signals from project state —
         // NOT wizard done-checks; see storyboard-r2v-unified mock). Script
@@ -147,6 +109,13 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
                 case "storyboard_r2v":
                 case "storyboard":
                     return frameCount > 0 ? { status: "ready", statusLabel: tp("railShots", { n: frameCount }) } : { status: "idle" };
+                case "sound": {
+                    // 纯可选的参考步骤：只有「录了没录」，永远不会 gated。
+                    const takes = currentProject?.audio_plan?.takes?.length ?? 0;
+                    return takes > 0
+                        ? { status: "ready", statusLabel: tp("railSoundTakes", { n: takes }) }
+                        : { status: "idle" };
+                }
                 case "assembly":
                     return hasMerged
                         ? { status: "ready", statusLabel: tp("railAssembled") }
@@ -285,6 +254,7 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
                         {activeStep === "script" && <ScriptEditorShell key={id} mode="embedded" projectId={id} onExtractEntities={handleExtractEntities} />}
                         {activeStep === "art_direction" && <ArtDirection />}
                         {activeStep === "cast" && <Cast />}
+                        {activeStep === "sound" && <SoundDesign />}
                         {activeStep === "assets" && <ConsistencyVault />}  {/* legacy i2v only */}
                         {activeStep === "storyboard" && <StoryboardComposer />}
                         {activeStep === "storyboard_r2v" && <StoryboardR2V />}
