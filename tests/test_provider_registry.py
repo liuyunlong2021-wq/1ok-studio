@@ -67,6 +67,23 @@ class TestProviderRegistryRouting:
             with pytest.raises(KeyError):
                 registry.resolve_backend(stale_model)
 
+    def test_default_registry_fails_loudly_when_catalog_is_unavailable(self, monkeypatch):
+        """回归护栏：目录加载不了时必须抛出去。
+
+        曾经这里 try/except 退回一份内置的 DEFAULT_PROVIDER_FAMILIES，里面装着
+        已删除的 provider 家族 —— 打包漏带 config/model_catalog/ 时会静默把请求
+        路由到适配器已删、也没凭证的通道上，错因完全指不出来。
+        """
+        import src.utils.provider_registry as registry_module
+
+        def missing_catalog(*_args, **_kwargs):
+            raise FileNotFoundError("config/model_catalog/ is not packaged")
+
+        monkeypatch.setattr(registry_module, "load_generated_model_catalog", missing_catalog)
+
+        with pytest.raises(FileNotFoundError):
+            registry_module.get_default_provider_registry()
+
     def test_future_pixverse_family_can_be_registered_without_resolver_changes(self):
         registry = ProviderRegistry()
         registry.register_family(
