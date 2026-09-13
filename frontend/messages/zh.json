@@ -2049,7 +2049,7 @@
     "pillRefs": "参考音",
     "castHint": "勾上的角色，生成时会把它的音色作为参考音传给模型（最多 3 个）。不勾 = 纯音频。",
     "castUnbound": "未绑定音色",
-    "castGoBind": "去 Cast",
+    "castGoBind": "去绑音色",
     "castPreview": "试听参考音",
     "castNoReference": "该角色还没有参考音",
     "scriptTitle": "全局声音导演稿",

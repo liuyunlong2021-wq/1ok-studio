@@ -28,14 +28,17 @@ export interface Step {
 //   - Voice  → Cast voice binding + Storyboard DialogueAudioRow (PR-3g-3j)
 //   - Mix    → Assembly Mix phase tab (PR-3k)
 //   - Export → Assembly Export phase tab (PR-3k)
-// Both legacy and unified projects now share the 6-step shape.
+//
+// 「声音」在 legacy 与 unified 两张表里都在资产/Cast 之后、分镜之前 —— 这是用户
+// 实际用的顺序（剧本 · 风格 · 资产 · 声音 · 分镜 · 动作 · 合成），不是两套设计。
 export const LEGACY_STEPS: Step[] = [
     { id: "script", label: "1. 剧本", icon: BookOpen },
     { id: "art_direction", label: "2. 风格", icon: Palette },
     { id: "assets", label: "3. 资产", icon: Users },
-    { id: "storyboard", label: "4. 分镜", icon: Layout },
-    { id: "motion", label: "5. 动作", icon: Video },
-    { id: "assembly", label: "6. 合成", icon: Film },
+    { id: "sound", label: "4. 声音", icon: Volume2 },
+    { id: "storyboard", label: "5. 分镜", icon: Layout },
+    { id: "motion", label: "6. 动作", icon: Video },
+    { id: "assembly", label: "7. 合成", icon: Film },
 ];
 
 // PR-3f (r2v-workflow-v3) — Unified workflow with Cast.

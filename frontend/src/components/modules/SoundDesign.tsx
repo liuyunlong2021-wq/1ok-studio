@@ -364,6 +364,9 @@ export default function SoundDesign() {
     };
 
     const unboundCount = characters.filter((c) => !referenceUrlOf(c.id)).length;
+    // 管资产的步骤在两张表里 id 不同：r2v 叫 cast，legacy 叫 assets。
+    // navigateStep 对不认识的 id 是静默忽略的 —— 跳错了就是按钮点了没反应。
+    const assetStepId = currentProject?.workflow_mode === "r2v" ? "cast" : "assets";
     const staleIds = new Set(
         takes.filter((tk) => plan?.script_hash && tk.script_hash !== plan.script_hash).map((tk) => tk.id),
     );
@@ -394,8 +397,9 @@ export default function SoundDesign() {
                     trailing={unboundCount ? (
                         <button
                             type="button"
+                            title={t("castGoBind")}
                             onClick={() => document.dispatchEvent(
-                                new CustomEvent("1okstudio:navigateStep", { detail: "cast" }),
+                                new CustomEvent("1okstudio:navigateStep", { detail: assetStepId }),
                             )}
                             className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-glass-border bg-surface-inset px-2.5 py-1 font-mono text-[0.59375rem] text-text-secondary transition-colors hover:border-primary hover:text-primary"
                         >

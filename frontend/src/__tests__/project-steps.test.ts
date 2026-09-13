@@ -2,7 +2,7 @@
  * 项目步骤表 —— 重点是插入「声音」步骤之后的编号与跳过逻辑。
  *
  * 一个新增步骤最容易出错的地方不是组件本身，而是步骤表：freeform 模式要跳过
- * 「剧本」并把编号重排，legacy 流程一步都不能动。
+ * 「剧本」并把编号重排；legacy 与 unified 两张表都要有「声音」，位置一致。
  */
 import { describe, expect, it } from 'vitest';
 
@@ -58,18 +58,30 @@ describe('项目步骤表', () => {
     });
 
     describe('legacy 流程', () => {
-        it('仍是原来的步骤表，不含「声音」—— 老项目行为一个字节都不变', () => {
+        it('步骤顺序是 剧本 → 风格 → 资产 → 声音 → 分镜 → 动作 → 合成', () => {
             const steps = stepsForWorkflow({ workflowMode: 'i2v_legacy' });
             expect(steps).toBe(LEGACY_STEPS);
             expect(steps.map((step) => step.id)).toEqual([
                 'script',
                 'art_direction',
                 'assets',
+                'sound',
                 'storyboard',
                 'motion',
                 'assembly',
             ]);
-            expect(steps.map((step) => step.id)).not.toContain('sound');
+        });
+
+        it('「声音」插在资产与分镜之间，编号连续到 7', () => {
+            const steps = stepsForWorkflow({ workflowMode: 'i2v_legacy' });
+            const ids = steps.map((step) => step.id);
+            expect(ids.indexOf('sound')).toBe(ids.indexOf('assets') + 1);
+            expect(ids.indexOf('sound')).toBe(ids.indexOf('storyboard') - 1);
+            steps.forEach((step, index) => {
+                expect(step.label.startsWith(`${index + 1}.`), step.label).toBe(true);
+            });
+            expect(steps[3].label).toBe('4. 声音');
+            expect(steps[6].label).toBe('7. 合成');
         });
 
         it('workflow_mode 缺失（老项目）也走 legacy', () => {

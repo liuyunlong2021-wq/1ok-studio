@@ -7,7 +7,7 @@ import { useProjectStore } from "@/store/projectStore";
 import VideoCreator from "./VideoCreator";
 import VideoSidebar from "./VideoSidebar";
 import { api, VideoTask } from "@/lib/api";
-import { I2V_MODE_AVAILABLE, resolveModelId } from "@/lib/modelCatalog";
+import { resolveModelId } from "@/lib/modelCatalog";
 import StepHeader from "@/components/shared/StepHeader";
 
 export default function VideoGenerator() {
@@ -20,12 +20,8 @@ export default function VideoGenerator() {
     const [remixData, setRemixData] = useState<Partial<VideoTask> | null>(null);
 
     // Get default model from project settings
-    const defaultI2vModel = resolveModelId(
-        'i2v',
-        currentProject?.model_settings?.i2v_model,
-        'video_sidebar',
-    );
-    // 本安装只接重子网关时没有 i2v 模型，默认走参考图驱动（dola-seedance2.5）。
+    // 默认走参考图驱动（r2v）—— 目录里能用的视频模型都同时声称支持 i2v，
+    // 所以「没有 i2v 模型」这个旧前提不再成立，而实际用起来只用一个模式。
     const defaultR2vModel = resolveModelId(
         'r2v',
         currentProject?.model_settings?.r2v_model,
@@ -44,9 +40,9 @@ export default function VideoGenerator() {
         batchSize: 1,
         cameraMovement: "none" as string,
         subjectMotion: "still" as string,
-        model: I2V_MODE_AVAILABLE ? defaultI2vModel : defaultR2vModel,
+        model: defaultR2vModel,
         shotType: "single" as string,  // 'single' or 'multi' (only for wan2.6-i2v)
-        generationMode: (I2V_MODE_AVAILABLE ? "i2v" : "r2v") as string,  // 'i2v' or 'r2v'
+        generationMode: "r2v" as string,  // 'i2v' or 'r2v'
         referenceVideoUrls: [] as string[],  // Reference videos for R2V (max 3)
         // Kling params
         mode: "std" as string,

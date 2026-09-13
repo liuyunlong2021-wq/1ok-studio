@@ -2049,7 +2049,7 @@
     "pillRefs": "Refs",
     "castHint": "Checked characters are sent to the model as reference audio (max 3). Uncheck all for a plain audio pass.",
     "castUnbound": "No voice bound",
-    "castGoBind": "Go to Cast",
+    "castGoBind": "Bind a voice",
     "castPreview": "Preview reference audio",
     "castNoReference": "This character has no reference audio",
     "scriptTitle": "Episode sound director's script",
