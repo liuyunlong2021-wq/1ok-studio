@@ -18,6 +18,8 @@ from .models import (
     GenerationStatus,
     VideoTask,
     Character,
+    ReferenceAudioVariant,
+    MAX_VARIANTS_PER_ASSET,
     Scene,
     StoryboardFrame,
     Series,
@@ -4838,7 +4840,11 @@ class ComicGenPipeline:
             raise RuntimeError("TTS 服务不可用，请先配置 DASHSCOPE_API_KEY")
 
         sample = (text or "").strip() or self.REFERENCE_AUDIO_TEXT.format(name=character.name)
-        output_path = os.path.join(self.REFERENCE_AUDIO_DIR, f"{character_id}.mp3")
+        # 每次一个文件名 —— 固定成 {char_id}.mp3 的话，生成第二版就把第一版覆盖掉了，
+        # 候选条会全部指向同一个文件、旧版音频直接没了。
+        output_path = os.path.join(
+            self.REFERENCE_AUDIO_DIR, f"{character_id}_{uuid.uuid4().hex[:8]}.mp3"
+        )
         os.makedirs(self.REFERENCE_AUDIO_DIR, exist_ok=True)
 
         # 设计/克隆音色不在静态音色表里，得把它自己的 model/family 带上，
@@ -4858,12 +4864,13 @@ class ComicGenPipeline:
         except Exception as exc:
             raise RuntimeError(f"参考音生成失败：{exc}") from exc
 
-        character.reference_audio_url = output_path
+        # 每生成一版就多一条候选 —— 跟生图面一个逻辑：改一版提示词、再生一版，
+        # 攒几条之后回头看哪条好。不覆盖上一版。
+        self._add_reference_variant(character, output_path, origin=character.voice_name or character.voice_id)
         script.updated_at = time.time()
         self._save_data()
-        logger.info("[voice-face] reference audio for %s → %s", character_id, output_path)
+        logger.info("[voice-face] reference take for %s → %s", character_id, output_path)
         return character
-
     # 参考音只认这些扩展名。客户端已经用 accept="audio/*" 挡了一道，这里再挡一道：
     # 传上来一个 .jpg 的话，要到真正生成音频时才炸，而且炸在网关上、报错看不懂。
     REFERENCE_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".webm")
@@ -4875,15 +4882,11 @@ class ComicGenPipeline:
         voice_description: Optional[str] = None,
         voice_prompt: Optional[str] = None,
         reference_audio_url: Optional[str] = None,
-        clear_reference_audio: bool = False,
     ) -> Character:
-        """手改声音面：两个文本框 + 指一个上传好的参考音 + 把它清掉。
+        """手改声音面：两个文本框 + 把一段现成的音频收进候选并设为主音。
 
         改「声音描述」要进版本 —— 右列的提示词据此变「过期」。改提示词则是手工
         覆盖，它对当前这一版描述就是新鲜的。换参考音不影响描述的版本。
-
-        清参考音只摘指针，**不删磁盘上的文件**：那可能是某个克隆音色的源音频，
-        别的角色或音色还在用。宁可留个孤儿文件，也不要删掉别人还在引用的东西。
         """
         script = self.get_script(script_id)
         if not script:
@@ -4901,12 +4904,92 @@ class ComicGenPipeline:
             character.voice_prompt_source = "manual"
             character.voice_prompt_description_version = character.voice_description_version
 
-        if clear_reference_audio:
-            character.reference_audio_url = None
-        elif reference_audio_url is not None and reference_audio_url.strip() != (character.reference_audio_url or ""):
+        if reference_audio_url is not None:
             candidate = reference_audio_url.strip()
             self._assert_audio_reference(candidate, character.name)
-            character.reference_audio_url = candidate
+            self._add_reference_variant(character, candidate, origin="upload")
+
+        script.updated_at = time.time()
+        self._save_data()
+        return character
+
+    # ── 参考音的候选条 ─────────────────────────────────────────────
+    #
+    # 跟生图面的候选条是同一个逻辑：每生成一版、每上传一段都留档，攒几条之后回头
+    # 看哪条好，把那条设为主音。所以这里只管「追加 / 选中 / 删掉 / 剪枝」四件事。
+
+    def _add_reference_variant(
+        self, character: Character, url: str, origin: Optional[str] = None
+    ) -> ReferenceAudioVariant:
+        """追加一条候选并设为主音。同一个 url 已经收过就不重复收，直接选中它。"""
+        existing = next((v for v in character.reference_audio_variants if v.url == url), None)
+        if existing is None:
+            existing = ReferenceAudioVariant(
+                id=f"refaudio_{uuid.uuid4().hex[:8]}", url=url, origin=origin,
+            )
+            character.reference_audio_variants.append(existing)
+            self._prune_reference_variants(character)
+        character.reference_audio_selected_id = existing.id
+        character.reference_audio_url = existing.url
+        return existing
+
+    def _prune_reference_variants(self, character: Character) -> None:
+        """超出上限就丢最旧的，**永远不丢当前选中的那条**。
+
+        跟生图面共用 MAX_VARIANTS_PER_ASSET，不要各写各的上限。
+        """
+        variants = character.reference_audio_variants
+        if len(variants) <= MAX_VARIANTS_PER_ASSET:
+            return
+        keep = sorted(
+            variants,
+            key=lambda v: (v.id == character.reference_audio_selected_id, v.created_at),
+            reverse=True,
+        )[:MAX_VARIANTS_PER_ASSET]
+        keep_ids = {v.id for v in keep}
+        character.reference_audio_variants = [v for v in variants if v.id in keep_ids]
+
+    def select_reference_audio_variant(
+        self, script_id: str, character_id: str, variant_id: str
+    ) -> Character:
+        """把某一版设为主音。"""
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        variant = next((v for v in character.reference_audio_variants if v.id == variant_id), None)
+        if variant is None:
+            raise ValueError(f"这一版参考音不存在：{variant_id}")
+
+        character.reference_audio_selected_id = variant.id
+        character.reference_audio_url = variant.url
+        script.updated_at = time.time()
+        self._save_data()
+        return character
+
+    def delete_reference_audio_variant(
+        self, script_id: str, character_id: str, variant_id: str
+    ) -> Character:
+        """删掉某一版候选。删的正好是主音时，回落到最新的一版；一条都不剩就清空。
+
+        只摘指针，**不删磁盘上的文件**：那可能是某个克隆音色的源音频，别的角色或
+        音色还在引用。宁可留个孤儿文件，也不要删掉别人还在用的东西。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        character = self._character_or_raise(script, character_id)
+
+        remaining = [v for v in character.reference_audio_variants if v.id != variant_id]
+        if len(remaining) == len(character.reference_audio_variants):
+            raise ValueError(f"这一版参考音不存在：{variant_id}")
+        character.reference_audio_variants = remaining
+
+        if character.reference_audio_selected_id == variant_id:
+            newest = max(remaining, key=lambda v: v.created_at) if remaining else None
+            character.reference_audio_selected_id = newest.id if newest else None
+            character.reference_audio_url = newest.url if newest else None
 
         script.updated_at = time.time()
         self._save_data()

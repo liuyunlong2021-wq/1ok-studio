@@ -277,28 +277,32 @@ def test_patching_only_the_prompt_does_not_bump_the_description_version(monkeypa
 
 
 # ---------------------------------------------------------------------------
-# 4. 左列：主参考音
+# 4. 左列：主参考音 —— 候选条（跟生图面同一个逻辑）
+#
+# 不是「一次出几张挑一张」（TTS 没有 seed，同参重复等于花钱拿同样的文件），
+# 而是：改一版提示词、生成一版，每版都留档；攒几条之后回头看哪条好，
+# 把那条设为主音。所以下面锁的是「追加 / 选中 / 删掉 / 回落」，不是批量。
 # ---------------------------------------------------------------------------
 
-def test_reference_audio_is_generated_with_the_bound_voice(monkeypatch, tts_spy):
-    """设计音色没有源音频 —— 「念一句」就是拿到参考音的唯一途径。"""
+def test_every_generation_appends_a_candidate(monkeypatch, tts_spy):
+    """生成第二版不能覆盖第一版 —— 包括磁盘上的文件。"""
     script = _script()
     client = _client(monkeypatch, script)
 
-    response = client.post(f"{BASE}/reference-audio", json={})
+    client.post(f"{BASE}/reference-audio", json={"text": "第一版：市井气重一点"})
+    client.post(f"{BASE}/reference-audio", json={"text": "第二版：稳一点"})
 
-    assert response.status_code == 200, response.text
     char = _character(script)
-    assert char.reference_audio_url, "要写到角色身上"
-    assert char.reference_audio_url.startswith("uploads/"), \
-        "要存仓库内相对路径 —— 网关临时素材 15 分钟就失效"
-    assert char.reference_audio_url.endswith(".mp3")
-
-    assert len(tts_spy) == 1
-    assert tts_spy[0]["voice"] == "voice-c", "要用这个角色绑的音色"
-    assert tts_spy[0]["model_override"] == "cosyvoice-v3.5-plus", \
-        "设计音色不在静态音色表里，得带上它自己的 target_model"
-    assert "中年卖草鞋人" in tts_spy[0]["text"], "默认台词要带上角色名，方便听出是谁"
+    assert len(char.reference_audio_variants) == 2, "两版都要留着，才能对比着挑"
+    assert len({v.url for v in char.reference_audio_variants}) == 2, \
+        "两个候选必须指向两个不同的文件"
+    assert len({t["output_path"] for t in tts_spy}) == 2, \
+        "文件名不能固定成 {char_id}.mp3，否则第二版会把第一版覆盖掉"
+    assert char.reference_audio_selected_id == char.reference_audio_variants[-1].id, \
+        "新生成的那版自动成为主音"
+    assert char.reference_audio_url == char.reference_audio_variants[-1].url, \
+        "reference_audio_url 要跟着主音走 —— 「声音」步骤读的是它"
+    assert char.reference_audio_variants[-1].origin == "温和中年男", "记下是哪条音色念的"
 
 
 def test_reference_audio_text_can_be_supplied(monkeypatch, tts_spy):
@@ -322,23 +326,35 @@ def test_reference_audio_requires_a_bound_voice(monkeypatch, tts_spy):
     assert not tts_spy, "没音色就别去调 TTS"
 
 
-def test_reference_audio_can_be_an_uploaded_file(monkeypatch):
-    """上传的参考音走现成的 POST /upload 拿路径，再由 PATCH 指过来。
+def test_an_uploaded_recording_joins_the_same_candidate_strip(monkeypatch, tts_spy):
+    """上传的录音跟生成的一版是同一个待遇 —— 都进候选条、都被选为主音。
 
-    克隆音色本来就没有源音频、也不想让模型念 —— 这时候上传一段真人录音才是对的。
+    克隆音色本来就是从真人录音来的，那段录音往往就是最想要的那一版。
     """
     script = _script()
     client = _client(monkeypatch, script)
+    client.post(f"{BASE}/reference-audio", json={})
 
     response = client.patch(f"{BASE}/voice-fields",
-                            json={"reference_audio_url": "uploads/abc123.wav"})
+                            json={"reference_audio_url": "uploads/real-take.wav"})
 
     assert response.status_code == 200, response.text
-    assert _character(script).reference_audio_url == "uploads/abc123.wav"
-
-    # 上传完就该能当参考音用了
+    char = _character(script)
+    assert len(char.reference_audio_variants) == 2
+    assert char.reference_audio_url == "uploads/real-take.wav"
+    assert char.reference_audio_variants[-1].origin == "upload"
     assert api_mod.pipeline.resolve_character_reference_audios(PROJECT_ID, [CHAR_ID]) == \
-        ["uploads/abc123.wav"]
+        ["uploads/real-take.wav"]
+
+
+def test_re_uploading_the_same_file_does_not_duplicate_the_candidate(monkeypatch, tts_spy):
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/take.wav"})
+    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/take.wav"})
+
+    assert len(_character(script).reference_audio_variants) == 1, "同一段音频收两次没意义"
 
 
 def test_reference_audio_rejects_a_non_audio_upload(monkeypatch):
@@ -351,7 +367,7 @@ def test_reference_audio_rejects_a_non_audio_upload(monkeypatch):
 
     assert response.status_code == 400
     assert "音频文件" in response.json()["detail"]
-    assert _character(script).reference_audio_url is None, "不能把错的路径存下来"
+    assert _character(script).reference_audio_variants == [], "不能把错的路径收进候选"
 
 
 def test_reference_audio_accepts_a_remote_url_without_an_extension(monkeypatch):
@@ -371,7 +387,7 @@ def test_reference_audio_accepts_a_remote_url_without_an_extension(monkeypatch):
 def test_changing_the_reference_audio_does_not_bump_the_description_version(monkeypatch):
     script = _script()
     client = _client(monkeypatch, script)
-    client.post(f"{BASE}/voice-description", json={}, )
+    client.post(f"{BASE}/voice-description", json={})
     before = _character(script).voice_description_version
 
     client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.mp3"})
@@ -379,35 +395,84 @@ def test_changing_the_reference_audio_does_not_bump_the_description_version(monk
     assert _character(script).voice_description_version == before, "换素材不该动中列的版本"
 
 
-def test_reference_audio_can_be_cleared(monkeypatch):
-    """显式传 null = 清掉。否则上传错了文件就再也撤不回来。
-
-    只摘指针，不删磁盘上的文件 —— 那个文件可能是某个克隆音色的源音频，
-    别的角色还在用。
-    """
+def test_the_best_take_can_be_selected_after_the_fact(monkeypatch, tts_spy):
+    """核心用例：攒了几版之后回头看，发现还是第一版好，把它设为主音。"""
     script = _script()
     client = _client(monkeypatch, script)
-    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.wav"})
-    assert _character(script).reference_audio_url == "uploads/abc123.wav"
+    for line in ("第一版", "第二版", "第三版"):
+        client.post(f"{BASE}/reference-audio", json={"text": line})
+    char = _character(script)
+    first = char.reference_audio_variants[0]
 
-    response = client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": None})
+    response = client.patch(f"{BASE}/reference-audio", json={"variant_id": first.id})
 
     assert response.status_code == 200, response.text
-    assert _character(script).reference_audio_url is None
-    assert response.json()["reference_audio_url"] is None
+    char = _character(script)
+    assert char.reference_audio_selected_id == first.id
+    assert char.reference_audio_url == first.url, "主音换了，「声音」步骤读到的也要换"
+    assert len(char.reference_audio_variants) == 3, "选一版不该动其他候选"
 
 
-def test_omitting_the_field_leaves_the_reference_audio_alone(monkeypatch):
-    """不传这个字段 ≠ 清掉。改声音描述不能顺手把参考音弄没。"""
+def test_selecting_an_unknown_take_reports_it(monkeypatch, tts_spy):
     script = _script()
     client = _client(monkeypatch, script)
-    client.patch(f"{BASE}/voice-fields", json={"reference_audio_url": "uploads/abc123.wav"})
 
-    response = client.patch(f"{BASE}/voice-fields", json={"voice_description": "换成清亮的少年音"})
+    response = client.patch(f"{BASE}/reference-audio", json={"variant_id": "nope"})
+
+    assert response.status_code == 400
+    assert "不存在" in response.json()["detail"]
+
+
+def test_deleting_a_take_keeps_the_others(monkeypatch, tts_spy):
+    script = _script()
+    client = _client(monkeypatch, script)
+    for line in ("第一版", "第二版"):
+        client.post(f"{BASE}/reference-audio", json={"text": line})
+    char = _character(script)
+    first, second = char.reference_audio_variants
+
+    response = client.delete(f"{BASE}/reference-audio/{second.id}")
+
+    assert response.status_code == 200, response.text
+    char = _character(script)
+    assert [v.id for v in char.reference_audio_variants] == [first.id]
+    assert char.reference_audio_selected_id == first.id, "删掉主音要回落到还在的那版"
+    assert char.reference_audio_url == first.url
+
+
+def test_deleting_the_last_take_clears_the_primary(monkeypatch, tts_spy):
+    script = _script()
+    client = _client(monkeypatch, script)
+    client.post(f"{BASE}/reference-audio", json={})
+    only = _character(script).reference_audio_variants[0]
+
+    response = client.delete(f"{BASE}/reference-audio/{only.id}")
 
     assert response.status_code == 200
-    assert _character(script).reference_audio_url == "uploads/abc123.wav", \
-        "只是改了描述，参考音不该被清掉"
+    char = _character(script)
+    assert char.reference_audio_variants == []
+    assert char.reference_audio_selected_id is None
+    assert char.reference_audio_url is None, "一条都不剩就该是空的，不能留个悬空指针"
+
+
+def test_the_candidate_strip_is_capped(monkeypatch, tts_spy):
+    """攒太多要剪枝，但**永远不剪掉当前主音** —— 那是用户刚挑出来的。"""
+    from src.apps.comic_gen.models import MAX_VARIANTS_PER_ASSET
+
+    script = _script()
+    client = _client(monkeypatch, script)
+    for i in range(MAX_VARIANTS_PER_ASSET + 3):
+        client.post(f"{BASE}/reference-audio", json={"text": f"第 {i} 版"})
+    char = _character(script)
+    assert len(char.reference_audio_variants) == MAX_VARIANTS_PER_ASSET
+
+    # 挑一版旧的当主音，然后继续生成，主音不能被剪掉
+    oldest = char.reference_audio_variants[0]
+    client.patch(f"{BASE}/reference-audio", json={"variant_id": oldest.id})
+    client.post(f"{BASE}/reference-audio", json={"text": "再来一版"})
+
+    char = _character(script)
+    assert oldest.id in {v.id for v in char.reference_audio_variants}, "主音被剪掉了"
 
 
 # ---------------------------------------------------------------------------

@@ -1177,7 +1177,7 @@ export const api = {
         return response.json();
     },
 
-    /** 手改声音面：两个文本框、指一个上传好的参考音、或把它清掉（传 null）。
+    /** 手改声音面：两个文本框 + 把一段现成的音频收进候选并设为主音。
      *
      * 改「声音描述」会让右列的提示词变过期。上传参考音走的是现成的 POST /upload
      * —— 它已经处理了扩展名与 OSS/本地二选一，这里只负责把结果记到角色身上。
@@ -1185,12 +1185,7 @@ export const api = {
     updateCharacterVoiceFields: async (
         scriptId: string,
         charId: string,
-        fields: {
-            voice_description?: string;
-            voice_prompt?: string;
-            /** null = 清掉参考音；不传这个 key = 不动它。 */
-            reference_audio_url?: string | null;
-        },
+        fields: { voice_description?: string; voice_prompt?: string; reference_audio_url?: string },
     ) => {
         const response = await fetch(
             `${API_URL}/projects/${scriptId}/characters/${charId}/voice-fields`,
@@ -1202,6 +1197,38 @@ export const api = {
         );
         if (!response.ok) {
             throw new Error(await describeFailure(response, "声音设置保存失败"));
+        }
+        return response.json();
+    },
+
+    /** 把候选条里的某一版设为主音。
+     *
+     * 跟生图面的 setAssetVariant 是同一件事 —— 反复改提示词、每版都留档，
+     * 最后回头看哪版好就把哪版设为主音。
+     */
+    selectCharacterReferenceAudio: async (scriptId: string, charId: string, variantId: string) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/reference-audio`,
+            {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ variant_id: variantId }),
+            },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "设置主参考音失败"));
+        }
+        return response.json();
+    },
+
+    /** 删掉某一版候选。删的正好是主音时后端会回落到最新的一版。 */
+    deleteCharacterReferenceAudio: async (scriptId: string, charId: string, variantId: string) => {
+        const response = await fetch(
+            `${API_URL}/projects/${scriptId}/characters/${charId}/reference-audio/${variantId}`,
+            { method: "DELETE" },
+        );
+        if (!response.ok) {
+            throw new Error(await describeFailure(response, "删除这一版失败"));
         }
         return response.json();
     },

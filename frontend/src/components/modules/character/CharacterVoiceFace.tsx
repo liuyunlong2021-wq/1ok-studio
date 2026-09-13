@@ -195,14 +195,23 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
     };
 
     const hasReference = !!character.reference_audio_url;
+    const variants: any[] = character.reference_audio_variants || [];
 
-    const handleReferenceDelete = () => run("reference", async (project) => {
+    /** 把某一版设为主音。删的正好是主音时后端会自己回落，这里不用管。 */
+    const handleSelectVariant = (variantId: string) => {
+        if (variantId === character.reference_audio_selected_id) return;
         stopAudio();
-        await api.updateCharacterVoiceFields(project.id, character.id, {
-            // 显式 null = 清掉（只摘指针，磁盘上的文件留着）
-            reference_audio_url: null,
+        void run(null, async (project) => {
+            await api.selectCharacterReferenceAudio(project.id, character.id, variantId);
         });
-    });
+    };
+
+    const handleDeleteVariant = (variantId: string) => {
+        stopAudio();
+        void run("reference", async (project) => {
+            await api.deleteCharacterReferenceAudio(project.id, character.id, variantId);
+        });
+    };
     const promptStale =
         !!character.voice_prompt &&
         (character.voice_prompt_description_version ?? 0) < (character.voice_description_version ?? 0);
@@ -238,7 +247,7 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={handleReferenceDelete}
+                                    onClick={() => handleDeleteVariant(character.reference_audio_selected_id)}
                                     disabled={!!busy}
                                     title={t("referenceDelete")}
                                     className="inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-surface px-3 py-2 text-xs font-medium text-text-muted transition-colors hover:border-red-400/50 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -313,6 +322,54 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                             : hasReference ? t("referenceRegenerate") : t("referenceGenerate")}
                     </button>
                 </div>
+
+                {/* 候选条 —— 跟生图面那条同一个逻辑、同一套视觉：
+                    改一版提示词生成一版，每版都留档；攒几条之后回头看哪条好，
+                    点一下把它设为主音。 */}
+                {variants.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-2 snap-x custom-scrollbar">
+                        {variants.map((variant) => {
+                            const isSelected = variant.id === character.reference_audio_selected_id;
+                            const label = variant.origin === "upload" ? t("takeUpload") : (variant.origin || t("takeVoice"));
+                            return (
+                                <div
+                                    key={variant.id}
+                                    className={`relative flex-shrink-0 w-20 h-20 rounded-md border-2 transition-all snap-start group/take ${
+                                        isSelected
+                                            ? "border-blue-500 ring-2 ring-blue-500/30"
+                                            : "border-transparent hover:border-gray-500"
+                                    }`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectVariant(variant.id)}
+                                        title={label}
+                                        className="flex h-full w-full flex-col items-center justify-center gap-1 bg-glass px-1"
+                                    >
+                                        <AudioWaveform size={20} className={isSelected ? "text-blue-400" : "text-text-muted"} />
+                                        <span className="w-full truncate text-center text-[0.5625rem] text-text-muted">
+                                            {label}
+                                        </span>
+                                    </button>
+                                    {isSelected && (
+                                        <div className="absolute top-1 left-1 rounded-full bg-blue-500 p-0.5">
+                                            <Check size={10} className="text-white" />
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteVariant(variant.id)}
+                                        disabled={!!busy}
+                                        title={t("referenceDelete")}
+                                        className="absolute top-1 right-1 rounded-full bg-overlay/60 p-1 text-text-secondary opacity-0 transition-all hover:bg-red-500 hover:text-white group-hover/take:opacity-100 disabled:cursor-not-allowed"
+                                    >
+                                        <Trash2 size={10} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </section>
 
             {/* ② 声音描述 —— 生图面「描述」的镜像 */}

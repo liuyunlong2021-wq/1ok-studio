@@ -116,6 +116,19 @@ class ImageVariant(BaseModel):
 # Maximum variants to keep per asset (excluding favorited ones)
 MAX_VARIANTS_PER_ASSET = 10
 
+class ReferenceAudioVariant(BaseModel):
+    """参考音的一个候选。
+
+    跟生图面的 ``ImageVariant`` 是同一件事：反复改提示词、每版都留档，最后回头看
+    哪版好就把哪版设为主音。字段比 ImageVariant 少，因为音频没有宽高比、上传类型
+    这些概念 —— 不是漏了，是没有。
+    """
+    id: str = Field(..., description="Unique identifier for the variant")
+    url: str = Field(..., description="Local path or URL of the audio")
+    created_at: float = Field(default_factory=time.time, description="Timestamp of creation")
+    origin: Optional[str] = Field(None, description="How this take was made: a voice name, or 'upload'")
+
+
 class ImageAsset(BaseModel):
     selected_id: Optional[str] = Field(None, description="ID of the currently selected variant")
     variants: List[ImageVariant] = Field(default_factory=list, description="History of generated variants")
@@ -331,6 +344,14 @@ class Character(BaseModel):
     # 就是「过期」，跟生图面的 description_version 同一套语义。
     reference_audio_url: Optional[str] = Field(
         None, description="Local path of this character's own reference audio (mirror of the main reference image)")
+    # 候选条：每生成一版、每上传一段都追加一条，跟生图面一个逻辑 —— 改一版提示词
+    # 再生一版，攒几条之后回头看哪条好，把那条设为主音。
+    # reference_audio_url 始终等于被选中那条的 url —— 「声音」步骤读的是它，
+    # 所以那条链一个字都不用改（生图面 full_body_image_url 也是这么同步的）。
+    reference_audio_variants: List[ReferenceAudioVariant] = Field(
+        default_factory=list, description="Every reference take made so far")
+    reference_audio_selected_id: Optional[str] = Field(
+        None, description="Which variant is the primary reference audio")
     voice_description: Optional[str] = Field(
         None, description="Human-facing description of how this character sounds")
     voice_description_source: Optional[str] = Field(

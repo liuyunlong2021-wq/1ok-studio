@@ -1329,7 +1329,9 @@
     "referenceUploading": "上传中…",
     "audioOnly": "参考音必须是音频文件",
     "audioTooLarge": "音频太大了（上限 10MB）",
-    "referenceDelete": "删除"
+    "referenceDelete": "删除",
+    "takeUpload": "上传",
+    "takeVoice": "生成"
   },
   "vault": {
     "title": "一致性金库",

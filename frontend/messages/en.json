@@ -1329,7 +1329,9 @@
     "referenceUploading": "Uploading…",
     "audioOnly": "Reference audio must be an audio file",
     "audioTooLarge": "Audio is too large (10MB max)",
-    "referenceDelete": "Remove"
+    "referenceDelete": "Remove",
+    "takeUpload": "Upload",
+    "takeVoice": "Take"
   },
   "vault": {
     "title": "Consistency Vault",

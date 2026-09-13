@@ -3301,8 +3301,12 @@ class UpdateVoiceFieldsRequest(BaseModel):
     voice_description: Optional[str] = None
     voice_prompt: Optional[str] = None
     # 上传完的参考音（走现成的 POST /upload 拿路径，再指过来）。
-    # 显式传 null = 清掉；整个字段不出现 = 不动它。
+    # 它会被收进候选条并设为主音 —— 跟生成一版是同一个待遇。
     reference_audio_url: Optional[str] = None
+
+
+class SelectReferenceAudioRequest(BaseModel):
+    variant_id: str
 
 
 class GenerateReferenceAudioRequest(BaseModel):
@@ -3363,26 +3367,43 @@ def generate_character_reference_audio(
 def update_character_voice_fields(
     script_id: str, char_id: str, request: UpdateVoiceFieldsRequest
 ):
-    """手改声音面：两个文本框、指一个上传好的参考音、或把它清掉。
+    """手改声音面：两个文本框 + 把一段现成的音频收进候选并设为主音。
 
     改「声音描述」会让右列的提示词变过期。上传参考音走的是现成的 POST /upload
     —— 它已经处理了扩展名与 OSS/本地二选一，这里只负责把结果记到角色身上。
-
-    `reference_audio_url` 传 null 是**清掉**，不传才是「不动」—— 得靠
-    model_fields_set 区分这两者，否则用户没有撤销上传的办法。
     """
-    clears_reference = (
-        "reference_audio_url" in request.model_fields_set
-        and request.reference_audio_url is None
-    )
     try:
         character = pipeline.update_voice_fields(
             script_id, char_id,
             voice_description=request.voice_description,
             voice_prompt=request.voice_prompt,
             reference_audio_url=request.reference_audio_url,
-            clear_reference_audio=clears_reference,
         )
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
+@app.patch("/projects/{script_id}/characters/{char_id}/reference-audio")
+def select_character_reference_audio(
+    script_id: str, char_id: str, request: SelectReferenceAudioRequest
+):
+    """把候选条里的某一版设为主音。"""
+    try:
+        character = pipeline.select_reference_audio_variant(script_id, char_id, request.variant_id)
+    except Exception as exc:
+        raise _voice_face_error(exc)
+    return signed_response(character)
+
+
+@app.delete("/projects/{script_id}/characters/{char_id}/reference-audio/{variant_id}")
+def delete_character_reference_audio(script_id: str, char_id: str, variant_id: str):
+    """删掉某一版候选。删的正好是主音就回落到最新的一版。
+
+    只摘指针，不删磁盘上的文件 —— 那可能是某个克隆音色的源音频。
+    """
+    try:
+        character = pipeline.delete_reference_audio_variant(script_id, char_id, variant_id)
     except Exception as exc:
         raise _voice_face_error(exc)
     return signed_response(character)
