@@ -2556,6 +2556,28 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
+    def _generate_ai_sound(self, task: VideoTask) -> str:
+        """「AI 配音」模式：用 ``seed-audio-1.0`` 生成音频，返回本地 mp3 路径。
+
+        返回本地路径就够了 —— 视频适配器会把它传到网关换成公开 URL 再发给上游
+        （与其它参考素材同一条转存通道）。
+
+        参考音频可选：任务带了 ``reference_audio_urls`` 就作为参考发过去（最多 3
+        段），没带就是纯文生音频。
+
+        不吞异常：音频失败即任务失败，调用点还没有为视频付费。
+        """
+        from ...models.jiucaihezi import generate_audio
+
+        audio_path = os.path.join("output", "audio", f"ai_sound_{task.id}.mp3")
+        generate_audio(
+            prompt=task.prompt or "",
+            output_path=audio_path,
+            reference_audio_urls=task.reference_audio_urls or [],
+        )
+        logger.info("Generated AI sound for video task %s: %s", task.id, audio_path)
+        return audio_path
+
     def _download_temp_image(self, url: str) -> str:
         """Downloads an image to a temporary file."""
         import requests
@@ -3447,16 +3469,17 @@ class ComicGenPipeline:
             output_path = os.path.join("output", "video", output_filename)
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
-            # Handle Audio Logic
-            # 1. Silent: audio_url=None
-            # 2. AI Sound: audio_url=None
-            # 3. Sound Driven: audio_url=URL，作为参考音频发给上游
+            # Handle Audio Logic —— 前端 VideoSidebar 的三态：
+            # 1. mute   audio_url=None, generate_audio=False
+            # 2. ai     audio_url=None, generate_audio=True → 用 seed-audio-1.0 生成
+            # 3. custom audio_url=URL → 直接当参考音频发给上游
             #
-            # ponytail: 模式 2（task.generate_audio）对当前模型是空操作 —— 上游契约
-            # 只有参考音频 audios（最多 3 段），没有「生成音频」开关。原实现把它作为
-            # audio 参数发给 DashScope wan 适配器，那个适配器已随家族收敛删除。
-            # 见 docs/1-api-reference/jiucaihezi-minimax-h3-image-audio-to-video-v2-15s.md
+            # 音频生成是一个独立模型（seed-audio-1.0，POST /v1/audio/speech），
+            # 不是视频模型上的开关。放在视频之前：音频失败就让任务失败，此时还
+            # 没为视频付费。
             final_audio_url = task.audio_url or None
+            if not final_audio_url and task.generate_audio:
+                final_audio_url = self._generate_ai_sound(task)
 
             # Ensure img_url is passed correctly for OSS
             img_url = task.image_url

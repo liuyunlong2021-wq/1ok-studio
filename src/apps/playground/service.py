@@ -101,36 +101,18 @@ class PlaygroundService:
             gen.batch_size = 1
         ext = (gen.parameters.get("response_format") or "mp3").lower().replace("ogg_opus", "ogg")
         out_path = os.path.join(AUDIO_OUTPUT_DIR, f"{gen.mode.value}_{gen.id}.{ext}")
-        payload = {
-            "model": gen.model_id or "seed-audio-1.0",
-            "input": gen.prompt[:3000],
-            "response_format": gen.parameters.get("response_format", "mp3"),
-        }
-        if gen.mode == PlaygroundMode.R2A and gen.input_media:
-            refs = []
-            for ref in gen.input_media[:3]:
-                if ref.startswith(("http://", "https://")):
-                    refs.append({"audio_url": ref})
-                    continue
-                path = ref if os.path.exists(ref) else os.path.join("output", ref)
-                if os.path.exists(path):
-                    from ...models.jiucaihezi import upload_to_jiucaihezi
-                    refs.append({"audio_url": upload_to_jiucaihezi(path, "audio")})
-            if refs:
-                payload["metadata"] = {"references": refs}
-        base_url = "https://api.jiucaihezi.studio"
-        key = os.getenv("JIUCAIHEZI_API_KEY")
-        if not key:
-            raise RuntimeError("JIUCAIHEZI_API_KEY not configured")
-        response = requests.post(
-            f"{base_url}/v1/audio/speech",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json=payload,
-            timeout=300,
+
+        # t2a 无参考音频，r2a 带（0–3 段）—— 同一个模型，参考音频可选。
+        from ...models.jiucaihezi import generate_audio
+
+        generate_audio(
+            prompt=gen.prompt,
+            output_path=out_path,
+            model_name=gen.model_id or None,
+            reference_audio_urls=list(gen.input_media) if gen.mode == PlaygroundMode.R2A else [],
+            response_format=gen.parameters.get("response_format", "mp3"),
         )
-        response.raise_for_status()
-        with open(out_path, "wb") as f:
-            f.write(response.content)
+
         gen.outputs.append(PlaygroundOutput(id=str(uuid.uuid4()), media_path=out_path, media_type="audio"))
         self.storage.update_generation(gen)
 

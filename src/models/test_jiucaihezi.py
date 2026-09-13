@@ -10,6 +10,7 @@ from src.models.jiucaihezi import (
     JiucaiheziImageModel,
     JiucaiheziVideoModel,
     _align_ratio_with_resolution,
+    generate_audio,
     upload_to_jiucaihezi,
 )
 
@@ -350,3 +351,78 @@ def test_dola_never_receives_minimax_only_fields(post, get, _sleep, _download_co
 def test_align_ratio_with_resolution(ratio, resolution, expected):
     assert _align_ratio_with_resolution(ratio, resolution) == expected
 
+
+
+# ---------------------------------------------------------------------------
+# 音频生成：seed-audio-1.0 是一个独立模型，参考音频可选
+# ---------------------------------------------------------------------------
+
+def _audio_response(payload: bytes = b"mp3-bytes"):
+    response = Mock()
+    response.ok = True
+    response.content = payload
+    response.raise_for_status.return_value = None
+    return response
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_without_reference_audio(post, tmp_path):
+    """纯文生音频：不带 metadata.references。"""
+    post.return_value = _audio_response()
+    target = tmp_path / "out.mp3"
+
+    result = generate_audio("海浪拍岸的环境声", str(target))
+
+    assert result == str(target)
+    assert target.read_bytes() == b"mp3-bytes"
+    assert post.call_args.args[0].endswith("/v1/audio/speech")
+    assert post.call_args.kwargs["json"] == {
+        "model": "seed-audio-1.0",
+        "input": "海浪拍岸的环境声",
+        "response_format": "mp3",
+    }
+    assert "metadata" not in post.call_args.kwargs["json"]
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_with_reference_audio(post, tmp_path):
+    """带参考音频：放进 metadata.references。远程 URL 直接透传。"""
+    post.return_value = _audio_response()
+
+    generate_audio(
+        "照着这个音色念台词",
+        str(tmp_path / "out.mp3"),
+        reference_audio_urls=["https://cdn.example/ref.wav"],
+    )
+
+    assert post.call_args.kwargs["json"]["metadata"]["references"] == [
+        {"audio_url": "https://cdn.example/ref.wav"}
+    ]
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_caps_reference_audios_at_three(post, tmp_path):
+    post.return_value = _audio_response()
+
+    generate_audio(
+        "p",
+        str(tmp_path / "out.mp3"),
+        reference_audio_urls=[f"https://cdn.example/ref{i}.wav" for i in range(5)],
+    )
+
+    assert len(post.call_args.kwargs["json"]["metadata"]["references"]) == 3
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
+    response = Mock()
+    response.ok = False
+    response.json.return_value = {"error": {"message": "该模型未开通"}}
+    post.return_value = response
+
+    with pytest.raises(RuntimeError, match="该模型未开通"):
+        generate_audio("p", str(tmp_path / "out.mp3"))

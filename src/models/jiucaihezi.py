@@ -2,7 +2,7 @@ import base64
 import mimetypes
 import os
 import time
-from typing import Dict, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 import requests
 
@@ -16,6 +16,13 @@ MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
 JIUCAIHEZI_BASE_URL = "https://api.jiucaihezi.studio"
 TEMP_UPLOAD_ATTEMPTS = 3
 TEMP_UPLOAD_TIMEOUT = (15, 120)
+
+# 音频生成是一个独立模型（不是视频模型上的开关）：`POST /v1/audio/speech`，
+# 参考音频可选（0–3 段）。Playground 的 t2a/r2a 和 Studio 的「AI 配音」都走它。
+AUDIO_MODEL_DEFAULT = "seed-audio-1.0"
+AUDIO_MAX_REFERENCE_AUDIOS = 3
+AUDIO_MAX_INPUT_CHARS = 3000
+AUDIO_SPEECH_TIMEOUT = 300
 # Task creation returns the task id in milliseconds; the transfer of reference
 # assets and the upstream submission now happen in the background.
 VIDEO_CREATE_TIMEOUT = (15, 180)
@@ -104,6 +111,51 @@ def _error_message(response) -> str:
             if payload.get(key):
                 return str(payload[key])
     return (getattr(response, "text", "") or "").strip()[:300]
+
+
+def generate_audio(
+    prompt: str,
+    output_path: str,
+    model_name: Optional[str] = None,
+    reference_audio_urls: Sequence[str] = (),
+    response_format: str = "mp3",
+) -> str:
+    """用 ``seed-audio-1.0`` 生成音频（`POST /v1/audio/speech`）。
+
+    参考音频**可选**：给了就作为 ``metadata.references`` 发过去（最多 3 段），
+    不给就是纯文生音频。本地路径会先传到网关换成公开 URL —— 与视频参考素材同一
+    条转存通道。
+
+    失败直接抛：网关会返回结构化 ``error.message``，调用方据此决定是中断还是降级。
+    返回 ``output_path``。
+    """
+    refs = [
+        {"audio_url": _public_media_url(ref, "audio")}
+        for ref in list(reference_audio_urls or [])[:AUDIO_MAX_REFERENCE_AUDIOS]
+    ]
+    payload: Dict[str, Any] = {
+        "model": model_name or AUDIO_MODEL_DEFAULT,
+        "input": (prompt or "")[:AUDIO_MAX_INPUT_CHARS],
+        "response_format": response_format,
+    }
+    if refs:
+        payload["metadata"] = {"references": refs}
+
+    response = requests.post(
+        f"{_base_url()}/v1/audio/speech",
+        headers={**_headers(), "Content-Type": "application/json"},
+        json=payload,
+        timeout=AUDIO_SPEECH_TIMEOUT,
+    )
+    if not response.ok:
+        raise RuntimeError(f"Jiucaihezi audio generation failed: {_error_message(response)}")
+
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    with open(output_path, "wb") as output:
+        output.write(response.content)
+    return output_path
 
 
 def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
