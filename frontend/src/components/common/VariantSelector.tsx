@@ -14,6 +14,14 @@ interface VariantSelectorProps {
     onDelete: (variantId: string) => void;
     onFavorite?: (variantId: string, isFavorited: boolean) => void;
     onGenerate: (batchSize: number) => void;
+    /** 要不要显示「x1..x4 + 生成」这一组。
+     *
+     * 工作台的「主参考图」那一列把它关掉了：隔壁「生图提示词」下面已经有「生成图片」
+     * 做同一件事（只是固定 1 张），同一件事两个按钮只会让人迟疑。而且那一列是
+     * **看结果**的地方，不应该是发起生成的地方。
+     *
+     * 其余 3 个用法默认 true —— 它们附近没有第二个生成入口，关了就没地方生成了。 */
+    showGenerate?: boolean;
     isGenerating: boolean;
     generatingBatchSize?: number; // Persisted batch size from parent/store
     className?: string;
@@ -30,6 +38,7 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
     onDelete,
     onFavorite,
     onGenerate,
+    showGenerate = true,
     isGenerating,
     generatingBatchSize: propGeneratingBatchSize,
     className = "",
@@ -126,6 +135,7 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
             {/* Controls & Filmstrip */}
             <div className="flex flex-col gap-3">
                 {/* Generation Controls */}
+                {showGenerate && (
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 bg-elevated rounded-lg p-1 border border-glass-border">
                         {[1, 2, 3, 4].map(size => (
@@ -154,6 +164,7 @@ export const VariantSelector: React.FC<VariantSelectorProps> = ({
                         {t("generate")}
                     </button>
                 </div>
+                )}
 
                 {/* Variants Filmstrip */}
                 {variants.length > 0 && (

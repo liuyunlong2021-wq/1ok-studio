@@ -498,3 +498,42 @@ def test_character_reference_audio_wins_over_the_shared_voice_source(monkeypatch
                   voice_id="voice-d", voice_name="克隆男声"))
     assert api_mod.pipeline.resolve_character_reference_audios(PROJECT_ID, ["char-3"]) == \
         ["uploads/voice-d.wav"]
+
+
+# ---------------------------------------------------------------------------
+# 6. 绑定音色时要顺手记下「这音色是哪来的」
+# ---------------------------------------------------------------------------
+
+def test_binding_a_designed_voice_records_its_origin(monkeypatch):
+    """voice_origin 决定音色选择器分到哪个 tab，只写 id/name 会一直停在 'system'。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    response = client.post(
+        f"{BASE}/voice", json={"voice_id": "voice-c", "voice_name": "温和中年男"}
+    )
+
+    assert response.status_code == 200, response.text
+    char = _character(script)
+    assert char.voice_id == "voice-c"
+    # voice-c 是 series.custom_voices 里 origin='design' 的那个
+    assert char.voice_origin == "design", "设计音色被记成了系统音色"
+
+
+def test_binding_a_cloned_voice_records_its_origin(monkeypatch):
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    client.post(f"{BASE}/voice", json={"voice_id": "voice-d", "voice_name": "克隆男声"})
+
+    assert _character(script).voice_origin == "clone"
+
+
+def test_binding_a_builtin_voice_stays_system(monkeypatch):
+    """静态音色表里的音色不在 custom_voices 里 —— 那就是系统自带。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+
+    client.post(f"{BASE}/voice", json={"voice_id": "longxiaochun", "voice_name": "龙小淳"})
+
+    assert _character(script).voice_origin == "system"

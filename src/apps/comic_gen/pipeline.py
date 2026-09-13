@@ -3746,7 +3746,7 @@ class ComicGenPipeline:
 
     def bind_voice(self, script_id: str, char_id: str, voice_id: str, voice_name: str) -> Script:
         """Binds a voice to a character."""
-        script = self.scripts.get(script_id)
+        script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
             
@@ -3756,6 +3756,12 @@ class ComicGenPipeline:
             
         char.voice_id = voice_id
         char.voice_name = voice_name
+        # voice_origin 要跟着走。音色选择器按它分「系统 / 我的复刻 / 我的设计」
+        # 三个 tab（Q15.5 B），只写 id/name 的话绑了设计音色它也还写着 'system'。
+        # 自定义音色在 series.custom_voices 里，它自己记着是 clone 还是 design；
+        # 找不到就当静态音色表里的系统音色。
+        custom = self.find_custom_voice(voice_id)
+        char.voice_origin = custom.origin if custom else "system"
         self._save_data()
         return script
 
