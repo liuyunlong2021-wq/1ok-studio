@@ -22,9 +22,10 @@ interface VideoSidebarProps {
     onRemix: (task: VideoTask) => void;
     params: VideoParams;
     setParams: (params: VideoParams) => void;
+    onExtractFrame?: (task: VideoTask, file: File, name: string) => void;
 }
 
-export default function VideoSidebar({ tasks, onRemix, params, setParams }: VideoSidebarProps) {
+export default function VideoSidebar({ tasks, onRemix, params, setParams, onExtractFrame }: VideoSidebarProps) {
     const tm = useTranslations("motion");
     const [activeTab, setActiveTab] = useState<"settings" | "queue">("settings");
     const [isUploadingAudio, setIsUploadingAudio] = useState(false);
@@ -592,7 +593,7 @@ export default function VideoSidebar({ tasks, onRemix, params, setParams }: Vide
                             exit={{ opacity: 0, x: 20 }}
                             className="absolute inset-0"
                         >
-                            <VideoQueue tasks={tasks} onRemix={onRemix} />
+                            <VideoQueue tasks={tasks} onRemix={onRemix} onExtractFrame={onExtractFrame} />
                         </motion.div>
                     )}
                 </AnimatePresence>

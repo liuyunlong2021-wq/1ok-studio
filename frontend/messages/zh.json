@@ -911,7 +911,8 @@
     "exportComplete": "导出完成！",
     "exportReadyDesc": "您的视频已准备好与世界分享。",
     "downloadVideo": "下载视频",
-    "exportHint": "配置导出设置后点击「开始渲染」"
+    "exportHint": "配置导出设置后点击「开始渲染」",
+    "extractFrame": "截帧"
   },
   "artDirection": {
     "subtitle": "风格定调 - 建立全局视觉标准",
@@ -1389,7 +1390,16 @@
     "noRefImagesAvailable": "暂无角色图片，请先在素材步骤中创建角色。",
     "refImagesHint": "选择 1-9 张角色参考图。在提示词中使用 character1、character2... 引用。",
     "selectRefVideo": "选择参考视频...",
-    "noRefVideosAvailable": "暂无参考视频，请先在素材步骤中生成动态参考。"
+    "noRefVideosAvailable": "暂无参考视频，请先在素材步骤中生成动态参考。",
+    "frameExtractTitle": "截帧 · 取一帧当参考图",
+    "frameExtractApply": "截此帧 → 加入参考图",
+    "frameExtractWorking": "正在截帧…",
+    "frameExtractHint": "拖到你要的那一刻再截。位置关系参考建议取人物站位最清楚的一帧；截下来会插到参考图第一位。",
+    "frameExtractNoVideo": "这段视频读不出来，可能是空文件或还没生成完。",
+    "frameExtractFailed": "截帧失败。",
+    "frameExtractTainted": "截帧被浏览器安全策略拦了（画布被判跨域）。",
+    "frameExtractUploadFailed": "截下来的帧上传失败，参考图没加上。",
+    "refImagesFull": "参考图已满（上限 {limit} 张），先删一张再截。"
   },
   "storyboardR2V": {
     "shots": "镜头",

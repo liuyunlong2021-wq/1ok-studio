@@ -911,7 +911,8 @@
     "exportComplete": "Export Complete!",
     "exportReadyDesc": "Your video is ready to be shared with the world.",
     "downloadVideo": "Download Video",
-    "exportHint": "Configure your export settings and click \"Start Render\""
+    "exportHint": "Configure your export settings and click \"Start Render\"",
+    "extractFrame": "Extract frame"
   },
   "artDirection": {
     "inheritsBaseline": "Inherits series baseline:",
@@ -1389,7 +1390,16 @@
     "noRefImagesAvailable": "No character images available. Create characters in the Assets step first.",
     "refImagesHint": "Select 1-9 character reference images. Use character1, character2... in prompt.",
     "selectRefVideo": "Select Reference Video...",
-    "noRefVideosAvailable": "No reference videos available. Generate Motion References in the Assets step first."
+    "noRefVideosAvailable": "No reference videos available. Generate Motion References in the Assets step first.",
+    "frameExtractTitle": "Extract frame · use as reference",
+    "frameExtractApply": "Extract this frame → add to references",
+    "frameExtractWorking": "Extracting…",
+    "frameExtractHint": "Scrub to the exact moment, then extract. For pose continuity, pick the frame where positions read clearest; it goes to the first reference slot.",
+    "frameExtractNoVideo": "This video can't be read — it may be empty or still generating.",
+    "frameExtractFailed": "Frame extraction failed.",
+    "frameExtractTainted": "Blocked by browser security — the canvas was treated as cross-origin.",
+    "frameExtractUploadFailed": "Uploading the extracted frame failed; the reference was not added.",
+    "refImagesFull": "Reference images are full (limit {limit}) — remove one first."
   },
   "storyboardR2V": {
     "genShots": "✨ Generate shots",

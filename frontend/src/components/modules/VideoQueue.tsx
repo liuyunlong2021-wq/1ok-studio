@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, RefreshCw, Copy, Download, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, Copy, Download, Trash2, AlertCircle, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { VideoTask, API_URL } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
+import FrameExtractOverlay from "./FrameExtractOverlay";
 
 interface VideoQueueProps {
     tasks: VideoTask[];
     onRemix: (task: VideoTask) => void;
+    /** 截到帧之后交给上层，最终会进「参考图」。不传则不显示截帧按钮。 */
+    onExtractFrame?: (task: VideoTask, file: File, name: string) => void;
 }
 
-export default function VideoQueue({ tasks, onRemix }: VideoQueueProps) {
+export default function VideoQueue({ tasks, onRemix, onExtractFrame }: VideoQueueProps) {
     const tv = useTranslations("video");
     const [filter, setFilter] = useState<"all" | "processing" | "completed" | "failed">("all");
 
@@ -61,7 +64,7 @@ export default function VideoQueue({ tasks, onRemix }: VideoQueueProps) {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 <AnimatePresence mode="popLayout">
                     {filteredTasks.map((task) => (
-                        <TaskCard key={task.id} task={task} onRemix={onRemix} />
+                        <TaskCard key={task.id} task={task} onRemix={onRemix} onExtractFrame={onExtractFrame} />
                     ))}
 
                     {filteredTasks.length === 0 && (
@@ -75,7 +78,8 @@ export default function VideoQueue({ tasks, onRemix }: VideoQueueProps) {
     );
 }
 
-function TaskCard({ task, onRemix }: { task: VideoTask; onRemix: (t: VideoTask) => void }) {
+function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix: (t: VideoTask) => void; onExtractFrame?: (t: VideoTask, file: File, name: string) => void }) {
+    const [extracting, setExtracting] = useState(false);
     const tv = useTranslations("video");
     const isCompleted = task.status === "completed";
     const isProcessing = task.status === "processing" || task.status === "pending";
@@ -207,6 +211,16 @@ function TaskCard({ task, onRemix }: { task: VideoTask; onRemix: (t: VideoTask) 
 
                         <div className="flex justify-between items-center">
                             <div className="flex gap-2">
+                                {/* 截帧：取任意一帧当下一段的位置关系参考 */}
+                                {onExtractFrame && task.video_url && (
+                                    <button
+                                        onClick={() => setExtracting(true)}
+                                        title={tv("extractFrame")}
+                                        className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground"
+                                    >
+                                        <Scissors size={14} />
+                                    </button>
+                                )}
                                 <button className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground">
                                     <Copy size={14} />
                                 </button>
@@ -220,6 +234,15 @@ function TaskCard({ task, onRemix }: { task: VideoTask; onRemix: (t: VideoTask) 
                         </div>
                     </div>
                 </div>
+            )}
+
+            {extracting && task.video_url && (
+                <FrameExtractOverlay
+                    videoPath={task.video_url}
+                    label={`#${task.id.slice(0, 6)}`}
+                    onClose={() => setExtracting(false)}
+                    onExtract={(file, name) => onExtractFrame?.(task, file, name)}
+                />
             )}
 
             {/* Failed State */}

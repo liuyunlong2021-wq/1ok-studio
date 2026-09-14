@@ -19,6 +19,10 @@ export default function VideoGenerator() {
     // Shared state for Remix functionality
     const [remixData, setRemixData] = useState<Partial<VideoTask> | null>(null);
 
+    // 截帧：队列里截下的那一帧（还没上传），交给 VideoCreator 传成参考图。
+    // 跟 remixData 同一套模式 —— 队列在右、创建器在左，东西得经过这里。
+    const [extractedFrame, setExtractedFrame] = useState<{ file: File; name: string } | null>(null);
+
     // Get default model from project settings
     // 默认走参考图驱动（r2v）—— 目录里能用的视频模型都同时声称支持 i2v，
     // 所以「没有 i2v 模型」这个旧前提不再成立，而实际用起来只用一个模式。
@@ -165,6 +169,8 @@ export default function VideoGenerator() {
                         onTaskCreated={handleTaskCreated}
                         remixData={remixData}
                         onRemixClear={() => setRemixData(null)}
+                        extractedFrame={extractedFrame}
+                        onExtractedFrameClear={() => setExtractedFrame(null)}
                         params={params}
                         onParamsChange={(newParams) => setParams(p => ({ ...p, ...newParams }))}
                     />
@@ -175,6 +181,7 @@ export default function VideoGenerator() {
                     <VideoSidebar
                         tasks={tasks}
                         onRemix={handleRemix}
+                        onExtractFrame={(_task, file, name) => setExtractedFrame({ file, name })}
                         params={params}
                         setParams={setParams}
                     />

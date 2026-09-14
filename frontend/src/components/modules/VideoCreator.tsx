@@ -36,6 +36,9 @@ interface VideoCreatorProps {
     onTaskCreated: (project: any) => void;
     remixData: Partial<VideoTask> | null;
     onRemixClear: () => void;
+    /** 队列里截下的一帧（还未上传）。传进来就自动传成参考图。 */
+    extractedFrame?: { file: File; name: string } | null;
+    onExtractedFrameClear?: () => void;
     params: VideoParams;
     onParamsChange: (params: Partial<VideoParams>) => void;
 }
@@ -45,7 +48,7 @@ interface VideoCreatorProps {
 const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
 const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
-export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, params, onParamsChange }: VideoCreatorProps) {
+export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
     const currentProject = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -586,6 +589,45 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const isSeedance25 = (params.model || "").includes("dola-seedance2.5");
     const referenceImageLimit = isSeedance25 ? 30 : 9;
     const promptLimit = 12000;
+
+    // 截帧 → 上传 → 插到参考图**第一位**。
+    //
+    // 插第一位而不是末尾：参考图是按选择顺序提交的，而下一段最需要的就是「上一段
+    // 结尾的位置关系」，那张应该当主参考。连续截几帧时，最新的永远在最前面。
+    //
+    // 这里必须写在 referenceImageLimit 之后：依赖数组在渲染期求值，写在它前面会
+    // 撞上 const 的 TDZ。
+    useEffect(() => {
+        if (!extractedFrame) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                if (referenceAssets.length >= referenceImageLimit) {
+                    setMotionError(tc("refImagesFull", { limit: referenceImageLimit }));
+                    return;
+                }
+                const { url } = await api.uploadFile(extractedFrame.file);
+                if (cancelled) return;
+                setReferenceAssets((items) =>
+                    items.length >= referenceImageLimit
+                        ? items
+                        : [{
+                            url,
+                            thumbnail: url,
+                            name: extractedFrame.name,
+                            assetName: extractedFrame.name,
+                            type: "上传" as const,
+                        }, ...items]
+                );
+            } catch {
+                if (!cancelled) setMotionError(tc("frameExtractUploadFailed"));
+            } finally {
+                if (!cancelled) onExtractedFrameClear?.();
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [extractedFrame, onExtractedFrameClear, referenceImageLimit]);
     const handleCastSlotSelect = (_slotIndex: number, selected: { url: string; name: string }) => {
         const asset = availableReferenceImages.find((item) => item.url === selected.url);
         if (asset) addReference(asset);
