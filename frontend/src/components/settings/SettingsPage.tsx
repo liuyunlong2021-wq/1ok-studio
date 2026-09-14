@@ -70,6 +70,8 @@ interface DefaultPromptConfig {
   character_prompt: string;
   scene_prompt: string;
   prop_prompt: string;
+  audio_plan: string;
+  voice_prompt: string;
 }
 
 const EMPTY_PROMPT_CONFIG: DefaultPromptConfig = {
@@ -83,6 +85,8 @@ const EMPTY_PROMPT_CONFIG: DefaultPromptConfig = {
   character_prompt: "",
   scene_prompt: "",
   prop_prompt: "",
+  audio_plan: "",
+  voice_prompt: "",
 };
 
 function loadFromLS<T>(key: string, fallback: T): T {
@@ -574,6 +578,8 @@ export default function SettingsPage() {
     { key: "character_prompt", label: "角色资产 Skill", desc: "基于角色描述与项目风格生成角色提示词。" },
     { key: "scene_prompt", label: "场景资产 Skill", desc: "基于场景描述与项目风格生成场景提示词。" },
     { key: "prop_prompt", label: "道具资产 Skill", desc: "基于道具描述与项目风格生成道具提示词。" },
+    { key: "audio_plan", label: "全局导演声音稿 Skill", desc: "声音步骤里「生成导演稿」用的 Skill；产出直接喂给 seed-audio-1.0。" },
+    { key: "voice_prompt", label: "角色参考音设计 Skill", desc: "角色工作台「声音→生成提示词」用的 Skill；产出喂给 CosyVoice 音色设计。" },
   ];
 
   const renderPrompts = () => (

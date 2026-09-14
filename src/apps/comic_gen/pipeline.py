@@ -4699,7 +4699,12 @@ class ComicGenPipeline:
             logger.info(f"[voice/design] saved voice_id={voice_id} to series={series_id}")
             return custom
 
-    def translate_character_to_voice_prompt(self, description: str, source_label: str = "角色设定") -> str:
+    def translate_character_to_voice_prompt(
+        self,
+        description: str,
+        source_label: str = "角色设定",
+        system_prompt: Optional[str] = None,
+    ) -> str:
         """LLM helper: convert a character description into a CosyVoice
         voice_prompt suitable for /services/audio/tts/customization.
 
@@ -4709,20 +4714,19 @@ class ComicGenPipeline:
 
         ``source_label`` 只影响提示词里那行的抬头：音色设计弹窗喂的是角色设定，
         工作台右列喂的是已经提炼过的「声音描述」，别让模型以为拿到的是人物小传。
+
+        ``system_prompt`` 是工作台那条路传进来的 project/series Skill 解析结果。
+        故意的：音色设计弹窗（``/voice/design/translate``）不属于任何项目，读不到
+        skill 绑定，所以它不传，用下面的内置默认 —— 绑定不能从这条路漏进弹窗。
         """
         from .llm_adapter import LLMAdapter
+        from .llm import DEFAULT_VOICE_PROMPT
 
         adapter = LLMAdapter()
         if not adapter.is_configured:
             raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
 
-        system_prompt = (
-            "你是一个语音设计师，擅长将角色设定转化为简洁的中文音色描述。"
-            "输出要求："
-            "1. 只描述音色、语速、年龄、情绪，不要描写外貌或剧情。"
-            "2. 用 100-200 字中文，单段无标题，不带引号或多余说明。"
-            "3. 重点：性别·年龄·音色质感·语速·气质氛围。"
-        )
+        system_prompt = system_prompt or DEFAULT_VOICE_PROMPT
         user_prompt = f"{source_label}：\n{description.strip()[:1000]}\n\n请输出音色描述。"
 
         text = adapter.chat(
@@ -4863,7 +4867,12 @@ class ComicGenPipeline:
         if not description:
             raise ValueError(f"「{character.name}」还没有声音描述，先生成或写一段再来生成音色提示词")
 
-        prompt = self.translate_character_to_voice_prompt(description, source_label="声音描述")
+        series = self.series_store.get(script.series_id) if script.series_id else None
+        prompt = self.translate_character_to_voice_prompt(
+            description,
+            source_label="声音描述",
+            system_prompt=self.get_effective_prompt("voice_prompt", script, series),
+        )
         if not prompt:
             raise RuntimeError("音色提示词生成失败：模型返回了空内容")
 
@@ -5107,16 +5116,10 @@ class ComicGenPipeline:
             cast_lines.append(f"- {character.name}（{voice}）：{character.description}")
         cast_block = "\n".join(cast_lines) or "（暂无角色）"
 
-        system_prompt = (
-            "你是影视声音导演。请把剧本整理成一份「全局声音导演稿」，用于后续一次性生成"
-            "整集音频。\n"
-            "要求：\n"
-            "1. 按场景顺序写，每一段标明说话人、台词与情绪/语气提示；旁白单独成段。\n"
-            "2. 需要环境声或音效的地方用【】标注。\n"
-            "3. 只输出可以照着念/照着演的内容，不要写标题、说明或 Markdown 标记。\n"
-            "4. 全篇控制在 2500 个汉字以内（生成接口的输入上限是 3000 字符）。\n"
-            "5. 台词要口语化、能直接念；不要保留剧本里的运镜、画面描述。"
-        )
+        # 走 prompt 阶段解析：项目/剧集绑定的 Skill 优先，其次自定义文本，最后内置默认。
+        # 默认那段里的长度、【】标记等硬限制由 get_effective_prompt 负责兜住。
+        series = self.series_store.get(script.series_id) if script.series_id else None
+        system_prompt = self.get_effective_prompt("audio_plan", script, series)
         user_prompt = (
             f"【角色与已绑定音色】\n{cast_block}\n\n"
             f"【剧本】\n{(script.original_text or '')[:8000]}"
@@ -5585,11 +5588,12 @@ class ComicGenPipeline:
             return target, imported_ids, skipped_ids
 
     def get_effective_prompt(self, prompt_type: str, episode: Script, series: Optional[Series] = None) -> str:
-        """Resolve Skill Package/text/default, then attach the visual-style contract."""
+        """Resolve Skill Package/text/default, then attach the stage's output contract."""
         valid_prompt_types = (
             "entity_extraction", "style_analysis", "storyboard_extraction",
             "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax",
             "character_prompt", "scene_prompt", "prop_prompt",
+            "audio_plan", "voice_prompt",
         )
         if prompt_type not in valid_prompt_types:
             raise ValueError(f"Invalid prompt_type: {prompt_type}. Must be one of {valid_prompt_types}")
@@ -5599,6 +5603,8 @@ class ComicGenPipeline:
             DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
             DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT,
             DEFAULT_VIDEO_POLISH_PROMPT,
+            DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT,
+            AUDIO_PLAN_OUTPUT_CONTRACT, VOICE_PROMPT_OUTPUT_CONTRACT,
         )
         defaults = {
             "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
@@ -5611,6 +5617,8 @@ class ComicGenPipeline:
             "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
             "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
             "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,
+            "audio_plan": DEFAULT_AUDIO_PLAN_PROMPT,
+            "voice_prompt": DEFAULT_VOICE_PROMPT,
         }
         resolved = ""
         episode_bindings = getattr(episode.prompt_config, "skill_bindings", {}) or {}
@@ -5627,7 +5635,15 @@ class ComicGenPipeline:
             series_value = getattr(series.prompt_config, prompt_type, "")
             if series_value.strip():
                 resolved = series_value
+        # 到这里 `resolved` 还是「用户或 Skill 真正提供的那一层」；下面一落地默认值
+        # 就分不出是谁给的，所以先把「有没有被覆盖」记下来 —— 音频那两个硬契约
+        # 只在被覆盖时才补（内置默认里已经逐条写了，不加会重复）。
+        overridden = bool(resolved)
         resolved = resolved or defaults.get(prompt_type, "")
+        if overridden and prompt_type == "audio_plan":
+            resolved += AUDIO_PLAN_OUTPUT_CONTRACT
+        elif overridden and prompt_type == "voice_prompt":
+            resolved += VOICE_PROMPT_OUTPUT_CONTRACT
         if prompt_type in {"storyboard_extraction", "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax", "character_prompt", "scene_prompt", "prop_prompt"}:
             art = episode.art_direction or (series.art_direction if series else None)
             style = ""

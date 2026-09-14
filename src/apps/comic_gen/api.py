@@ -55,7 +55,7 @@ _SIDECAR_MTIME = (
     if getattr(sys, "frozen", False) and os.path.exists(sys.executable)
     else None
 )
-from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT
+from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
 from ...utils.oss_utils import OSSImageUploader, sign_oss_urls_in_data
 from ...utils import setup_logging
 from fastapi.responses import JSONResponse
@@ -67,6 +67,7 @@ SKILL_STAGE_KEYS = {
     "entity_extraction", "style_analysis", "storyboard_extraction",
     "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax",
     "character_prompt", "scene_prompt", "prop_prompt",
+    "audio_plan", "voice_prompt",
 }
 
 
@@ -89,6 +90,44 @@ def _validate_skill_bindings(bindings: Dict[str, str]) -> None:
             pipeline.skill_packages.describe(package_id)
         except SkillPackageError as exc:
             raise HTTPException(status_code=400, detail=f"{stage}: {exc}")
+
+
+class UpdatePromptConfigRequest(BaseModel):
+    """
+    每个字段都是 Optional，目的是让「没发的字段」保持原值：
+
+    - 字段缺省 / null  -> 保持已存的值
+    - 显式传 ""        -> 清空，回退到系统默认（跟以前一样）
+
+    以前这里是 str = "" + 建一个全新的 PromptConfig，等于全量替换：客户端漏发
+    哪个字段就把哪个抹掉。而字段清单是手工维护的，散在 3 个模态框 + 设置页 +
+    store 的回填里 —— 加一个字段就得同时改五处，漏一处就是静默丢数据。
+
+    **位置别往后挪**：`/series/{id}/prompt_config` 的端点在本文件前部，而 Python
+    3.14 的注解是延迟求值的（PEP 649）—— 把它定义在端点后面不会报 NameError，
+    但 FastAPI 注册路由时解析不到这个类，会**静默**退化成 query 参数（422）。
+    """
+    storyboard_polish: Optional[str] = None
+    video_polish: Optional[str] = None
+    r2v_polish: Optional[str] = None
+    r2v_minimax: Optional[str] = None
+    entity_extraction: Optional[str] = None
+    style_analysis: Optional[str] = None
+    storyboard_extraction: Optional[str] = None
+    polish_model: Optional[str] = None
+    character_prompt: Optional[str] = None
+    scene_prompt: Optional[str] = None
+    prop_prompt: Optional[str] = None
+    audio_plan: Optional[str] = None
+    voice_prompt: Optional[str] = None
+    skill_bindings: Optional[Dict[str, str]] = None
+
+
+def _merged_prompt_config(existing: Optional[PromptConfig], request: UpdatePromptConfigRequest) -> PromptConfig:
+    """把客户端真正发来的字段叠到已存的配置上。"""
+    data = (existing or PromptConfig()).model_dump()
+    data.update(request.model_dump(exclude_unset=True))
+    return PromptConfig(**data)
 
 # Setup logging to user directory
 setup_logging()
@@ -967,16 +1006,22 @@ def get_series_prompt_config(series_id: str):
             "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
             "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
             "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,
+            "audio_plan": DEFAULT_AUDIO_PLAN_PROMPT,
+            "voice_prompt": DEFAULT_VOICE_PROMPT,
         },
     }
 
 
 @app.put("/series/{series_id}/prompt_config")
-def update_series_prompt_config(series_id: str, config: PromptConfig):
-    """Update Series-level prompt config."""
+def update_series_prompt_config(series_id: str, request: UpdatePromptConfigRequest):
+    """Update Series-level prompt config. 缺省的字段保持原值，"" 才是回退默认。"""
     try:
-        _validate_skill_bindings(config.skill_bindings)
-        series = pipeline.update_series(series_id, {"prompt_config": config})
+        _validate_skill_bindings(request.skill_bindings or {})
+        series = pipeline.get_series(series_id)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        merged = _merged_prompt_config(getattr(series, "prompt_config", None), request)
+        series = pipeline.update_series(series_id, {"prompt_config": merged})
         return signed_response(series)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -3041,21 +3086,6 @@ def update_model_settings(script_id: str, request: UpdateModelSettingsRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class UpdatePromptConfigRequest(BaseModel):
-    storyboard_polish: str = ""
-    video_polish: str = ""
-    r2v_polish: str = ""
-    r2v_minimax: str = ""
-    entity_extraction: str = ""
-    style_analysis: str = ""
-    storyboard_extraction: str = ""
-    polish_model: str = ""
-    character_prompt: str = ""
-    scene_prompt: str = ""
-    prop_prompt: str = ""
-    skill_bindings: Dict[str, str] = Field(default_factory=dict)
-
-
 class GenerateAssetPromptRequest(BaseModel):
     asset_type: str
     asset_id: Optional[str] = None
@@ -3113,6 +3143,8 @@ def get_prompt_config(script_id: str):
                 "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
                 "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
                 "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,
+                "audio_plan": DEFAULT_AUDIO_PLAN_PROMPT,
+                "voice_prompt": DEFAULT_VOICE_PROMPT,
             }
         }
     except HTTPException:
@@ -3125,24 +3157,11 @@ def get_prompt_config(script_id: str):
 def update_prompt_config(script_id: str, request: UpdatePromptConfigRequest):
     """Updates project custom prompt configuration. Empty string = use system default."""
     try:
-        _validate_skill_bindings(request.skill_bindings)
+        _validate_skill_bindings(request.skill_bindings or {})
         script = pipeline.get_script(script_id)
         if not script:
             raise HTTPException(status_code=404, detail="Project not found")
-        script.prompt_config = PromptConfig(
-            storyboard_polish=request.storyboard_polish,
-            video_polish=request.video_polish,
-            r2v_polish=request.r2v_polish,
-            r2v_minimax=request.r2v_minimax,
-            entity_extraction=request.entity_extraction,
-            style_analysis=request.style_analysis,
-            storyboard_extraction=request.storyboard_extraction,
-            polish_model=request.polish_model,
-            character_prompt=request.character_prompt,
-            scene_prompt=request.scene_prompt,
-            prop_prompt=request.prop_prompt,
-            skill_bindings=request.skill_bindings,
-        )
+        script.prompt_config = _merged_prompt_config(script.prompt_config, request)
         pipeline._save_data()
         return {"prompt_config": script.prompt_config.model_dump()}
     except HTTPException:
@@ -3209,6 +3228,8 @@ def get_prompt_defaults():
         "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
         "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
         "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,
+        "audio_plan": DEFAULT_AUDIO_PLAN_PROMPT,
+        "voice_prompt": DEFAULT_VOICE_PROMPT,
     }
 
 

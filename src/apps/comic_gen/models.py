@@ -594,6 +594,8 @@ class PromptConfig(BaseModel):
     character_prompt: str = Field("", description="System prompt for character asset prompt generation")
     scene_prompt: str = Field("", description="System prompt for scene asset prompt generation")
     prop_prompt: str = Field("", description="System prompt for prop asset prompt generation")
+    audio_plan: str = Field("", description="System prompt for the episode sound-director script (seed-audio-1.0)")
+    voice_prompt: str = Field("", description="System prompt for generating a character's timbre prompt (CosyVoice)")
     skill_bindings: Dict[str, str] = Field(
         default_factory=dict,
         description="Prompt stage to Skill Package ID bindings",

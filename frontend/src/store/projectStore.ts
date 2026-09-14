@@ -416,6 +416,8 @@ async function injectDefaultsIntoProject(projectId: string): Promise<Project | n
         character_prompt?: string;
         scene_prompt?: string;
         prop_prompt?: string;
+        audio_plan?: string;
+        voice_prompt?: string;
         skill_bindings?: Record<string, string>;
     }>(LS_KEY_DEFAULT_PROMPT);
 
