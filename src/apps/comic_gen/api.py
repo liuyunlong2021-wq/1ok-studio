@@ -167,6 +167,12 @@ async def add_cache_control_header(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith("/files/"):
         response.headers["Cache-Control"] = "public, max-age=86400"
+        # 必须带 Vary: Origin。响应是 `public, max-age=86400`（缓存 24 小时），
+        # 而同一个 URL 有两种取法：卡片里的 <video> 不带 crossOrigin，工作台截帧
+        # 的 <video crossOrigin="anonymous"> 带。没有 Vary 的话，缓存会把那份
+        # 「没有 Access-Control-Allow-Origin」的响应复用给 CORS 请求，浏览器判定
+        # 跨域失败（MEDIA_ELEMENT_ERROR: Format error），截帧就永远截不出图。
+        response.headers["Vary"] = "Origin"
     return response
 
 # Create output directory if it doesn't exist
