@@ -1715,6 +1715,8 @@
       "processing": "生成中…"
     },
     "media": {
+      "open": "打开",
+      "closeEsc": "关闭 (Esc)",
       "uploading": "上传中...",
       "dragOrClick": "拖拽或点击上传",
       "localUpload": "本地上传",

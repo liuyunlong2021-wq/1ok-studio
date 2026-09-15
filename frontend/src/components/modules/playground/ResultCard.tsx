@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music } from 'lucide-react';
+import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
+import { saveMedia, revealMedia } from '@/lib/mediaActions';
 import { usePlaygroundStore, type PlaygroundGeneration } from './usePlaygroundStore';
 
 interface ResultCardProps {
@@ -144,22 +145,23 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
 
   const handleDownload = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!mediaUrl) return;
+    if (!output?.media_path) return;
     try {
-      const resp = await fetch(mediaUrl);
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = output?.media_path?.split('/').pop() || 'download';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(mediaUrl, '_blank');
+      await saveMedia(output.media_path, mediaUrl);
+    } catch (err) {
+      console.error('[ResultCard] Save media failed:', err);
     }
   }, [mediaUrl, output]);
+
+  const handleOpenFolder = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!output?.media_path) return;
+    try {
+      await revealMedia(output.media_path);
+    } catch (err) {
+      console.error('[ResultCard] Reveal media failed:', err);
+    }
+  }, [output]);
 
   const handleSaveToLibrary = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -258,6 +260,13 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
             title={t('card.download')}
           >
             <Download className="w-3.5 h-3.5 text-foreground" />
+          </button>
+          <button
+            onClick={handleOpenFolder}
+            className="w-7 h-7 rounded-full bg-elevated backdrop-blur-sm flex items-center justify-center hover:bg-hover-bg transition"
+            title={t('media.open')}
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-foreground" />
           </button>
           <button
             onClick={handleUseAsReference}

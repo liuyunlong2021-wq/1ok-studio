@@ -117,7 +117,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
 /// `output/assets/...`, the `/files` mounts), so its cwd has to be the user data
 /// dir. Dev mode used to inherit the repo root instead, producing a second,
 /// invisible `projects.json` that the packaged build never saw.
-fn user_data_dir() -> std::path::PathBuf {
+pub(crate) fn user_data_dir() -> std::path::PathBuf {
     let configured = std::env::var("ONEOKSTUDIO_DATA_DIR").unwrap_or_default();
     let trimmed = configured.trim();
     if let Some(rest) = trimmed.strip_prefix("~/") {

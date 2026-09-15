@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
   Download,
+  FolderOpen,
   Crown,
   Bookmark,
   Video,
@@ -15,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { API_URL, playgroundApi } from '@/lib/api';
+import { saveMedia, revealMedia } from '@/lib/mediaActions';
 import { useTranslations } from 'next-intl';
 import { usePlaygroundStore, type PlaygroundGeneration } from './usePlaygroundStore';
 
@@ -109,15 +111,21 @@ export default function DetailPanel({
     if (hasNext) onNavigate(allGenerations[currentIndex - 1]);
   }, [hasNext, currentIndex, allGenerations, onNavigate]);
 
-  // Keyboard
+  // Keyboard.
+  //
+  // Registered in the **capture** phase on `document` on purpose: several views
+  // (GalleryView, the script editor, the lightbox) also listen for keys, and a
+  // bubble-phase listener on `window` is the last stop in the chain — anything
+  // upstream that stops propagation would silently eat our Escape. Capture runs
+  // first, so the innermost overlay always wins.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') navigatePrev();
       if (e.key === 'ArrowRight') navigateNext();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
   }, [onClose, navigatePrev, navigateNext]);
 
   // Lock body scroll
@@ -128,6 +136,12 @@ export default function DetailPanel({
     };
   }, []);
 
+  // Focus the dialog on mount so Escape / arrow keys land here first.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
   // Actions
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(generation.prompt).then(() => {
@@ -136,14 +150,22 @@ export default function DetailPanel({
     });
   };
 
-  const handleDownload = () => {
-    if (!mediaUrl) return;
-    const a = document.createElement('a');
-    a.href = mediaUrl;
-    a.download = output?.media_path?.split('/').pop() || 'download';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async () => {
+    if (!output?.media_path) return;
+    try {
+      await saveMedia(output.media_path, mediaUrl);
+    } catch (err) {
+      console.error('[DetailPanel] Save media failed:', err);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    if (!output?.media_path) return;
+    try {
+      await revealMedia(output.media_path);
+    } catch (err) {
+      console.error('[DetailPanel] Reveal media failed:', err);
+    }
   };
 
   const handleSaveToLibrary = async () => {
@@ -212,7 +234,14 @@ export default function DetailPanel({
       />
 
       {/* Container */}
-      <div className="fixed inset-4 md:inset-8 z-50 bg-surface border border-glass-border rounded-[20px] shadow-2xl flex overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={generation.prompt || t('media.open')}
+        tabIndex={-1}
+        className="fixed inset-4 md:inset-8 z-50 bg-surface border border-glass-border rounded-[20px] shadow-2xl flex overflow-hidden outline-none"
+      >
         {/* ─── LEFT SIDE (Media) ─────────────────────────────────────────── */}
         <div className="relative w-[60%] h-full bg-surface-inset flex items-center justify-center">
           {mediaUrl ? (
@@ -265,6 +294,8 @@ export default function DetailPanel({
           {/* Close button */}
           <button
             onClick={onClose}
+            title={t('media.closeEsc')}
+            aria-label={t('media.closeEsc')}
             className="absolute top-4 right-4 z-10 w-8 h-8 rounded-lg bg-glass border border-glass-border flex items-center justify-center hover:bg-hover-bg transition-colors"
           >
             <X className="w-4 h-4 text-text-muted" />
@@ -422,7 +453,16 @@ export default function DetailPanel({
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-surface-inset border border-glass-border text-text-secondary text-[0.8125rem] font-medium hover:text-foreground hover:bg-hover-bg transition"
                   >
                     <Download className="w-4 h-4" />
-                    Download
+                    {t('card.download')}
+                  </button>
+                )}
+                {output?.media_path && (
+                  <button
+                    onClick={handleOpenFolder}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-surface-inset border border-glass-border text-text-secondary text-[0.8125rem] font-medium hover:text-foreground hover:bg-hover-bg transition"
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                    {t('media.open')}
                   </button>
                 )}
                 {!isVideo && output?.media_path && onGenerateVideo && (

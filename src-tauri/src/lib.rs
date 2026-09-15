@@ -4,6 +4,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -83,6 +84,102 @@ fn open_sidecar_log() -> Result<(), String> {
     open::that(sidecar::sidecar_log_path()).map_err(|error| error.to_string())
 }
 
+/// Resolve a backend media path to the file on disk.
+///
+/// Mirrors the frontend's `getMediaUrl`: the backend hands out paths that may or
+/// may not carry an `output/` prefix, and the `/files` static mount serves
+/// `<data_dir>/output`, so `output/playground/images/x.png` and
+/// `playground/images/x.png` name the same file.
+///
+/// Anything that is not a plain relative path is rejected outright — this is a
+/// trust boundary, and a `..` segment here would let the webview read or copy
+/// arbitrary files.
+fn media_file_path(media_path: &str) -> Result<std::path::PathBuf, String> {
+    let cleaned = media_path.trim().replace('\\', "/");
+    let cleaned = cleaned.trim_start_matches('/');
+    let cleaned = cleaned.strip_prefix("output/").unwrap_or(cleaned);
+
+    let is_plain_relative = !cleaned.is_empty()
+        && std::path::Path::new(cleaned)
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)));
+    if !is_plain_relative {
+        return Err(format!("Invalid media path: {media_path}"));
+    }
+
+    let file = sidecar::user_data_dir().join("output").join(cleaned);
+    if !file.is_file() {
+        return Err(format!("Media file not found: {}", file.display()));
+    }
+    Ok(file)
+}
+
+#[cfg(target_os = "macos")]
+fn reveal_in_file_manager(file: &std::path::Path) -> Result<(), String> {
+    // `open -R` selects the file itself rather than just opening its folder,
+    // which is the whole point of the button.
+    std::process::Command::new("open")
+        .arg("-R")
+        .arg(file)
+        .status()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn reveal_in_file_manager(file: &std::path::Path) -> Result<(), String> {
+    let dir = file
+        .parent()
+        .ok_or_else(|| "Media file has no parent directory".to_string())?;
+    open::that(dir).map_err(|error| error.to_string())
+}
+
+/// IPC command: copy a generated media file to a location the user picks.
+///
+/// The webview cannot do this on its own — WKWebView does not implement the
+/// `<a download>` attribute, so the previous frontend approach was a silent
+/// no-op. The file already lives in the user data dir, so this is a local copy
+/// behind a native save dialog; no network involved.
+///
+/// Returns `Ok(None)` when the user cancels the dialog.
+#[tauri::command]
+async fn save_media(
+    app: tauri::AppHandle,
+    media_path: String,
+) -> Result<Option<String>, String> {
+    let source = media_file_path(&media_path)?;
+    let file_name = source
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("download")
+        .to_string();
+
+    // `blocking_save_file` must not run on the main thread — park a worker and
+    // wait for the picker to come back.
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_file_name(&file_name)
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+
+    let Some(target) = picked else {
+        return Ok(None);
+    };
+    let target = target.into_path().map_err(|error| error.to_string())?;
+    std::fs::copy(&source, &target).map_err(|error| error.to_string())?;
+    Ok(Some(target.to_string_lossy().into_owned()))
+}
+
+/// IPC command: show a generated media file in Finder / Explorer.
+#[tauri::command]
+fn reveal_media(media_path: String) -> Result<(), String> {
+    let file = media_file_path(&media_path)?;
+    reveal_in_file_manager(&file)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let backend_running = Arc::new(AtomicBool::new(false));
@@ -148,6 +245,8 @@ pub fn run() {
             api_proxy,
             check_backend_health,
             open_sidecar_log,
+            save_media,
+            reveal_media,
         ])
         .run(tauri::generate_context!())
         .expect("error while running One OK Studio");

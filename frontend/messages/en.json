@@ -1715,6 +1715,8 @@
       "processing": "Generating…"
     },
     "media": {
+      "open": "Open",
+      "closeEsc": "Close (Esc)",
       "uploading": "Uploading…",
       "dragOrClick": "Drag or click to upload",
       "localUpload": "Local upload",
