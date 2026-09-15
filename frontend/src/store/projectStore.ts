@@ -435,7 +435,6 @@ async function injectDefaultsIntoProject(projectId: string): Promise<Project | n
             ms.storyboard_aspect_ratio,
             ms.image_model,
             ms.r2v_model,
-            ms.text_model,
         );
         applied = true;
     }

@@ -57,6 +57,7 @@ _SIDECAR_MTIME = (
 )
 from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
 from ...utils.oss_utils import OSSImageUploader, sign_oss_urls_in_data
+from ...utils.global_settings import get_global_text_model, set_global_text_model
 from ...utils import setup_logging
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv, set_key
@@ -114,7 +115,6 @@ class UpdatePromptConfigRequest(BaseModel):
     entity_extraction: Optional[str] = None
     style_analysis: Optional[str] = None
     storyboard_extraction: Optional[str] = None
-    polish_model: Optional[str] = None
     character_prompt: Optional[str] = None
     scene_prompt: Optional[str] = None
     prop_prompt: Optional[str] = None
@@ -523,7 +523,6 @@ class StandardizeScriptRequest(BaseModel):
     text: str
     skill: str = ""
     skill_id: str = ""
-    model: str = ""
     instruction: str = ""
 
 class ScriptSkillRequest(BaseModel):
@@ -652,7 +651,7 @@ def _run_motion_prompt_job(job_id: str, script_id: str, skill_content: str, skil
             if not script:
                 raise RuntimeError("Script not found")
             from .llm_adapter import LLMAdapter
-            model = request.model or script.model_settings.text_model or pipeline.get_effective_polish_model(script)
+            model = pipeline.get_effective_polish_model(script)
             result = LLMAdapter().chat([
                 {"role": "system", "content": skill_content},
                 {"role": "user", "content": _motion_prompt_user_message(script, request.frame_ids, request)},
@@ -774,7 +773,7 @@ async def standardize_script(script_id: str, request: StandardizeScriptRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Script text is empty")
     from .llm_adapter import LLMAdapter
-    model = request.model or pipeline.get_effective_polish_model(script)
+    model = pipeline.get_effective_polish_model(script)
     skill = request.skill.strip()
     if request.skill_id:
         selected = next((item for item in _read_script_skills() if item["id"] == request.skill_id), None)
@@ -1038,7 +1037,6 @@ def update_series_prompt_config(series_id: str, request: UpdatePromptConfigReque
 # ============================================================
 
 class UpdateModelSettingsRequest(BaseModel):
-    text_model: Optional[str] = None
     t2i_model: Optional[str] = None
     i2i_model: Optional[str] = None
     image_model: Optional[str] = None
@@ -3083,7 +3081,6 @@ def update_model_settings(script_id: str, request: UpdateModelSettingsRequest):
             prop_aspect_ratio=request.prop_aspect_ratio,
             storyboard_aspect_ratio=request.storyboard_aspect_ratio,
             image_model=request.image_model,
-            text_model=request.text_model,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -4389,6 +4386,33 @@ def get_style_presets():
 # NOTE: /storyboard/polish_prompt removed - use /storyboard/refine_prompt instead
 
 
+class GlobalTextModelPayload(BaseModel):
+    """PUT /settings/text_model 的请求体。
+
+    定义在端点**之前**：Python 3.14 起注解不再在 def 时求值，模型类放在端点后面
+    FastAPI 会在装饰器阶段解析不到类型，静默退化成 query 参数（运行时表现为 422）。
+    """
+
+    text_model: str = ""
+
+
+@app.get("/settings/text_model")
+def read_global_text_model():
+    """读全局文本模型。
+
+    文本模型是**全局单源**：项目/系列里的 `model_settings.text_model` 与
+    `prompt_config.polish_model` 都不再被读取，生成任务一律用这个值。
+    未设置时返回目录默认值（`catalog.meta.yaml` 的 `defaults.model_settings.text_model`）。
+    """
+    return {"text_model": get_global_text_model()}
+
+
+@app.put("/settings/text_model")
+def write_global_text_model(payload: GlobalTextModelPayload):
+    """写全局文本模型，立即对所有项目/系列生效。传空串 = 回到目录默认值。"""
+    return {"text_model": set_global_text_model(payload.text_model)}
+
+
 def _get_custom_prompt(script_id: str, field: str) -> str:
     """Read a custom prompt with 3-level fallback: Episode → Series → system default.
     Returns empty string if result equals system default (so LLM method uses its built-in)."""
@@ -4412,9 +4436,12 @@ def _get_custom_prompt(script_id: str, field: str) -> str:
 
 
 def _get_polish_model_for_project(script_id: str) -> str:
-    """Read polish_model with 3-level fallback: Episode.prompt_config → Series.prompt_config → "".
-    Empty = LLMAdapter uses its default (qwen3.6-plus). The frontend's polish-model dropdown
-    in PromptConfig modal writes here; backend just reads."""
+    """文本模型。现在只有一层：全局设置（`output/settings.json`）。
+
+    以前这里是 Episode.prompt_config → Series.prompt_config → "" 的三级回落，
+    前端 PromptConfig 模态框里那个「润色模型」下拉就写在这里。文本模型收敛成
+    全局单源后那两级取消，`script_id` 保留只为不动调用点。
+    """
     if not script_id:
         return ""
     script = pipeline.get_script(script_id)
@@ -4432,9 +4459,7 @@ class PolishVideoPromptRequest(BaseModel):
     # I2V 模式：首帧图 URL(s)。Vision-capable polish 模型会真正看见图像并
     # 用其指导润色（光影、构图、被摄主体等）。空列表 = 纯文本润色。
     image_urls: List[str] = Field(default_factory=list, max_length=4)
-    # 显式覆盖 polish 用的 LLM 模型；空 = 用 project / series PromptConfig
-    # 的 polish_model（再 fallback 到 system default）。
-    polish_model: str = ""
+    # 用哪个模型由全局设置（/settings/text_model）决定，没有单次请求级覆盖。
 
 
 def _polish_error_response(err) -> Dict[str, Any]:
@@ -4473,8 +4498,8 @@ def polish_video_prompt(request: PolishVideoPromptRequest):
     from .llm import PolishError
     try:
         custom_prompt = _get_custom_prompt(request.script_id, "video_polish")
-        # Polish model: request override → project/series PromptConfig → ""
-        polish_model = request.polish_model or _get_polish_model_for_project(request.script_id)
+        # 文本模型是全局单源，不存在单次请求级覆盖。
+        polish_model = _get_polish_model_for_project(request.script_id)
         processor = ScriptProcessor()
         result = processor.polish_video_prompt(
             request.draft_prompt,
@@ -4509,7 +4534,6 @@ class PolishR2VPromptRequest(BaseModel):
     # R2V 模式：用户挂载的 character1/2/3 参考图 URL(s)，让 vision 模型
     # 看清各角色实际形象。空列表 = 纯文本润色（兼容旧调用方）。
     image_urls: List[str] = Field(default_factory=list, max_length=9)
-    polish_model: str = ""
 
 
 @app.post("/video/polish_r2v_prompt")
@@ -4520,7 +4544,7 @@ def polish_r2v_prompt(request: PolishR2VPromptRequest):
     from .llm import PolishError
     try:
         custom_prompt = _get_custom_prompt(request.script_id, "r2v_polish")
-        polish_model = request.polish_model or _get_polish_model_for_project(request.script_id)
+        polish_model = _get_polish_model_for_project(request.script_id)
         processor = ScriptProcessor()
         slot_info = [{"description": s.description} for s in request.slots]
         result = processor.polish_r2v_prompt(

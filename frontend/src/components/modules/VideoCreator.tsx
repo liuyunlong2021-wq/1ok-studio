@@ -316,7 +316,6 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 prompt_preset: selectedPromptPreset,
-                model: currentProject.model_settings?.text_model,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
             // 后端已改成后台任务（一次生成可能 2 分钟，上游会 524），这里轮询拿结果。

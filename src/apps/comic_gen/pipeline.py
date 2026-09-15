@@ -38,6 +38,7 @@ from ...utils import get_logger
 from ...utils.oss_utils import is_object_key
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
+from ...utils.global_settings import get_active_text_model
 from ...models.jiucaihezi import AUDIO_MAX_REFERENCE_AUDIOS
 
 logger = get_logger(__name__)
@@ -530,7 +531,7 @@ class ComicGenPipeline:
         else:
             series = self.series_store.get(series_id) if series_id else None
             initial_config = PromptConfig(**(prompt_config or {}))
-            model = initial_config.polish_model or getattr(getattr(series, "prompt_config", None), "polish_model", "")
+            model = get_active_text_model()
             custom_extraction = ""
             package_id = (initial_config.skill_bindings or {}).get("entity_extraction")
             if package_id:
@@ -3971,8 +3972,13 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def update_model_settings(self, script_id: str, t2i_model: str = None, i2i_model: str = None, i2v_model: str = None, r2v_model: str = None, character_aspect_ratio: str = None, scene_aspect_ratio: str = None, prop_aspect_ratio: str = None, storyboard_aspect_ratio: str = None, image_model: str = None, text_model: str = None) -> Script:
-        """Updates the model settings for a script."""
+    def update_model_settings(self, script_id: str, t2i_model: str = None, i2i_model: str = None, i2v_model: str = None, r2v_model: str = None, character_aspect_ratio: str = None, scene_aspect_ratio: str = None, prop_aspect_ratio: str = None, storyboard_aspect_ratio: str = None, image_model: str = None) -> Script:
+        """Updates the model settings for a script.
+
+        没有 `text_model`：文本模型是全局单源（`utils/global_settings.py`），不再按
+        项目存。`ModelSettings.text_model` 字段保留只为兼容存量 JSON 的读入，
+        不再有写入方。
+        """
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
@@ -3987,8 +3993,6 @@ class ComicGenPipeline:
             script.model_settings.r2v_model = r2v_model
         if image_model:
             script.model_settings.image_model = image_model
-        if text_model:
-            script.model_settings.text_model = text_model
         if character_aspect_ratio:
             script.model_settings.character_aspect_ratio = character_aspect_ratio
         if scene_aspect_ratio:
@@ -5656,16 +5660,12 @@ class ComicGenPipeline:
         return resolved
 
     def get_effective_polish_model(self, episode: Script) -> str:
-        """Resolve the text model with Episode -> Series -> adapter default fallback."""
-        episode_model = getattr(getattr(episode, "prompt_config", None), "polish_model", "")
-        if episode_model:
-            return episode_model
-        series = self.series_store.get(episode.series_id) if episode.series_id else None
-        series_model = getattr(getattr(series, "prompt_config", None), "polish_model", "")
-        if series_model:
-            return series_model
-        # Prefer the configured Jiucaihezi gateway when available; an old or
-        # expired DashScope key must not silently break storyboard generation.
-        if os.getenv("JIUCAIHEZI_API_KEY"):
-            return get_default_model_settings().text_model or "gpt-5.6-sol"
-        return ""
+        """文本模型：全局单源（`output/settings.json`）。
+
+        以前这里是 episode → series → 目录默认 的三级回落，再叠 episode/series 的
+        `prompt_config.polish_model` 覆盖。文本模型收敛成全局一个值之后那几级全部
+        取消 —— 留着它们就等于留着「在设置里改一处、别处不生效」。
+
+        `episode` 参数保留只为不动二十多个调用点。
+        """
+        return get_active_text_model()

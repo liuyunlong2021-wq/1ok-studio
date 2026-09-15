@@ -58,6 +58,22 @@ const getApiUrl = (): string => {
 
 export const API_URL = getApiUrl();
 
+/**
+ * 全局文本模型 —— 后端单源（`output/settings.json`）。
+ *
+ * 文本模型不按项目/系列存：这里写一次，所有项目的剧本分析、实体提取、提示词
+ * 生成与润色全跟着走。不要缓存到 localStorage，那份是给图片/视频模型用的默认值。
+ */
+export const getGlobalTextModel = async (): Promise<string> => {
+    const res = await axios.get(`${API_URL}/settings/text_model`);
+    return res.data.text_model as string;
+};
+
+export const setGlobalTextModel = async (modelId: string): Promise<string> => {
+    const res = await axios.put(`${API_URL}/settings/text_model`, { text_model: modelId });
+    return res.data.text_model as string;
+};
+
 export type ProviderMode = "dashscope" | "vendor";
 
 /** Motion 提示词生成是后台任务 + 轮询，因为一次生成可能要 2 分钟。 */
@@ -711,7 +727,6 @@ export const api = {
         storyboardAspectRatio?: string,
         imageModel?: string,
         r2vModel?: string,
-        textModel?: string,
     ) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/model_settings`, {
             t2i_model: t2iModel,
@@ -719,7 +734,6 @@ export const api = {
             i2v_model: i2vModel,
             r2v_model: r2vModel,
             image_model: imageModel,
-            text_model: textModel,
             character_aspect_ratio: characterAspectRatio,
             scene_aspect_ratio: sceneAspectRatio,
             prop_aspect_ratio: propAspectRatio,
@@ -733,7 +747,7 @@ export const api = {
         return res.data;
     },
 
-    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; audio_plan?: string; voice_prompt?: string; skill_bindings?: Record<string, string> }) => {
+    updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; audio_plan?: string; voice_prompt?: string; skill_bindings?: Record<string, string> }) => {
         const res = await axios.put(`${API_URL}/projects/${scriptId}/prompt_config`, config);
         return res.data;
     },
@@ -828,19 +842,17 @@ export const api = {
     //     model_echo 是 warning（带原文），其余是 hard error。
     //
     // prevCn（#119）：迭代时传入上一次 CN 实现双语锚点；首次留空。
-    // Issue 13: image_urls + polish_model added.
+    // Issue 13: image_urls added.
     //   image_urls: I2V — pass active first frame URL (T2I selection or
     //     storyboard frame); R2V — pass reference image URLs. Empty/omit
     //     for T2I-only / no-frame shots ⇒ backend falls back to text-only.
-    //   polishModel: explicit override; "" lets backend resolve from
-    //     project/series PromptConfig.polish_model, then default.
+    // 用哪个文本模型由后端全局单源决定（GET/PUT /settings/text_model），不再逐次传入。
     polishVideoPrompt: async (
         draftPrompt: string,
         feedback: string = "",
         scriptId: string = "",
         prevCn: string = "",
         imageUrls: string[] = [],
-        polishModel: string = "",
     ) => {
         const res = await axios.post(`${API_URL}/video/polish_prompt`, {
             draft_prompt: draftPrompt,
@@ -848,7 +860,6 @@ export const api = {
             script_id: scriptId,
             prev_cn: prevCn,
             image_urls: imageUrls,
-            polish_model: polishModel,
         });
         return res.data;
     },
@@ -859,7 +870,6 @@ export const api = {
         scriptId: string = "",
         prevCn: string = "",
         imageUrls: string[] = [],
-        polishModel: string = "",
     ) => {
         const res = await axios.post(`${API_URL}/video/polish_r2v_prompt`, {
             draft_prompt: draftPrompt,
@@ -868,7 +878,6 @@ export const api = {
             script_id: scriptId,
             prev_cn: prevCn,
             image_urls: imageUrls,
-            polish_model: polishModel,
         });
         return res.data;
     },
@@ -1733,7 +1742,7 @@ export const api = {
         const response = await axios.get(`${API_URL}/series/${seriesId}/prompt_config`);
         return response.data;
     },
-    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; polish_model?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; audio_plan?: string; voice_prompt?: string; skill_bindings?: Record<string, string> }) => {
+    updateSeriesPromptConfig: async (seriesId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; audio_plan?: string; voice_prompt?: string; skill_bindings?: Record<string, string> }) => {
         const response = await axios.put(`${API_URL}/series/${seriesId}/prompt_config`, config);
         return response.data;
     },

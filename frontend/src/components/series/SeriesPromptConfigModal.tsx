@@ -6,7 +6,6 @@ import { X, FileText, RotateCcw, ChevronDown, ChevronRight, Loader2, Upload } fr
 import { api } from '@/lib/api';
 import type { SkillPackageSummary } from '@/lib/api';
 import SkillPicker, { skillNameFor } from '@/components/shared/SkillPicker';
-import { DEFAULT_MODEL_SETTINGS, GLOBAL_TEXT_MODELS } from '@/lib/modelCatalog';
 import { useTranslations } from "next-intl";
 
 interface SeriesPromptConfigModalProps {
@@ -61,7 +60,7 @@ const SECTIONS = [
 export default function SeriesPromptConfigModal({ isOpen, onClose, seriesId, onSaved }: SeriesPromptConfigModalProps) {
     const t = useTranslations("series");
     const tc = useTranslations("common");
-    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', r2v_minimax: '', entity_extraction: '', style_analysis: '', storyboard_extraction: '', character_prompt: '', scene_prompt: '', prop_prompt: '', polish_model: '', skill_bindings: {} as Record<string, string> });
+    const [config, setConfig] = useState({ storyboard_polish: '', video_polish: '', r2v_polish: '', r2v_minimax: '', entity_extraction: '', style_analysis: '', storyboard_extraction: '', character_prompt: '', scene_prompt: '', prop_prompt: '', skill_bindings: {} as Record<string, string> });
     const [defaults, setDefaults] = useState<PromptDefaults | null>(null);
     const [expandedDefault, setExpandedDefault] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -188,29 +187,8 @@ export default function SeriesPromptConfigModal({ isOpen, onClose, seriesId, onS
                                     {t("seriesPromptEmptyHint")}
                                 </div>
 
-                                {/* Issue 13: polish 用的 LLM 模型。系列级覆盖 → 项目级覆盖
-                                    → 系统默认。三个推荐选项都是 vision-capable，能让带
-                                    首帧/参考图的润色更准确。 */}
-                                <div className="space-y-2">
-                                    <div>
-                                        <h3 className="text-sm font-bold text-foreground">{t("polishModelTitle")}</h3>
-                                        <p className="text-[0.625rem] text-text-secondary mt-0.5">
-                                            {t("polishModelDesc")}
-                                        </p>
-                                    </div>
-                                    <select
-                                        value={config.polish_model || DEFAULT_MODEL_SETTINGS.text_model}
-                                        onChange={(e) => setConfig(prev => ({ ...prev, polish_model: e.target.value }))}
-                                        className="w-full bg-input-bg border border-glass-border rounded-lg px-3 py-2 text-sm text-text-secondary focus:outline-none focus:border-purple-500/50"
-                                    >
-                                        {GLOBAL_TEXT_MODELS.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
-                                        <option value="qwen3.7-plus">qwen3.7-plus · 通义千问 3.7 Plus（最新）</option>
-                                        <option value="qwen3.6-plus">qwen3.6-plus · 通义千问 3.6 Plus（视觉）</option>
-                                        <option value="qwen3.6-flash">qwen3.6-flash · 通义千问 3.6 Flash（更快）</option>
-                                        <option value="kimi-k2.6">kimi-k2.6 · Moonshot Kimi K2.6（视觉）</option>
-                                    </select>
-                                    <div className="border-b border-border-subtle pt-1" />
-                                </div>
+                                {/* Issue 13 的 polish 模型下拉已移除：文本模型是全局单源，在
+                                    设置页选一次即对所有系列生效。 */}
 
                                 {SECTIONS.map((section) => (
                                     <div key={section.key} className="space-y-2">

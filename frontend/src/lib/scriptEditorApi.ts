@@ -33,8 +33,8 @@ export const scriptEditorApi = {
   createScriptSkill: async (name: string, content: string, kind: 'script' | 'motion' = 'script'): Promise<ScriptSkill> => (await axios.post(`${API_URL}/script-skills`, { name, content, kind })).data,
   updateScriptSkill: async (id: string, name: string, content: string, kind?: 'script' | 'motion'): Promise<ScriptSkill> => (await axios.put(`${API_URL}/script-skills/${id}`, { name, content, kind })).data,
   deleteScriptSkill: async (id: string): Promise<void> => { await axios.delete(`${API_URL}/script-skills/${id}`); },
-  standardizeScript: async (projectId: string, text: string, skill: string, model?: string, skillId?: string, instruction?: string): Promise<StandardizeResponse> => {
-    const res = await axios.post(`${API_URL}/projects/${projectId}/standardize_script`, { text, skill, skill_id: skillId || '', model: model || '', instruction: instruction || '' });
+  standardizeScript: async (projectId: string, text: string, skill: string, skillId?: string, instruction?: string): Promise<StandardizeResponse> => {
+    const res = await axios.post(`${API_URL}/projects/${projectId}/standardize_script`, { text, skill, skill_id: skillId || '', instruction: instruction || '' });
     return res.data;
   },
 

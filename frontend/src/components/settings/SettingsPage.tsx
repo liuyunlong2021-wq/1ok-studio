@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { Save, Loader2, WifiOff, Copy, Check, Upload, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { api, type EnvConfigPayload, API_URL } from "@/lib/api";
+import { api, getGlobalTextModel, setGlobalTextModel, type EnvConfigPayload, API_URL } from "@/lib/api";
 import type { SkillPackageSummary } from "@/lib/api";
 import SkillPicker, { skillNameFor } from "@/components/shared/SkillPicker";
 import { ASPECT_RATIOS } from "@/store/projectStore";
@@ -166,6 +166,16 @@ export default function SettingsPage() {
   const [modelSettings, setModelSettings] = useState<FrontendModelSettings>(() =>
     normalizeModelSettings(loadFromLS(LS_KEY_MODEL, DEFAULT_MODEL_SETTINGS), "global_settings")
   );
+
+  // ── 全局文本模型 ──
+  // 文本模型的真值在后端 `output/settings.json`，**不在** localStorage：
+  // 它不按项目/系列存，这里选一次就对所有项目生效。
+  const [globalTextModel, setGlobalTextModelState] = useState<string>(DEFAULT_MODEL_SETTINGS.text_model);
+  const [textModelSaving, setTextModelSaving] = useState(false);
+
+  useEffect(() => {
+    getGlobalTextModel().then(setGlobalTextModelState).catch(() => undefined);
+  }, []);
 
   // ── Default Prompt Config ──
   // `promptConfig` is the displayed/editable text. localStorage (LS_KEY_PROMPT)
@@ -333,10 +343,30 @@ export default function SettingsPage() {
     catch { toast.error("无法打开获取页面"); }
   };
 
+  // 文本模型：点击即写后端，不等「保存默认值」那个按钮 —— 那一个按钮存的是
+  // 新建项目时用的图片/视频模型默认值（localStorage），跟文本模型不是一回事。
+  const handleSelectTextModel = async (id: string) => {
+    const previous = globalTextModel;
+    setGlobalTextModelState(id);
+    setTextModelSaving(true);
+    try {
+      setGlobalTextModelState(await setGlobalTextModel(id));
+      toast.success(t("saved"));
+    } catch {
+      setGlobalTextModelState(previous);
+      toast.error(t("saveConfigFailed"));
+    } finally {
+      setTextModelSaving(false);
+    }
+  };
+
   const handleSaveModelDefaults = () => {
     const normalized = normalizeModelSettings(modelSettings, "global_settings");
     // T2I and I2I share one image model in the UI; persist both backend
     // fields plus image_model so per-project backfill stays consistent.
+    // ponytail: `text_model` 确实还留在这份 blob 里，但已经没人读 —— 后端只在
+    // output/settings.json 取文本模型。留着是为了不动 FrontendModelSettings 的类型，
+    // 要清理就连类型一起删。
     const merged: FrontendModelSettings = {
       ...normalized,
       i2i_model: normalized.t2i_model,
@@ -461,13 +491,19 @@ export default function SettingsPage() {
       title={t("secModelsTitle")}
       desc={t("secModelsDesc")}
     >
-      {/* Image model (T2I + I2I unified) */}
-      <FormRow label="默认文本模型" hint="用于剧本分析、实体提取、提示词生成和润色；工作区可临时切换">
+      {/* 全局文本模型：后端单源，点击即写、立即对全项目生效。 */}
+      <FormRow label="全局文本模型" hint="用于剧本分析、实体提取、提示词生成与润色；全局一个，所有项目共用">
         <GroupedModelGrid
           models={GLOBAL_TEXT_MODELS}
-          selectedId={modelSettings.text_model}
-          onSelect={(id) => setModelSettings((s) => ({ ...s, text_model: id }))}
+          selectedId={globalTextModel}
+          onSelect={handleSelectTextModel}
         />
+        {textModelSaving && (
+          <p className="mt-2 flex items-center gap-1 text-xs text-text-muted">
+            <Loader2 size={12} className="animate-spin" />
+            {t("saving")}
+          </p>
+        )}
       </FormRow>
 
       {/* Image model (T2I + I2I unified) */}
