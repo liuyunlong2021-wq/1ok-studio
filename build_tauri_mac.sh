@@ -84,6 +84,7 @@ npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["1okstudio-
 APP_PATH="src-tauri/target/${TARGET}/release/bundle/macos/One OK Studio.app"
 DMG_PATH="src-tauri/target/${TARGET}/release/bundle/dmg/One OK Studio_$(node -p "require('./src-tauri/tauri.conf.json').version")_${TARGET%%-*}.dmg"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
+NOTARY_KEYCHAIN="${APPLE_NOTARY_KEYCHAIN:-$(security default-keychain -d user | tr -d '\"[:space:]')}"
 
 # Tauri cannot copy PyInstaller's framework symlinks as resources, so the
 # sidecar build materializes them. Restore the canonical framework layout in
@@ -130,30 +131,41 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 # The DMG created by `tauri build` contains the pre-normalized app. Recreate it
 # from the signed final app using Tauri's generated DMG builder.
 DMG_BUILDER="$(dirname "$DMG_PATH")/bundle_dmg.sh"
-rm -f "$DMG_PATH"
-"$DMG_BUILDER" \
-    --volname "One OK Studio" \
-    --volicon "$(dirname "$DMG_PATH")/icon.icns" \
-    --window-size 660 400 \
-    --icon-size 128 \
-    --icon "One OK Studio.app" 180 170 \
-    --hide-extension "One OK Studio.app" \
-    --app-drop-link 480 170 \
-    --codesign "$APPLE_SIGNING_IDENTITY" \
-    "$DMG_PATH" \
-    "$(dirname "$APP_PATH")"
+build_dmg() {
+    rm -f "$DMG_PATH"
+    "$DMG_BUILDER" \
+        --volname "One OK Studio" \
+        --volicon "$(dirname "$DMG_PATH")/icon.icns" \
+        --window-size 660 400 \
+        --icon-size 128 \
+        --icon "One OK Studio.app" 180 170 \
+        --hide-extension "One OK Studio.app" \
+        --app-drop-link 480 170 \
+        --codesign "$APPLE_SIGNING_IDENTITY" \
+        "$DMG_PATH" \
+        "$(dirname "$APP_PATH")"
+}
+
+build_dmg
 
 # Tauri notarizes automatically when Apple credentials are exported. Otherwise,
 # use the local notarytool Keychain profile and fail instead of shipping a DMG
 # that Gatekeeper will reject on another Mac.
-if ! xcrun stapler validate "$DMG_PATH" &>/dev/null; then
-    echo "→ Notarizing DMG with Keychain profile: ${NOTARY_PROFILE}"
-    xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+if ! xcrun stapler validate "$APP_PATH" &>/dev/null; then
+    echo "→ Notarizing app with Keychain profile: ${NOTARY_PROFILE}"
+    xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" \
+        --keychain "$NOTARY_KEYCHAIN" --wait
+    xcrun stapler staple "$APP_PATH"
 fi
 
-xcrun stapler staple "$APP_PATH"
-xcrun stapler staple "$DMG_PATH"
+# Rebuild so the distributed DMG contains the physically stapled app, then
+# notarize the final disk image because rebuilding changes its signature.
 xcrun stapler validate "$APP_PATH"
+build_dmg
+echo "→ Notarizing final DMG with Keychain profile: ${NOTARY_PROFILE}"
+xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" \
+    --keychain "$NOTARY_KEYCHAIN" --wait
+xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH"
 spctl -a -vv --type execute "$APP_PATH"
 spctl -a -vv --type open --context context:primary-signature "$DMG_PATH"
