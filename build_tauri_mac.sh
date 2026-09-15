@@ -7,6 +7,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# The first Apple Silicon Macs shipped with macOS 11. Every native component
+# in the bundle is checked against this value before notarization.
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+
 echo "╔═══════════════════════════════════════════════════╗"
 echo "║  One OK Studio — Tauri macOS Build               ║"
 echo "╚═══════════════════════════════════════════════════╝"
@@ -85,12 +89,20 @@ NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
 # sidecar build materializes them. Restore the canonical framework layout in
 # the final app before signing; notarization rejects the expanded aliases.
 PYTHON_FRAMEWORK="${APP_PATH}/Contents/Resources/1okstudio-backend/_internal/Python.framework"
-python3 - "$PYTHON_FRAMEWORK" <<'PY'
+PYTHON_FRAMEWORK_VERSION="$(python3 - "$PYTHON_FRAMEWORK" <<'PY'
 import pathlib
 import shutil
 import sys
 
 framework = pathlib.Path(sys.argv[1])
+versions = [
+    path.name
+    for path in (framework / "Versions").iterdir()
+    if path.is_dir() and not path.is_symlink() and path.name != "Current"
+]
+if len(versions) != 1:
+    raise SystemExit(f"Expected one bundled Python framework version, found: {versions}")
+version = versions[0]
 for relative in ("Python", "Resources", "Versions/Current"):
     path = framework / relative
     if path.is_dir() and not path.is_symlink():
@@ -99,11 +111,15 @@ for relative in ("Python", "Resources", "Versions/Current"):
         path.unlink(missing_ok=True)
 (framework / "Python").symlink_to("Versions/Current/Python")
 (framework / "Resources").symlink_to("Versions/Current/Resources")
-(framework / "Versions/Current").symlink_to("3.14")
+(framework / "Versions/Current").symlink_to(version)
+print(version)
 PY
+)"
+
+python3 scripts/check_macos_compat.py --max "$MACOSX_DEPLOYMENT_TARGET" "$APP_PATH"
 
 codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" \
-    "$PYTHON_FRAMEWORK/Versions/3.14/Python"
+    "$PYTHON_FRAMEWORK/Versions/$PYTHON_FRAMEWORK_VERSION/Python"
 codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
