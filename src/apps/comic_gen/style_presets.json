@@ -235,7 +235,7 @@
       "positive_prompt": "black-and-white shonen manga ink artwork, confident varied line weights with thick outer contours, dramatic screentone gradient shading, radial speed lines and motion streaks, high-contrast solid black shadow shapes, dynamic foreshortened perspective, expressive face detail with sweat and impact marks, off-white paper texture with faint page-edge shading, bold negative space, professional mangaka inking quality",
       "negative_prompt": "color, cel shading, 3d render, watercolor, soft airbrushed gradient, flat digital grey shading, photorealistic, western comic color halftone, speech bubbles, captions, readable text, logo, watermark, blurry, low quality, deformed hands, extra fingers",
       "sample_prompt": "Black-and-white manga panel: a young athlete stands on a rain-slick station platform, gripping a brass compass in a clenched fist, thick ink contours and screentone shadows, speed lines converging behind, dramatic low angle",
-      "thumbnail": null
+      "thumbnail": "/assets/styles/japanese_anime__bw_shonen_manga__rainy_platform_uppercut__landscape.png"
     },
     {
       "id": "shmp_gongbi_heavy_color",
