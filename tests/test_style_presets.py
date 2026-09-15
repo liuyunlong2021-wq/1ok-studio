@@ -38,6 +38,19 @@ def _load() -> dict:
     return json.loads(PRESETS_FILE.read_text(encoding="utf-8"))
 
 
+def _png_size(path: Path) -> tuple:
+    """读 PNG 的 IHDR。尺寸就在前 24 个字节里，不值得为它引 Pillow。"""
+    head = path.read_bytes()[:24]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n", f"{path.name} 不是 PNG"
+    assert head[12:16] == b"IHDR", f"{path.name} 结构异常"
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
+# 库内统一规格。卡片是 aspect-[4/3] + object-cover：源图不是精确 4:3 就会被
+# 二次裁切，主体可能被切掉（历史上靠 object_position 打补丁）。
+THUMBNAIL_SIZE = (1400, 1050)
+
+
 class TestStylePresets:
     def test_ids_and_categories_are_consistent(self):
         data = _load()
@@ -60,6 +73,22 @@ class TestStylePresets:
                 continue  # null = 有意留占位，合法
             path = PUBLIC_DIR / preset["thumbnail"].lstrip("/")
             assert path.is_file(), f"{preset['id']} 缩略图不存在: {preset['thumbnail']}"
+
+    def test_thumbnails_share_one_spec(self):
+        """统一 1400x1050 之后 `object_position` 就是死配置（精确 4:3 上
+        object-cover 不产生裁切），留着只会让人以为还有构图偏移。
+
+        文件名里的 `__landscape` 同样要跟实际一致 —— 照片竖构图时改名比让
+        后缀撒谎好。"""
+        for preset in _load()["presets"]:
+            if not preset["thumbnail"]:
+                continue
+            path = PUBLIC_DIR / preset["thumbnail"].lstrip("/")
+            assert _png_size(path) == THUMBNAIL_SIZE, (
+                f"{preset['id']} 缩略图是 {_png_size(path)}，应为 {THUMBNAIL_SIZE}"
+            )
+            assert "__landscape" in path.name, f"{preset['id']} 4:3 横图文件名后缀不对"
+            assert "object_position" not in preset, f"{preset['id']} 已是精确 4:3，该字段是死配置"
 
     def test_prompts_are_model_ready_english(self):
         for preset in _load()["presets"]:
