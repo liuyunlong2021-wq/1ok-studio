@@ -4596,11 +4596,10 @@ def get_env_key():
 @app.post("/config/jiucaihezi/open-keys")
 def open_jiucaihezi_keys():
     """Open the fixed Jiucaihezi key-management page in the system browser."""
-    import webbrowser
+    import subprocess
 
     url = "https://api.jiucaihezi.studio/keys"
-    if not webbrowser.open(url, new=2):
-        raise HTTPException(status_code=500, detail="无法打开系统浏览器")
+    subprocess.run(["/usr/bin/open", url], check=True)
     return {"status": "ok"}
 
 
