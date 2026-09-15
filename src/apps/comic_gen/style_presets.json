@@ -357,6 +357,34 @@
       "negative_prompt": "2d drawing, hand-drawn line art, cel shading, flat color fills, painterly brush strokes, western cartoon, photorealistic human with skin pores and blemishes, waxy plastic face, uncanny over-smoothed features, low-poly faceting, motion blur, cluttered background, muddy desaturated palette, horror doll, creepy mannequin, low quality, blurry, watermark, logo, text, captions, deformed hands, extra fingers",
       "sample_prompt": "A young traveler in a color-blocked orange-and-violet streetwear vest stands on a clean studio-lit train platform, holding a polished brass compass, silver-white layered hair and porcelain-smooth skin, soft even key light with a subtle rim, calm doll-like stillness",
       "thumbnail": "/assets/styles/style_lab__hires_3d_bjd_semireal__bjd_closeup_turnaround__landscape.png"
+    },
+    {
+      "id": "korean_crime_realism",
+      "category": "live_action",
+      "name": "Korean Crime Realism",
+      "name_zh": "韩式冷峻犯罪",
+      "subtitle_zh": "灰绿低饱和 · 冷平环境光 · 前景遮挡",
+      "description": "韩国现实主义犯罪电影的影像语言：灰绿、铅灰、暗棕与浑浊土黄构成低饱和色板，环境光冷而平，人物脸由单一方向的自然光或现场灯塑形。曝光略低、暗部厚重、高光克制，肤色真实偏冷。35mm/50mm 焦段，人物偏离中心，前景遮挡与大面积空白制造压迫感，带细微手持感、低反差胶片颗粒与冷静的纪实观察感",
+      "best_for": ["犯罪", "悬疑", "社会派", "都市写实", "黑色电影"],
+      "avoid_for": ["古装", "高饱和", "动画", "明亮喜剧"],
+      "positive_prompt": "Korean realist crime cinema still, low-saturation palette built from grey-green, lead grey, dark brown and muddy ochre, cold flat ambient light, the face shaped by a single directional source or practical light, slightly underexposed with dense retained shadow detail, restrained highlights, true cool skin tone, 35mm or 50mm lens, subject placed off-centre, foreground obstruction and large empty areas creating pressure, subtle handheld feel, low-contrast film grain, detached documentary observation",
+      "negative_prompt": "high saturation, warm golden palette, stylised theatrical lighting, neon glow, glossy commercial render, beauty retouching, airbrushed smooth skin, symmetrical centred composition, anime, cartoon, 3d render, period costume, fantasy, heavy bloom, lens flare, text, logo, watermark, blurry, low quality",
+      "sample_prompt": "A young man in a worn dark overcoat stands at a rain-damp street corner beside a concrete pillar, holding a brass compass low at his side, cold flat overcast light, half the frame blocked by a dark foreground edge, off-centre composition, quiet tension",
+      "thumbnail": "/assets/styles/live_action__korean_crime_realism__street_corner_smoker__landscape.png"
+    },
+    {
+      "id": "shaw_studio_wuxia",
+      "category": "live_action",
+      "name": "Shaw Brothers Studio Wuxia",
+      "name_zh": "邵氏棚拍武侠",
+      "subtitle_zh": "棚景三层 · 硬光正打 · 高饱和胶片",
+      "description": "1970 年代香港棚拍彩色武侠电影的质感：人工布景有清晰的前、中、后景分层，朱红、墨绿、金黄与靛蓝构成浓郁东方配色。正面硬光照亮主体，顶部轮廓光勾勒边缘，阴影清晰，肤色温暖。稳定的中景或全身构图，略低机位，Eastmancolor 高饱和胶片色彩、轻微柔焦与细密颗粒。与「港片风格」的分工：那一条是 90 年代霓虹都市的手持感，本预设是 70 年代棚内胶片武侠",
+      "best_for": ["武侠", "古装", "江湖", "复仇", "复古港片"],
+      "avoid_for": ["写实纪录片", "现代都市", "赛博朋克", "自然光实景"],
+      "positive_prompt": "1970s Hong Kong studio-shot wuxia cinema still, clearly layered foreground midground and background built from painted studio sets, rich oriental palette of vermillion, dark jade green, imperial gold and indigo, hard frontal key light on the subject, top rim light tracing the silhouette, crisp defined shadows, warm skin tone, steady medium or full-body composition shot slightly from below, Eastmancolor high-saturation film stock, gentle soft focus, fine film grain, hand-painted backdrop, poised martial-arts stance",
+      "negative_prompt": "modern film look, natural location lighting, real exterior location, desaturated palette, muted colour, handheld shake, documentary realism, cyberpunk neon, cgi, 3d render, anime, cartoon, digital sharpness, hdr, text, subtitles, logo, watermark, blurry, low quality",
+      "sample_prompt": "A swordsman in vermillion and jade robes stands in a martial stance on a painted studio cliff top, holding a brass compass in his lowered hand, orange sunset backdrop with a low sun, clear foreground rocks and misty midground, hard frontal light with a top rim",
+      "thumbnail": "/assets/styles/live_action__shaw_studio_wuxia__cliff_top_swordswoman__landscape.png"
     }
   ]
 }
