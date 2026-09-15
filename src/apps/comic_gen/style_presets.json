@@ -348,6 +348,20 @@
       "negative_prompt": "clean scissor-cut hard edges, vector sharpness, cel shading, 3d render, japanese anime, saturated color, crisp digital linework, photorealistic texture, glossy surface, low quality, blurry, watermark, logo, text, captions",
       "sample_prompt": "A young wanderer cut from torn grey paper stands on a torn-paper riverbank at dawn, holding a brass compass rendered in a single ink wash, reeds with soft fibrous edges, mist as paper-fiber haze, monochrome ink tones with one warm note",
       "thumbnail": "/assets/styles/chinese_animation__shmp_ink_paper_cut__snipe_and_clam_riverbank__landscape.png"
+    },
+    {
+      "id": "hires_3d_bjd_semireal",
+      "category": "style_lab",
+      "name": "High-Precision 3D Semi-Realistic Anime",
+      "name_zh": "高精度3D半写实动漫",
+      "subtitle_zh": "BJD 娃体 · 瓷化皮肤 · 高模渲染",
+      "description": "高精度 3D 半写实动漫渲染，精致 BJD 娃体质感：瓷化皮肤、单体发丝、层叠亮面眼、饱和块面时装。与「高质感3D动画」的分工：那一条是圆润的家庭向卡通比例；与「厚涂3D剧集动画」的分工：那一条是暗调手绘笔触，本预设是干净棚拍光与高模精度",
+      "best_for": ["3D国漫", "乙女恋爱", "偶像养成", "时装潮流", "都市奇幻"],
+      "avoid_for": ["手绘动画", "写实真人", "复古胶片", "暗黑写实"],
+      "positive_prompt": "high-precision 3D semi-realistic anime render, BJD ball-jointed-doll aesthetic, porcelain-smooth skin with subsurface scattering and soft blush, refined anime facial proportions rendered with photoreal detail, individually modeled hair strands with silky sheen and flyaway wisps, layered glossy eyes with sharp catchlights, fabrics showing visible weave stitching and metal hardware, saturated color-blocked streetwear styling, soft even studio lighting with clean gradient falloff, subtle rim light, seamless neutral backdrop, crisp readable silhouette, high-poly surface with no noise, poised doll-like stillness",
+      "negative_prompt": "2d drawing, hand-drawn line art, cel shading, flat color fills, painterly brush strokes, western cartoon, photorealistic human with skin pores and blemishes, waxy plastic face, uncanny over-smoothed features, low-poly faceting, motion blur, cluttered background, muddy desaturated palette, horror doll, creepy mannequin, low quality, blurry, watermark, logo, text, captions, deformed hands, extra fingers",
+      "sample_prompt": "A young traveler in a color-blocked orange-and-violet streetwear vest stands on a clean studio-lit train platform, holding a polished brass compass, silver-white layered hair and porcelain-smooth skin, soft even key light with a subtle rim, calm doll-like stillness",
+      "thumbnail": "/assets/styles/style_lab__hires_3d_bjd_semireal__bjd_closeup_turnaround__landscape.png"
     }
   ]
 }
