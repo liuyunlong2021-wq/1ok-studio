@@ -43,6 +43,37 @@ if pgrep -f 'One OK Studio\.app/Contents/(MacOS/one-ok-studio|Resources/1okstudi
     exit 1
 fi
 
+# ─── Notarization credentials ───
+# A notarytool Keychain item's ACL is bound to whichever notarytool binary
+# created it, and this machine ships TWO (Xcode's and the Command Line Tools').
+# When `xcode-select` drifts -- an Xcode update, a tool switching it -- `xcrun
+# notarytool` resolves to the other binary, the ACL no longer matches, macOS
+# returns errSecItemNotFound and notarytool prints "No Keychain password item
+# found for profile", which reads like the credentials were deleted. Nothing was
+# deleted. Pinning the path makes store-credentials and submit use one binary, so
+# the ACL always matches. Override with APPLE_NOTARYTOOL if you must.
+NOTARYTOOL="${APPLE_NOTARYTOOL:-$(xcrun --find notarytool 2>/dev/null || true)}"
+NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
+if [ -z "$NOTARYTOOL" ]; then
+    echo "❌ notarytool not found. Install Xcode or the Command Line Tools first."
+    exit 1
+fi
+
+# Fail in two seconds instead of at the end of a twenty-minute build.
+if ! "$NOTARYTOOL" history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+    echo "❌ Cannot read the notarization profile \"${NOTARY_PROFILE}\"."
+    echo "   Create it with THIS binary (a different one gets a different ACL):"
+    echo ""
+    echo "     \"$NOTARYTOOL\" store-credentials \"$NOTARY_PROFILE\" \\"
+    echo "         --apple-id <your Apple ID> --team-id RXD4L9387J"
+    echo ""
+    echo "   Passing --apple-id and --team-id skips the API-key prompt; the"
+    echo "   password goes through a non-echoing prompt."
+    exit 1
+fi
+echo "  ✓ Notarization profile ${NOTARY_PROFILE} is readable"
+echo ""
+
 if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
     APPLE_SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
         | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' \
@@ -83,8 +114,10 @@ npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["1okstudio-
 
 APP_PATH="src-tauri/target/${TARGET}/release/bundle/macos/One OK Studio.app"
 DMG_PATH="src-tauri/target/${TARGET}/release/bundle/dmg/One OK Studio_$(node -p "require('./src-tauri/tauri.conf.json').version")_${TARGET%%-*}.dmg"
-NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
-NOTARY_KEYCHAIN="${APPLE_NOTARY_KEYCHAIN:-$(security default-keychain -d user | tr -d '\"[:space:]')}"
+# NOTARYTOOL / NOTARY_PROFILE are resolved in the preflight section above.
+# ponytail: no --keychain here on purpose. Letting notarytool search its default
+# keychain list is strictly more forgiving than pointing it at one keychain, and
+# that is the invocation verified working on this machine.
 
 # Tauri cannot copy PyInstaller's framework symlinks as resources, so the
 # sidecar build materializes them. Restore the canonical framework layout in
@@ -153,8 +186,7 @@ build_dmg
 # that Gatekeeper will reject on another Mac.
 if ! xcrun stapler validate "$APP_PATH" &>/dev/null; then
     echo "→ Notarizing app with Keychain profile: ${NOTARY_PROFILE}"
-    xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" \
-        --keychain "$NOTARY_KEYCHAIN" --wait
+    "$NOTARYTOOL" submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
     xcrun stapler staple "$APP_PATH"
 fi
 
@@ -163,8 +195,7 @@ fi
 xcrun stapler validate "$APP_PATH"
 build_dmg
 echo "→ Notarizing final DMG with Keychain profile: ${NOTARY_PROFILE}"
-xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" \
-    --keychain "$NOTARY_KEYCHAIN" --wait
+"$NOTARYTOOL" submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
 xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH"
 spctl -a -vv --type execute "$APP_PATH"
