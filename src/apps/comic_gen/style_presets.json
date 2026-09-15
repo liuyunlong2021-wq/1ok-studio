@@ -4,7 +4,8 @@
     { "id": "live_action", "name": "Live-Action Cinema", "name_zh": "真人电影级", "sort_order": 1 },
     { "id": "japanese_anime", "name": "Japanese Anime", "name_zh": "日式动漫", "sort_order": 2 },
     { "id": "american_animation", "name": "American Animation & Graphic Novel", "name_zh": "美式动画 / 图像小说", "sort_order": 3 },
-    { "id": "style_lab", "name": "Style Lab", "name_zh": "风格实验室", "sort_order": 4 }
+    { "id": "style_lab", "name": "Style Lab", "name_zh": "风格实验室", "sort_order": 4 },
+    { "id": "chinese_animation", "name": "Chinese Animation Heritage", "name_zh": "中国学派动画", "sort_order": 5 }
   ],
   "presets": [
     {
@@ -221,6 +222,132 @@
       "negative_prompt": "photorealistic human, glossy 3d render, flat 2d anime, hard plastic toy, horror doll look, low quality, blurry, text, logo, watermark",
       "sample_prompt": "A tiny clay adventurer stands on a handmade miniature train platform, holding a brass compass, warm lamp light, cozy storybook atmosphere",
       "thumbnail": "/assets/styles/style_lab__clay_stop_motion__attic_star_lamp_v1__landscape.png"
+    },
+    {
+      "id": "bw_shonen_manga",
+      "category": "japanese_anime",
+      "name": "Black-and-White Shonen Manga",
+      "name_zh": "黑白少年漫画",
+      "subtitle_zh": "粗墨线 · 网点渐变 · 速度线",
+      "description": "周刊少年向黑白漫画墨稿：可变线宽、网点灰阶、速度线与冲击构图。只出黑白，适合漫画页、墨稿感分镜和封面，不适合彩色项目",
+      "best_for": ["少年漫", "黑白漫画页", "体育竞技", "热血战斗", "墨稿感分镜"],
+      "avoid_for": ["彩色项目", "写实真人", "水彩绘本", "3D动画"],
+      "positive_prompt": "black-and-white shonen manga ink artwork, confident varied line weights with thick outer contours, dramatic screentone gradient shading, radial speed lines and motion streaks, high-contrast solid black shadow shapes, dynamic foreshortened perspective, expressive face detail with sweat and impact marks, off-white paper texture with faint page-edge shading, bold negative space, professional mangaka inking quality",
+      "negative_prompt": "color, cel shading, 3d render, watercolor, soft airbrushed gradient, flat digital grey shading, photorealistic, western comic color halftone, speech bubbles, captions, readable text, logo, watermark, blurry, low quality, deformed hands, extra fingers",
+      "sample_prompt": "Black-and-white manga panel: a young athlete stands on a rain-slick station platform, gripping a brass compass in a clenched fist, thick ink contours and screentone shadows, speed lines converging behind, dramatic low angle",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_gongbi_heavy_color",
+      "category": "chinese_animation",
+      "name": "SHMP Gongbi Heavy-Color Animation",
+      "name_zh": "工笔重彩动画",
+      "subtitle_zh": "铁线描 · 矿物色 · 单线平涂",
+      "description": "上海美影厂《大闹天宫》《哪吒闹海》《金猴降妖》一路的工笔重彩动画镜头：均匀铁线描、零渐变平涂、矿物颜料色。与「东方水墨奇幻插画」的分工：本预设无晕染、无渐变，只有硬边色块与戏曲化造型",
+      "best_for": ["中国神话", "仙佛天庭", "西游题材", "戏曲化角色", "民间传说"],
+      "avoid_for": ["写实", "日式动漫", "3D渲染", "暗黑恐怖"],
+      "positive_prompt": "classic Chinese gongbi heavy-color animation still in the Shanghai Animation Film Studio tradition, uniform iron-wire outlines with no line-weight variation, flat unmodulated color fills with zero gradient shading, Chinese mineral-pigment palette of gold, vermillion, azurite blue, malachite green and rattan yellow, Peking-opera inspired facial makeup and theatrical posture, decorative auspicious cloud motifs and flowing ribbons, mural-like flatness of composition, scattered perspective, silhouette-clear costume design, crisp hand-inked background",
+      "negative_prompt": "japanese anime cel shading, modern 3d render, western cartoon, watercolor bleeding, ink wash gradient, airbrushed soft shading, photorealistic skin, realistic cast shadows, muted desaturated palette, cyberpunk neon, low quality, blurry, watermark, logo, text, captions, deformed hands, extra fingers",
+      "sample_prompt": "A young celestial messenger in flowing vermillion robes stands on a cloud-tiled heavenly platform, holding a brass compass that glows gold, auspicious decorative clouds around, flat frontal mythological composition",
+      "thumbnail": "/assets/styles/chinese_animation__shmp_gongbi_heavy_color__heavenly_palace_monkey_king__landscape.png"
+    },
+    {
+      "id": "shmp_ink_wash",
+      "category": "chinese_animation",
+      "name": "SHMP Ink-Wash Animation",
+      "name_zh": "水墨动画",
+      "subtitle_zh": "无勾线 · 墨分五色 · 宣纸留白",
+      "description": "上海美影厂《小蝌蚪找妈妈》《山水情》的纯水墨动画语言：完全无轮廓线，靠墨色浓淡干湿和留白叙事。与「东方水墨奇幻插画」的分工：那一条是静态插画/概念图，本预设是动画镜头质感",
+      "best_for": ["东方意境", "文人山水", "寓言", "花鸟", "诗意叙事"],
+      "avoid_for": ["日式动漫", "3D光泽", "高饱和", "硬边轮廓"],
+      "positive_prompt": "classic Chinese ink-wash animation still in the Shanghai Animation Film Studio tradition, pure ink painting with no outlines whatsoever, five tones of ink from jet black to pale grey, wet-ink bleeding with soft fibrous edges, dry-brush scratchy texture, xuan paper grain, large poetic negative space as an active compositional element, misty mountain silhouettes, restrained single-hue accent, hand-painted atmosphere, meditative stillness",
+      "negative_prompt": "outlines, cel shading, flat color blocks, japanese anime, western watercolor, digital gradient, glossy 3d render, hard crisp edges, high saturation, cluttered detail, photorealistic texture, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A young traveler stands on a misty mountain bridge suggested by a few dry brush strokes, a brass compass hinted in pale ink, vast blank paper space around, depth defined only by ink density",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_dunhuang_mural",
+      "category": "chinese_animation",
+      "name": "SHMP Dunhuang Mural Animation",
+      "name_zh": "敦煌壁画动画",
+      "subtitle_zh": "北魏铁线 · 赭红底色 · 飞天飘带",
+      "description": "上海美影厂《九色鹿》的敦煌壁画动画风格：赭红底色、北魏拙朴铁线描、飞天飘带、石青石绿矿物色与风化剥落质感。适合西域神话、丝绸之路、本生故事",
+      "best_for": ["西域神话", "丝绸之路", "佛教故事", "沙漠绿洲", "古代壁画感"],
+      "avoid_for": ["现代都市", "日式动漫", "3D渲染", "赛博朋克"],
+      "positive_prompt": "classic Chinese animation still in the Dunhuang cave mural style, dominant ochre-red ground, bold weighty iron-wire outlines with archaic Northern Wei irregularity, heavily applied mineral pigments of azurite blue, malachite green and powdered gold, flying apsaras with trailing ribbons, decorative lotus-petal border frame, weathered surface with flaking aged paint, continuous narrative frieze composition, archaic stylized proportions, Silk Road desert backdrop with snow peaks and oasis",
+      "negative_prompt": "japanese anime, modern 3d render, western cartoon, glossy digital finish, clean uniform linework, muted grey palette, cyberpunk neon, photorealistic, low quality, blurry, watermark, logo, text, captions, deformed hands, extra fingers",
+      "sample_prompt": "A young traveler in archaic robes stands on ochre sand dunes beside a turquoise oasis, holding a brass compass with gold detail, flying apsaras above, decorative lotus border framing the scene",
+      "thumbnail": "/assets/styles/chinese_animation__shmp_dunhuang_mural__nine_colored_deer_scene__landscape.png"
+    },
+    {
+      "id": "shmp_paper_cut_shadow",
+      "category": "chinese_animation",
+      "name": "SHMP Paper-Cut & Shadow Puppet Animation",
+      "name_zh": "剪纸皮影动画",
+      "subtitle_zh": "平面关节 · 民俗配色 · 镂刻质感",
+      "description": "上海美影厂《天书奇谭》《葫芦兄弟》的剪纸皮影动画风格：平面分段关节人物、手工镂刻边缘、浓烈民俗配色与层叠透光。与「黏土定格动画」的分工：那一条是立体微缩实景，本预设是平面纸偶",
+      "best_for": ["民间传说", "民俗题材", "寓言童话", "戏曲改编", "儿童故事"],
+      "avoid_for": ["写实", "3D渲染", "深色悬疑", "赛博朋克"],
+      "positive_prompt": "classic Chinese paper-cut and shadow-puppet animation still, flat jointed paper figures with visible articulation seams, boldly hand-cut edges with slight irregularity, richly colored translucent paper texture, layered diorama depth with backlit glow, strong folk-art palette of vermillion, emerald, imperial yellow and lake blue, exaggerated opera-clown facial features, Jiangnan white-wall grey-roof architecture, cut-paper foliage and cloud motifs, handicraft warmth",
+      "negative_prompt": "3d render, digital smoothness, japanese anime cel shading, clay texture, photorealistic, soft gradient shading, airbrushed highlight, muted desaturated colors, horror mood, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A round-faced paper-cut boy in a bright folk vest stands on a layered paper train platform, holding a flat jointed brass compass cut from gold paper, cut-paper clouds and trees behind him",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_stop_motion_puppet",
+      "category": "chinese_animation",
+      "name": "SHMP Stop-Motion Puppet Animation",
+      "name_zh": "新疆木偶定格动画",
+      "subtitle_zh": "黏土木偶 · 织物纹理 · 中亚美学",
+      "description": "上海美影厂《阿凡提的故事》的木偶定格动画风格：黏土手工质感、织物纹理、新疆维吾尔族建筑与服饰、微缩实景与中亚干燥光。与「黏土定格动画」的分工：那一条是通用西式微缩，本预设是具体的中亚民间故事美学",
+      "best_for": ["民间智者故事", "中亚民族风", "丝绸之路", "幽默寓言", "定格实验"],
+      "avoid_for": ["日式动漫", "科幻", "宏大特效", "写实真人"],
+      "positive_prompt": "classic Chinese stop-motion puppet animation still in the Avanti tradition, handcrafted clay-and-fabric puppet character with visible surface texture and slight imperfection, elongated expressive face and pointed goatee, white turban and striped chapan robe with visible fabric weave, miniature practical set, Xinjiang Silk Road oasis village with turquoise-domed mosque and geometric tilework, mud-brick houses with carved wooden balconies, grapevine trellis, tandoor clay oven, distant poplars, bright dry Central Asian sunlight, warm tactile palette of ochre, sand beige, turquoise, pomegranate red and emerald",
+      "negative_prompt": "CGI smoothness, 3d render, japanese anime, flat 2d cartoon, disney-style squash and stretch, photorealistic lighting, glossy plastic surface, sterile studio backdrop, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A small clay puppet traveler in a striped robe and white turban stands at a miniature mud-brick train platform, holding a handcrafted brass compass, grapevines and a turquoise dome behind, warm afternoon light",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_origami",
+      "category": "chinese_animation",
+      "name": "SHMP Origami Animation",
+      "name_zh": "折纸动画",
+      "subtitle_zh": "棱角几何 · 折痕可见 · 稚拙童趣",
+      "description": "上海美影厂虞哲光独创的折纸动画技法（《聪明的鸭子》）：全部由彩色折纸构成，三角菱形面、清晰折痕、卡纸哑光质感。适合幼儿题材、几何抽象与手工质感短片",
+      "best_for": ["幼儿题材", "几何抽象", "手工质感短片", "童话", "实验动画"],
+      "avoid_for": ["写实", "复杂人体结构", "恐怖", "大场面特效"],
+      "positive_prompt": "classic Chinese origami animation still, every element visibly made from folded colored craft paper, sharp geometric facets of triangles and diamonds, no smooth curves, crisp visible fold lines and crease shadows, slight gaps between paper layers, matte paper surface with no gloss, flat forms that still fold in three dimensions, kindergarten palette of sunflower yellow, grass green, sky blue, tomato red and kraft brown, childlike handicraft simplicity, layered paper scenery",
+      "negative_prompt": "smooth curves, organic rounded shapes, 3d render, clay texture, japanese anime, digital gradient shading, glossy surface, photorealistic, detailed realistic anatomy, busy texture, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A simple origami traveler figure folded from tan paper triangles stands on a paper train platform with fold-line stripes, holding a small folded brass-colored paper compass, origami trees and a faceted sun behind",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_comic_minimalism",
+      "category": "chinese_animation",
+      "name": "SHMP Comic Minimalism",
+      "name_zh": "极简漫画动画",
+      "subtitle_zh": "韩羽造型 · 极简留白 · 无声叙事",
+      "description": "上海美影厂阿达导演《三个和尚》《超级肥皂》的极简漫画动画风：韩羽式简笔人物、大面积纯色留白、靠动作节奏而非对白叙事。适合寓言哲理与幽默讽刺",
+      "best_for": ["寓言哲理", "幽默讽刺", "极简美学", "东方智慧", "默片感叙事"],
+      "avoid_for": ["写实细节", "大场面", "史诗奇幻", "3D渲染"],
+      "positive_prompt": "classic Chinese minimalist comic animation still in the Three Monks tradition, ultra-simplified Han Yu character design with round bald head and minimal facial features of dot eyes and line mouths, cylindrical body, thick bold outlines, flat unmodulated color fills, vast negative space as an active compositional element, theatrical mime-like exaggerated posture, a single ink-brush mountain outline on the horizon, minimal architecture detail, muted earthy palette of monk grey, brick red, indigo, ochre and cream, humorous philosophical mood",
+      "negative_prompt": "cluttered detail, complex background, realistic rendering, gradient shading, 3d render, japanese anime detail, western cartoon, high saturation, photorealistic, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A single ultra-simplified comic traveler with a round head and dot eyes stands on an almost empty cream train platform, a tiny line-drawn brass compass in one hand, only a brush-stroke horizon and one bare branch behind, vast blank space",
+      "thumbnail": null
+    },
+    {
+      "id": "shmp_ink_paper_cut",
+      "category": "chinese_animation",
+      "name": "SHMP Torn-Paper Ink-Wash Cut",
+      "name_zh": "水墨剪纸（拉毛）",
+      "subtitle_zh": "撕毛纤维边 · 水墨晕染 · 剪纸关节",
+      "description": "上海美影厂胡进庆发明的「拉毛剪纸」技法（《鹬蚌相争》《猴子捞月》）：纸用撕不用剪，毛茸边缘模拟水墨晕染。是水墨动画与剪纸动画之间的桥梁，适合水墨寓言与动物故事",
+      "best_for": ["水墨寓言", "动物故事", "东方意境", "剪纸实验", "诗意短片"],
+      "avoid_for": ["硬边矢量", "3D渲染", "日式动漫", "写实"],
+      "positive_prompt": "classic Chinese torn-paper ink-wash animation still, the pulled-wool paper-cut technique pioneered by Hu Jinqing, paper torn rather than cut so every silhouette edge is soft and fibrous, imitating the bleeding edge of Chinese ink wash, jointed flat paper figures, visible paper fiber texture, layered translucent paper depth, monochromatic ink palette with subtle warm grey gradation, reeds and water plants with torn-paper edges, river surface suggested by horizontal torn strips of progressively lighter grey-blue paper, morning mist as paper-fiber haze, quiet fable atmosphere",
+      "negative_prompt": "clean scissor-cut hard edges, vector sharpness, cel shading, 3d render, japanese anime, saturated color, crisp digital linework, photorealistic texture, glossy surface, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A young wanderer cut from torn grey paper stands on a torn-paper riverbank at dawn, holding a brass compass rendered in a single ink wash, reeds with soft fibrous edges, mist as paper-fiber haze, monochrome ink tones with one warm note",
+      "thumbnail": null
     }
   ]
 }
