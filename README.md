@@ -22,7 +22,7 @@ One OK Studio 是一个本地运行的 AI 漫剧制作工具：从剧本、角�
 
 ### 安装步骤
 
-1. 到 Releases 下载 `One OK Studio_1.1.0_aarch64.dmg`
+1. 到 Releases 下载 `One OK Studio_1.2.0_aarch64.dmg`
 2. 双击打开，把 **One OK Studio** 拖进「应用程序」
 3. 从「启动台」或「应用程序」启动
 
@@ -165,14 +165,17 @@ cd frontend && npx tsc --noEmit -p tsconfig.json          # 前端类型检查
 ## 四、打包 macOS App（维护者）
 
 ```bash
+uv venv .venv-release-macos11 --python 3.11
+uv pip install --python .venv-release-macos11/bin/python -r requirements-macos-arm64.txt
 bash build_tauri_mac.sh
 ```
 
-一条命令完成：PyInstaller 打包后端 → 前端静态导出 → Tauri 构建 → 修复 Python.framework 符号链接 → 签名 → 公证 → staple → `spctl` 校验。产物在 `src-tauri/target/aarch64-apple-darwin/release/bundle/`。
+一条命令完成：PyInstaller 打包后端 → 前端静态导出 → Tauri 构建 → 修复 Python.framework 符号链接 → macOS 11 兼容扫描 → 签名 → 公证 → staple → `spctl` 校验。产物在 `src-tauri/target/aarch64-apple-darwin/release/bundle/`。
 
 前置条件：
 
-- **Apple Silicon 机器**。脚本按 `uname -m` 选 target，Intel 上会构出 x86_64 包（别人需要 Rosetta）。
+- **Apple Silicon 机器**。arm64 发布包支持 macOS 11.0 及以上的 M 系列 Mac。
+- 发布专用 Python 3.11 环境，必须按上面的 `requirements-macos-arm64.txt` 安装；构建脚本会拒绝任何最低系统高于 macOS 11 的内嵌二进制。
 - 钥匙串里有 `Developer ID Application` 证书。
 - notarytool 钥匙串 profile，默认名 `one-ok-studio`，可用 `APPLE_NOTARY_PROFILE` 覆盖。
 
@@ -228,7 +231,7 @@ cd frontend && npm install && cd ..
 
 ## 版本
 
-当前版本：**1.1.0**
+当前版本：**1.2.0**
 
 ## License
 

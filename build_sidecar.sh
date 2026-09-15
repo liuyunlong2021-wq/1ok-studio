@@ -31,11 +31,21 @@ echo ""
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-PYTHON="${SCRIPT_DIR}/.venv/bin/python"
+PYTHON="${SIDECAR_PYTHON:-${SCRIPT_DIR}/.venv-release-macos11/bin/python}"
 if [ ! -x "$PYTHON" ]; then
-    echo "❌ Project virtual environment not found. Run: python3 -m venv .venv"
+    echo "❌ Compatible release environment not found."
+    echo "   uv venv .venv-release-macos11 --python 3.11"
+    echo "   uv pip install --python .venv-release-macos11/bin/python -r requirements-macos-arm64.txt"
     exit 1
 fi
+
+MACOS_MIN_VERSION="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+export MACOSX_DEPLOYMENT_TARGET="$MACOS_MIN_VERSION"
+
+PYTHON_PREFIX="$($PYTHON -c 'import sys; print(sys.prefix)')"
+PYTHON_BASE_PREFIX="$($PYTHON -c 'import sys; print(sys.base_prefix)')"
+python3 scripts/check_macos_compat.py --max "$MACOS_MIN_VERSION" \
+    "$PYTHON" "$PYTHON_PREFIX" "$PYTHON_BASE_PREFIX"
 
 if ! "$PYTHON" -m PyInstaller --version &>/dev/null; then
     echo "→ Installing PyInstaller into .venv..."
@@ -118,6 +128,9 @@ echo "→ Building on-demand Demucs helper..."
     --hidden-import=demucs.separate \
     --distpath "$OUTPUT_DIR" \
     demucs_sidecar_entry.py
+
+python3 scripts/check_macos_compat.py --max "$MACOS_MIN_VERSION" \
+    "${OUTPUT_DIR}/${BINARY_NAME}" "${OUTPUT_DIR}/${DEMUCS_NAME}"
 
 # Clean up PyInstaller artifacts
 rm -rf build/ "${BINARY_NAME}.spec" "${DEMUCS_NAME}.spec" 2>/dev/null || true

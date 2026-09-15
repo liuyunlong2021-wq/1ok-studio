@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Keep every native wheel compatible with the first Apple Silicon release
+# (macOS 11). Newer wheels currently require macOS 14.
+numpy==1.26.4
+torch==2.1.2
+pyinstaller==6.22.3
