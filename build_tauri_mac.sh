@@ -89,6 +89,7 @@ NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-one-ok-studio}"
 # sidecar build materializes them. Restore the canonical framework layout in
 # the final app before signing; notarization rejects the expanded aliases.
 PYTHON_FRAMEWORK="${APP_PATH}/Contents/Resources/1okstudio-backend/_internal/Python.framework"
+if [ -d "$PYTHON_FRAMEWORK/Versions" ]; then
 PYTHON_FRAMEWORK_VERSION="$(python3 - "$PYTHON_FRAMEWORK" <<'PY'
 import pathlib
 import shutil
@@ -115,11 +116,14 @@ for relative in ("Python", "Resources", "Versions/Current"):
 print(version)
 PY
 )"
+fi
 
 python3 scripts/check_macos_compat.py --max "$MACOSX_DEPLOYMENT_TARGET" "$APP_PATH"
 
-codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" \
-    "$PYTHON_FRAMEWORK/Versions/$PYTHON_FRAMEWORK_VERSION/Python"
+if [ -n "${PYTHON_FRAMEWORK_VERSION:-}" ]; then
+    codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" \
+        "$PYTHON_FRAMEWORK/Versions/$PYTHON_FRAMEWORK_VERSION/Python"
+fi
 codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
