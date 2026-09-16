@@ -265,6 +265,38 @@ def debug_config():
         "cwd": os.getcwd(),
     }
 
+
+class ClientErrorReport(BaseModel):
+    message: str
+    stack: Optional[str] = None
+    digest: Optional[str] = None
+    url: Optional[str] = None
+    userAgent: Optional[str] = None
+
+
+@app.post("/debug/client-error")
+def report_client_error(report: ClientErrorReport):
+    """Record a frontend crash in the log file.
+
+    The packaged desktop app has no devtools and no visible console, so a React
+    render error there leaves no trace: the user gets Next.js's "see the browser
+    console" sentence and whoever supports them has nothing to work with. The
+    webview POSTs here on the way to rendering the error screen, so the crash
+    lands next to the backend log it belongs with.
+
+    Truncated on purpose — a minified React stack is long, and the log rotates
+    at 5 MB.
+    """
+    logger.error(
+        "[client-error] %s\n  url: %s\n  ua: %s\n  digest: %s\n%s",
+        report.message,
+        report.url or "-",
+        report.userAgent or "-",
+        report.digest or "-",
+        (report.stack or "-")[:8000],
+    )
+    return {"status": "logged"}
+
 def signed_response(data):
     """Helper to sign OSS URLs in data before returning to frontend.
     
