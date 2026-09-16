@@ -98,7 +98,7 @@ MiniMax H3、Seedance 等）都经同一网关，模型名由 `config/model_cata
 - Framework: FastAPI (Python 3.11+)
 - AI integration: Alibaba Cloud Qwen/Wanx services via DashScope
 - Data validation: Pydantic
-- File storage: Local + Alibaba Cloud OSS
+- File storage: Local, under `output/`
 
 ### Core Components
 
@@ -170,7 +170,7 @@ src/
 │   └── jiucaihezi.py               # ★ 韭菜盒子适配器（图像 + 视频，唯一在架的）
 ├── audio/
 │   └── tts.py                      # CosyVoice TTS（voice ID 自动匹配 model 版本）
-├── utils/                          # 工具（OSS 等）
+├── utils/                          # 工具（日志、路径、媒体引用等）
 └── config.py
 ```
 
@@ -301,9 +301,9 @@ Development project data is stored in this repository under `output/`:
 - `output/atelier_projects.json` - **★ Atelier 画布/节点/Agent turn 持久化（独立于 Studio）**
 - generated media under `output/assets/`, `output/storyboard/`, `output/video/`, `output/audio/`, and `output/uploads/`
 
-Packaged desktop app configuration and logs are stored under `~/.lumen-x/`:
-- `~/.lumen-x/config.json` - App settings, API keys, and OSS configuration
-- `~/.lumen-x/logs/app.log` - Desktop app log file
+Packaged desktop app configuration and logs are stored under `~/.1okstudio/`:
+- `~/.1okstudio/config.json` - App settings and API keys
+- `~/.1okstudio/logs/` - Runtime logs, including `app.log` and `sidecar.log`
 
 ## Key API Endpoints
 
@@ -398,7 +398,7 @@ Agent runtime（Codex 风格 approval + 独立 planner）：
 - Add new endpoints to `src/apps/comic_gen/api.py` using FastAPI conventions
 - Implement business logic in appropriate modules in `pipeline.py`
 - Use background tasks for AI processing operations
-- Keep local-first media handling intact: generated/uploaded files should resolve through managed `output/` paths, with OSS as an optional mirror/signing layer rather than a hard dependency.
+- Keep local-first media handling intact: generated/uploaded files should resolve through managed `output/` paths. There is no cloud mirror.
 
 ### Frontend Changes
 - Add new API calls to `frontend/src/lib/api.ts`
@@ -410,7 +410,6 @@ Agent runtime（Codex 风格 approval + 独立 planner）：
 
 ### Configuration
 - API keys can be configured via `.env` file or app settings dialog
-- OSS configuration is optional but recommended for cloud storage
 - Model settings can be changed per project via `update_model_settings`
 - In development, `.env` is read from the project root. In packaged mode, `~/.lumen-x/config.json` is used.
 
@@ -438,7 +437,6 @@ Strong success criteria enable autonomous looping; vague criteria like "make it 
 ### Common Issues
 - FFmpeg not found: Install FFmpeg and ensure it's in PATH
 - API keys missing: Configure via app settings or .env file
-- OSS errors: Verify credentials and bucket permissions
 - Video merge failures: Check if video files exist and have proper paths
 
 ### Logs

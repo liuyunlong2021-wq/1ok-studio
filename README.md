@@ -161,7 +161,7 @@ cd frontend && npx tsc --noEmit -p tsconfig.json          # 前端类型检查
 - **写入是原子的**：先写临时文件再改名，并保留一份 `.bak`。若 `projects.json` 损坏，程序会把它另存为 `projects.json.corrupt-<时间戳>`，而不是直接丢掉数据。
 - **全局模板库**（`library_assets.json`）里的角色/场景/道具会作为最低层出现在**所有**项目里；项目列表里会标出来源（当前集 / 整个系列 / 全局模板库）。写操作会自动改到正确的层。
 - 想换数据位置，设环境变量 `ONEOKSTUDIO_DATA_DIR`（默认 `~/.1okstudio`）。日志位置可用 `ONEOKSTUDIO_LOG_DIR`。
-- 配置 OSS 后，生成的媒体可以同步到云端存储。
+- **媒体只存在本地**：生成和上传的文件都落在数据目录的 `output/` 下，经 `/files` 挂载点送给界面。没有云端同步，也不需要对象存储。
 
 ---
 

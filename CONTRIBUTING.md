@@ -49,16 +49,14 @@ git checkout -b feature/your-feature-name
 
 When contributing to media upload/generation flows, please keep these invariants:
 
-- **Local-first storage**: files under `output/` are always written first and remain the durable project source.
-- **OSS is optional**: OSS acts as an optional mirror and signed-URL service, not a mandatory storage backend.
+- **Local-only storage**: files under `output/` are the only media store and the durable project source. Media reaches the frontend through the `/files` mount.
 - **DashScope-first backend**: for supported model families, DashScope is the default provider backend.
 - **Vendor-direct remains available**: Kling/Vidu vendor APIs are still supported when users opt in and configure vendor credentials.
 
 Use the following vocabulary consistently in PRs, code, and docs:
 
-- `storage_mode`: `local_only` or `local_plus_oss`
 - `provider_backend`: `dashscope` or `vendor`
-- `media_ref`: stable project-side media reference (for example local relative path or OSS object key)
+- `media_ref`: stable project-side media reference, POSIX-separated and relative to `output/` (for example `assets/scenes/x.png`), or a remote URL
 - `resolved_media_input`: request-side provider-ready payload derived from `media_ref`
 
 ## 🧠 Model Onboarding Workflow

@@ -107,5 +107,5 @@ rm -rf frontend/.next frontend/out static/
 - **Windows:** `C:\Users\<username>\.lumen-x\`
 
 包含：
-- `config.json` — 配置（API Key、OSS 等）
+- `config.json` — 配置（API Key 等）
 - `logs/` — 运行日志
