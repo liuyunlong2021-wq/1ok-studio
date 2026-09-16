@@ -102,7 +102,21 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
                 eprintln!("[sidecar] {message}");
                 append_sidecar_log(message);
             }
-            show_main_window(app_handle, ready);
+            // Never reload here. This used to pass `ready`, so every launch
+            // booted the frontend twice: once against a backend that was still
+            // starting, then again after reload(). The second boot crashes the
+            // Next.js App Router — createInitialRouterState reads a module-level
+            // `initialParallelRoutes` that an effect nulls after the first
+            // mount, and fillLazyItemsTillLeafWithHead calls .get() on it
+            // without a null guard. The user sees "Application error: a
+            // client-side exception has occurred" on a window that has no
+            // console to check.
+            //
+            // The reload was redundant anyway: the frontend's BackendGate polls
+            // the backend itself and renders the app once it answers. Dev keeps
+            // its reload on the reuse path above, where a reset is actually
+            // wanted.
+            show_main_window(app_handle, false);
 
             // Keep monitoring the process
             loop {
