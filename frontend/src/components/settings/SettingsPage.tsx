@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { Save, Loader2, WifiOff, Copy, Check, Upload, ExternalLink } from "lucide-react";
+import { Save, Loader2, WifiOff, Copy, Check, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api, getGlobalTextModel, setGlobalTextModel, type EnvConfigPayload, API_URL } from "@/lib/api";
 import type { SkillPackageSummary } from "@/lib/api";
 import SkillPicker, { skillNameFor } from "@/components/shared/SkillPicker";
+import SkillUploadButton from "@/components/shared/SkillUploadButton";
 import { ASPECT_RATIOS } from "@/store/projectStore";
 import {
   DEFAULT_MODEL_SETTINGS,
@@ -648,7 +649,7 @@ export default function SettingsPage() {
       <div className="space-y-5">
         {PROMPT_FIELDS.map((f) => (
           <div key={f.key} className="space-y-2">
-            <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold text-foreground">{f.label}</h3><div className="flex items-center gap-1 shrink-0"><SkillPicker packages={skillPackages} onSelect={(id) => setPromptSkillBindings(prev => ({ ...prev, [f.key]: id }))} /><label className="cursor-pointer text-xs text-primary whitespace-nowrap"><Upload size={12} className="mr-1 inline" />上传 Skill 包<input type="file" accept=".zip,.md,.markdown,.txt" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const pkg = await api.uploadSkillPackage(file); setPromptSkillBindings(prev => ({ ...prev, [f.key]: pkg.id })); setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name } as SkillPackageSummary]); } catch (error: any) { toast.error(error?.response?.data?.detail || 'Skill 包上传失败'); } }} /></label></div></div>
+            <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold text-foreground">{f.label}</h3><div className="flex items-center gap-1 shrink-0"><SkillPicker packages={skillPackages} onSelect={(id) => setPromptSkillBindings(prev => ({ ...prev, [f.key]: id }))} /><SkillUploadButton onUploaded={(pkg) => { setPromptSkillBindings(prev => ({ ...prev, [f.key]: pkg.id })); setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name }]); }} /></div></div>
             <p className="text-[0.6875rem] text-text-muted">{f.desc}</p>
             {promptSkillBindings[f.key] && <div className="flex items-center justify-between"><p className="text-[0.625rem] text-emerald-400">已绑定：{skillNameFor(promptSkillBindings[f.key], skillPackages)}</p><button type="button" onClick={() => setPromptSkillBindings(prev => { const next = { ...prev }; delete next[f.key]; return next; })} className="text-[0.625rem] text-text-muted hover:text-foreground">解除绑定</button></div>}
             <textarea

@@ -769,11 +769,22 @@ export const api = {
         const res = await axios.put(`${API_URL}/projects/${scriptId}/prompt_config`, config);
         return res.data;
     },
-    uploadSkillPackage: async (file: File) => {
+    uploadSkillPackage: async (file: File): Promise<SkillPackageSummary> => {
         const body = new FormData();
         body.append("file", file);
         const res = await axios.post(`${API_URL}/skill-packages`, body);
-        return res.data as { id: string; name: string; entry: string; files: { path: string; size: number }[]; validation: { errors: string[]; warnings: string[] } };
+        return res.data;
+    },
+    /** 整目录上传：一个 Skill 通常不止 SKILL.md，还带一组 references/*.md。
+     *  逐个文件传比让用户自己去打 zip 省事，也不会漏掉引用文件。
+     *  相对路径装成一条 JSON 字段与 `files` 同序 —— 重复表单字段各家客户端
+     *  解析不一致，而路径错位的后果是生成一个“看起来成功”的乱包。 */
+    uploadSkillFolder: async (files: File[]): Promise<SkillPackageSummary> => {
+        const body = new FormData();
+        body.append("paths", JSON.stringify(files.map((file) => file.webkitRelativePath || file.name)));
+        files.forEach((file) => body.append("files", file, file.name));
+        const res = await axios.post(`${API_URL}/skill-packages/folder`, body);
+        return res.data;
     },
     listSkillPackages: async (): Promise<SkillPackageSummary[]> => {
         const res = await axios.get(`${API_URL}/skill-packages`);

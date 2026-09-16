@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, RotateCcw, ChevronDown, ChevronRight, Loader2, Upload } from 'lucide-react';
+import { X, FileText, RotateCcw, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { SkillPackageSummary } from '@/lib/api';
 import SkillPicker, { skillNameFor } from '@/components/shared/SkillPicker';
+import SkillUploadButton from '@/components/shared/SkillUploadButton';
 import { useTranslations } from "next-intl";
 
 interface SeriesPromptConfigModalProps {
@@ -121,14 +122,12 @@ export default function SeriesPromptConfigModal({ isOpen, onClose, seriesId, onS
         });
     };
 
-    const handleSkillUpload = (key: keyof PromptDefaults, file?: File) => {
-        if (!file) return;
-        if (!/\.(zip|md|markdown|txt)$/i.test(file.name)) return alert('请选择 Skill ZIP、.md 或 .txt 文件');
-        api.uploadSkillPackage(file).then((pkg) => {
-            setConfig(prev => ({ ...prev, [key]: '', skill_bindings: { ...prev.skill_bindings, [key]: pkg.id } }));
-            // 新传的包要立即可选，否则刚绑上却在列表里找不到名字。
-            setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name } as SkillPackageSummary]);
-        }).catch((error) => alert(error?.response?.data?.detail || error?.message || 'Skill 包上传失败'));
+    /** 单文件与整目录两条上传路径归到同一个收尾：绑上、并让新包立刻可选。
+     *  上传本身的失败提示在 SkillUploadButton 里统一处理。 */
+    const handleSkillUploaded = (key: keyof PromptDefaults, pkg: SkillPackageSummary) => {
+        setConfig(prev => ({ ...prev, [key]: '', skill_bindings: { ...prev.skill_bindings, [key]: pkg.id } }));
+        // 新传的包要立即可选，否则刚绑上却在列表里找不到名字。
+        setSkillPackages(prev => [...prev, { ...pkg, builtin: false, source_name: pkg.name }]);
     };
 
     // 与上传同语义：绑定优先于文本框（见 pipeline.get_effective_prompt）。
@@ -199,10 +198,7 @@ export default function SeriesPromptConfigModal({ isOpen, onClose, seriesId, onS
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
                                                 <SkillPicker packages={skillPackages} onSelect={(id) => handleSkillSelect(section.key, id)} />
-                                                <label className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg cursor-pointer whitespace-nowrap">
-                                                    <Upload size={10} /> 上传 Skill
-                                                    <input type="file" accept=".zip,.md,.markdown,.txt,application/zip,text/markdown,text/plain" className="hidden" onChange={(e) => handleSkillUpload(section.key, e.target.files?.[0])} />
-                                                </label>
+                                                <SkillUploadButton onUploaded={(pkg) => handleSkillUploaded(section.key, pkg)} />
                                                 <button onClick={() => handleReset(section.key)} disabled={!config[section.key] && !config.skill_bindings?.[section.key]} className="text-[0.625rem] text-text-secondary hover:text-foreground flex items-center gap-1 px-2 py-1 rounded hover:bg-hover-bg transition-colors whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"><RotateCcw size={10} /> {t("resetToDefault")}</button>
                                             </div>
                                         </div>
