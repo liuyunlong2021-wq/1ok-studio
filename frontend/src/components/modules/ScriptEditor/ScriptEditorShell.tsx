@@ -17,25 +17,15 @@ import { useViewMode } from './hooks/useViewMode';
 import { useOfflineCache } from './hooks/useOfflineCache';
 import { useDerivation } from './hooks/useDerivation';
 import { PasteHintBar } from './components/PasteHintBar';
+import AiResultPreview, { applyAiPreview, textToEditorDocument } from './components/AiResultPreview';
 import { ShortcutHelpPanel } from './components/ShortcutHelpPanel';
 import { ContinuityIndicator } from './components/ContinuityIndicator';
 import RightPanelContainer from './panels';
+import type { AiPreview } from './panels/AiPanel';
 import LeftSidebar from './sidebar';
 import StoryboardView from './views/StoryboardView';
 import ExportDialog from './dialogs/ExportDialog';
-import StandardizeDialog from './dialogs/StandardizeDialog';
 import { scriptEditorApi } from '@/lib/scriptEditorApi';
-
-function textToEditorDocument(text: string) {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
-  return {
-    type: 'doc',
-    content: lines.map((line) => ({
-      type: 'action',
-      content: line.trim() ? [{ type: 'text', text: line.trim() }] : [],
-    })),
-  };
-}
 
 export interface ScriptEditorShellProps {
   mode?: 'full' | 'embedded' | 'focus';
@@ -132,7 +122,7 @@ export default function ScriptEditorShell({
   const toggleLeft = useEditorStore((s) => s.toggleLeftSidebar);
   const toggleRight = useEditorStore((s) => s.toggleRightSidebar);
   const [showExport, setShowExport] = useState(false);
-  const [showStandardize, setShowStandardize] = useState(false);
+  const [aiPreview, setAiPreview] = useState<AiPreview | null>(null);
   const [extractingEntities, setExtractingEntities] = useState(false);
   const showLeft = mode === 'full' && !leftCollapsed && showSidebars;
   const showRight = mode === 'full' && !rightCollapsed && showSidebars;
@@ -157,11 +147,17 @@ export default function ScriptEditorShell({
     }
   }, [editor, setViewMode]);
 
+  const acceptAiPreview = useCallback(() => {
+    if (!editor || !aiPreview) return;
+    applyAiPreview(editor, aiPreview);
+    setAiPreview(null);
+  }, [aiPreview, editor]);
+
   return (
     <div className="script-editor-theme flex h-full w-full flex-col overflow-hidden bg-bg-base text-foreground">
       {/* Format Toolbar */}
       {!hideAllSidebars && showToolbar && (
-        <FormatToolbar editor={editor} viewMode={viewMode} onViewModeChange={setViewMode} onExport={() => setShowExport(true)} onOpenAi={() => setShowStandardize(true)} />
+        <FormatToolbar editor={editor} viewMode={viewMode} onViewModeChange={setViewMode} onExport={() => setShowExport(true)} onOpenAi={() => { if (rightCollapsed) toggleRight(); }} />
       )}
 
       {/* Top Toolbar */}
@@ -215,7 +211,11 @@ export default function ScriptEditorShell({
         )}
 
         {/* Editor Content Area / Storyboard View */}
-        {viewMode === 'storyboard' ? (
+        {aiPreview ? (
+          <main className="relative flex-1 min-w-0 overflow-y-auto">
+            <AiResultPreview text={aiPreview.text} onAccept={acceptAiPreview} onDiscard={() => setAiPreview(null)} />
+          </main>
+        ) : viewMode === 'storyboard' ? (
           <main className="relative flex-1 min-w-0 overflow-hidden">
             <StoryboardView editor={editor} onShotClick={handleShotClick} />
           </main>
@@ -303,8 +303,8 @@ export default function ScriptEditorShell({
           <aside className="w-[320px] shrink-0 border-l border-white/10 bg-white/[0.02] backdrop-blur-xl overflow-hidden">
             <RightPanelContainer
               editor={editor}
-              mode={mode}
-              projectId={projectId}
+              projectId={effectiveProjectId}
+              onPreview={setAiPreview}
             />
           </aside>
         )}
@@ -340,8 +340,6 @@ export default function ScriptEditorShell({
           </span>
         </div>
       )}
-
-      {showStandardize && effectiveProjectId && editor && <StandardizeDialog projectId={effectiveProjectId} editor={editor} onClose={() => setShowStandardize(false)} />}
 
       {/* Shortcut Help Panel */}
       <ShortcutHelpPanel open={showShortcutHelp} onClose={closeShortcutHelp} />
