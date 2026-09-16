@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node ./scripts/run-next-dev.mjs",
     "build": "next build",
+    "build:tauri": "node ./scripts/build-tauri.mjs",
     "start": "next start",
     "lint": "next lint",
     "lint:core": "eslint src/components/modules/ScriptEditor/ScriptEditorShell.tsx src/components/modules/ScriptEditor/toolbar/FormatToolbar.tsx src/components/modules/ScriptEditor/dialogs/StandardizeDialog.tsx src/components/modules/ScriptEditor/panels/index.tsx src/lib/scriptEditorApi.ts",

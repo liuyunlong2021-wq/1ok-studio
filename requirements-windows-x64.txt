@@ -1,0 +1,22 @@
+-r requirements.txt
+
+# Windows release environment — the counterpart of requirements-macos-arm64.txt.
+#
+# torch is intentionally NOT pinned here. The macOS file pins it because every
+# bundled Mach-O has to declare a minimum OS version; Windows has no equivalent
+# constraint, but it does have a distribution problem: the default PyPI wheel
+# for Windows carries the CUDA runtime. That would push the on-demand Demucs
+# helper past several gigabytes for users who mostly have no NVIDIA GPU, so
+# install torch from the CPU index first and let this file only add what it
+# does not already cover:
+#
+#   uv venv .venv-release-windows --python 3.11
+#   uv pip install --python .venv-release-windows/Scripts/python.exe \
+#       torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+#   uv pip install --python .venv-release-windows/Scripts/python.exe \
+#       -r requirements-windows-x64.txt
+#
+# build_sidecar_windows.ps1 refuses to build if it finds a CUDA torch, so a
+# wrong environment fails fast instead of quietly inflating the installer.
+
+pyinstaller==6.22.3
