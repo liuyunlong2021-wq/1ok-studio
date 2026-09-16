@@ -58,16 +58,58 @@ const installedStamp = fs.existsSync(stampFile)
   ? fs.readFileSync(stampFile, 'utf8').trim()
   : null;
 
-if (requirementsHash && installedStamp !== requirementsHash) {
-  console.log('[setup] Installing Python dependencies...');
-  try {
-    execFileSync(venvPython, ['-m', 'pip', 'install', '-r', requirements], {
+// 把包装进 venv。
+//
+// **不能假定 `pip` 存在**：本仓库的 .venv 可以由 uv 创建，而 uv venv 默认不装
+// pip。这里原来直接 `python -m pip install`，于是在 uv 环境里只要你动过
+// requirements.txt，重跑 `npm run dev` 就炸在 “No module named pip”。校验标记
+// 本来是为了「改动 requirements 就自动重装」，结果重装这条路是坏的。
+//
+// 依次尝试：pip → uv pip → ensurepip 引导出 pip；三个都失败才算真失败。
+function installIntoVenv(packages) {
+  const works = (command, args) => {
+    try {
+      execFileSync(command, args, { stdio: 'ignore', cwd: root });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const installWithPip = () =>
+    execFileSync(venvPython, ['-m', 'pip', 'install', ...packages], {
       stdio: 'inherit',
       cwd: root,
     });
+  const installWithUv = () =>
+    execFileSync('uv', ['pip', 'install', '--python', venvPython, ...packages], {
+      stdio: 'inherit',
+      cwd: root,
+    });
+
+  // 先探测、再选路，而不是「试了再说」：失败的尝试会把 “No module named pip”
+  // 打到控制台，看起来像报错 —— 而后面其实成功了。这种噪声足以让人以为安装挂了。
+  if (works(venvPython, ['-m', 'pip', '--version'])) {
+    installWithPip();
+    return 'pip';
+  }
+  if (works('uv', ['--version'])) {
+    installWithUv();
+    return 'uv pip';
+  }
+  execFileSync(venvPython, ['-m', 'ensurepip', '--upgrade'], { stdio: 'inherit', cwd: root });
+  installWithPip();
+  return 'ensurepip + pip';
+}
+
+if (requirementsHash && installedStamp !== requirementsHash) {
+  console.log('[setup] Installing Python dependencies...');
+  try {
+    const via = installIntoVenv(['-r', requirements]);
     // pytest is not declared in requirements.txt and nothing else installs it.
-    execFileSync(venvPython, ['-m', 'pip', 'install', 'pytest'], { stdio: 'inherit', cwd: root });
+    installIntoVenv(['pytest']);
     fs.writeFileSync(stampFile, requirementsHash);
+    console.log(`[setup] Python dependencies installed (via ${via}).`);
   } catch (e) {
     console.error('[setup] Failed to install Python dependencies:', e.message);
     process.exit(1);
