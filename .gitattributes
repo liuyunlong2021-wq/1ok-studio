@@ -1,0 +1,18 @@
+# Line endings are declared here rather than left to each machine's
+# core.autocrlf.
+#
+# This repo was written on macOS and is now developed on Windows as well, where
+# Git for Windows ships core.autocrlf=true by default. That makes the same
+# checkout behave differently per OS: text files arrive CRLF on Windows and LF
+# on macOS. Nothing breaks today (the index is all LF, and autocrlf normalizes
+# on commit), but it means correctness depends on a setting nobody chose, and a
+# contributor whose autocrlf is false would commit CRLF over the whole tree.
+#
+# Normalize to LF in the repository; let checkouts use their platform's ending
+# for everything, except the shell scripts.
+* text=auto
+
+# A CRLF shebang is fatal, not cosmetic: `#!/usr/bin/env bash\r` makes the
+# script fail with "bad interpreter: No such file or directory" the moment it
+# runs on macOS, WSL or Git Bash. Keep the Unix scripts LF on every platform.
+*.sh text eol=lf
