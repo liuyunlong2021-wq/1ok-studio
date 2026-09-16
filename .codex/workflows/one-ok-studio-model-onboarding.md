@@ -1,5 +1,5 @@
 ---
-name: lumenx-model-onboarding
+name: one-ok-studio-model-onboarding
 description: One OK Studio model onboarding workflow for vendor doc capture, model catalog updates, adapter/UI scope checks, and end-to-end verification.
 ---
 
@@ -11,7 +11,7 @@ Use this workflow when working in this repository and the user asks to:
 - update model docs, versions, defaults, parameters, or UI exposure
 - refresh catalog definitions for the Wan, Kling, Vidu, or PixVerse model families
 - review whether a model change is catalog-only or requires runtime adapter work
-- run `/lumenx-model-onboarding`
+- run `/one-ok-studio-model-onboarding`
 
 This workflow is the repo-native entrypoint for model support work. It keeps the process observable, testable, and reviewable.
 

@@ -13,15 +13,15 @@
 ### Task 1: Add repo-native model onboarding workflow entry
 
 **Files:**
-- Create: `/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/lumenx-model-onboarding.md`
-- Create: `/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.claude/commands/lumenx-model-onboarding.md`
+- Create: `/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/one-ok-studio-model-onboarding.md`
+- Create: `/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.claude/commands/one-ok-studio-model-onboarding.md`
 - Modify: `/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/AGENTS.md`
 
 **Step 1: Write the workflow docs**
 
 Document:
 
-- when `/lumenx-model-onboarding` should be used
+- when `/one-ok-studio-model-onboarding` should be used
 - supported job types: new model, parameter update, default switch, doc refresh, UI exposure change
 - required inputs
 - the exact execution phases
@@ -34,7 +34,7 @@ Ensure the Codex workflow and Claude command carry the same process and repo rul
 
 **Step 3: Add AGENTS routing**
 
-Teach the repo that requests like “接入新模型”, “更新模型文档”, “运行模型接入工作流”, and `/lumenx-model-onboarding` should load the new workflow.
+Teach the repo that requests like “接入新模型”, “更新模型文档”, “运行模型接入工作流”, and `/one-ok-studio-model-onboarding` should load the new workflow.
 
 ### Task 2: Add deterministic validation and reporting utilities
 

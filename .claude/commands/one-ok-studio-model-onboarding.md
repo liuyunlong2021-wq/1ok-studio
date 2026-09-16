@@ -10,7 +10,7 @@ description: One OK Studio 模型接入与文档更新流程 - 厂商文档抓�
 - 更新模型文档、版本、默认值、参数、展示范围
 - 更新 Wan / Kling / Vidu / PixVerse 等模型家族的 catalog 定义
 - 判断某次模型变更到底只是 catalog 变更，还是还要改运行时逻辑 / 前端 UI
-- 使用 `/lumenx-model-onboarding`
+- 使用 `/one-ok-studio-model-onboarding`
 
 这个流程是 One OK Studio 仓库内的正式模型接入入口，目标是让整个过程 **可观测、可验证、可 Review**。
 

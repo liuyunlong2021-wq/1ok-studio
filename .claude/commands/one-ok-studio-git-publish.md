@@ -12,7 +12,7 @@ description: One OK Studio GitHub 发布流程 - 安全提交、敏感数据扫�
 - **只推送 `github` remote**，发布时忽略 `origin`（已废弃的 GitLab）
 - **推送前必须执行敏感数据扫描**
 - **Commit Message 遵循 Conventional Commits** (`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`)
-- **GitHub remote 名称为 `github`**，仓库地址：`https://github.com/alibaba/lumenx.git`
+- **GitHub remote 名称为 `github`**，仓库地址：`https://github.com/liuyunlong2021-wq/1ok-studio.git`
 - **GitHub 镜像提交的作者固定为** `Mike4Ellis <1007062267@qq.com>`
 - **GitHub PR 统一由** `Star-Lotus` **账号发起**；如果 `Mike4Ellis` 缺少 `createPullRequest` 权限，需要先切换 `gh` 活跃账号再执行 `gh pr create`
 
@@ -135,7 +135,7 @@ gh auth switch --hostname github.com --user Star-Lotus
 ```
 
 ```bash
-gh pr create --repo alibaba/lumenx --title "feat: your PR title" --body "$(cat <<'EOF'
+gh pr create --repo liuyunlong2021-wq/1ok-studio --title "feat: your PR title" --body "$(cat <<'EOF'
 ## Summary
 - <change description>
 
@@ -148,7 +148,7 @@ EOF
 
 ## 阶段四：推送后验证
 
-- 访问 https://github.com/alibaba/lumenx 确认内容正确
+- 访问 https://github.com/liuyunlong2021-wq/1ok-studio 确认内容正确
 - 检查 README 格式渲染
 - 确认无敏感信息泄露
 

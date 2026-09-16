@@ -4,7 +4,7 @@ Thank you for your interest in contributing to One OK Studio! We welcome contrib
 
 ## 🌟 Ways to Contribute
 
-- **Bug Reports**: Submit detailed bug reports via [GitHub Issues](https://github.com/alibaba/lumenx/issues)
+- **Bug Reports**: Submit detailed bug reports via [GitHub Issues](https://github.com/liuyunlong2021-wq/1ok-studio/issues)
 - **Feature Requests**: Propose new features through GitHub Issues
 - **Code Contributions**: Submit pull requests for bug fixes or new features
 - **Documentation**: Improve documentation, tutorials, or examples
@@ -16,16 +16,16 @@ Thank you for your interest in contributing to One OK Studio! We welcome contrib
 
 ```bash
 # Fork the repository on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/lumenx.git
-cd lumenx
+git clone https://github.com/YOUR_USERNAME/1ok-studio.git
+cd 1ok-studio
 
 # Add upstream remote
-git remote add upstream https://github.com/alibaba/lumenx.git
+git remote add upstream https://github.com/liuyunlong2021-wq/1ok-studio.git
 ```
 
 ### 2. Set Up Development Environment
 
-Follow the instructions in [README_EN.md](README_EN.md#quick-start) to set up your local environment.
+Follow the instructions in [README.md](README.md) (开发者：从源码运行). Note the README is written in Chinese.
 
 ### 3. Create a Feature Branch
 
@@ -65,10 +65,10 @@ Use the following vocabulary consistently in PRs, code, and docs:
 
 When your change touches model support, do not treat it as an ordinary string-replacement task. Use the repo-native model workflow entry:
 
-- textual alias: `/lumenx-model-onboarding`
+- textual alias: `/one-ok-studio-model-onboarding`
 - workflow docs:
-  - `.codex/workflows/lumenx-model-onboarding.md`
-  - `.claude/commands/lumenx-model-onboarding.md`
+  - `.codex/workflows/one-ok-studio-model-onboarding.md`
+  - `.claude/commands/one-ok-studio-model-onboarding.md`
 
 Typical use cases:
 
@@ -324,7 +324,7 @@ For feature requests, please describe:
 
 ## 📞 Questions?
 
-- **Technical Questions**: [GitHub Discussions](https://github.com/alibaba/lumenx/discussions)
+- **Technical Questions**: [GitHub Discussions](https://github.com/liuyunlong2021-wq/1ok-studio/discussions)
 - **Security Issues**: Email security@alibaba-inc.com (do not file public issues)
 
 ## 📄 License

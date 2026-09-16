@@ -1,5 +1,5 @@
 ---
-name: lumenx-build
+name: one-ok-studio-build
 description: One OK Studio desktop build workflow for macOS DMG and Windows EXE packaging.
 ---
 

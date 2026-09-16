@@ -3,7 +3,7 @@
 # Runs the Python test suite and the model catalog validation script on
 # every pull request targeting main (and on pushes to main as a post-merge
 # safety net). Local development flow is unchanged — this only enforces
-# the checks that CLAUDE.md already declares.
+# the checks that AGENTS.md already declares.
 #
 # To make this a hard gate, enable branch protection on main with
 # "backend-tests" as a required status check.

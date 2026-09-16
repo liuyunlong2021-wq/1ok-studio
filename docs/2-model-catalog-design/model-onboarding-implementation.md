@@ -4,7 +4,7 @@
 
 如果你只想知道“以后我要接新模型时应该从哪里开始”，先看这三项：
 
-1. 入口 workflow：[`/lumenx-model-onboarding`](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/lumenx-model-onboarding.md)
+1. 入口 workflow：[`/one-ok-studio-model-onboarding`](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/one-ok-studio-model-onboarding.md)
 2. 构建命令：`python scripts/build_model_catalog.py`
 3. 校验命令：`python scripts/validate_model_catalog.py`
 
@@ -44,7 +44,7 @@
 
 一次完整的模型接入或模型更新，现在应该沿着这条路径走：
 
-1. 用户触发 `/lumenx-model-onboarding`
+1. 用户触发 `/one-ok-studio-model-onboarding`
 2. 抓取或整理模型文档证据
 3. 更新 `config/model_catalog/` 下的 YAML
 4. 运行构建脚本，生成后端和前端要消费的 JSON
@@ -115,9 +115,9 @@
 
 | 文件 | 作用 | 这次做了什么 |
 |------|------|-------------|
-| [AGENTS.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/AGENTS.md) | 告诉 Codex 这个仓库有哪些 workflow 入口，以及用户说什么话时该触发哪个 workflow | 新增了 `/lumenx-model-onboarding` 的触发规则和文件映射 |
-| [.codex/workflows/lumenx-model-onboarding.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/lumenx-model-onboarding.md) | Codex 侧的正式模型接入 workflow | 新增，定义了模型接入的步骤、范围判断、验证要求、停顿条件 |
-| [.claude/commands/lumenx-model-onboarding.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.claude/commands/lumenx-model-onboarding.md) | Claude 侧的同名流程镜像 | 新增，保持和 Codex workflow 行为一致 |
+| [AGENTS.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/AGENTS.md) | 告诉 Codex 这个仓库有哪些 workflow 入口，以及用户说什么话时该触发哪个 workflow | 新增了 `/one-ok-studio-model-onboarding` 的触发规则和文件映射 |
+| [.codex/workflows/one-ok-studio-model-onboarding.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.codex/workflows/one-ok-studio-model-onboarding.md) | Codex 侧的正式模型接入 workflow | 新增，定义了模型接入的步骤、范围判断、验证要求、停顿条件 |
+| [.claude/commands/one-ok-studio-model-onboarding.md](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/.claude/commands/one-ok-studio-model-onboarding.md) | Claude 侧的同名流程镜像 | 新增，保持和 Codex workflow 行为一致 |
 
 ### 4.2 文档证据与设计层
 
@@ -229,7 +229,7 @@
 
 如果是一次常规模型更新，直接照下面做：
 
-1. 触发 `/lumenx-model-onboarding`
+1. 触发 `/one-ok-studio-model-onboarding`
 2. 抓文档证据到外部 raw archive，或者当前仓库 `docs/1-api-reference/`
 3. 更新 `config/model_catalog/families/*.yaml`
 4. 运行 `python scripts/build_model_catalog.py`

@@ -61,7 +61,7 @@
   feat/atelier-pilot-20260611-161001。output/ 软链主仓;主仓 .venv 是 py3.9。
   - dev:前端 cd frontend && PORT=3010 npm run dev;后端 <主仓>/.venv/bin/python -m uvicorn src.apps.comic_gen.api:app --host 127.0.0.1 --port
   17177。沙箱挡 localhost 回环 → curl/browse/git-push 需 dangerouslyDisableSandbox:true。
-  - 本地未推提交累积(满意后一次性推 github alibaba/lumenx,推前敏感扫描):
+  - 本地未推提交累积(满意后一次性推 github liuyunlong2021-wq/1ok-studio,推前敏感扫描):
     - 设置页 phase-2:8 条(含 eccd965 提示词统一中文、715f8b6 居中画廊 等)
     - 工作区/资产库第一轮:5 条(deab95d 72b1ec7 0221221 5f09f78 e410b1c)
     - 资产库保真度第二轮:待提交(本文档上面那 5~6 条)

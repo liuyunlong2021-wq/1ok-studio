@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This file provides guidance to AI coding agents (Codex CLI / Qoder) when working with code in this repository. It mirrors the project's `CLAUDE.md` so that Claude Code, Codex, and Qoder share identical project rules. When this file and `CLAUDE.md` diverge, treat `CLAUDE.md` as the source of truth and re-sync here.
+This file provides guidance to AI coding agents (Codex CLI / Qoder) when working with code in this repository. It is the single source of agent guidance here — there is no `CLAUDE.md` in this repository (or anywhere in its history), so nothing overrides it and there is no mirror to re-sync.
 
 ## Git Commit Rules
 
 - Git author is already configured for this repo, do not modify git config
 - **NEVER** add `Co-Authored-By` lines in commit messages
-- Push to GitHub remote (`github`) only, ignore `origin` (deprecated GitLab)
+- Push to the GitHub remote. There is exactly one remote (`origin` → `github.com/liuyunlong2021-wq/1ok-studio`); the older guidance naming a `github` remote pointed at a different, unrelated repository
 - **Atomic commits** — 每完成一个独立功能点就立即 commit，不要攒到最后一次性大提交。拆分粒度示例：后端模块 → commit、前端骨架 → commit、UI 组件 → commit、catalog 变更 → commit、bug fix → 单独 commit
 
 ## Project Workflow Triggers
@@ -17,11 +17,11 @@ When the user asks to do any of the following in this repository:
 - run the One OK Studio GitHub publish workflow
 - follow the One OK Studio GitHub release or PR flow
 - prepare a GitHub-safe branch, commit, push, or PR for One OK Studio
-- use `/lumenx-git-publish`
+- use `/one-ok-studio-git-publish`
 
 Treat that as a request to load and follow:
 
-`.codex/workflows/lumenx-git-publish.md`
+`.codex/workflows/one-ok-studio-git-publish.md`
 
 When the user asks to do any of the following in this repository:
 
@@ -30,11 +30,11 @@ When the user asks to do any of the following in this repository:
 - refresh Wan / Kling / Vidu / PixVerse model support
 - run the One OK Studio model onboarding workflow
 - review whether a model change is catalog-only or also needs runtime / UI work
-- use `/lumenx-model-onboarding`
+- use `/one-ok-studio-model-onboarding`
 
 Treat that as a request to load and follow:
 
-`.codex/workflows/lumenx-model-onboarding.md`
+`.codex/workflows/one-ok-studio-model-onboarding.md`
 
 When the user asks to do any of the following in this repository:
 
@@ -42,22 +42,22 @@ When the user asks to do any of the following in this repository:
 - package One OK Studio for macOS or Windows
 - create a DMG or EXE build
 - run the One OK Studio desktop build workflow
-- use `/lumenx-build`
+- use `/one-ok-studio-build`
 
 Treat that as a request to load and follow:
 
-`.codex/workflows/lumenx-build.md`
+`.codex/workflows/one-ok-studio-build.md`
 
-This repository does not rely on native slash commands in Codex. The strings `/lumenx-git-publish`, `/lumenx-build`, and `/lumenx-model-onboarding` are textual aliases for the workflows above.
+This repository does not rely on native slash commands in Codex. The strings `/one-ok-studio-git-publish`, `/one-ok-studio-build`, and `/one-ok-studio-model-onboarding` are textual aliases for the workflows above.
 
 ## Workflow Files
 
-- `.claude/commands/lumenx-git-publish.md` remains the Claude project command source.
-- `.claude/commands/lumenx-build.md` remains the Claude project command source.
-- `.claude/commands/lumenx-model-onboarding.md` remains the Claude project command source.
-- `.codex/workflows/lumenx-git-publish.md` is the Codex workflow mirror for the same project process.
-- `.codex/workflows/lumenx-build.md` is the Codex workflow mirror for the desktop build process.
-- `.codex/workflows/lumenx-model-onboarding.md` is the Codex workflow mirror for model onboarding, catalog updates, and verification.
+- `.claude/commands/one-ok-studio-git-publish.md` remains the Claude project command source.
+- `.claude/commands/one-ok-studio-build.md` remains the Claude project command source.
+- `.claude/commands/one-ok-studio-model-onboarding.md` remains the Claude project command source.
+- `.codex/workflows/one-ok-studio-git-publish.md` is the Codex workflow mirror for the same project process.
+- `.codex/workflows/one-ok-studio-build.md` is the Codex workflow mirror for the desktop build process.
+- `.codex/workflows/one-ok-studio-model-onboarding.md` is the Codex workflow mirror for model onboarding, catalog updates, and verification.
 
 If both Claude and Codex guidance exist, preserve behavior parity unless the user asks for divergence.
 
@@ -224,7 +224,11 @@ npm run dev
 ```
 
 ### Verification Commands
-Keep in sync with the same section in `CLAUDE.md`.
+
+CI (`.github/workflows/backend-ci.yml`) runs `python -m pytest` and
+`python scripts/validate_model_catalog.py` on pull requests and pushes to `main`.
+The backend/catalog commands below mirror those two; keep them in step when you
+change what CI enforces. The frontend commands are not run by CI yet.
 
 Frontend verification commands:
 ```bash
@@ -259,7 +263,7 @@ python main.py
 ```
 
 ### Model Catalog Workflow
-For model onboarding, version/default updates, provider capability changes, or UI model exposure changes, load `.codex/workflows/lumenx-model-onboarding.md` before editing.
+For model onboarding, version/default updates, provider capability changes, or UI model exposure changes, load `.codex/workflows/one-ok-studio-model-onboarding.md` before editing.
 
 The executable catalog source lives under `config/model_catalog/`. After catalog YAML changes, regenerate and validate:
 ```bash

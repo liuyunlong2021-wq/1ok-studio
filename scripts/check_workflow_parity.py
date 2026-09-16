@@ -29,9 +29,9 @@ CLAUDE_DIR = REPO_ROOT / ".claude" / "commands"
 CODEX_DIR = REPO_ROOT / ".codex" / "workflows"
 
 PAIR_NAMES = [
-    "lumenx-build",
-    "lumenx-git-publish",
-    "lumenx-model-onboarding",
+    "one-ok-studio-build",
+    "one-ok-studio-git-publish",
+    "one-ok-studio-model-onboarding",
 ]
 
 # Confirmed intentional divergences. Keyed by pair name; each entry maps an

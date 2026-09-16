@@ -1,5 +1,5 @@
 ---
-name: lumenx-git-publish
+name: one-ok-studio-git-publish
 description: One OK Studio GitHub publish workflow for safe commits, sensitive-data scans, and PR-based pushes to the GitHub mirror.
 ---
 
@@ -19,7 +19,7 @@ Use this workflow when working in this repository and the user asks to publish w
 Repository-specific constraints:
 
 - GitHub remote: `github`
-- GitHub repository: `https://github.com/alibaba/lumenx.git`
+- GitHub repository: `https://github.com/liuyunlong2021-wq/1ok-studio.git`
 - Allowed branch prefixes: `feature/`, `fix/`, `docs/`
 
 ## Step 1: Confirm Branch
@@ -159,7 +159,7 @@ gh auth switch --hostname github.com --user Star-Lotus
 ```
 
 ```bash
-gh pr create --repo alibaba/lumenx --title "feat: your PR title" --body "$(cat <<'EOF'
+gh pr create --repo liuyunlong2021-wq/1ok-studio --title "feat: your PR title" --body "$(cat <<'EOF'
 ## Summary
 - <change description>
 
