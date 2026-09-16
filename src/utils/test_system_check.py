@@ -6,6 +6,8 @@ launchd 默认值（``/usr/bin:/bin:/usr/sbin:/sbin``），macOS 又不自带
 的用户也返回 None —— 用户装了却用不了。这里保证 POSIX 回退路径确实被查。
 """
 
+import sys
+
 import pytest
 
 from src.utils import system_check
@@ -28,6 +30,13 @@ def test_falls_back_to_common_macos_path_when_not_on_path(monkeypatch, tmp_path)
     assert system_check.get_ffmpeg_path() == str(fake)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "Windows has no execute bit: os.access(path, os.X_OK) returns True for "
+        "any existing file, so 'exists but not executable' is not expressible."
+    ),
+)
 def test_skips_fallback_paths_that_are_not_executable(monkeypatch, tmp_path):
     not_executable = tmp_path / "ffmpeg"
     not_executable.write_text("not a binary")

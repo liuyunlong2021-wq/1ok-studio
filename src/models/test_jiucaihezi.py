@@ -1,6 +1,5 @@
 import base64
 import os
-import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
@@ -97,16 +96,22 @@ def test_grok_text_to_image_uses_openai_image_channel(post, download):
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
-def test_grok_reference_images_use_edits_endpoint(post):
+def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
     post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
 
-    with tempfile.NamedTemporaryFile(suffix=".png") as reference:
-        JiucaiheziImageModel({}).generate(
-            "edit",
-            "/tmp/output.png",
-            model_name="grok-imagine-image-2.0",
-            ref_image_paths=[reference.name],
-        )
+    # 参考图必须先落盘并关闭。这里原来用的是仍处于打开状态的
+    # NamedTemporaryFile：POSIX 允许第二个读者再打开同一文件，Windows 会直接
+    # PermissionError（Errno 13），因为适配器还要 open() 一次读它。输出路径同理，
+    # 原来是写死的 /tmp/output.png —— 在 Windows 上那是 C:\tmp\，目录通常不存在。
+    reference = tmp_path / "reference.png"
+    reference.write_bytes(b"reference")
+
+    JiucaiheziImageModel({}).generate(
+        "edit",
+        str(tmp_path / "output.png"),
+        model_name="grok-imagine-image-2.0",
+        ref_image_paths=[str(reference)],
+    )
 
     assert post.call_args.args[0].endswith("/v1/images/edits")
     assert "json" not in post.call_args.kwargs
