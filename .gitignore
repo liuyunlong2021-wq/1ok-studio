@@ -75,7 +75,12 @@ Thumbs.db
 
 # Node.js
 node_modules/
-package-lock.json
+# Anchored to the repo root on purpose. The frontend lockfile IS versioned — it
+# pins the dependency tree the desktop bundle ships with, and gets refreshed on
+# every release — so an unanchored pattern here contradicted a tracked file
+# (gitignore never applies to files already in the index, so the rule silently
+# did nothing for frontend/ while looking like it covered everything).
+/package-lock.json
 
 # Frontend (Next.js)
 frontend/node_modules/
