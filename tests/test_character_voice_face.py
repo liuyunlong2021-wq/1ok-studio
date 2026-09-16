@@ -371,7 +371,7 @@ def test_reference_audio_rejects_a_non_audio_upload(monkeypatch):
 
 
 def test_reference_audio_accepts_a_remote_url_without_an_extension(monkeypatch):
-    """OSS 链接后面可能挂 query、也可能没有扩展名 —— 认不出来不等于错，要放行。"""
+    """远端链接后面可能挂 query、也可能没有扩展名 —— 认不出来不等于错，要放行。"""
     script = _script()
     client = _client(monkeypatch, script)
 
