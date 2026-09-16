@@ -22,6 +22,36 @@ MEDIA_REF_DATA_URI = "data_uri"
 MEDIA_REF_UNKNOWN = "unknown"
 
 
+def media_ref(*parts: str) -> str:
+    """Build a stored media reference from path parts.
+
+    Refs are persisted in ``projects.json``, handed to the frontend as URL-ish
+    values, and matched against the forward-slash prefixes in
+    ``LOCAL_MEDIA_PREFIXES`` above, so they are always POSIX-separated. Never
+    build one with ``os.path.join``: on Windows that yields ``video\\x.mp4``,
+    which ``classify_media_ref`` does not recognise as a local path and which
+    a macOS install cannot resolve. Forward slashes stay valid as a relative
+    filesystem path on Windows, so the same string serves both roles.
+
+    >>> media_ref("output", "audio", "take.mp3")
+    'output/audio/take.mp3'
+    """
+    cleaned = [str(part).strip("/\\") for part in parts]
+    return "/".join(part for part in cleaned if part)
+
+
+def to_media_ref(path: str) -> str:
+    """Normalize a filesystem-built relative path into stored media-ref form.
+
+    Use this for values that came out of ``os.path.relpath`` or
+    ``os.path.join``. See ``media_ref`` for why refs are POSIX-separated.
+
+    >>> to_media_ref("video\\\\clip.mp4")
+    'video/clip.mp4'
+    """
+    return str(path).replace(os.sep, "/").replace("\\", "/")
+
+
 def _project_root(project_root: Optional[str] = None) -> Path:
     if project_root:
         return Path(project_root).resolve()

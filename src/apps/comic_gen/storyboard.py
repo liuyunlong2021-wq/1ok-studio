@@ -4,6 +4,7 @@ from typing import Dict, Any, List
 from .models import StoryboardFrame, Character, Scene, Prop, GenerationStatus, ImageAsset, ImageVariant
 from ...models.jiucaihezi import JiucaiheziImageModel
 from ...utils import get_logger
+from ...utils.media_refs import to_media_ref
 from ...utils.oss_utils import is_object_key
 
 logger = get_logger(__name__)
@@ -183,7 +184,7 @@ class StoryboardGenerator:
                 self.model.generate(prompt, output_path, ref_image_paths=asset_ref_paths, size=effective_size, model_name=model_name)
                 
                 # Store relative path for frontend serving
-                rel_path = os.path.relpath(output_path, "output")
+                rel_path = to_media_ref(os.path.relpath(output_path, "output"))
                 
                 # Create Variant
                 variant = ImageVariant(

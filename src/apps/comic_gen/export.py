@@ -4,6 +4,7 @@ import uuid
 from typing import Dict, Any, List
 from .models import Script, GenerationStatus
 from ...utils import get_logger
+from ...utils.media_refs import to_media_ref
 
 logger = get_logger(__name__)
 
@@ -44,7 +45,7 @@ class ExportManager:
                 f.write(b'dummy video content')
                 
             logger.info(f"Export completed: {output_path}")
-            return os.path.relpath(output_path, "output")
+            return to_media_ref(os.path.relpath(output_path, "output"))
             
         except Exception as e:
             logger.error(f"Export failed: {e}")

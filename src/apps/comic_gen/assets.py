@@ -6,6 +6,7 @@ from urllib.parse import quote
 from .models import Character, Scene, Prop, GenerationStatus, ImageAsset, ImageVariant, MAX_VARIANTS_PER_ASSET
 from ...models.jiucaihezi import JiucaiheziImageModel
 from ...utils import get_logger
+from ...utils.media_refs import to_media_ref
 from ...utils.oss_utils import is_object_key
 
 logger = get_logger(__name__)
@@ -91,7 +92,7 @@ class AssetGenerator:
                             size=effective_size
                         )
 
-                        rel_path = os.path.relpath(sheet_path, "output")
+                        rel_path = to_media_ref(os.path.relpath(sheet_path, "output"))
 
                         if not character.reference_sheet:
                             from .models import AssetUnit
@@ -223,7 +224,7 @@ class AssetGenerator:
                         
                         self.model.generate(effective_generation_prompt, fullbody_path, ref_image_path=ref_image_path, negative_prompt=negative_prompt, model_name=effective_model_name, size=effective_size)
                         
-                        rel_fullbody_path = os.path.relpath(fullbody_path, "output")
+                        rel_fullbody_path = to_media_ref(os.path.relpath(fullbody_path, "output"))
                         
                         # Store in ImageAsset
                         if not character.full_body_asset:
@@ -370,7 +371,7 @@ class AssetGenerator:
                         
                         self.model.generate(generation_prompt, sheet_path, ref_image_path=fullbody_path, negative_prompt=sheet_negative, ref_strength=0.8, model_name=i2i_model_name)
                         
-                        rel_sheet_path = os.path.relpath(sheet_path, "output")
+                        rel_sheet_path = to_media_ref(os.path.relpath(sheet_path, "output"))
                         
                         if not character.three_view_asset:
                             from .models import ImageAsset
@@ -448,7 +449,7 @@ class AssetGenerator:
                         
                         self.model.generate(generation_prompt, avatar_path, ref_image_path=fullbody_path, negative_prompt=negative_prompt, ref_strength=0.8, model_name=i2i_model_name)
                         
-                        rel_avatar_path = os.path.relpath(avatar_path, "output")
+                        rel_avatar_path = to_media_ref(os.path.relpath(avatar_path, "output"))
                         
                         if not character.headshot_asset:
                             from .models import ImageAsset
@@ -540,7 +541,7 @@ class AssetGenerator:
                 
                 image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
                 
-                rel_path = os.path.relpath(output_path, "output")
+                rel_path = to_media_ref(os.path.relpath(output_path, "output"))
                 
                 if not scene.image_asset:
                     from .models import ImageAsset
@@ -602,7 +603,7 @@ class AssetGenerator:
                 
                 image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
                 
-                rel_path = os.path.relpath(output_path, "output")
+                rel_path = to_media_ref(os.path.relpath(output_path, "output"))
                 
                 if not prop.image_asset:
                     from .models import ImageAsset

@@ -15,6 +15,7 @@ from typing import Dict, Any
 
 from ...models.jiucaihezi import JiucaiheziVideoModel
 from ...utils import get_logger
+from ...utils.media_refs import to_media_ref
 
 logger = get_logger(__name__)
 
@@ -64,7 +65,7 @@ class VideoGenerator:
             )
 
             # Upload to OSS if configured
-            video_url = os.path.relpath(output_path, "output")
+            video_url = to_media_ref(os.path.relpath(output_path, "output"))
             try:
                 from ...utils.oss_utils import OSSImageUploader
                 uploader = OSSImageUploader()

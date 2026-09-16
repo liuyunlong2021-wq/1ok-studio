@@ -39,6 +39,7 @@ from ...utils.oss_utils import is_object_key
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 from ...utils.global_settings import get_active_text_model
+from ...utils.media_refs import media_ref, to_media_ref
 from ...models.jiucaihezi import AUDIO_MAX_REFERENCE_AUDIOS
 
 logger = get_logger(__name__)
@@ -2541,7 +2542,7 @@ class ComicGenPipeline:
         from ...utils.oss_utils import OSSImageUploader
         uploader = OSSImageUploader()
         oss_url = uploader.upload_image(output_path)
-        image_url = oss_url if oss_url else os.path.relpath(output_path, "output")
+        image_url = oss_url if oss_url else to_media_ref(os.path.relpath(output_path, "output"))
 
         # Create new variant
         variant = ImageVariant(
@@ -2584,7 +2585,7 @@ class ComicGenPipeline:
         from ...utils.oss_utils import OSSImageUploader
         uploader = OSSImageUploader()
         oss_url = uploader.upload_image(safe_path)
-        image_url = oss_url if oss_url else os.path.relpath(safe_path, "output")
+        image_url = oss_url if oss_url else to_media_ref(os.path.relpath(safe_path, "output"))
 
         # Create new variant
         variant = ImageVariant(
@@ -2620,7 +2621,7 @@ class ComicGenPipeline:
         """
         from ...models.jiucaihezi import generate_audio
 
-        audio_path = os.path.join("output", "audio", f"ai_sound_{task.id}.mp3")
+        audio_path = media_ref("output", "audio", f"ai_sound_{task.id}.mp3")
         generate_audio(
             prompt=task.prompt or "",
             output_path=audio_path,
@@ -3551,7 +3552,7 @@ class ComicGenPipeline:
                 ref_image_urls=task.reference_image_urls or [],
             )
             
-            task.video_url = os.path.relpath(output_path, "output")
+            task.video_url = to_media_ref(os.path.relpath(output_path, "output"))
             task.status = "completed"
             
             # Sync with asset if this is an asset video
@@ -5223,7 +5224,7 @@ class ComicGenPipeline:
         from ...models.jiucaihezi import generate_audio
 
         take_id = f"take_{uuid.uuid4().hex[:8]}"
-        output_path = os.path.join("output", "audio", f"episode_{script_id}_{take_id}.mp3")
+        output_path = media_ref("output", "audio", f"episode_{script_id}_{take_id}.mp3")
         generate_audio(
             prompt=plan.script_text,
             output_path=output_path,
