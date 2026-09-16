@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { renderWithIntl } from '@/test-utils/renderWithIntl';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -20,23 +21,33 @@ vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
-// Mock lucide-react icons
-vi.mock('lucide-react', () => ({
-    ArrowLeft: (props: any) => <span data-testid="icon-arrow-left" {...props} />,
-    Users: (props: any) => <span data-testid="icon-users" {...props} />,
-    MapPin: (props: any) => <span data-testid="icon-map-pin" {...props} />,
-    Package: (props: any) => <span data-testid="icon-package" {...props} />,
-    Plus: (props: any) => <span data-testid="icon-plus" {...props} />,
-    X: (props: any) => <span data-testid="icon-x" {...props} />,
-    Image: (props: any) => <span data-testid="icon-image" {...props} />,
-    Settings: (props: any) => <span data-testid="icon-settings" {...props} />,
-    FileText: (props: any) => <span data-testid="icon-file-text" {...props} />,
-    Download: (props: any) => <span data-testid="icon-download" {...props} />,
-    MessageSquareCode: (props: any) => <span data-testid="icon-message-square-code" {...props} />,
-    ChevronLeft: (props: any) => <span data-testid="icon-chevron-left" {...props} />,
-    ChevronRight: (props: any) => <span data-testid="icon-chevron-right" {...props} />,
-    Play: (props: any) => <span data-testid="icon-play" {...props} />,
-}));
+// Mock lucide-react icons.
+//
+// Spread the real module first. The previous hand-written whitelist silently
+// broke rendering as soon as a component in this tree picked up an icon that
+// was not listed (Palette, via SeriesSidebar) — the mock returned undefined
+// and React threw. Spreading means unlisted icons still resolve; the explicit
+// entries below only exist to expose stable testids.
+vi.mock('lucide-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('lucide-react')>();
+    return {
+        ...actual,
+        ArrowLeft: (props: any) => <span data-testid="icon-arrow-left" {...props} />,
+        Users: (props: any) => <span data-testid="icon-users" {...props} />,
+        MapPin: (props: any) => <span data-testid="icon-map-pin" {...props} />,
+        Package: (props: any) => <span data-testid="icon-package" {...props} />,
+        Plus: (props: any) => <span data-testid="icon-plus" {...props} />,
+        X: (props: any) => <span data-testid="icon-x" {...props} />,
+        Image: (props: any) => <span data-testid="icon-image" {...props} />,
+        Settings: (props: any) => <span data-testid="icon-settings" {...props} />,
+        FileText: (props: any) => <span data-testid="icon-file-text" {...props} />,
+        Download: (props: any) => <span data-testid="icon-download" {...props} />,
+        MessageSquareCode: (props: any) => <span data-testid="icon-message-square-code" {...props} />,
+        ChevronLeft: (props: any) => <span data-testid="icon-chevron-left" {...props} />,
+        ChevronRight: (props: any) => <span data-testid="icon-chevron-right" {...props} />,
+        Play: (props: any) => <span data-testid="icon-play" {...props} />,
+    };
+});
 
 // Mock AssetCard
 vi.mock('@/components/common/AssetCard', () => ({
@@ -93,7 +104,7 @@ const mockEpisodes = [
 // ── Helpers ──
 
 function renderPage(seriesId = 'series-1') {
-    return render(<SeriesDetailPage seriesId={seriesId} />);
+    return renderWithIntl(<SeriesDetailPage seriesId={seriesId} />);
 }
 
 // ── Tests ──
@@ -383,7 +394,13 @@ describe('SeriesDetailPage', () => {
             fireEvent.click(screen.getByText('确定'));
 
             await waitFor(() => {
-                expect(mockCreateEpisodeForSeries).toHaveBeenCalledWith('series-1', '新集数', 3);
+                expect(mockCreateEpisodeForSeries).toHaveBeenCalledWith(
+                    'series-1',
+                    '新集数',
+                    3,
+                    // 第 4 个参数是系列的 workflow_mode；mockSeries 未设置，走默认值。
+                    'i2v_legacy',
+                );
             });
         });
 
