@@ -37,6 +37,22 @@ def test_single_markdown_is_imported_as_package(tmp_path):
     assert "Single-file skill rule" in store.compile(metadata["id"])
 
 
+def test_bundled_asset_skills_are_selectable_and_complete():
+    store = SkillPackageStore()
+
+    packages = {item["id"]: item for item in store.list()}
+    expected = {
+        "builtin:jc-character-prompt",
+        "builtin:jc-prop-prompt",
+        "builtin:jc-scene-prompt",
+    }
+
+    assert expected <= packages.keys()
+    compiled = store.compile("builtin:jc-character-prompt")
+    assert "# Referenced file: references/high-precision-3d-semi-realistic-guoman.md" in compiled
+    assert "# Referenced file: references/photorealistic-skin-control.md" in compiled
+
+
 def test_missing_reference_is_rejected(tmp_path):
     store = SkillPackageStore(str(tmp_path))
     with pytest.raises(SkillPackageError, match="缺少引用文件"):
