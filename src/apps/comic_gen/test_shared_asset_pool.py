@@ -1,4 +1,4 @@
-"""Focused tests for the LumenX Core *global shared asset pool* foundation.
+"""Focused tests for the One OK Studio Core *global shared asset pool* foundation.
 
 Covers the three "two-layer -> three-layer" resolver seams added for the
 project-independent ``GlobalAssetLibrary`` (lowest priority layer:

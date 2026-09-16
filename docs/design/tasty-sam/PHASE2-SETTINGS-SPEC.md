@@ -1,4 +1,4 @@
-# LumenX Studio 前端重塑 — 第二阶段 Kickoff(状态 + 锁定规格 + 代码事实)
+# One OK Studio 前端重塑 — 第二阶段 Kickoff(状态 + 锁定规格 + 代码事实)
 
 > 单一事实来源。会话上下文压缩后,从这份恢复即可无缝继续。
 > 分支:`feat/atelier-pilot-20260611-161001`(已推 github `alibaba/lumenx`)。日期 2026-06-17。

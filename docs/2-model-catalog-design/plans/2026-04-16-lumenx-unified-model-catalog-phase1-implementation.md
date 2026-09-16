@@ -1,8 +1,8 @@
-# LumenX Unified Model Catalog Phase 1 Implementation Plan
+# One OK Studio Unified Model Catalog Phase 1 Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Upgrade LumenX’s `model_catalog` to a mode-aware, future gateway-ready source schema while preserving all current frontend/backend consumer behavior and stored project compatibility.
+**Goal:** Upgrade One OK Studio’s `model_catalog` to a mode-aware, future gateway-ready source schema while preserving all current frontend/backend consumer behavior and stored project compatibility.
 
 **Architecture:** Phase 1 is a compatibility-preserving source-schema upgrade, not a consumer rewrite. The catalog builder should learn a richer internal model — family, model line, mode, backend, gateway-ready runtime metadata, alias mapping — while continuing to emit today’s flat compatibility artifact for existing frontend/backend consumers. This phase also reserves `runtime.<backend>.gateway` as a first-class extension point, but does not make gateway the active routing axis yet.
 
@@ -254,7 +254,7 @@ Expected:
 
 **Step 1: Convert only the highest-value line first**
 
-Pilot the mode-aware source shape on the strongest LumenX candidate first:
+Pilot the mode-aware source shape on the strongest One OK Studio candidate first:
 
 - Wan video line
 

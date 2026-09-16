@@ -1,4 +1,4 @@
-# LumenX Studio — Cyber Brutalism × Cinematic Restraint Design System v0.2
+# One OK Studio — Cyber Brutalism × Cinematic Restraint Design System v0.2
 
 > Pipeline-first AI 短漫剧创作平台 | "Render Noise into Narrative"
 
@@ -6,7 +6,7 @@ Approval status: pending user review.
 
 Visual direction: **Cyber Brutalism × Cinematic Restraint** — 在原本 dark-first 克制电影感基础上，引入 v0.2 视觉焕新（2026-06-09 commit `e6f86ea`）：
 - 主视觉切换为**棱角几何莲花徽标**（白色折线轮廓 + 中央蓝色水晶 + 电路线点缀），替代旧的紫粉渐变方块
-- 字标改为**等宽体 LUMENX**（`LUMEN` 白 + `X` 蓝 #646cff 加粗），取代渐变文字
+- 字标改为**等宽体 ONE OK STUDIO**（`LUMEN` 白 + `X` 蓝 #646cff 加粗），取代渐变文字
 - 新增 banner / scanlines / grid 等"赛博粗野"母题作为可选装饰层
 - UI chrome 侧仍保持克制：让生成内容（图像/视频/分镜缩略图）成为画面绝对主角
 
@@ -34,13 +34,13 @@ STUDIO           ← JetBrains Mono 9px UPPERCASE letter-spacing 0.2em · 30% wh
 
 ### Anti-Patterns (旧主视觉禁用)
 - 紫→indigo→pink 渐变 brand-icon 方块（v0.1 旧法）
-- 渐变 LumenX 文字（背景 clip text）
+- 渐变 One OK Studio 文字（背景 clip text）
 - 任何彩色光晕环绕 logo
 - 与 logo 同尺寸或更大的装饰文字
 
 ## Product Context
 
-- **Product**: LumenX Studio (LumenX 产品家族 — Core + Studio + Atelier + Playground)
+- **Product**: One OK Studio (One OK Studio 产品家族 — Core + Studio + Atelier + Playground)
 - **Audience**: 独立短视频/自媒体创作者 & 专业团队 pre-production
 - **Platform**: Next.js 14 + React 18 + Tailwind CSS + Zustand + Framer Motion (桌面 web + pywebview shell)
 - **Density**: 中等偏紧凑（创作者同时盯多个 shot），靠层级和留白区分，不靠颜色噪音

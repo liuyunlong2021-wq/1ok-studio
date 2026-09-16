@@ -4,7 +4,7 @@
 > Scope: Design only, no implementation changes in this document  
 > Purpose: Provide a concrete convergence draft for:
 >
-> 1. LumenX repo-native `model_catalog`
+> 1. One OK Studio repo-native `model_catalog`
 > 2. `video-generator` skill catalog under `~/.claude/skills/video-generator`
 
 ---
@@ -13,7 +13,7 @@
 
 We now have two independently evolved catalog systems that solve almost the same class of problems:
 
-- **LumenX** uses `model_catalog` to drive:
+- **One OK Studio** uses `model_catalog` to drive:
   - frontend model lists
   - backend defaults
   - provider-family routing
@@ -39,7 +39,7 @@ This draft proposes a **shared core schema** plus **consumer-specific overlays**
 
 ## 2. Inputs Reviewed For This Draft
 
-### 2.1 LumenX inputs
+### 2.1 One OK Studio inputs
 
 - [config/model_catalog/catalog.meta.yaml](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/config/model_catalog/catalog.meta.yaml)
 - [config/model_catalog/families/wan.yaml](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/config/model_catalog/families/wan.yaml)
@@ -70,13 +70,13 @@ The two systems should converge, but **not by direct replacement**.
 The right target is:
 
 1. A **shared core schema** that represents model facts
-2. A **LumenX product overlay** for UI and product-specific behavior
+2. A **One OK Studio product overlay** for UI and product-specific behavior
 3. A **video-generator runtime overlay** for CLI/runtime execution details
 
 ### Short version
 
 - `video-generator` is stronger at **runtime execution modeling**
-- LumenX is stronger at **product/UI consumption modeling**
+- One OK Studio is stronger at **product/UI consumption modeling**
 - The next unified version should preserve both strengths
 
 ---
@@ -141,9 +141,9 @@ So the convergence target is not speculative; it is already implicit in both imp
 
 This section is the most important. The two systems differ in **what they optimize for**, not in overall direction.
 
-### 5.1 LumenX optimizes for product and UI consumption
+### 5.1 One OK Studio optimizes for product and UI consumption
 
-LumenX catalog currently excels at fields like:
+One OK Studio catalog currently excels at fields like:
 
 - `ui.selection_group`
 - `ui.visible_in`
@@ -194,9 +194,9 @@ This is closer to a full execution graph.
 
 This is the single most valuable lesson from `video-generator`.
 
-### 6.1 LumenX today
+### 6.1 One OK Studio today
 
-LumenX mostly models video capability like this:
+One OK Studio mostly models video capability like this:
 
 ```yaml
 id: kling-v3
@@ -256,11 +256,11 @@ This layer stores objective model facts:
 - defaults
 - docs traceability
 
-This layer should be reusable by both LumenX and video-generator.
+This layer should be reusable by both One OK Studio and video-generator.
 
 ### Layer B — Product Overlay
 
-This layer stores LumenX-only concerns:
+This layer stores One OK Studio-only concerns:
 
 - which surfaces expose this model
 - UI grouping
@@ -396,9 +396,9 @@ These should be shared by both systems:
 - `inputs`
 - `params`
 
-### 9.2 LumenX product overlay fields
+### 9.2 One OK Studio product overlay fields
 
-These are legitimate LumenX-only fields:
+These are legitimate One OK Studio-only fields:
 
 - `product.selection_group`
 - `product.visible_in`
@@ -427,9 +427,9 @@ These are runtime-only concerns:
 
 This section gives the first practical conversion map.
 
-### 10.1 LumenX → unified core
+### 10.1 One OK Studio → unified core
 
-| LumenX field | Unified target | Notes |
+| One OK Studio field | Unified target | Notes |
 |---|---|---|
 | `family` | `family` | Keep |
 | `provider` | `family.provider` | Keep |
@@ -452,9 +452,9 @@ This section gives the first practical conversion map.
 | `models[].id` | `model_line.id` | Keep |
 | `models[].mode` | `modes.<mode>` | Convert single-mode lines into explicit `modes` |
 | `models[].modes` | `modes` | Keep |
-| `defaults.backend_priority` | root `defaults.backend_priority` | Strong candidate to adopt in LumenX too |
+| `defaults.backend_priority` | root `defaults.backend_priority` | Strong candidate to adopt in One OK Studio too |
 | `docs.integration_doc_ids` | `docs.integration_doc_ids` | Keep |
-| `docs.vendor_doc_paths` | `docs.vendor_doc_paths` | Strongly worth adopting in LumenX |
+| `docs.vendor_doc_paths` | `docs.vendor_doc_paths` | Strongly worth adopting in One OK Studio |
 | `backends.*.adapter` | `runtime.<backend>.adapter` | Keep |
 | `backends.*.request_profile` | `runtime.<backend>.request_profile` | Keep |
 | `backends.*.model_name` | `runtime.<backend>.model_name` | Keep |
@@ -465,9 +465,9 @@ This section gives the first practical conversion map.
 
 ---
 
-## 11. What LumenX Should Borrow First
+## 11. What One OK Studio Should Borrow First
 
-If implementation starts incrementally, LumenX should borrow these parts first, in this order:
+If implementation starts incrementally, One OK Studio should borrow these parts first, in this order:
 
 ### Phase 1 — Add explicit mode config
 
@@ -495,7 +495,7 @@ runtime:
     model_name: ...
 ```
 
-This lets LumenX gradually move toward catalog-driven runtime execution.
+This lets One OK Studio gradually move toward catalog-driven runtime execution.
 
 ### Phase 3 — Add vendor doc path traceability
 
@@ -503,13 +503,13 @@ Add raw doc linkage to every active model/mode so onboarding and auditing become
 
 ---
 
-## 12. What video-generator Should Borrow From LumenX
+## 12. What video-generator Should Borrow From One OK Studio
 
 This should also be explicit, because convergence is not one-way.
 
 ### 12.1 Product-facing visibility concepts
 
-If video-generator ever powers an interactive UI, LumenX’s current notions are already useful:
+If video-generator ever powers an interactive UI, One OK Studio’s current notions are already useful:
 
 - `visible_in`
 - `recommended`
@@ -525,7 +525,7 @@ This is especially valuable for cases like:
 
 ### 12.3 Fallback normalization
 
-LumenX already treats stale saved model IDs as a product reality.
+One OK Studio already treats stale saved model IDs as a product reality.
 
 This is worth preserving as a reusable pattern.
 
@@ -545,7 +545,7 @@ Deliverable:
 
 This draft is the first version of that step.
 
-### Step 2 — Upgrade LumenX schema shape without changing behavior
+### Step 2 — Upgrade One OK Studio schema shape without changing behavior
 
 Goal:
 
@@ -558,7 +558,7 @@ Important rule:
 
 > Change schema shape first, keep behavior stable.
 
-### Step 3 — Add runtime overlay fields to LumenX catalog
+### Step 3 — Add runtime overlay fields to One OK Studio catalog
 
 Goal:
 
@@ -593,7 +593,7 @@ That keeps velocity high and risk low.
 
 ### Risk 1 — Over-unifying too early
 
-If we try to force identical runtime behavior into both projects too early, we may damage the product-specific strengths of LumenX or the CLI strengths of video-generator.
+If we try to force identical runtime behavior into both projects too early, we may damage the product-specific strengths of One OK Studio or the CLI strengths of video-generator.
 
 Mitigation:
 
@@ -602,7 +602,7 @@ Mitigation:
 
 ### Risk 2 — Losing UI semantics
 
-If convergence focuses only on runtime execution, LumenX may lose valuable UI-specific metadata.
+If convergence focuses only on runtime execution, One OK Studio may lose valuable UI-specific metadata.
 
 Mitigation:
 
@@ -640,7 +640,7 @@ It should include:
 3. compatibility rules
 4. generated JSON target shape
 5. validation rules
-6. phased implementation plan for LumenX
+6. phased implementation plan for One OK Studio
 7. phased implementation plan for video-generator
 
 ---
@@ -653,11 +653,11 @@ The right next move is:
 
 1. accept `mode` as a first-class unit
 2. separate shared core from overlays
-3. preserve LumenX’s product metadata
+3. preserve One OK Studio’s product metadata
 4. preserve video-generator’s runtime metadata
 5. converge schema before converging code
 
 ### In one sentence
 
-> Build one shared catalog language, then let LumenX and video-generator speak different dialects of it through overlays.
+> Build one shared catalog language, then let One OK Studio and video-generator speak different dialects of it through overlays.
 

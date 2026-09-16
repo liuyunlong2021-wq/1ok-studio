@@ -1057,7 +1057,7 @@ html.atelier-light .atelier-new-tile:hover > span:first-child {
 }
 
 /* Script editor theme bridge: legacy editor utilities inherit the active
-   LumenX semantic palette instead of forcing a separate black UI. */
+   One OK Studio semantic palette instead of forcing a separate black UI. */
 .script-editor-theme .bg-zinc-900,
 .script-editor-theme .bg-zinc-900\/30,
 .script-editor-theme .bg-zinc-900\/50,

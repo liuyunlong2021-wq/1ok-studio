@@ -1,4 +1,4 @@
-  # HANDOFF — LumenX Studio · Playground × Line B 视觉保真
+  # HANDOFF — One OK Studio · Playground × Line B 视觉保真
 
   ## 0. 环境 / 路径
   - worktree(干活处):/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic-pilot-atelier-20260611-161001,分支

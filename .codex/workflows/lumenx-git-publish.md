@@ -1,11 +1,11 @@
 ---
 name: lumenx-git-publish
-description: LumenX GitHub publish workflow for safe commits, sensitive-data scans, and PR-based pushes to the GitHub mirror.
+description: One OK Studio GitHub publish workflow for safe commits, sensitive-data scans, and PR-based pushes to the GitHub mirror.
 ---
 
-# LumenX GitHub Publish Workflow
+# One OK Studio GitHub Publish Workflow
 
-Use this workflow when working in this repository and the user asks to publish work to the LumenX GitHub mirror, prepare a GitHub-ready branch, or follow the LumenX GitHub release process.
+Use this workflow when working in this repository and the user asks to publish work to the One OK Studio GitHub mirror, prepare a GitHub-ready branch, or follow the One OK Studio GitHub release process.
 
 ## Core Rules
 

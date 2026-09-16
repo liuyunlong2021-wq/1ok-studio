@@ -1,6 +1,6 @@
-# Contributing to LumenX Studio
+# Contributing to One OK Studio
 
-Thank you for your interest in contributing to LumenX Studio! We welcome contributions from the community.
+Thank you for your interest in contributing to One OK Studio! We welcome contributions from the community.
 
 ## 🌟 Ways to Contribute
 
@@ -329,8 +329,8 @@ For feature requests, please describe:
 
 ## 📄 License
 
-By contributing to LumenX Studio, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+By contributing to One OK Studio, you agree that your contributions will be licensed under the [MIT License](LICENSE).
 
 ---
 
-Thank you for contributing to LumenX Studio! 🎉
+Thank you for contributing to One OK Studio! 🎉

@@ -1,10 +1,10 @@
 ---
-description: LumenX Studio 桌面应用构建流程 - macOS DMG 和 Windows EXE 打包
+description: One OK Studio 桌面应用构建流程 - macOS DMG 和 Windows EXE 打包
 ---
 
-# LumenX Studio 桌面应用构建
+# One OK Studio 桌面应用构建
 
-此 skill 用于将 LumenX Studio 打包为桌面应用分发包。
+此 skill 用于将 One OK Studio 打包为桌面应用分发包。
 
 ## 前置条件
 
@@ -46,14 +46,14 @@ chmod +x build_mac.sh
 ### 3. 输出位置
 
 ```
-dist_mac/LumenX Studio.app   # macOS 应用
-dist_mac/LumenX Studio.dmg   # DMG 安装包（分发用）
+dist_mac/One OK Studio.app   # macOS 应用
+dist_mac/One OK Studio.dmg   # DMG 安装包（分发用）
 ```
 
 ### 4. 测试
 
 ```bash
-open "dist_mac/LumenX Studio.app"
+open "dist_mac/One OK Studio.app"
 ```
 
 ### macOS 常见问题
@@ -61,7 +61,7 @@ open "dist_mac/LumenX Studio.app"
 | 问题 | 解决方案 |
 |------|---------|
 | FFmpeg 未找到 | `brew install ffmpeg` |
-| DMG 创建失败 | 卸载已挂载的 DMG: `hdiutil detach "/Volumes/LumenX Studio"` |
+| DMG 创建失败 | 卸载已挂载的 DMG: `hdiutil detach "/Volumes/One OK Studio"` |
 | 签名错误 | 首次运行需右键→打开，绕过 Gatekeeper |
 
 ## Windows 构建 (.exe)
@@ -82,7 +82,7 @@ open "dist_mac/LumenX Studio.app"
 ### 2. 输出位置
 
 ```
-dist_windows\LumenX Studio.exe   # Windows 可执行文件
+dist_windows\One OK Studio.exe   # Windows 可执行文件
 ```
 
 ### Windows 常见问题

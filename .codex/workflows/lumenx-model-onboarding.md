@@ -1,13 +1,13 @@
 ---
 name: lumenx-model-onboarding
-description: LumenX model onboarding workflow for vendor doc capture, model catalog updates, adapter/UI scope checks, and end-to-end verification.
+description: One OK Studio model onboarding workflow for vendor doc capture, model catalog updates, adapter/UI scope checks, and end-to-end verification.
 ---
 
-# LumenX Model Onboarding Workflow
+# One OK Studio Model Onboarding Workflow
 
 Use this workflow when working in this repository and the user asks to:
 
-- onboard a new model or model family into LumenX
+- onboard a new model or model family into One OK Studio
 - update model docs, versions, defaults, parameters, or UI exposure
 - refresh catalog definitions for the Wan, Kling, Vidu, or PixVerse model families
 - review whether a model change is catalog-only or requires runtime adapter work

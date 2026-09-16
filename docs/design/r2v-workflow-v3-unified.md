@@ -3,7 +3,7 @@
 > **Status**: ✅ Design approved · Pending implementation
 > **Date**: 2026-05-25
 > **Author**: grill-me session（用户 + Claude，11 个核心决策）
-> **Scope**: 把 LumenX Studio 的 i2v_legacy 9-step workflow 与 R2V 5-step workflow **合并为单一 unified workflow**；把 Voice / Mix / Export 三个 dead step 的功能 **下沉到 Cast / Storyboard / Assembly**；引入完整 audio pipeline（dialogue TTS 自动化 + BGM + Mixer + ffmpeg mux）
+> **Scope**: 把 One OK Studio 的 i2v_legacy 9-step workflow 与 R2V 5-step workflow **合并为单一 unified workflow**；把 Voice / Mix / Export 三个 dead step 的功能 **下沉到 Cast / Storyboard / Assembly**；引入完整 audio pipeline（dialogue TTS 自动化 + BGM + Mixer + ffmpeg mux）
 > **Supersedes**: `r2v-workflow-v2.md` 的 Storyboard / Assembly 章节；其余章节（Series 架构、Cast 三段、Reconcile 等）保留
 > **Backward compat**: 老 i2v_legacy 项目 **不删 components、不强迁数据**，继续走原 9-step 路径；新项目走 unified
 
@@ -122,7 +122,7 @@ i2v vs r2v 是 **model input shape 差异**（first frame vs ref images），不
 
 **Q15.2 · 声音复刻 (Voice Cloning) v1**: **做 — character 详情侧 drawer 加"复刻" tab** (创作者高频需求"用朋友录音作角色")。API: `POST /services/audio/tts/customization` model=`voice-enrollment`/`qwen-voice-enrollment` action=`create_voice`/`create`
 
-**Q15.3 · 声音设计 (Voice Design) v1**: **做 + character.description 一键转 voice_prompt** (复用 description 同时驱动 image + voice，LumenX 核心 leverage). API: 同上 endpoint 不同 model (`voice-enrollment`/`qwen-voice-design`)
+**Q15.3 · 声音设计 (Voice Design) v1**: **做 + character.description 一键转 voice_prompt** (复用 description 同时驱动 image + voice，One OK Studio 核心 leverage). API: 同上 endpoint 不同 model (`voice-enrollment`/`qwen-voice-design`)
 
 **Q15.4 · 指令控制 UX**: **chip + 自由文本双轨** (90% 用户用 6-8 个 preset chip 够；10% advanced 写自由文本)。后端统一翻译为 `instructions` 参数 (CosyVoice ≤ 100 字符, Qwen3 ≤ 1600 token)
 

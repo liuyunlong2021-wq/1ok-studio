@@ -13,10 +13,10 @@ This file provides guidance to AI coding agents (Codex CLI / Qoder) when working
 
 When the user asks to do any of the following in this repository:
 
-- publish to the LumenX GitHub mirror
-- run the LumenX GitHub publish workflow
-- follow the LumenX GitHub release or PR flow
-- prepare a GitHub-safe branch, commit, push, or PR for LumenX
+- publish to the One OK Studio GitHub mirror
+- run the One OK Studio GitHub publish workflow
+- follow the One OK Studio GitHub release or PR flow
+- prepare a GitHub-safe branch, commit, push, or PR for One OK Studio
 - use `/lumenx-git-publish`
 
 Treat that as a request to load and follow:
@@ -25,10 +25,10 @@ Treat that as a request to load and follow:
 
 When the user asks to do any of the following in this repository:
 
-- onboard a new model into LumenX
+- onboard a new model into One OK Studio
 - update model docs, model versions, defaults, or parameters
 - refresh Wan / Kling / Vidu / PixVerse model support
-- run the LumenX model onboarding workflow
+- run the One OK Studio model onboarding workflow
 - review whether a model change is catalog-only or also needs runtime / UI work
 - use `/lumenx-model-onboarding`
 
@@ -38,10 +38,10 @@ Treat that as a request to load and follow:
 
 When the user asks to do any of the following in this repository:
 
-- build the LumenX desktop app
-- package LumenX Studio for macOS or Windows
+- build the One OK Studio desktop app
+- package One OK Studio for macOS or Windows
 - create a DMG or EXE build
-- run the LumenX desktop build workflow
+- run the One OK Studio desktop build workflow
 - use `/lumenx-build`
 
 Treat that as a request to load and follow:
@@ -63,23 +63,23 @@ If both Claude and Codex guidance exist, preserve behavior parity unless the use
 
 After editing any file in `.claude/commands/` or `.codex/workflows/`, run `python3 scripts/check_workflow_parity.py` to verify mirror parity. Record intentional divergences with reasons in the script's `WAIVERS` table.
 
-# LumenX Product Family (Core + Studio + Atelier)
+# One OK Studio Product Family (Core + Studio + Atelier)
 
 ## Overview
 
-> **重要：项目已从单一产品演进为产品家族。** 旧记忆中"LumenX Studio = AI Comic Generator"的认知已过时。
+> **重要：项目已从单一产品演进为产品家族。** 旧记忆中"One OK Studio = AI Comic Generator"的认知已过时。
 
-LumenX 现在是一个 **产品家族**，由 Codex 主导推进了重要的架构演进：
+One OK Studio 现在是一个 **产品家族**，由 Codex 主导推进了重要的架构演进：
 
 ```text
-LumenX Core              # 共享后端/运行时/API capability
-├── LumenX Studio        # Pipeline-first 漫剧/视频生产产品（原 Comic Generator）
-└── LumenX Atelier       # Graph-first 个人创作无限画布产品（代码在独立分支开发中）
+One OK Studio Core              # 共享后端/运行时/API capability
+├── One OK Studio        # Pipeline-first 漫剧/视频生产产品（原 Comic Generator）
+└── One OK Studio Atelier       # Graph-first 个人创作无限画布产品（代码在独立分支开发中）
 ```
 
-- **LumenX Studio**：保持 pipeline-first（项目 → 剧本 → 分镜 → 资产 → R2V/I2V → 合成 → 导出）。面向工作室、团队、系列号。当前 Phase 1 重点：R2V workflow 稳定化。
-- **LumenX Atelier**：全新 graph-first 创作壳，面向个人创作者。"Seed → Plan → Draft Nodes → Generation → Takes → Judgment → Branches → Sequence → Export"。Agent 可在画布上提议、生成、变体探索。Atelier 代码在独立分支开发中（如 `feat/atelier-v4-canvas-uplift`），尚未合入 main。
-- **LumenX Core**：共享 model catalog、provider routing、media、generation jobs、export 等原语。Studio 与 Atelier 不共享前端状态，只共享 Core capability。
+- **One OK Studio**：保持 pipeline-first（项目 → 剧本 → 分镜 → 资产 → R2V/I2V → 合成 → 导出）。面向工作室、团队、系列号。当前 Phase 1 重点：R2V workflow 稳定化。
+- **One OK Studio Atelier**：全新 graph-first 创作壳，面向个人创作者。"Seed → Plan → Draft Nodes → Generation → Takes → Judgment → Branches → Sequence → Export"。Agent 可在画布上提议、生成、变体探索。Atelier 代码在独立分支开发中（如 `feat/atelier-v4-canvas-uplift`），尚未合入 main。
+- **One OK Studio Core**：共享 model catalog、provider routing、media、generation jobs、export 等原语。Studio 与 Atelier 不共享前端状态，只共享 Core capability。
 
 技术栈：Next.js 14 前端 + FastAPI 后端。生成通道只有韭菜盒子网关一家（`jiucaihezi/`）；
 DashScope 仅用于文本模型与 TTS。目录里的图片/视频模型（gpt-image、grok、gemini、
@@ -138,7 +138,7 @@ frontend/
 frontend/
 ├── src/app/page.tsx              # hash #/atelier 切换到 Atelier shell
 ├── src/components/
-│   └── atelier/                  # ★ LumenX Atelier 产品壳（独立，不允许引入 Studio 模块）
+│   └── atelier/                  # ★ One OK Studio Atelier 产品壳（独立，不允许引入 Studio 模块）
 │       ├── AtelierShell.tsx      # 全屏画布 + Agent 面板 + Sequence strip
 │       └── AgentPanelTrace.tsx   # Agent 历史/会话/规划态视图
 ├── src/store/
@@ -328,7 +328,7 @@ Packaged desktop app configuration and logs are stored under `~/.lumen-x/`:
 - `POST /projects/{id}/art_direction/save` - Save art direction
 - `GET /art_direction/presets` - Get style presets
 
-### LumenX Atelier（独立分支，合入后可用）
+### One OK Studio Atelier（独立分支，合入后可用）
 画布/节点 CRUD：
 - `POST /atelier/projects` / `GET /atelier/projects` / `GET|PUT|DELETE /atelier/projects/{id}`
 - `POST|PUT|DELETE /atelier/projects/{id}/nodes[/{node_id}]`
@@ -452,13 +452,13 @@ Strong success criteria enable autonomous looping; vague criteria like "make it 
 Primary: independent creators (self-media, short-video makers) who need to turn text scripts into comic-style videos quickly. Secondary: professional teams using it as a pre-production tool. Both share a need for speed and creative control — they think in stories, not in software.
 
 ### Brand Personality
-**Creative · Immersive · Geeky** — LumenX feels like a creator's cockpit, not an admin panel. It respects the user's craft while putting AI power at their fingertips. The tagline "Render Noise into Narrative" captures the mission: raw ideas in, polished stories out.
+**Creative · Immersive · Geeky** — One OK Studio feels like a creator's cockpit, not an admin panel. It respects the user's craft while putting AI power at their fingertips. The tagline "Render Noise into Narrative" captures the mission: raw ideas in, polished stories out.
 
 ### Aesthetic Direction
 - **Dark-first**: Deep space black (#050508) background, no light mode. The darkness lets content (images, videos, storyboards) be the hero.
 - **Glassmorphism**: Frosted glass panels (5% white + backdrop-blur) for structure. Layered transparency creates depth without clutter.
 - **Neon accents**: Electric blue (#646cff) primary, hot pink (#ff0080) accent. Used sparingly for interactive elements and emphasis — not decoration.
-- **Brand gradient**: Purple → Indigo → Pink (the "X" in LumenX). Reserved for branding moments, not sprinkled everywhere.
+- **Brand gradient**: Purple → Indigo → Pink (the "X" in One OK Studio). Reserved for branding moments, not sprinkled everywhere.
 - **Typography**: Space Grotesk (display/headings — geometric, modern), Inter (body — clean, readable), JetBrains Mono (code/technical values).
 - **Anti-references**: No dense tables/forms that feel like enterprise admin. No excessive particles/animations that distract from content. No multi-panel professional tool complexity (not Figma/Photoshop).
 

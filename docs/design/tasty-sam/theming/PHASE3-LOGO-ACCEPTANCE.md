@@ -1,14 +1,14 @@
 # PHASE 3 · Logo 联动验收清单（Tasty Sam → 落地 Agent）
 
 > 目的：把 `logo-adaptation.html` 的设计意图固化为 **pixel-level 可勾验收项**，让 Logo 随主题联动落地有唯一参照，杜绝亮色白底白字、teal 着色漏配、资产 404。
-> 真相源：`logo-adaptation.html`（设计稿）+ `frontend/src/components/layout/LumenXBranding.tsx`（落地组件）。
+> 真相源：`logo-adaptation.html`（设计稿）+ `frontend/src/components/layout/OneOkBranding.tsx`（落地组件）。
 > 状态图例：✅ 已落地（本轮核验通过）｜🟡 待补｜⚠️ 需关注。
 
 ---
 
 ## 0. 重大现状（核验后更新）
 
-**`LumenXBranding.tsx` 已提前完成改造**（工作区 modified，尚未 commit）。本清单从"待落地"转为"**落地验收 + 收尾**"。核验结论：组件实现与设计稿一致，仅剩资产提交、视觉巡检、暗色 logo 命名三处收尾。
+**`OneOkBranding.tsx` 已提前完成改造**（工作区 modified，尚未 commit）。本清单从"待落地"转为"**落地验收 + 收尾**"。核验结论：组件实现与设计稿一致，仅剩资产提交、视觉巡检、暗色 logo 命名三处收尾。
 
 ---
 
@@ -22,7 +22,7 @@
 | `atelier-light` | `/logo-light-teal.png`（深墨描边+teal核）| `none` | `text-foreground` | `text-primary`(teal) | #f6f1e9 | ✅ |
 | `brand-light` | `/logo-light.png`（深墨描边+蓝核）| `none` | `text-foreground` | `text-primary`(蓝) | #f8f9fa | ✅ |
 
-> 对照 `LumenXBranding.tsx`：`LOGO_SRC` 映射(L13-19) + `ATELIER_DARK_FILTER`(L21) + `text-foreground`(L49) + `text-primary`(L52) —— **逐格匹配设计稿，✅**。
+> 对照 `OneOkBranding.tsx`：`LOGO_SRC` 映射(L13-19) + `ATELIER_DARK_FILTER`(L21) + `text-foreground`(L49) + `text-primary`(L52) —— **逐格匹配设计稿，✅**。
 
 ---
 
@@ -64,7 +64,7 @@
 
 ## 4. 收尾动作（落地 Agent，按序）
 
-1. `git add public/logo-dark.png public/logo-light-teal.png public/logo-light.png`（连同 `LumenXBranding.tsx`）。
+1. `git add public/logo-dark.png public/logo-light-teal.png public/logo-light.png`（连同 `OneOkBranding.tsx`）。
 2. gstack 5 主题 × 2 侧栏截图巡检（§2.D）。
 3. （可选）清理 4 个废弃 logo PNG，删前全仓 grep。
 4. commit：建议 `feat(theme): Phase 3 — logo per-preset linkage + acceptance`。

@@ -1,11 +1,11 @@
 ---
 name: lumenx-build
-description: LumenX Studio desktop build workflow for macOS DMG and Windows EXE packaging.
+description: One OK Studio desktop build workflow for macOS DMG and Windows EXE packaging.
 ---
 
-# LumenX Studio Desktop Build Workflow
+# One OK Studio Desktop Build Workflow
 
-Use this workflow when the user asks to build, package, or prepare a desktop release of LumenX Studio for macOS or Windows.
+Use this workflow when the user asks to build, package, or prepare a desktop release of One OK Studio for macOS or Windows.
 
 ## Prerequisites
 
@@ -51,20 +51,20 @@ Expected build flow:
 Expected outputs:
 
 ```text
-dist_mac/LumenX Studio.app
-dist_mac/LumenX Studio.dmg
+dist_mac/One OK Studio.app
+dist_mac/One OK Studio.dmg
 ```
 
 Smoke test:
 
 ```bash
-open "dist_mac/LumenX Studio.app"
+open "dist_mac/One OK Studio.app"
 ```
 
 Common macOS issues:
 
 - FFmpeg missing: `brew install ffmpeg`
-- DMG creation failed: `hdiutil detach "/Volumes/LumenX Studio"`
+- DMG creation failed: `hdiutil detach "/Volumes/One OK Studio"`
 - Signing or Gatekeeper issue: open the app via right click and choose Open on first launch
 
 ## Windows Build (.exe)
@@ -86,7 +86,7 @@ Expected build flow:
 Expected output:
 
 ```text
-dist_windows\LumenX Studio.exe
+dist_windows\One OK Studio.exe
 ```
 
 Common Windows issues:

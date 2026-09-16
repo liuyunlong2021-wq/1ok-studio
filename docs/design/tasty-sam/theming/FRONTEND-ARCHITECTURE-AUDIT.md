@@ -1,4 +1,4 @@
-# FRONTEND-ARCHITECTURE-AUDIT · LumenX Studio 前端架构审计
+# FRONTEND-ARCHITECTURE-AUDIT · One OK Studio 前端架构审计
 
 > **定位**：独立审计文档，**不属于本期换肤范围**。供「换肤 + 后端接线」验收稳定**之后**的下一期前端改造使用。
 > **方法**：全部基于真实代码核实（`frontend/src/**`、`next.config.mjs`、`package.json`），逐条带文件路径/行数，非凭印象。

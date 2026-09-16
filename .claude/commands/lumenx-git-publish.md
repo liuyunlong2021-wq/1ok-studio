@@ -1,8 +1,8 @@
 ---
-description: LumenX GitHub 发布流程 - 安全提交、敏感数据扫描、推送到 GitHub 公开仓库
+description: One OK Studio GitHub 发布流程 - 安全提交、敏感数据扫描、推送到 GitHub 公开仓库
 ---
 
-# LumenX GitHub 发布流程
+# One OK Studio GitHub 发布流程
 
 此 skill 整合了从本地开发到 GitHub 公开仓库的完整发布流程，包含安全检查和规范约束。
 

@@ -1,4 +1,4 @@
-"""Tests for LumenX Core shared-asset-pool *Wave A* (feeding channels):
+"""Tests for One OK Studio Core shared-asset-pool *Wave A* (feeding channels):
 
   - library CRUD: create_library_asset (character/scene/prop) + list +
     update + delete (persisted to library_assets.json).

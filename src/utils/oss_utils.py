@@ -87,7 +87,7 @@ class OSSImageUploader:
         if self._initialized:
             return
 
-        # LumenX uses Jiucaihezi for managed media uploads. Keep the legacy
+        # One OK Studio uses Jiucaihezi for managed media uploads. Keep the legacy
         # OSS adapter inert so missing/placeholder OSS credentials cannot
         # trigger network initialization or storage warnings.
         if not is_oss_enabled():

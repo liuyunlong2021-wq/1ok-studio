@@ -5,7 +5,7 @@
 > Scope: Specification only  
 > Purpose: Define a concrete shared catalog language that can be consumed by:
 >
-> 1. **LumenX** as a product/UI system
+> 1. **One OK Studio** as a product/UI system
 > 2. **video-generator** as a CLI/runtime execution system
 
 Related addendum:
@@ -18,7 +18,7 @@ Related addendum:
 
 We now have two mature-but-separate catalog systems:
 
-- LumenX catalog is strong at:
+- One OK Studio catalog is strong at:
   - frontend visibility
   - defaults
   - fallback normalization
@@ -44,7 +44,7 @@ This spec does **not** require:
 - one shared Python loader immediately
 - one shared TypeScript adapter immediately
 - full runtime auto-generation from catalog on day one
-- removal of existing LumenX consumer behavior in the same iteration
+- removal of existing One OK Studio consumer behavior in the same iteration
 - removal of existing video-generator request builders in the same iteration
 
 This spec is about **schema convergence first**, code convergence later.
@@ -80,7 +80,7 @@ The shared core should describe **model facts**.
 
 Consumer-specific needs should be expressed as overlays:
 
-- `product` overlay for LumenX
+- `product` overlay for One OK Studio
 - `runtime` overlay for video-generator and runtime execution
 
 ### Principle 3: The schema should support partial consumption
@@ -89,7 +89,7 @@ Consumers should be allowed to ignore fields they do not need.
 
 Examples:
 
-- LumenX may ignore `runtime.vendor.submit_url`
+- One OK Studio may ignore `runtime.vendor.submit_url`
 - video-generator may ignore `product.visible_in`
 
 ### Principle 4: Documentation traceability is mandatory for active support
@@ -103,7 +103,7 @@ Every active model line or active mode should be traceable to:
 
 Defaults must be declared at the correct level:
 
-- root-level product defaults for LumenX model settings
+- root-level product defaults for One OK Studio model settings
 - mode-level defaults for runtime execution
 - family-level backend defaults where appropriate
 
@@ -111,7 +111,7 @@ Defaults must be declared at the correct level:
 
 Schema evolution should not immediately break:
 
-- existing saved LumenX projects
+- existing saved One OK Studio projects
 - existing frontend model selectors
 - existing runtime adapters
 - existing CLI calls in video-generator
@@ -250,7 +250,7 @@ Requirements:
 
 Purpose:
 
-- Product-level defaults for consumers like LumenX
+- Product-level defaults for consumers like One OK Studio
 
 Required keys:
 
@@ -574,7 +574,7 @@ Consumers may transform names in generated compatibility layers.
 
 ### 10.3 Compatibility note
 
-LumenX frontend currently uses camelCase-like keys in some places:
+One OK Studio frontend currently uses camelCase-like keys in some places:
 
 - `negativePrompt`
 - `promptExtend`
@@ -589,7 +589,7 @@ This spec recommends:
 
 ## 11. Runtime Overlay Schema
 
-Runtime overlay is for execution engines like video-generator and future LumenX runtime consumers.
+Runtime overlay is for execution engines like video-generator and future One OK Studio runtime consumers.
 
 ### 11.1 Runtime backend block
 
@@ -639,7 +639,7 @@ runtime:
 
 ## 12. Product Overlay Schema
 
-Product overlay is for UI and product-facing systems like LumenX.
+Product overlay is for UI and product-facing systems like One OK Studio.
 
 ### 12.1 Product block
 
@@ -831,9 +831,9 @@ During transition, authoring tools may allow:
 
 But the build step should normalize them into the new mode-aware generated contract.
 
-### 15.2 LumenX compatibility
+### 15.2 One OK Studio compatibility
 
-LumenX currently expects:
+One OK Studio currently expects:
 
 - frontend-friendly lists by selection group
 - product defaults like `t2i_model`, `i2i_model`, `i2v_model`
@@ -873,7 +873,7 @@ Deliverables:
   - core vs overlay split
   - generated compatibility artifacts
 
-### Phase 1 — Upgrade LumenX authoring schema
+### Phase 1 — Upgrade One OK Studio authoring schema
 
 Goal:
 
@@ -889,11 +889,11 @@ Goal:
 - generate alias map for legacy IDs
 - keep existing persisted projects valid
 
-### Phase 3 — Add runtime overlay fields to LumenX
+### Phase 3 — Add runtime overlay fields to One OK Studio
 
 Goal:
 
-- allow LumenX to gradually become runtime-profile aware
+- allow One OK Studio to gradually become runtime-profile aware
 - do not immediately replace all adapter logic
 
 ### Phase 4 — Align video-generator source schema
@@ -949,7 +949,7 @@ For v0.1, these are acceptable to leave open as long as the migration plan prese
 ### Do not do immediately
 
 1. do not force shared code library yet
-2. do not break LumenX frontend consumer contracts yet
+2. do not break One OK Studio frontend consumer contracts yet
 3. do not replace video-generator runtime builders yet
 4. do not redesign phase-1 routing around gateway-first logic
 
@@ -968,4 +968,4 @@ That is the safest path because it:
 
 ### One-sentence summary
 
-> Define one canonical model catalog grammar, then let LumenX and video-generator consume different normalized views of the same truth.
+> Define one canonical model catalog grammar, then let One OK Studio and video-generator consume different normalized views of the same truth.

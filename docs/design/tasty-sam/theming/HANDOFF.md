@@ -1,4 +1,4 @@
-# HANDOFF · LumenX Studio 多主题系统 + 模态补稿
+# HANDOFF · One OK Studio 多主题系统 + 模态补稿
 
 > **本文件的唯一目的**：让任何接手者（包括上下文被压缩后的我、或项目原 Agent）只读这一份就能安全各司其职、零返工、零功能删减。
 > 设计方：**Tasty Sam**（前端设计/主题/Logo/页面规格）。落地方建议：**项目原 Agent**（真实 Next.js 接入 + 后端数据流）。
@@ -37,7 +37,7 @@
 |------|------|----------|
 | `tokens.css` | ★可落地：5 个 `[data-theme]` block，命名 100% 对齐现有 `globals.css`；seed→semantic→component 三层 | 并入 globals.css |
 | `theme-switch-demo.html` | 顶部扁平预设列表 + 同一工作台 DOM 实时换 5 主题 + Logo 联动 | 验证用 |
-| `logo-adaptation.html` | Logo × 5 主题联动矩阵 + 落地规则 | 接 LumenXBranding |
+| `logo-adaptation.html` | Logo × 5 主题联动矩阵 + 落地规则 | 接 OneOkBranding |
 | `THEME-TOKENS.md` | 三层架构说明 + 变量清单 + data-theme↔html.class 等价 | 落地依据 |
 | `README.md` | 五主题导览 + 四步接线说明 | 落地依据 |
 
@@ -82,7 +82,7 @@
 - `logo-light-teal.png`（新）：深墨 `#1e1b26` 描边 + teal `#1d9c8d` 核心 → `atelier-light`。
 - `logo-light.png`（重制覆盖）：深墨 `#1e1b26` 描边 + 蓝 `#4a54e6` 核心 → `brand-light`。
 
-**落地接线**（`LumenXBranding.tsx` 必改，详见 `logo-adaptation.html`）：
+**落地接线**（`OneOkBranding.tsx` 必改，详见 `logo-adaptation.html`）：
 1. 写死的 `src="/LumenX-cybr.png"` → 按 presetId 切：暗 → `/LumenX-cybr.png`；`atelier-light` → teal PNG；`brand-light` → 蓝 PNG。
 2. `atelier-dark` 加内联 `filter: hue-rotate(-64deg) saturate(1.35) brightness(1.08)` 把蓝着成 teal；其余 `none`。
 3. wordmark 文字色：`text-white` → `var(--color-text-primary)`；"X" `#646cff` → `var(--color-primary)`；slogan/Studio → secondary/muted token。**（修复亮色下白底白字不可读）**
@@ -105,7 +105,7 @@
 1. **store 枚举升级** `settingsStore.ts`：`Theme` → `ThemePreset`（5 值），默认 `'atelier-dark'`；persist `migrate` 旧值 `'dark'→'brand-dark'`、`'light'→'brand-light'`。
 2. **globals.css 并入** `tokens.css` 5 block：选择器 `:root[data-theme="<id>"]` → `html.<id>`，默认 `:root` 复用 `atelier-dark`；新增变量（`--color-primary`/`--halation`/`--font-display` 等）一并加入。
 3. **tailwind.config.ts 主色变量化**（唯一须动配置）：`primary/secondary/accent` 硬编码 hex → `var(--color-primary)` 等。**这是主色能随主题翻转的关键。**
-4. **Providers + layout + Logo**：`Providers.tsx` class 列表扩 5 值；`layout.tsx` 防闪烁内联脚本白名单扩 5 + 默认 `atelier-dark`；`LumenXBranding.tsx` 按 §3 改造。
+4. **Providers + layout + Logo**：`Providers.tsx` class 列表扩 5 值；`layout.tsx` 防闪烁内联脚本白名单扩 5 + 默认 `atelier-dark`；`OneOkBranding.tsx` 按 §3 改造。
 5. **设置页**：加一排扁平主题预设卡（5 张，参考三页右上角 `.themepick` 视觉）。
 6. **模态接线**：三个模态本就存在于代码，落地只需「换肤（颜色走 token）」+ 对照各模态风险表保持交互逻辑不变，**不要重构布局**。
 
@@ -145,7 +145,7 @@
 ## 7. 关键参考文件（只读，保一致性）
 
 - 主题基建：`frontend/src/store/settingsStore.ts`、`frontend/src/app/globals.css`、`frontend/src/components/Providers.tsx`、`frontend/src/app/layout.tsx`、`frontend/tailwind.config.ts`
-- Logo：`frontend/src/components/layout/LumenXBranding.tsx`、`frontend/public/{LumenX-cybr.png,LumenX-cybr-transparent.png}`
+- Logo：`frontend/src/components/layout/OneOkBranding.tsx`、`frontend/public/{LumenX-cybr.png,LumenX-cybr-transparent.png}`
 - 侧栏/步骤：`frontend/src/components/layout/PipelineSidebar.tsx`（lucide 图标）、`frontend/src/components/project/ProjectClient.tsx`（`UNIFIED_STEPS`/`LEGACY_STEPS` 定义）
 - 数据/接线：`frontend/src/lib/api.ts`（全部端点）、`frontend/src/store/{projectStore,settingsStore,toastStore}.ts`、`frontend/src/components/modules/StoryboardR2V.tsx`（顶层 orchestrator，所有 api.* 汇聚处）
 - 模态源码：`frontend/src/components/modules/storyboard-r2v/shot-panel/CompareModal.tsx`、`.../DialogueAudioRow.tsx`、`.../StoryboardGenerateDialog.tsx`、`.../PromptExpandModal.tsx`、`.../PolishPanel.tsx`
@@ -168,7 +168,7 @@
 | `PolishPanel.tsx` | 不动逻辑 | 仅换肤 | `api.polishR2VPrompt` / `api.polishVideoPrompt` |
 | `PreviousEpisodeFramesRail.tsx` | 不动逻辑 | 仅换肤 | `api.getPreviousEpisodeSummary` |
 | `GenerationBanner.tsx` / `StoryboardGenerateDialog.tsx` / `PromptExpandModal.tsx` / `AssetDrawer.tsx` / `AssetChipBar.tsx` / `TaskQueuePanel.tsx` / `TaskQueueButton.tsx` | 不动逻辑 | 仅换肤 | 无后端调用，全 callback 委托 |
-| `LumenXBranding.tsx` | **改造** | Logo src 按 preset 切 + wordmark 文字 token 化（§3）| 无 |
+| `OneOkBranding.tsx` | **改造** | Logo src 按 preset 切 + wordmark 文字 token 化（§3）| 无 |
 | `PipelineSidebar.tsx` | **不动** | 图标已是 lucide，**零改动** | 无 |
 | `settingsStore.ts` | **替换枚举** | `Theme`→`ThemePreset`(5 值) + persist migrate | 无（纯前端态）|
 | `globals.css` / `tailwind.config.ts` / `Providers.tsx` / `layout.tsx` | **改造** | token block / 主色变量化 / class 列表 / 防闪烁脚本（§4）| 无 |

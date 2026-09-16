@@ -1,8 +1,8 @@
-# LumenX Unified Model Catalog Phase 2 Implementation Plan
+# One OK Studio Unified Model Catalog Phase 2 Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Move LumenX from a Phase 1 additive model-catalog foundation to a Phase 2 consumer-aware model system, where backend/frontend consumers begin to meaningfully use canonical mode-aware metadata while preserving flat compatibility IDs, existing UI behavior, and current saved project compatibility.
+**Goal:** Move One OK Studio from a Phase 1 additive model-catalog foundation to a Phase 2 consumer-aware model system, where backend/frontend consumers begin to meaningfully use canonical mode-aware metadata while preserving flat compatibility IDs, existing UI behavior, and current saved project compatibility.
 
 **Architecture:** Phase 2 is still a compatibility-first evolution, not a big-bang migration. The key shift is that the app should stop treating `model_lines`, `modes`, and `compat` as passive additive metadata and start treating them as a real internal source of truth for normalization, runtime metadata access, route-vs-selection behavior, and future platform/gateway growth. Flat IDs remain the persisted and consumer-facing compatibility layer unless and until a later dedicated migration phase is approved.
 

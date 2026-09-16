@@ -1,4 +1,4 @@
-# LumenX 前端主题化 + Playground 还债 — 后端侧实施规划
+# One OK Studio 前端主题化 + Playground 还债 — 后端侧实施规划
 
 > 落地方：项目原 Agent（我）。设计方：Tasty Sam（handoff 已交付）。
 > 本文档是我这侧的执行计划 + 关键决策登记。每完成一个 Phase 即 commit（遵循 atomic commit 规则）。
@@ -76,7 +76,7 @@
 ### Phase 2+（本次先不做，等你看完 Phase 0-1 效果再定）
 
 - shared / cast / storyboard-r2v 的 171 white-alpha 批量转
-- Logo 联动（LumenXBranding 按 preset 切 src + filter）
+- Logo 联动（OneOkBranding 按 preset 切 src + filter）
 - 模态换肤微调
 
 ---

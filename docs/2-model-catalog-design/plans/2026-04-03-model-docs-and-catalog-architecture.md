@@ -1,10 +1,10 @@
-# LumenX Model Docs And Catalog Architecture Plan
+# One OK Studio Model Docs And Catalog Architecture Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a durable model-adaptation architecture for LumenX so official model docs can be archived, AI-friendly integration knowledge can be updated continuously, and model support in code can scale without scattered hardcoded defaults.
+**Goal:** Build a durable model-adaptation architecture for One OK Studio so official model docs can be archived, AI-friendly integration knowledge can be updated continuously, and model support in code can scale without scattered hardcoded defaults.
 
-**Architecture:** Split the problem into three layers with strict ownership. Keep raw vendor docs in a separate archive repo as the auditable source of truth. Use Context Hub as the AI-facing knowledge layer that distills integration-critical details from those raw docs plus project-specific experience. Add a machine-readable `model_catalog` inside the LumenX repo as the executable source of truth for model families, versions, capabilities, provider routing, UI exposure, and test coverage.
+**Architecture:** Split the problem into three layers with strict ownership. Keep raw vendor docs in a separate archive repo as the auditable source of truth. Use Context Hub as the AI-facing knowledge layer that distills integration-critical details from those raw docs plus project-specific experience. Add a machine-readable `model_catalog` inside the One OK Studio repo as the executable source of truth for model families, versions, capabilities, provider routing, UI exposure, and test coverage.
 
 **Tech Stack:** Independent markdown archive repo, `url-to-markdown` ingestion flow, Context Hub source packages, YAML/JSON model catalog, FastAPI, Pydantic, existing provider routing layer under `src/utils/`, Next.js/React frontend, pytest, Vitest.
 
@@ -12,7 +12,7 @@
 
 ## Why This Exists
 
-LumenX is now in a zone where model churn is a product constraint, not a one-off maintenance task.
+One OK Studio is now in a zone where model churn is a product constraint, not a one-off maintenance task.
 
 Current pressure points:
 
@@ -65,7 +65,7 @@ The MVP should make model support structured and maintainable, not fully autonom
 
 **Repository recommendation:** separate private repo, for example `lumenx-vendor-docs`.
 
-**Why separate from the main LumenX repo:**
+**Why separate from the main One OK Studio repo:**
 
 - Vendor docs can be bulky, noisy, and frequently updated.
 - Some docs may require auth, cookies, or regional access.
@@ -138,7 +138,7 @@ lumenx-vendor-docs/
 
 **Purpose:** Give the coding agent the shortest path from vendor docs to implementation decisions.
 
-**System recommendation:** Context Hub source package maintained by the LumenX team.
+**System recommendation:** Context Hub source package maintained by the One OK Studio team.
 
 **Why this is a separate layer:**
 
@@ -156,7 +156,7 @@ lumenx-vendor-docs/
 - Region constraints
 - Duration and resolution limits
 - Known error patterns
-- LumenX-specific compatibility notes
+- One OK Studio-specific compatibility notes
 
 **What does not belong here:**
 
@@ -234,7 +234,7 @@ lumenx-ai-context/
 - Async polling:
 - Expiration behavior:
 
-## LumenX integration notes
+## One OK Studio integration notes
 - Provider backend mode:
 - Transport mapping:
 - Known pitfalls:
@@ -248,13 +248,13 @@ lumenx-ai-context/
 
 ### Layer 3: Executable Model Catalog
 
-**Purpose:** Make model support in LumenX data-driven and enforce a single source of truth for runtime behavior.
+**Purpose:** Make model support in One OK Studio data-driven and enforce a single source of truth for runtime behavior.
 
 This is the most important new layer.
 
 `model_catalog` should answer these questions:
 
-- Which models does LumenX know about?
+- Which models does One OK Studio know about?
 - Which models are active, recommended, deprecated, or experimental?
 - Which capabilities does each model support?
 - Which provider backends are allowed for this model family?
@@ -263,7 +263,7 @@ This is the most important new layer.
 - Which defaults and parameter controls should be rendered?
 - Which docs and tests are associated with the model?
 
-If raw docs answer "what the vendor says", `model_catalog` answers "what LumenX supports".
+If raw docs answer "what the vendor says", `model_catalog` answers "what One OK Studio supports".
 
 ## Why `model_catalog` Matters
 
@@ -287,7 +287,7 @@ This is not just a config file. It is a platform contract.
 
 ## Proposed `model_catalog` Structure
 
-**Repository location:** inside the main LumenX repo.
+**Repository location:** inside the main One OK Studio repo.
 
 **Recommended layout:**
 
@@ -463,7 +463,7 @@ docs:
 
 ### `model_catalog` owns
 
-- what LumenX exposes
+- what One OK Studio exposes
 - runtime defaults
 - provider routing availability
 - UI visibility
@@ -492,7 +492,7 @@ flowchart TD
     E --> L["Test matrix generation"]
 ```
 
-## How This Fits The Current LumenX Codebase
+## How This Fits The Current One OK Studio Codebase
 
 ### Existing code that should eventually consume the catalog
 
@@ -520,7 +520,7 @@ The MVP should not try to solve everything. It should prove the architecture wit
 
 ### MVP goals
 
-- Introduce a valid `model_catalog` format inside LumenX.
+- Introduce a valid `model_catalog` format inside One OK Studio.
 - Move the current active model definitions for Wan, Kling, Vidu, and Pixverse into the catalog.
 - Generate one runtime JSON artifact from the YAML catalog.
 - Generate a frontend-local JSON mirror from the same catalog build step.
@@ -542,7 +542,7 @@ The MVP should not try to solve everything. It should prove the architecture wit
 
 ## MVP File Plan
 
-### New files in the LumenX repo
+### New files in the One OK Studio repo
 
 - Create: [`config/model_catalog/catalog.meta.yaml`](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/config/model_catalog/catalog.meta.yaml)
 - Create: [`config/model_catalog/families/wan.yaml`](/Users/hoshinoren/Documents/code/project/video_gen/gitlab/tron-comic/config/model_catalog/families/wan.yaml)

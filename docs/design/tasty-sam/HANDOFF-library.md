@@ -1,5 +1,5 @@
   ---
-  交接文档 — LumenX Studio 资产库 Line B 保真度(续)
+  交接文档 — One OK Studio 资产库 Line B 保真度(续)
 
   ⚡ 新会话第一件事(最重要)
 

@@ -1,4 +1,4 @@
-# LumenX Studio · 多主题系统（可落地）
+# One OK Studio · 多主题系统（可落地）
 
 > Tasty Sam 交付 · 纯设计 + 可落地蓝图，**零侵入**（不改任何现有代码，全部新增于 `docs/design/tasty-sam/theming/`）。
 > 把「Warm Bridge vs Full Atelier 二选一」升级为**用户可选的 5 个预设主题**，Full Atelier 默认；换主题时 Logo 一并联动；在三个暗色主题上再加两个亮色主题。
@@ -83,7 +83,7 @@ html.classList.add(theme);
 
 // layout.tsx 防闪烁内联脚本：白名单扩成 5 个 preset，默认 'atelier-dark'
 
-// LumenXBranding.tsx（必须改造，详见 logo-adaptation.html）：
+// OneOkBranding.tsx（必须改造，详见 logo-adaptation.html）：
 //  - src 写死 → 按 preset 切（暗 /LumenX-cybr.png；亮 各自亮色 PNG）
 //  - "LUMEN" text-white → text-[color:var(--color-text-primary)]
 //  - "X" text-[#646cff] → text-[color:var(--color-primary)]

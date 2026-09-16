@@ -779,7 +779,7 @@ class Series(BaseModel):
 
 
 class GlobalAssetLibrary(BaseModel):
-    """Project-independent global asset pool (LumenX Core shared library).
+    """Project-independent global asset pool (One OK Studio Core shared library).
 
     A single top-level curated container of reusable assets that any
     project may reference by id. It is the *lowest* layer in the

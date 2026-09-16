@@ -111,7 +111,7 @@ else
 fi
 
 pyinstaller --clean --noconfirm \
-    --name "LumenX Studio" \
+    --name "One OK Studio" \
     --windowed \
     $ICON_PARAM \
     --add-data "static:static" \
@@ -163,7 +163,7 @@ cp -r dist/* dist_mac/
 echo "8. 创建 DMG 安装包..."
 
 # 定义 DMG 文件名和路径
-APP_NAME="LumenX Studio"
+APP_NAME="One OK Studio"
 DMG_NAME="${APP_NAME}.dmg"
 DMG_PATH="dist_mac/${DMG_NAME}"
 APP_PATH="dist_mac/${APP_NAME}.app"

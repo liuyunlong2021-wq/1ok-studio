@@ -4,7 +4,7 @@
 
 Use this folder for:
 
-- temporary raw-document captures when only the LumenX repo is available
+- temporary raw-document captures when only the One OK Studio repo is available
 - implementation evidence attached to a model onboarding PR
 - local review of vendor request/response examples while updating `model_catalog`
 

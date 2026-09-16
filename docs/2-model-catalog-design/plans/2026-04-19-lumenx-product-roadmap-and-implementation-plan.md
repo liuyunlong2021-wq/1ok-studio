@@ -1,8 +1,8 @@
-# LumenX Product Roadmap And Implementation Plan
+# One OK Studio Product Roadmap And Implementation Plan
 
 > **For Claude/Codex:** This is a planning artifact for roadmap alignment and future implementation sequencing. It is intentionally product-facing first, but each initiative includes concrete codebase touchpoints so it can be turned into execution plans later.
 
-**Goal:** Provide a prioritized product roadmap for LumenX after the recent model-catalog, onboarding, no-OSS, provider-routing, and dev-runtime work, while incorporating the newly proposed feature directions:
+**Goal:** Provide a prioritized product roadmap for One OK Studio after the recent model-catalog, onboarding, no-OSS, provider-routing, and dev-runtime work, while incorporating the newly proposed feature directions:
 
 1. Chinese / English language switch
 2. Day / night theme switch (night remains the default)
@@ -10,7 +10,7 @@
 4. Add an infinite-canvas creation mode
 5. Add a sidebar `video_agent` capability inspired by Claude / OpenAI agent-sdk workflows
 
-**Architecture framing:** LumenX should continue evolving along three interacting axes:
+**Architecture framing:** One OK Studio should continue evolving along three interacting axes:
 
 - **Platform axis** — model catalog, onboarding, provider/gateway routing, local-first media, runtime reliability
 - **Creation axis** — script → asset → storyboard → motion → export workflow plus new infinite-canvas mode
@@ -22,7 +22,7 @@
 
 ## 1. Strategic framing
 
-The next stage of LumenX should not be “add random features.”  
+The next stage of One OK Studio should not be “add random features.”  
 It should be a deliberate shift from:
 
 - a capable but still evolving AI comic generation tool
@@ -187,7 +187,7 @@ This broadens real usability immediately.
 
 **Why now**
 
-LumenX already contains mixed Chinese / English copy in:
+One OK Studio already contains mixed Chinese / English copy in:
 
 - layout
 - settings
@@ -444,7 +444,7 @@ Current series support already exists, but later phases can deepen:
 
 ### P2.2 — Templates / presets / workflow bundles
 
-This is where LumenX can become more production-efficient for repeated output types.
+This is where One OK Studio can become more production-efficient for repeated output types.
 
 ### P2.3 — Gateway/platform active routing support
 
