@@ -1,5 +1,6 @@
 import axios from "axios";
 import { DEFAULT_I2V_MODEL_ID } from "@/lib/modelCatalog";
+import { isTauri } from "@/lib/transport";
 import type { AudioPlan, AudioTake } from "@/store/projectStore";
 
 export type AssetContract = {
@@ -37,8 +38,24 @@ const getApiUrl = (): string => {
     if (typeof window !== 'undefined') {
         const { protocol, hostname, port } = window.location;
 
-        // Tauri desktop: frontend served via tauri:// protocol, backend on localhost.
-        if (protocol === 'tauri:' || protocol === 'https:' && hostname === 'tauri.localhost') {
+        // Desktop: the webview serves the frontend itself, so the backend has to
+        // be addressed explicitly by host and port.
+        //
+        // The origin differs per platform, and that is the whole trap here.
+        // Tauri v2 serves the app from the `tauri:` scheme on macOS, but from
+        // `http://tauri.localhost` on Windows and Linux. Matching only `tauri:`
+        // or `https://tauri.localhost` therefore missed Windows completely: the
+        // condition fell through to the same-origin branch below, API_URL became
+        // the webview's own address, and every request went to Tauri's asset
+        // protocol instead of the backend. That protocol answers unknown paths
+        // with the SPA's index.html and a 200, so the app received HTML where it
+        // expected JSON and died on the first `.map` of the response.
+        const isDesktopOrigin =
+            protocol === 'tauri:' ||
+            hostname === 'tauri.localhost' ||
+            isTauri();
+
+        if (isDesktopOrigin) {
             return `http://127.0.0.1:${BACKEND_PORT}`;
         }
 
@@ -48,7 +65,8 @@ const getApiUrl = (): string => {
             return `${protocol}//${hostname}:${BACKEND_PORT}`;
         }
 
-        // Production / packaged: frontend is served by the backend → same origin.
+        // Production / packaged (pywebview): frontend is served by the backend →
+        // same origin.
         return `${protocol}//${hostname}${port ? ':' + port : ''}`;
     }
 
