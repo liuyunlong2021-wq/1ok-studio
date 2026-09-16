@@ -485,6 +485,28 @@ export default function SettingsPage() {
     </div>
   );
 
+  /** 全局文本模型选择器 —— 「模型」与「默认 Prompt」两页共用这一份渲染。
+   *
+   *  两页读的是同一个 state（globalTextModel）、用的是同一个 handler
+   *  （handleSelectTextModel，点击即 PUT /settings/text_model），所以在一页改、
+   *  另一页立刻跟着变 —— 不需要任何额外的同步逻辑。
+   */
+  const renderGlobalTextModelRow = () => (
+    <FormRow label="全局文本模型" hint="用于剧本分析、实体提取、提示词生成与润色；全局一个，所有项目共用">
+      <GroupedModelGrid
+        models={GLOBAL_TEXT_MODELS}
+        selectedId={globalTextModel}
+        onSelect={handleSelectTextModel}
+      />
+      {textModelSaving && (
+        <p className="mt-2 flex items-center gap-1 text-xs text-text-muted">
+          <Loader2 size={12} className="animate-spin" />
+          {t("saving")}
+        </p>
+      )}
+    </FormRow>
+  );
+
   const renderModels = () => (
     <Section
       id="models"
@@ -492,19 +514,7 @@ export default function SettingsPage() {
       desc={t("secModelsDesc")}
     >
       {/* 全局文本模型：后端单源，点击即写、立即对全项目生效。 */}
-      <FormRow label="全局文本模型" hint="用于剧本分析、实体提取、提示词生成与润色；全局一个，所有项目共用">
-        <GroupedModelGrid
-          models={GLOBAL_TEXT_MODELS}
-          selectedId={globalTextModel}
-          onSelect={handleSelectTextModel}
-        />
-        {textModelSaving && (
-          <p className="mt-2 flex items-center gap-1 text-xs text-text-muted">
-            <Loader2 size={12} className="animate-spin" />
-            {t("saving")}
-          </p>
-        )}
-      </FormRow>
+      {renderGlobalTextModelRow()}
 
       {/* Image model (T2I + I2I unified) */}
       <FormRow label={t("imageModelLabel")} hint={t("imageModelHint")}>
@@ -619,11 +629,22 @@ export default function SettingsPage() {
   ];
 
   const renderPrompts = () => (
-    <Section
-      id="prompts"
-      title={t("secPromptsTitle")}
-      desc={t("secPromptsDesc")}
-    >
+    <>
+      {/* 模型放最上面：提示词和模型是配套的，一个决定“怎么写”、一个决定“谁来写”。
+          和「模型」页共用同一个选择器，在任一边改都会同步。 */}
+      <Section
+        id="prompts-model"
+        title="文本模型"
+        desc="选定后全应用通用：剧本分析、实体提取、提示词生成与润色都用它。与「模型」页是同一个开关，改哪边都一样。"
+      >
+        {renderGlobalTextModelRow()}
+      </Section>
+
+      <Section
+        id="prompts"
+        title={t("secPromptsTitle")}
+        desc={t("secPromptsDesc")}
+      >
       <div className="space-y-5">
         {PROMPT_FIELDS.map((f) => (
           <div key={f.key} className="space-y-2">
@@ -650,6 +671,7 @@ export default function SettingsPage() {
         </button>
       </div>
     </Section>
+    </>
   );
 
   const renderApiKeys = () => (

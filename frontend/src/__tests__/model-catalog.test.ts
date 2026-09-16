@@ -76,6 +76,9 @@ describe('model catalog selectors', () => {
         ];
 
         for (const models of selectors) {
+            // 空的选择器就是 bug —— 它渲染成一片空白，用户看不出是「没模型」还是「坏了」。
+            // 原来这条只查了家族，所以 GLOBAL_TEXT_MODELS 被清空也测不出来。
+            expect(models.length).toBeGreaterThan(0);
             expect(models.every((model) => model.family === 'jiucaihezi')).toBe(true);
         }
         // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
