@@ -44,12 +44,8 @@ hiddenimports = [
     'starlette.staticfiles',
     'fastapi',
     'pydantic',
-    # 阿里云 SDK
+    # 阿里云 SDK（DashScope：文本模型与 TTS）
     'dashscope',
-    'oss2',
-    'alibabacloud_videoenhan20200320',
-    'alibabacloud_tea_openapi',
-    'alibabacloud_tea_util',
     # 其他
     'yaml',
     'dotenv',

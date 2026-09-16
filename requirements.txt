@@ -18,12 +18,6 @@ requests>=2.31.0
 pyyaml>=6.0
 PyJWT>=2.8.0
 
-# Cloud Services
-alibabacloud-videoenhan20200320>=1.0.0
-alibabacloud-tea-openapi>=0.3.0
-alibabacloud-tea-util>=0.3.0
-# 仍被 src/utils/oss_utils.py 顶层 import（OSS 已禁用但代码待清理，见 C 档）
-oss2>=2.18.0
 # Audio Processing
 demucs>=4.0.0
 soundfile>=0.12.0

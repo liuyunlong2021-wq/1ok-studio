@@ -134,7 +134,6 @@ Remove-Item -Force (Join-Path $OutputDir "$BinaryName.spec") -ErrorAction Silent
     --hidden-import=dotenv `
     --hidden-import=yaml `
     --hidden-import=dashscope `
-    --hidden-import=oss2 `
     --hidden-import=dashscope.audio.tts_v2 `
     --exclude-module=demucs `
     --exclude-module=torch `
