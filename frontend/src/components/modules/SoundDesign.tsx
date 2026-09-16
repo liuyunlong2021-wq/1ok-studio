@@ -14,22 +14,30 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    AlertTriangle, ArrowRight, Check, Download, Play, Square, Volume2, Wand2,
+    AlertTriangle, ArrowRight, Check, Download, Loader2, Play, Square, Volume1, Volume2, Wand2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
-import { api, type CustomVoice } from "@/lib/api";
+import { api, type CustomVoice, type SkillPackageSummary } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 import { toast } from "@/store/toastStore";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
-import { buildThirtySecondMarks, formatClock } from "@/lib/audioTimeline";
-import type { AudioTake } from "@/store/projectStore";
+import SkillPicker, { skillNameFor } from "@/components/shared/SkillPicker";
+import { buildSubMarks, buildThirtySecondMarks, formatClock } from "@/lib/audioTimeline";
+import { isAudioJobRunning, type AudioTake } from "@/store/projectStore";
 
 const MAX_REFERENCE_AUDIOS = 3;
 
 /* ─────────────────────────────────────────────────────────────────────
    波形条 —— 纯前端解码画图，只为了让人「看得见节奏」。
+
+   时间读数有三个来源，都在回答「到这儿是多少秒」—— 这是判断「哪几个镜头
+   能放一组」的依据（视频模型单次上限 30 秒）：
+     · 左下角常驻「当前 / 总长」
+     · 鼠标悬停 → 跟随位置的读数
+     · 点一下 → 留一个落点标记（只留一个，多了反而看不出哪个是刚点的）
+
    ponytail: 峰值只取 400 根柱子，够看清楚呼吸；要更细就调这个数。
    ───────────────────────────────────────────────────────────────────── */
 function Waveform({
@@ -46,6 +54,8 @@ function Waveform({
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [peaks, setPeaks] = useState<number[]>([]);
     const [failed, setFailed] = useState(false);
+    const [hoverMs, setHoverMs] = useState<number | null>(null);
+    const [markerMs, setMarkerMs] = useState<number | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -84,6 +94,9 @@ function Waveform({
         return () => { cancelled = true; };
     }, [url]);
 
+    // 换了一版音频，上一版的落点就没有意义了
+    useEffect(() => { setMarkerMs(null); setHoverMs(null); }, [url]);
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -98,45 +111,105 @@ function Waveform({
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
-        // 30 秒刻度：只画竖线，标签由外层 DOM 排版，避免 canvas 里量字宽。
-        const marks = buildThirtySecondMarks(durationMs);
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
-        for (const mark of marks) {
-            const x = (mark.ms / durationMs) * width;
-            ctx.fillRect(x, 0, 1, height);
+        const xAt = (ms: number) => (durationMs > 0 ? (ms / durationMs) * width : 0);
+
+        // 次刻度（10 秒）：更细的参照，不标字
+        ctx.fillStyle = "rgba(255,255,255,0.055)";
+        for (const ms of buildSubMarks(durationMs)) {
+            ctx.fillRect(xAt(ms), 0, 1, height);
         }
 
-        if (!peaks.length) return;
-        const mid = height / 2;
-        const barWidth = width / peaks.length;
-        const playedBars = durationMs > 0
-            ? Math.round((progressMs / durationMs) * peaks.length)
-            : 0;
-        for (let i = 0; i < peaks.length; i++) {
-            const h = Math.max(1.5, peaks[i] * (height * 0.86));
-            ctx.fillStyle = i <= playedBars
-                ? "rgba(167,139,250,0.95)"   // 已播 = 主色
-                : "rgba(255,255,255,0.22)";
-            ctx.fillRect(i * barWidth, mid - h / 2, Math.max(1, barWidth - 1), h);
+        // 主刻度（30 秒）：这条才是「哪几个镜头能放一组」的判断线
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        for (const mark of buildThirtySecondMarks(durationMs)) {
+            ctx.fillRect(xAt(mark.ms), 0, 1, height);
         }
-    }, [peaks, progressMs, durationMs]);
+
+        if (peaks.length) {
+            const mid = height / 2;
+            const barWidth = width / peaks.length;
+            const playedBars = durationMs > 0
+                ? Math.round((progressMs / durationMs) * peaks.length)
+                : 0;
+            for (let i = 0; i < peaks.length; i++) {
+                const h = Math.max(1.5, peaks[i] * (height * 0.86));
+                ctx.fillStyle = i <= playedBars
+                    ? "rgba(167,139,250,0.95)"   // 已播 = 主色
+                    : "rgba(255,255,255,0.22)";
+                ctx.fillRect(i * barWidth, mid - h / 2, Math.max(1, barWidth - 1), h);
+            }
+        }
+
+        if (markerMs !== null) {
+            ctx.fillStyle = "rgba(167,139,250,0.6)";
+            ctx.fillRect(xAt(markerMs), 0, 1, height);
+        }
+        if (hoverMs !== null) {
+            ctx.fillStyle = "rgba(255,255,255,0.4)";
+            ctx.fillRect(xAt(hoverMs), 0, 1, height);
+        }
+        if (progressMs > 0) {
+            ctx.fillStyle = "rgba(167,139,250,1)";
+            ctx.fillRect(xAt(progressMs) - 0.5, 0, 1.5, height);
+        }
+    }, [peaks, progressMs, durationMs, hoverMs, markerMs]);
+
+    const percentOf = (ms: number) => (durationMs > 0 ? (ms / durationMs) * 100 : 0);
+    const msAt = (clientX: number, element: HTMLElement) => {
+        const rect = element.getBoundingClientRect();
+        const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+        return Math.round(Math.min(1, Math.max(0, ratio)) * durationMs);
+    };
 
     return (
-        <div className="relative">
-            <canvas
-                ref={canvasRef}
-                className="h-[72px] w-full cursor-pointer rounded-lg bg-surface-inset"
-                onClick={(e) => {
-                    if (!durationMs) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onSeek(Math.round(((e.clientX - rect.left) / rect.width) * durationMs));
-                }}
-            />
-            {failed ? (
-                <span className="absolute inset-0 flex items-center justify-center font-mono text-[0.625rem] text-text-muted">
-                    波形不可用（仍可播放）
+        <div>
+            <div className="relative">
+                <canvas
+                    ref={canvasRef}
+                    className="h-[72px] w-full cursor-pointer rounded-lg bg-surface-inset"
+                    onMouseMove={(e) => {
+                        if (!durationMs) return;
+                        setHoverMs(msAt(e.clientX, e.currentTarget));
+                    }}
+                    onMouseLeave={() => setHoverMs(null)}
+                    onClick={(e) => {
+                        if (!durationMs) return;
+                        const ms = msAt(e.clientX, e.currentTarget);
+                        setMarkerMs(ms);
+                        onSeek(ms);
+                    }}
+                />
+                {failed ? (
+                    <span className="absolute inset-0 flex items-center justify-center font-mono text-[0.625rem] text-text-muted">
+                        波形不可用（仍可播放）
+                    </span>
+                ) : null}
+
+                {/* 落点读数 —— 点一下记住「这里是多少秒」 */}
+                {markerMs !== null ? (
+                    <span
+                        className="pointer-events-none absolute top-1 -translate-x-1/2 rounded bg-primary px-1 py-px font-mono text-[0.5625rem] leading-tight text-white"
+                        style={{ left: `${percentOf(markerMs)}%` }}
+                    >
+                        {formatClock(markerMs)}
+                    </span>
+                ) : null}
+
+                {/* 悬停读数 —— 眼睛扫到哪里就知道哪里几秒 */}
+                {hoverMs !== null ? (
+                    <span
+                        className="pointer-events-none absolute top-5 -translate-x-1/2 rounded bg-black/60 px-1 py-px font-mono text-[0.5625rem] leading-tight text-white/90"
+                        style={{ left: `${percentOf(hoverMs)}%` }}
+                    >
+                        {formatClock(hoverMs)}
+                    </span>
+                ) : null}
+
+                {/* 常驻读数放左下角，让开上面两个跟随气泡 */}
+                <span className="pointer-events-none absolute bottom-1 left-1.5 rounded bg-black/45 px-1.5 py-px font-mono text-[0.59375rem] leading-tight text-white/90">
+                    {formatClock(progressMs)} / {formatClock(durationMs)}
                 </span>
-            ) : null}
+            </div>
             <div className="relative mt-1 h-3">
                 {buildThirtySecondMarks(durationMs).map((mark) => (
                     <span
@@ -201,6 +274,12 @@ export default function SoundDesign() {
     const plan = currentProject?.audio_plan;
     const takes = plan?.takes ?? [];
     const scriptText = plan?.script_text ?? "";
+    // 生成在后台跑，这里只是把状态读出来 —— 「在跑」不等于「要等」。
+    const scriptRunning = isAudioJobRunning(plan?.script_status);
+    const takeRunning = takes.some((tk) => isAudioJobRunning(tk.status));
+    const anyRunning = scriptRunning || takeRunning;
+    // 有地址且在跑 = 还不能听。失败的版本没地址，自然落进「不能听」。
+    const takeReady = (take: AudioTake) => Boolean(take.audio_url) && !isAudioJobRunning(take.status);
     const currentTake = takes.find((tk) => tk.id === plan?.selected_take_id) ?? takes[takes.length - 1];
     const characters = useMemo(
         () => (currentProject?.characters ?? []).filter((c) => c.id && c.name),
@@ -211,7 +290,11 @@ export default function SoundDesign() {
     const [dirty, setDirty] = useState(false);
     const [picked, setPicked] = useState<string[]>([]);
     const [customVoices, setCustomVoices] = useState<CustomVoice[]>([]);
-    const [busy, setBusy] = useState<"script" | "take" | null>(null);
+    const [skillPackages, setSkillPackages] = useState<SkillPackageSummary[]>([]);
+    /** 系列级的 Skill 绑定 —— 导演稿的绑定可以是系列级的，只显示项目级会误导。 */
+    const [seriesBindings, setSeriesBindings] = useState<Record<string, string>>({});
+    // 生成已经不是同步的了，这里只剩「保存导演稿」那个转圈。
+    const [saving, setSaving] = useState(false);
     const [playingId, setPlayingId] = useState<string | null>(null);
     const [progressMs, setProgressMs] = useState(0);
 
@@ -228,15 +311,28 @@ export default function SoundDesign() {
 
     // 参考音可用性 = 角色 voice_id 命中 clone 音色且带 source_audio_url。
     // 与后端 resolve_character_reference_audios 的链路一致。
+    // 顺便把系列的 Skill 绑定读回来：导演稿的绑定可以是系列级的。
     useEffect(() => {
         const seriesId = currentProject?.series_id;
-        if (!seriesId) { setCustomVoices([]); return; }
+        if (!seriesId) { setCustomVoices([]); setSeriesBindings({}); return; }
         let cancelled = false;
         api.listCustomVoices(seriesId)
             .then((list) => { if (!cancelled) setCustomVoices(list ?? []); })
             .catch(() => { if (!cancelled) setCustomVoices([]); });
+        api.getSeries(seriesId)
+            .then((series) => {
+                if (!cancelled) setSeriesBindings(series?.prompt_config?.skill_bindings ?? {});
+            })
+            .catch(() => { if (!cancelled) setSeriesBindings({}); });
         return () => { cancelled = true; };
     }, [currentProject?.series_id]);
+
+    // Skill 选择器的数据源，与设置页 / 项目模态框同一个接口。
+    useEffect(() => {
+        api.listSkillPackages()
+            .then((list) => setSkillPackages(list ?? []))
+            .catch(() => setSkillPackages([]));
+    }, []);
 
     const voiceById = useMemo(() => {
         const map = new Map<string, CustomVoice>();
@@ -274,6 +370,21 @@ export default function SoundDesign() {
 
     useEffect(() => stop, [stop]);
 
+    // 生成在后台跑，这里只负责把状态拉回来；跑完自动停。轮询条件是「在跑」，
+    // 不是「点过生成」—— 形状与资产那套（ConsistencyVault）一致。
+    useEffect(() => {
+        if (!currentProject || !anyRunning) return;
+        const projectId = currentProject.id;
+        const timer = window.setInterval(async () => {
+            try {
+                updateProject(projectId, await api.getProject(projectId));
+            } catch (error) {
+                console.error("[SoundDesign] 刷新生成状态失败:", error);
+            }
+        }, 2000);
+        return () => window.clearInterval(timer);
+    }, [currentProject, anyRunning, updateProject]);
+
     const previewReference = (characterId: string) => {
         const url = referenceUrlOf(characterId);
         if (!url) return;
@@ -293,23 +404,20 @@ export default function SoundDesign() {
     }, [currentProject, updateProject]);
 
     const handleGenerateScript = async () => {
-        if (!currentProject || busy) return;
-        setBusy("script");
+        if (!currentProject || scriptRunning) return;
         try {
             const { audio_plan } = await api.generateAudioPlanScript(currentProject.id);
             adoptPlan(audio_plan);
             setDirty(false);
-            toast.success(t("scriptSaved"), { body: t("scriptTitle") });
+            toast.success(t("queuedShort"), { body: t("scriptTitle") });
         } catch (e: any) {
             toast.error(t("generateFailed"), { body: e?.message });
-        } finally {
-            setBusy(null);
         }
     };
 
     const handleSaveScript = async () => {
-        if (!currentProject || busy) return;
-        setBusy("script");
+        if (!currentProject || saving) return;
+        setSaving(true);
         try {
             const { audio_plan } = await api.updateAudioPlan(currentProject.id, { script_text: draft });
             adoptPlan(audio_plan);
@@ -318,27 +426,26 @@ export default function SoundDesign() {
         } catch (e: any) {
             toast.error(t("scriptSaved") + " ✗", { body: e?.message });
         } finally {
-            setBusy(null);
+            setSaving(false);
         }
     };
 
     const handleGenerateTake = async (withReferences: boolean) => {
-        if (!currentProject || busy) return;
+        if (!currentProject || takeRunning) return;
         const characterIds = withReferences ? picked : [];
         if (withReferences && !characterIds.length) {
             toast.error(t("castHint"));
             return;
         }
-        setBusy("take");
         takeInFlight.current = true;
         try {
             const { audio_plan } = await api.generateEpisodeAudio(currentProject.id, characterIds);
             adoptPlan(audio_plan);
+            toast.success(t("queuedShort"), { body: t("takeTitle") });
         } catch (e: any) {
             toast.error(t("generateFailed"), { body: e?.message });
         } finally {
             takeInFlight.current = false;
-            setBusy(null);
         }
     };
 
@@ -361,6 +468,32 @@ export default function SoundDesign() {
         setPicked((prev) => prev.includes(characterId)
             ? prev.filter((id) => id !== characterId)
             : prev.length >= MAX_REFERENCE_AUDIOS ? prev : [...prev, characterId]);
+    };
+
+    /* ── 导演稿 Skill 绑定 ───────────────────────────────────────
+       与设置页 / 项目模态框共用同一份 `prompt_config.skill_bindings.audio_plan`。 */
+    const projectBindings = currentProject?.prompt_config?.skill_bindings ?? {};
+    const boundSkillId = projectBindings.audio_plan || seriesBindings.audio_plan || "";
+    const boundSkill = boundSkillId
+        ? {
+            name: skillNameFor(boundSkillId, skillPackages) ?? boundSkillId,
+            fromProject: Boolean(projectBindings.audio_plan),
+            source: projectBindings.audio_plan ? t("skillSourceProject") : t("skillSourceSeries"),
+        }
+        : null;
+
+    const handleBindSkill = async (packageId: string) => {
+        if (!currentProject) return;
+        // skill_bindings 是**整表替换**，不是合并（后端靠它区分「没提到」和「解绑」）。
+        // 所以先把已有的整张表读出来，只改 audio_plan 这一个键写回去。
+        const next = { ...projectBindings };
+        if (packageId) next.audio_plan = packageId; else delete next.audio_plan;
+        try {
+            const result = await api.updatePromptConfig(currentProject.id, { skill_bindings: next });
+            updateProject(currentProject.id, { prompt_config: result.prompt_config });
+        } catch (e: any) {
+            toast.error(t("generateFailed"), { body: e?.message });
+        }
     };
 
     const unboundCount = characters.filter((c) => !referenceUrlOf(c.id)).length;
@@ -471,18 +604,22 @@ export default function SoundDesign() {
                         trailing={
                             <div className="flex items-center gap-2">
                                 {dirty ? (
-                                    <WorkflowActionButton variant="primary" size="sm" onClick={handleSaveScript} loading={busy === "script"}>
+                                    <WorkflowActionButton variant="primary" size="sm" onClick={handleSaveScript} loading={saving}>
                                         {t("scriptSave")}
                                     </WorkflowActionButton>
                                 ) : null}
+                                {/* 生成类动作用 ghost + 图标，与资产 / 摘要那些「生成 / 重新生成」一致；
+                                    这一区里真正的主行动是右边那个花钱的「生成一版」。 */}
                                 <WorkflowActionButton
-                                    variant={scriptText ? "ghost" : "secondary"}
+                                    variant="ghost"
                                     size="sm"
-                                    leftIcon={<Wand2 size={12} />}
+                                    leftIcon={scriptRunning ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
                                     onClick={handleGenerateScript}
-                                    loading={busy === "script"}
+                                    disabled={scriptRunning}
                                 >
-                                    {scriptText ? t("scriptRegenerate") : t("scriptGenerate")}
+                                    {scriptRunning
+                                        ? (plan?.script_status === "queued" ? t("queuedShort") : t("generating"))
+                                        : scriptText ? t("scriptRegenerate") : t("scriptGenerate")}
                                 </WorkflowActionButton>
                             </div>
                         }
@@ -500,6 +637,38 @@ export default function SoundDesign() {
                             <span>{draft.length} / 3000</span>
                             {dirty ? <span className="text-primary">{t("scriptSave")}…</span> : null}
                         </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-[0.59375rem] text-text-muted">{t("skillLabel")}</span>
+                            <SkillPicker
+                                packages={skillPackages}
+                                onSelect={handleBindSkill}
+                                title={t("skillLabel")}
+                            />
+                            {boundSkill ? (
+                                <>
+                                    <span className="text-[0.6875rem] text-emerald-400">
+                                        {t("skillBound", { name: boundSkill.name, source: boundSkill.source })}
+                                    </span>
+                                    {boundSkill.fromProject ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleBindSkill("")}
+                                            className="text-[0.6875rem] text-text-muted transition-colors hover:text-foreground"
+                                        >
+                                            {t("skillUnbind")}
+                                        </button>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <span className="text-[0.6875rem] text-text-muted">{t("skillUnbound")}</span>
+                            )}
+                        </div>
+                        {plan?.script_status === "failed" && plan.script_error ? (
+                            <p className="mt-2 flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-red-400">
+                                <AlertTriangle size={11} className="mt-0.5 shrink-0" />
+                                {plan.script_error}
+                            </p>
+                        ) : null}
                     </Section>
 
                     <Section
@@ -511,17 +680,18 @@ export default function SoundDesign() {
                                 <WorkflowActionButton
                                     variant="primary"
                                     size="sm"
-                                    leftIcon={<Volume2 size={12} />}
+                                    leftIcon={takeRunning ? <Loader2 size={12} className="animate-spin" /> : <Volume2 size={12} />}
                                     onClick={() => handleGenerateTake(true)}
-                                    loading={busy === "take"}
+                                    disabled={takeRunning}
                                 >
-                                    {t("takeGenerate")}
+                                    {takeRunning ? t("generating") : t("takeGenerate")}
                                 </WorkflowActionButton>
                                 <WorkflowActionButton
                                     variant="ghost"
                                     size="sm"
+                                    leftIcon={<Volume1 size={12} />}
                                     onClick={() => handleGenerateTake(false)}
-                                    loading={busy === "take"}
+                                    disabled={takeRunning}
                                     title={t("takeHint")}
                                 >
                                     {t("takeGeneratePlain")}
@@ -529,7 +699,7 @@ export default function SoundDesign() {
                             </div>
                         }
                     >
-                        {currentTake ? (
+                        {currentTake && takeReady(currentTake) ? (
                             <div className="rounded-xl border border-glass-border bg-surface-inset p-3">
                                 <Waveform
                                     url={currentTake.audio_url}
@@ -560,6 +730,19 @@ export default function SoundDesign() {
                                     </a>
                                 </div>
                             </div>
+                        ) : currentTake ? (
+                            // 选中的这一版还没生成完（或失败了）—— 这里说清楚它在哪一步，
+                            // 而不是画一条空波形让人以为音频是静音的。
+                            <div className="rounded-xl border border-dashed border-glass-border px-4 py-10 text-center font-mono text-[0.6875rem] text-text-muted">
+                                {isAudioJobRunning(currentTake.status) ? (
+                                    <span className="inline-flex items-center gap-1.5 text-primary">
+                                        <Loader2 size={12} className="animate-spin" />
+                                        {currentTake.status === "queued" ? t("queuedShort") : t("generating")}
+                                    </span>
+                                ) : (
+                                    <span className="text-red-400">{currentTake.error || t("takeFailed")}</span>
+                                )}
+                            </div>
                         ) : (
                             <p className="rounded-xl border border-dashed border-glass-border px-4 py-10 text-center font-mono text-[0.6875rem] text-text-muted">
                                 {t("takeEmptyHint")}
@@ -569,6 +752,8 @@ export default function SoundDesign() {
                         <ul className="mt-3 space-y-1.5">
                             {[...takes].reverse().map((take) => {
                                 const isCurrent = take.id === plan?.selected_take_id;
+                                const ready = takeReady(take);
+                                const running = isAudioJobRunning(take.status);
                                 const names = (take.reference_character_ids ?? [])
                                     .map((id) => characters.find((c) => c.id === id)?.name)
                                     .filter(Boolean)
@@ -583,7 +768,9 @@ export default function SoundDesign() {
                                         <button
                                             type="button"
                                             onClick={() => playTake(take)}
-                                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-glass-border text-text-secondary transition-colors hover:border-primary hover:text-primary"
+                                            disabled={!ready}
+                                            title={ready ? t("takePlay") : running ? t("generating") : (take.error || t("takeFailed"))}
+                                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-glass-border text-text-secondary transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-glass-border disabled:hover:text-text-secondary"
                                         >
                                             {playingId === take.id ? <Square size={9} /> : <Play size={10} />}
                                         </button>
@@ -595,9 +782,23 @@ export default function SoundDesign() {
                                             <span className="truncate text-[0.75rem] text-text-secondary">
                                                 {names ? t("takeWithRefs", { names }) : t("takePlain")}
                                             </span>
-                                            {typeof take.duration_ms === "number" ? (
+                                            {running ? (
+                                                <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[0.59375rem] text-primary">
+                                                    <Loader2 size={10} className="animate-spin" />
+                                                    {take.status === "queued" ? t("queuedShort") : t("generating")}
+                                                </span>
+                                            ) : typeof take.duration_ms === "number" ? (
                                                 <span className="shrink-0 font-mono text-[0.59375rem] text-text-muted">
                                                     {formatClock(take.duration_ms)}
+                                                </span>
+                                            ) : null}
+                                            {take.status === "failed" ? (
+                                                <span
+                                                    className="inline-flex shrink-0 items-center gap-1 font-mono text-[0.59375rem] text-red-400"
+                                                    title={take.error ?? ""}
+                                                >
+                                                    <AlertTriangle size={10} />
+                                                    {t("takeFailed")}
                                                 </span>
                                             ) : null}
                                             {staleIds.has(take.id) ? (

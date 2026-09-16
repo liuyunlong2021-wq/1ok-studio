@@ -23,7 +23,7 @@ const config: Config = {
         "text-muted": "var(--color-text-muted)",
         overlay: "var(--color-overlay)",
         "surface-inset": "var(--color-bg-inset)",
-        primary: "var(--color-primary)",
+        primary: "rgb(var(--color-primary-rgb) / <alpha-value>)",
         "primary-hover": "var(--color-primary-hover)",
         secondary: "var(--color-primary-hover)",
         accent: "var(--color-accent)",

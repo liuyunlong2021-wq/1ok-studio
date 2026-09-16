@@ -23,10 +23,10 @@ export default function OneOkBranding({ size = "md", showSlogan = true }: OneOkB
 
   const theme = useSettingsStore((s) => s.theme);
   // SSR 与客户端首次渲染统一用默认主题，避免 logo src/filter 的 hydration
-  // mismatch；挂载后切到实际主题。
+  // mismatch；挂载后切到实际主题。（要与 DEFAULT_THEME 保持一致）
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const activeTheme: ThemePreset = mounted ? theme : "atelier-dark";
+  const activeTheme: ThemePreset = mounted ? theme : "atelier-light";
   const logoSrc = LOGO_SRC[activeTheme] ?? "/1ok-logo-preview.svg";
 
   return (

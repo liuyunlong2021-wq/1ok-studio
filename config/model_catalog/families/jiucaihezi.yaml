@@ -33,18 +33,9 @@ models:
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 999, recommended: false, badges: [韭菜盒子]}
-  - id: deepseek-v4-pro-0813
-    display_name: "DeepSeek V4 Pro · 韭菜盒子"
-    description: "DeepSeek V4 Pro via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [text]
-    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
-  - id: deepseek-v4-flash
-    display_name: "deepseek-v4-flash"
-    description: "deepseek-v4-flash via 韭菜盒子"
+  - id: deepseek-flash
+    display_name: "deepseek-flash"
+    description: "deepseek-flash via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [text]

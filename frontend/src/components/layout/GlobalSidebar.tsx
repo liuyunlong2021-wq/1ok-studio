@@ -1,12 +1,12 @@
 "use client";
 
-import { LayoutGrid, Layers, Wand2, Settings, FileText } from "lucide-react";
+import { LayoutGrid, Layers, Wand2, Settings } from "lucide-react";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import OneOkBranding from "./OneOkBranding";
 import { APP_VERSION } from "@/lib/version";
 
-export type GlobalTab = "workspace" | "library" | "editor" | "playground" | "settings";
+export type GlobalTab = "workspace" | "library" | "playground" | "settings";
 
 interface GlobalSidebarProps {
   activeTab: GlobalTab;
@@ -15,10 +15,15 @@ interface GlobalSidebarProps {
 
 // Shared global nav model (workspace/library/playground + settings). Reused by
 // the desktop GlobalSidebar (below) and the mobile BottomTabBar (md:hidden).
+//
+// 曾经还有一项「剧本编辑器」指向 `#/studio/editor`，但那个路由已被产品决策
+// 降级成工作区（见 docs/design/script-editor-optimization-contract.md：首页不再
+// 提供独立剧本编辑入口）。路由降级了、入口却留着，点下去只会静默回工作区，
+// 看着就像「点了没反应」——所以把入口删掉，只留 `page.tsx` 里的兼容分支。
+// 剧本编辑统一从项目/系列里进（ProjectClient 的 Step 01）。
 export const GLOBAL_NAV_ITEMS: { id: GlobalTab; icon: typeof LayoutGrid; hash: string }[] = [
   { id: "workspace", icon: LayoutGrid, hash: "#/" },
   { id: "library", icon: Layers, hash: "#/library" },
-  { id: "editor", icon: FileText, hash: "#/studio/editor" },
   { id: "playground", icon: Wand2, hash: "#/playground" },
   { id: "settings", icon: Settings, hash: "#/settings" },
 ];
@@ -97,9 +102,10 @@ export default function GlobalSidebar({ activeTab, onTabChange }: GlobalSidebarP
         </p>
       </button>
 
-      {/* Primary navigation */}
+      {/* Primary navigation —— `settings` 在底部单独渲染，这里过滤掉它。
+          以前写的是 `slice(0, 4)`：靠位置约定“前四项是主导航”，加/删一项就错位。 */}
       <nav className="flex-1 flex flex-col gap-0.5 p-2.5" aria-label={t("mainNavAria")}>
-        {GLOBAL_NAV_ITEMS.slice(0, 4).map((item) => (
+        {GLOBAL_NAV_ITEMS.filter((item) => item.id !== "settings").map((item) => (
           <NavButton
             key={item.id}
             active={activeTab === item.id}

@@ -46,6 +46,8 @@ describe('settingsStore', () => {
             'atelier-light',
             'brand-light',
         ]);
-        expect(DEFAULT_THEME).toBe('atelier-dark');
+        // 默认是暖亮 Atelier（teal）。改这个值时记得看 layout.tsx 的 html class
+        // 和 OneOkBranding 的 SSR fallback —— 三处不一致会首屏闪一下。
+        expect(DEFAULT_THEME).toBe('atelier-light');
     });
 });

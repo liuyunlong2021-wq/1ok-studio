@@ -1,7 +1,7 @@
 import axios from "axios";
 import { DEFAULT_I2V_MODEL_ID } from "@/lib/modelCatalog";
 import { isTauri } from "@/lib/transport";
-import type { AudioPlan, AudioTake } from "@/store/projectStore";
+import type { AudioJobStatus, AudioPlan, AudioTake } from "@/store/projectStore";
 
 export type AssetContract = {
     id: string;
@@ -1307,8 +1307,10 @@ export const api = {
     // ── 声音步骤（可选）────────────────────────────────────────────
     // 一期刻意不做分段、不关联分镜：这几步是给人听的参考物。
 
-    /** 生成/重建全剧声音导演稿（会覆盖 script_text，保留已生成的 take）。 */
-    generateAudioPlanScript: async (scriptId: string): Promise<{ audio_plan: AudioPlan }> => {
+    /** 排队生成导演稿。立即返回，进度看 `audio_plan.script_status`（轮询项目状态）。 */
+    generateAudioPlanScript: async (
+        scriptId: string,
+    ): Promise<{ audio_plan: AudioPlan; task_id?: string; status?: AudioJobStatus }> => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/audio-plan/generate-script`, {
             method: "POST",
         });
@@ -1318,11 +1320,12 @@ export const api = {
         return response.json();
     },
 
-    /** 出一版全集声音。character_ids 为空 = 纯音频（不带参考音）。 */
+    /** 排队出一版全集声音。character_ids 为空 = 纯音频（不带参考音）。
+     *  回来的是 `queued` 的占位版本，进度看 `takes[].status`。 */
     generateEpisodeAudio: async (
         scriptId: string,
         characterIds: string[] = [],
-    ): Promise<{ audio_plan: AudioPlan; take: AudioTake }> => {
+    ): Promise<{ audio_plan: AudioPlan; take: AudioTake; status?: AudioJobStatus }> => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/audio-plan/generate-audio`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

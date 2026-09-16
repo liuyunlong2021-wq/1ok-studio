@@ -1,9 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { scriptEditorApi } from '@/lib/scriptEditorApi';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
 import { toast } from '@/store/toastStore';
+import { scriptTextOf } from '../documentText';
 
 const AUTOSAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -11,6 +13,7 @@ const AUTOSAVE_INTERVAL_MS = 30_000; // 30 seconds
  * 自动保存 Hook
  * - 30s 周期自动保存（仅当 isDirty 时）
  * - Cmd+S / Ctrl+S 手动保存 + 创建快照
+ * - 离开编辑器时把还未保存的内容落下（见下面 flush 那段）
  * - beforeunload 事件拦截（离开页面前提醒保存）
  */
 export function useAutoSave(editor: Editor | null, projectId: string | null, onMissingProject?: () => void) {
@@ -18,10 +21,18 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
   const isSavingRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // flush 需要的最新文档。为什么不能直接读 editor：组件卸载时 `useEditor` 的
+  // cleanup 比这里先执行，等到我们跑时 editor 已经 destroy、取不到正文了。
+  // 所以随编辑把 doc **引用**记下来 —— ProseMirror 的 Node 是不可变的，
+  // `toJSON()` / `textBetween()` 都不依赖 view，离开后照样能用。
+  const pendingDocRef = useRef<PMNode | null>(null);
+  const projectIdRef = useRef<string | null>(projectId);
+  projectIdRef.current = projectId;
+
   // 核心保存逻辑
   const save = useCallback(
     async (createSnapshot = false) => {
-      if (!editor) return;
+      if (!editor || editor.isDestroyed) return;
       if (!projectId) { onMissingProject?.(); return; }
       if (isSavingRef.current) return;
 
@@ -30,7 +41,7 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
 
       try {
         await scriptEditorApi.saveDocument(projectId, content, createSnapshot);
-        const text = editor.getText();
+        const text = scriptTextOf(editor);
         await scriptEditorApi.updateScriptText(projectId, text);
         useProjectStore.getState().updateProject(projectId, { originalText: text });
         setDirty(false);
@@ -44,6 +55,31 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
     },
     [editor, projectId, onMissingProject, setDirty, setLastSavedAt]
   );
+
+  // 跟着编辑更新缓存的 doc 引用（只存引用，不序列化）。
+  useEffect(() => {
+    if (!editor) return;
+    const cache = () => { pendingDocRef.current = editor.state.doc; };
+    cache();
+    editor.on('update', cache);
+    return () => { editor.off('update', cache); };
+  }, [editor]);
+
+  // 离开编辑器 = 离开这一步。分镜生成 / 提取实体 / 「查看脚本」读的都是
+  // `script.original_text`，而自动保存要等 30 秒 —— 不在这里落盘，用户改完就走
+  // 就会拿到老版本（这就是「接受 AI 修改后生成分镜还是老版本」的另一半根因）。
+  useEffect(() => () => {
+    if (!useEditorStore.getState().isDirty) return;
+    const doc = pendingDocRef.current;
+    const pid = projectIdRef.current;
+    if (!doc || !pid) return;
+    void scriptEditorApi
+      .saveDocument(pid, doc.toJSON() as object, false)
+      .catch((error) => console.error('[useAutoSave] Flush document failed:', error));
+    void scriptEditorApi
+      .updateScriptText(pid, doc.textBetween(0, doc.content.size, '\n'))
+      .catch((error) => console.error('[useAutoSave] Flush text failed:', error));
+  }, []);
 
   // 30s 周期自动保存
   useEffect(() => {

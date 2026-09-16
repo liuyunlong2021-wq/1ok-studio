@@ -173,10 +173,16 @@ export default function SettingsPage() {
   // 它不按项目/系列存，这里选一次就对所有项目生效。
   const [globalTextModel, setGlobalTextModelState] = useState<string>(DEFAULT_MODEL_SETTINGS.text_model);
   const [textModelSaving, setTextModelSaving] = useState(false);
+  /** 「手动填写」输入框的草稿。跟着 globalTextModel 走，选卡片也会同步过来。 */
+  const [customModelDraft, setCustomModelDraft] = useState<string>(DEFAULT_MODEL_SETTINGS.text_model);
 
   useEffect(() => {
     getGlobalTextModel().then(setGlobalTextModelState).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    setCustomModelDraft(globalTextModel);
+  }, [globalTextModel]);
 
   // ── Default Prompt Config ──
   // `promptConfig` is the displayed/editable text. localStorage (LS_KEY_PROMPT)
@@ -361,6 +367,13 @@ export default function SettingsPage() {
     }
   };
 
+  /** 手动填的模型名。清空 / 没改就什么都不做 —— 想回内置默认就点上面的卡片。 */
+  const commitCustomTextModel = () => {
+    const next = customModelDraft.trim();
+    if (!next || next === globalTextModel) return;
+    void handleSelectTextModel(next);
+  };
+
   const handleSaveModelDefaults = () => {
     const normalized = normalizeModelSettings(modelSettings, "global_settings");
     // T2I and I2I share one image model in the UI; persist both backend
@@ -492,21 +505,63 @@ export default function SettingsPage() {
    *  （handleSelectTextModel，点击即 PUT /settings/text_model），所以在一页改、
    *  另一页立刻跟着变 —— 不需要任何额外的同步逻辑。
    */
-  const renderGlobalTextModelRow = () => (
-    <FormRow label="全局文本模型" hint="用于剧本分析、实体提取、提示词生成与润色；全局一个，所有项目共用">
-      <GroupedModelGrid
-        models={GLOBAL_TEXT_MODELS}
-        selectedId={globalTextModel}
-        onSelect={handleSelectTextModel}
-      />
-      {textModelSaving && (
-        <p className="mt-2 flex items-center gap-1 text-xs text-text-muted">
-          <Loader2 size={12} className="animate-spin" />
-          {t("saving")}
-        </p>
-      )}
-    </FormRow>
-  );
+  const renderGlobalTextModelRow = () => {
+    // 当前生效的模型不在目录里 → 它来自下面那个输入框。给它一张置顶卡片：
+    // 否则卡片区一张 ✓ 都不会亮，人看不出现在到底在用哪个模型。
+    // （目录只有十来个条目，`some` 比建 Set 更省事，别为它加缓存。）
+    const customModel = globalTextModel && !GLOBAL_TEXT_MODELS.some((m) => m.id === globalTextModel)
+      ? globalTextModel
+      : "";
+    return (
+      <FormRow label="全局文本模型" hint="用于剧本分析、实体提取、提示词生成与润色；全局一个，所有项目共用">
+        <GroupedModelGrid
+          models={GLOBAL_TEXT_MODELS}
+          selectedId={globalTextModel}
+          onSelect={handleSelectTextModel}
+          pinnedGroup={customModel ? {
+            label: "手动填写",
+            models: [{
+              id: customModel,
+              name: customModel,
+              description: "手动填写的模型，不在目录里",
+              badges: ["自定义"],
+            }],
+          } : undefined}
+        />
+        {/* 目录只是「常看的那些」：所有文本模型的请求走的是同一个网关通道，
+            所以目录里没有的名字直接填也能用，不必等目录加条目。 */}
+        <div className="mt-3">
+          <label htmlFor="custom-text-model" className="text-xs font-medium text-text-secondary">
+            {t("customModelLabel")}
+          </label>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              id="custom-text-model"
+              value={customModelDraft}
+              onChange={(event) => setCustomModelDraft(event.target.value)}
+              onBlur={commitCustomTextModel}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitCustomTextModel();
+                }
+              }}
+              placeholder={t("customModelPlaceholder")}
+              spellCheck={false}
+              className="w-full max-w-[22rem] rounded-lg border border-glass-border bg-input-bg px-3 py-2 font-mono text-xs text-foreground outline-none transition-colors placeholder:text-text-muted focus:border-primary"
+            />
+          </div>
+          <p className="mt-1 text-xs text-text-muted">{t("customModelHint")}</p>
+        </div>
+        {textModelSaving && (
+          <p className="mt-2 flex items-center gap-1 text-xs text-text-muted">
+            <Loader2 size={12} className="animate-spin" />
+            {t("saving")}
+          </p>
+        )}
+      </FormRow>
+    );
+  };
 
   const renderModels = () => (
     <Section

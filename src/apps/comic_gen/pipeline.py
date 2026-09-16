@@ -43,6 +43,10 @@ from ...models.jiucaihezi import AUDIO_MAX_REFERENCE_AUDIOS
 
 logger = get_logger(__name__)
 
+#: 文本模型没配置时的统一报错。产品只有韭菜盒子一条通道，所以这里直接点名它 ——
+#: 旧文案写的是 "missing DASHSCOPE_API_KEY"，让用户跑去配一个产品根本不用的 key。
+NOT_CONFIGURED_MESSAGE = "文本模型未配置：请在「设置」里填写韭菜盒子 API Key"
+
 
 def _probe_audio_duration_ms(path: str) -> Optional[int]:
     """用 ffprobe 读音频时长（毫秒）。读不到就 None。
@@ -208,6 +212,9 @@ class ComicGenPipeline:
         self.video_generation_tasks: Dict[str, Dict[str, Any]] = {}
         self.prompt_generation_tasks: Dict[str, Dict[str, Any]] = {}
         self._prompt_generation_slots = threading.BoundedSemaphore(2)
+        # 声音设计（导演稿 / 全集声音）的在跑任务表。状态本身落在 script.audio_plan
+        # 的字段上（会被持久化），这里只放后台执行需要的东西：参考音解析结果等。
+        self.audio_plan_tasks: Dict[str, Dict[str, Any]] = {}
         # Temporary cache for file import previews (import_id -> text)
         self._import_cache: Dict[str, str] = {}
         # 视频适配器缓存（目录里只有韭菜盒子一家）
@@ -267,6 +274,21 @@ class ComicGenPipeline:
                     if getattr(asset, "prompt_generation_status", None) in STUCK:
                         asset.prompt_generation_status = "failed"
                         asset.prompt_generation_error = self._ORPHAN_RECOVERY_REASON
+                        recovered += 1
+
+            # 声音设计：导演稿生成与每一版音频都可能是被重启打断的那个。
+            plan = getattr(script, "audio_plan", None)
+            if plan is not None:
+                if getattr(plan, "script_status", None) in STUCK:
+                    plan.script_status = "failed"
+                    plan.script_error = self._ORPHAN_RECOVERY_REASON
+                    plan.script_task_id = None
+                    recovered += 1
+                for take in getattr(plan, "takes", None) or []:
+                    if getattr(take, "status", None) in STUCK:
+                        take.status = "failed"
+                        if not getattr(take, "error", None):
+                            take.error = self._ORPHAN_RECOVERY_REASON
                         recovered += 1
 
         if recovered > 0:
@@ -4713,7 +4735,7 @@ class ComicGenPipeline:
 
         adapter = LLMAdapter()
         if not adapter.is_configured:
-            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
 
         system_prompt = system_prompt or DEFAULT_VOICE_PROMPT
         user_prompt = f"{source_label}：\n{description.strip()[:1000]}\n\n请输出音色描述。"
@@ -4769,7 +4791,7 @@ class ComicGenPipeline:
 
         adapter = LLMAdapter()
         if not adapter.is_configured:
-            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
 
         source_text = (character.description or character.extracted_description or "").strip()
         if not source_text:
@@ -4820,7 +4842,7 @@ class ComicGenPipeline:
 
         adapter = LLMAdapter()
         if not adapter.is_configured:
-            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
 
         ask = (instruction or "").strip() or "改得更具体、更能指导音色设计"
         text = adapter.chat(
@@ -5097,7 +5119,7 @@ class ComicGenPipeline:
 
         adapter = LLMAdapter()
         if not adapter.is_configured:
-            raise RuntimeError("LLM adapter not configured (missing DASHSCOPE_API_KEY)")
+            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
 
         cast_lines = []
         for character in script.characters:
@@ -5129,6 +5151,90 @@ class ComicGenPipeline:
         self._save_data()
         logger.info("[voice-script] generated %d chars for script=%s", len(text), script_id)
         return plan
+
+    # --- 异步提交 ---------------------------------------------------------
+    #
+    # 三个动作（生成导演稿 / 带参考音出一版 / 不带参考音出一版）都走同一套：
+    # 提交即返回，状态落在 script.audio_plan 的字段上，前端轮询 getProject。
+    # 形状照抄资产那套 `create_prompt_generation_task` / `process_prompt_generation_task`。
+    #
+    # 两个必须遵守的点：
+    #   1. 状态一定要落在**会被持久化**的字段上 —— FastAPI 的 BackgroundTasks 只活在
+    #      进程内存里，重启后内存任务表就没了，前端只能看到永远转不完的圈。重启时由
+    #      `_recover_orphan_tasks` 把这些残留标成 failed。
+    #   2. 参数错误（参考音没绑、导演稿是空的）要在**提交时**就抛。丢给后台等于让用户
+    #      切走之后再失败，他回来只看到一条红字，不知道是自己勾错了。
+
+    #: 任务表上限，超了就丢最早结束的那些（只是幂等查表，丢了不影响持久化状态）。
+    _AUDIO_TASKS_MAX = 50
+
+    def _prune_audio_tasks(self) -> None:
+        if len(self.audio_plan_tasks) <= self._AUDIO_TASKS_MAX:
+            return
+        finished = [
+            key for key, task in self.audio_plan_tasks.items()
+            if task["status"] in ("completed", "failed")
+        ]
+        for key in finished[: len(self.audio_plan_tasks) - self._AUDIO_TASKS_MAX]:
+            self.audio_plan_tasks.pop(key, None)
+
+    def create_audio_plan_task(self, script_id: str) -> Tuple[EpisodeAudioPlan, str]:
+        """排队生成导演稿，立刻返回 ``(plan, task_id)``。
+
+        已经在跑就原样返回那一次 —— 连点两下不重复起任务（LLM 不贵，但重复覆盖
+        会让人分不清哪一稿是自己要的）。
+        """
+        script = self.get_script(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        plan = self._audio_plan_of(script)
+        if plan.script_status in ("queued", "processing") and plan.script_task_id:
+            return plan, plan.script_task_id
+
+        task_id = f"audioplan_{uuid.uuid4().hex}"
+        self.audio_plan_tasks[task_id] = {
+            "task_id": task_id,
+            "kind": "script",
+            "script_id": script_id,
+            "status": "queued",
+        }
+        plan.script_status = "queued"
+        plan.script_error = None
+        plan.script_task_id = task_id
+        script.updated_at = time.time()
+        self._prune_audio_tasks()
+        self._save_data()
+        return plan, task_id
+
+    def process_audio_plan_task(self, task_id: str) -> None:
+        """后台执行：调同步实现，把成功 / 失败写回 plan 字段。"""
+        task = self.audio_plan_tasks.get(task_id)
+        if not task:
+            return
+        script = self.get_script(task["script_id"])
+        if not script:
+            return
+        plan = self._audio_plan_of(script)
+        if plan.script_task_id != task_id:
+            return  # 更晚的一次提交接管了，这次的结果直接丢
+
+        task["status"] = "processing"
+        plan.script_status = "processing"
+        self._save_data()
+        try:
+            self.generate_audio_plan_script(task["script_id"])
+            plan.script_status = "completed"
+            plan.script_error = None
+            task["status"] = "completed"
+        except Exception as exc:
+            logger.exception("Audio plan task %s failed", task_id)
+            plan.script_status = "failed"
+            plan.script_error = str(exc)
+            task["status"] = "failed"
+        finally:
+            plan.script_task_id = None
+            self._save_data()
 
     def resolve_character_reference_audios(
         self, script_id: str, character_ids: List[str]
@@ -5189,11 +5295,16 @@ class ComicGenPipeline:
             )
         return resolved
 
-    def generate_episode_audio(self, script_id: str, character_ids: List[str]) -> AudioTake:
-        """用 seed-audio-1.0 生成一版全集声音，追加到 takes 并选中。
+    def create_episode_audio_task(
+        self, script_id: str, character_ids: List[str]
+    ) -> Tuple[EpisodeAudioPlan, AudioTake]:
+        """排队生成一版全集声音，立刻返回 ``(plan, take)``。
 
         ``character_ids`` 可以为空 —— 那就是纯文生音频，只作为参考听；
         也可以给 1–3 个角色带上他们的参考音。多生成几版对比着听是预期用法。
+
+        提交时就追加一条 `queued` 的占位 take：前端据此显示「生成中」，进程重启时
+        也扫得到它。参考音在**这里**解析（不是后台）—— 勾了没绑音色的角色要当场报错。
         """
         script = self.get_script(script_id)
         if not script:
@@ -5205,31 +5316,80 @@ class ComicGenPipeline:
 
         references = self.resolve_character_reference_audios(script_id, character_ids)
 
-        from ...models.jiucaihezi import generate_audio
-
         take_id = f"take_{uuid.uuid4().hex[:8]}"
-        output_path = media_ref("output", "audio", f"episode_{script_id}_{take_id}.mp3")
-        generate_audio(
-            prompt=plan.script_text,
-            output_path=output_path,
-            reference_audio_urls=references,
-        )
-
         take = AudioTake(
             id=take_id,
-            audio_url=output_path,
-            duration_ms=_probe_audio_duration_ms(output_path),
+            audio_url="",
+            status="queued",
             reference_character_ids=list(character_ids or []),
             script_hash=plan.script_hash,
         )
         plan.takes.append(take)
-        plan.selected_take_id = take.id
+        if plan.selected_take_id is None:
+            plan.selected_take_id = take.id
+        self.audio_plan_tasks[take_id] = {
+            "task_id": take_id,
+            "kind": "take",
+            "script_id": script_id,
+            "take_id": take_id,
+            "references": references,
+            "status": "queued",
+        }
         script.updated_at = time.time()
+        self._prune_audio_tasks()
         self._save_data()
-        logger.info(
-            "[episode-audio] take=%s refs=%d url=%s", take_id, len(references), output_path
-        )
-        return take
+        return plan, take
+
+    def process_episode_audio_task(self, task_id: str) -> None:
+        """后台执行：真正调 seed-audio-1.0，成功后回填这一版的地址与时长。
+
+        刻意**不做自动重试**：网关可能已经接单并计费，重试就是重复付费
+        （和视频生成那条一样的理由）。失败就把原文留在 take 上给人看。
+        """
+        task = self.audio_plan_tasks.get(task_id)
+        if not task:
+            return
+        script = self.get_script(task["script_id"])
+        if not script:
+            return
+        plan = self._audio_plan_of(script)
+        take = next((item for item in plan.takes if item.id == task["take_id"]), None)
+        if take is None:
+            return
+
+        task["status"] = "processing"
+        take.status = "processing"
+        self._save_data()
+        try:
+            from ...models.jiucaihezi import generate_audio
+
+            output_path = media_ref(
+                "output", "audio", f"episode_{task['script_id']}_{take.id}.mp3"
+            )
+            generate_audio(
+                prompt=plan.script_text,
+                output_path=output_path,
+                reference_audio_urls=task["references"],
+            )
+            take.audio_url = output_path
+            take.duration_ms = _probe_audio_duration_ms(output_path)
+            take.status = "completed"
+            take.error = None
+            # 生成完就选中这一版 —— 人刚点的那一版才是他想听的。
+            plan.selected_take_id = take.id
+            task["status"] = "completed"
+            logger.info(
+                "[episode-audio] take=%s refs=%d url=%s",
+                take.id, len(task["references"]), output_path,
+            )
+        except Exception as exc:
+            logger.exception("Episode audio task %s failed", task_id)
+            take.status = "failed"
+            take.error = str(exc)
+            task["status"] = "failed"
+        finally:
+            script.updated_at = time.time()
+            self._save_data()
 
     def update_audio_plan(
         self,

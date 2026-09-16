@@ -8,7 +8,8 @@
 /* ─── Theme: 5-preset token system (Tasty Sam) ───
    架构：seed (品牌 DNA) → semantic (语义角色) → component (组件级)。
    命名 100% 对齐组件用的 Tailwind 语义类（bg-surface/text-foreground/...）。
-   默认 :root === atelier-dark。落地选择器用 html.<id>（与 Providers/layout 一致）。
+   默认 :root 兜底用 atelier-dark 的变量；真实主题一律由 html.<id> 决定（首屏
+   layout 给 html 写默认主题，Providers 挂载后按 store 切）。落地选择器用 html.<id>。
    每个 block 额外保留 --foreground-rgb / --background-*-rgb（body 渐变在用，
    tokens.css 未含，故在此补齐）。 */
 
@@ -41,6 +42,7 @@ html.atelier-dark {
   --color-text-muted:     #8b8597;
 
   --color-primary:       var(--seed-primary);
+  --color-primary-rgb:   52 216 196;   /* → tailwind 的 primary/<alpha> */
   --color-primary-hover: var(--seed-primary-2);
   --color-accent:        var(--seed-accent);
   --color-accent-hover:  var(--seed-accent-2);
@@ -121,6 +123,7 @@ html.bridge-dark {
   --color-text-muted:     #6f6b74;
 
   --color-primary:       var(--seed-primary);
+  --color-primary-rgb:   100 108 255;   /* → tailwind 的 primary/<alpha> */
   --color-primary-hover: var(--seed-primary-2);
   --color-accent:        var(--seed-accent);
   --color-accent-hover:  var(--seed-accent-2);
@@ -200,6 +203,7 @@ html.brand-dark {
   --color-text-muted:     #6b7280;
 
   --color-primary:       var(--seed-primary);
+  --color-primary-rgb:   100 108 255;   /* → tailwind 的 primary/<alpha> */
   --color-primary-hover: var(--seed-primary-2);
   --color-accent:        var(--seed-accent);
   --color-accent-hover:  var(--seed-accent-2);
@@ -279,6 +283,7 @@ html.atelier-light {
   --color-text-muted:     #8b8377;
 
   --color-primary:       var(--seed-primary);
+  --color-primary-rgb:   29 156 141;   /* → tailwind 的 primary/<alpha> */
   --color-primary-hover: var(--seed-primary-2);
   --color-accent:        var(--seed-accent);
   --color-accent-hover:  var(--seed-accent-2);
@@ -358,6 +363,7 @@ html.brand-light {
   --color-text-muted:     #9ca3af;
 
   --color-primary:       var(--seed-primary);
+  --color-primary-rgb:   100 108 255;   /* → tailwind 的 primary/<alpha> */
   --color-primary-hover: var(--seed-primary-2);
   --color-accent:        var(--seed-accent);
   --color-accent-hover:  var(--seed-accent-2);
@@ -1083,3 +1089,13 @@ html.atelier-light .atelier-new-tile:hover > span:first-child {
 .script-editor-theme [class*="border-white\/"],
 .script-editor-theme [class*="border-zinc-"] { border-color: var(--color-border-subtle) !important; }
 .script-editor-theme .prose-invert { --tw-prose-body: var(--color-text-primary); --tw-prose-headings: var(--color-text-primary); --tw-prose-lead: var(--color-text-secondary); --tw-prose-links: var(--color-primary); --tw-prose-bold: var(--color-text-primary); --tw-prose-counters: var(--color-text-muted); --tw-prose-bullets: var(--color-text-muted); --tw-prose-hr: var(--color-border-subtle); --tw-prose-quotes: var(--color-text-secondary); --tw-prose-quote-borders: var(--color-border-subtle); --tw-prose-captions: var(--color-text-muted); --tw-prose-code: var(--color-text-primary); }
+
+/* ===== 主行动按钮的光晕（WorkflowActionButton · primary）=====
+   为什么不在组件里写 `shadow-[var(--glow-primary)]`：Tailwind 处理 shadow 的
+   arbitrary value 时会去解析颜色以便生成 `--tw-shadow-colored`，遇到 `var(...)`
+   解析不出来就把整条丢掉 —— 结果是按钮完全没有阴影（实测 computed style 为 none）。
+   放这里还能直接用各主题调过的那份 glow：亮色主题的版本刻意更克制。
+   注意用 --color-primary-rgb 而不是 var(--color-primary)：前者才能带 alpha。 */
+.workflow-btn-primary {
+  box-shadow: var(--glow-primary);
+}

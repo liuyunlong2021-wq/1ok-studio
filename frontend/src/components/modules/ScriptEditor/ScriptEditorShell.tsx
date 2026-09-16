@@ -22,10 +22,14 @@ import { ShortcutHelpPanel } from './components/ShortcutHelpPanel';
 import { ContinuityIndicator } from './components/ContinuityIndicator';
 import RightPanelContainer from './panels';
 import type { AiPreview } from './panels/AiPanel';
+import type { AiScope } from './panels/AiPanel';
 import LeftSidebar from './sidebar';
 import StoryboardView from './views/StoryboardView';
 import ExportDialog from './dialogs/ExportDialog';
 import { scriptEditorApi } from '@/lib/scriptEditorApi';
+import { scriptTextOf } from './documentText';
+import { applyAiScope } from './extensions';
+import { toast } from '@/store/toastStore';
 
 export interface ScriptEditorShellProps {
   mode?: 'full' | 'embedded' | 'focus';
@@ -78,7 +82,7 @@ export default function ScriptEditorShell({
         hydratedTextRef.current = projectText;
         editor.commands.setContent(document);
         useEditorStore.getState().setDirty(false);
-        useEditorStore.getState().updateDerivation({ wordCount: editor.getText().length });
+        useEditorStore.getState().updateDerivation({ wordCount: scriptTextOf(editor).length });
       })
       .catch((error) => console.error('[ScriptEditor] Failed to load saved document:', error));
 
@@ -123,6 +127,8 @@ export default function ScriptEditorShell({
   const toggleRight = useEditorStore((s) => s.toggleRightSidebar);
   const [showExport, setShowExport] = useState(false);
   const [aiPreview, setAiPreview] = useState<AiPreview | null>(null);
+  /** AI 修改的作用范围；null = 全文。放在这里是因为编辑器要拿它画高亮。 */
+  const [aiScope, setAiScope] = useState<AiScope | null>(null);
   const [extractingEntities, setExtractingEntities] = useState(false);
   const showLeft = mode === 'full' && !leftCollapsed && showSidebars;
   const showRight = mode === 'full' && !rightCollapsed && showSidebars;
@@ -149,15 +155,36 @@ export default function ScriptEditorShell({
 
   const acceptAiPreview = useCallback(() => {
     if (!editor || !aiPreview) return;
+    // 预览期间正文被改过 → 位置已经不可信。宁可让人重新框，也不能改错地方。
+    if (aiPreview.range && aiScope) {
+      const current = editor.state.doc.textBetween(aiPreview.range.from, aiPreview.range.to, '\n');
+      if (current !== aiScope.text) {
+        toast.error('原文已改动，作用范围失效', { body: '请重新框选要改的内容，再看一遍结果。' });
+        setAiPreview(null);
+        setAiScope(null);
+        return;
+      }
+    }
     applyAiPreview(editor, aiPreview);
     setAiPreview(null);
-  }, [aiPreview, editor]);
+    setAiScope(null);
+    // 编辑器文档与 `script.original_text` 是两个真相源，而分镜生成 / 提取实体 /
+    // 「查看脚本」读的是后者。不在这里落盘的话，用户接受完直接去生成分镜就会
+    // 拿到老版本 —— 自动保存要等 30 秒，而且只在 dirty 时才跑。
+    void save(false);
+  }, [aiPreview, aiScope, editor, save]);
+
+  // 把作用范围画进正文：淡紫高亮的那一段，就是这次 AI 会改的地方。
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    applyAiScope(editor.view, aiScope ? { from: aiScope.from, to: aiScope.to } : null);
+  }, [editor, aiScope]);
 
   return (
     <div className="script-editor-theme flex h-full w-full flex-col overflow-hidden bg-bg-base text-foreground">
       {/* Format Toolbar */}
       {!hideAllSidebars && showToolbar && (
-        <FormatToolbar editor={editor} viewMode={viewMode} onViewModeChange={setViewMode} onExport={() => setShowExport(true)} onOpenAi={() => { if (rightCollapsed) toggleRight(); }} />
+        <FormatToolbar editor={editor} viewMode={viewMode} onViewModeChange={setViewMode} onExport={() => setShowExport(true)} />
       )}
 
       {/* Top Toolbar */}
@@ -186,7 +213,7 @@ export default function ScriptEditorShell({
               {isDirty ? t('status.unsaved') : lastSavedAt ? t('status.savedAt', { time: lastSavedAt.toLocaleTimeString() }) : ''}
             </span>
             <button type="button" onClick={() => effectiveProjectId ? save(true) : useEditorStore.getState().setActiveRightPanel('pipeline')} disabled={effectiveProjectId ? !isDirty : false} title={effectiveProjectId ? '保存并创建版本快照' : '请先关联项目'} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-secondary hover:bg-hover-bg disabled:opacity-40"><Save size={13} />{effectiveProjectId ? '保存' : '关联项目后保存'}</button>
-            {onExtractEntities && <button type="button" onClick={async () => { if (!editor || !editor.getText().trim() || extractingEntities) return; setExtractingEntities(true); try { await save(false); await onExtractEntities(editor.getText()); } finally { setExtractingEntities(false); } }} disabled={!editor || !editor.getText().trim() || extractingEntities} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-secondary hover:bg-hover-bg disabled:opacity-40">{extractingEntities && <Loader2 size={12} className="animate-spin" />}提取实体</button>}
+            {onExtractEntities && <button type="button" onClick={async () => { if (!editor || !scriptTextOf(editor).trim() || extractingEntities) return; setExtractingEntities(true); try { await save(false); await onExtractEntities(scriptTextOf(editor)); } finally { setExtractingEntities(false); } }} disabled={!editor || !scriptTextOf(editor).trim() || extractingEntities} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-text-secondary hover:bg-hover-bg disabled:opacity-40">{extractingEntities && <Loader2 size={12} className="animate-spin" />}提取实体</button>}
             {mode === 'full' && (
               <button
                 type="button"
@@ -305,6 +332,8 @@ export default function ScriptEditorShell({
               editor={editor}
               projectId={effectiveProjectId}
               onPreview={setAiPreview}
+              scope={aiScope}
+              onScopeChange={setAiScope}
             />
           </aside>
         )}

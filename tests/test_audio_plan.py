@@ -156,7 +156,12 @@ def test_audio_plan_holds_director_script_and_takes():
 # ---------------------------------------------------------------------------
 
 def test_generate_script_saves_director_script_and_hash(monkeypatch):
-    """stub 在 LLM 层，让真实的 pipeline 逻辑跑起来（写盘、算 hash、存计划）。"""
+    """stub 在 LLM 层，让真实的 pipeline 逻辑跑起来（写盘、算 hash、存计划）。
+
+    端点只负责排队并立即返回，所以响应里是 `queued` 快照；真正的产出落在
+    `script.audio_plan` 上。TestClient 会等 BackgroundTasks 跑完，所以回来时已是
+    `completed` —— 这两件事必须分开断言，否则「响应里假装有稿了」这种回归没人拦。
+    """
     from src.apps.comic_gen.llm_adapter import LLMAdapter
 
     script = _script()
@@ -170,12 +175,41 @@ def test_generate_script_saves_director_script_and_hash(monkeypatch):
     response = client.post(f"{PLAN_URL}/generate-script", json={})
 
     assert response.status_code == 200, response.text
-    plan = response.json()["audio_plan"]
-    assert plan["script_text"].startswith("【全局声音导演稿】")
-    assert plan["script_hash"], "要记 hash，改了导演稿才能标音频过期"
-    assert plan["takes"] == []
-    # 真的落到 script 上了，不只是回显
-    assert script.audio_plan.script_text.startswith("【全局声音导演稿】")
+    queued = response.json()
+    assert queued["status"] == "queued"
+    assert queued["audio_plan"]["script_status"] == "queued"
+    assert queued["audio_plan"]["script_text"] is None, "排队快照不该假装已经有稿"
+
+    # 后台跑完之后，真实产出落在 script 上
+    plan = script.audio_plan
+    assert plan.script_text.startswith("【全局声音导演稿】")
+    assert plan.script_hash, "要记 hash，改了导演稿才能标音频过期"
+    assert plan.script_status == "completed"
+    assert plan.script_error is None
+    assert plan.script_task_id is None, "跑完要清掉，否则永远显示「在跑」"
+    assert plan.takes == []
+
+
+def test_generate_script_failure_lands_on_the_plan(monkeypatch):
+    """导演稿失败要落在 plan 字段上，不是把端点打成 500 —— 提交已经返回了。"""
+    from src.apps.comic_gen.llm_adapter import LLMAdapter
+
+    script = _script()
+    client = _client(monkeypatch, script)
+    monkeypatch.setattr(LLMAdapter, "is_configured", property(lambda self: True))
+
+    def boom(self, messages, **kwargs):
+        raise RuntimeError("韭菜盒子 API error: 401 Incorrect API key")
+
+    monkeypatch.setattr(LLMAdapter, "chat", boom)
+
+    response = client.post(f"{PLAN_URL}/generate-script", json={})
+
+    assert response.status_code == 200, response.text
+    plan = script.audio_plan
+    assert plan.script_status == "failed"
+    assert "401" in (plan.script_error or "")
+    assert plan.script_error, "失败原因要留给人看"
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +304,10 @@ def test_generate_audio_requires_a_director_script(monkeypatch, audio_spy):
 
 
 def test_generate_audio_appends_a_take_and_selects_it(monkeypatch, audio_spy):
-    """「绑定参考音了就多生成几段」—— 每次生成追加一个版本，并设为当前选中。"""
+    """「绑定参考音了就多生成几段」—— 每次生成追加一个版本，并设为当前选中。
+
+    提交那一刻就先追加一条 `queued` 的占位，跑完才回填地址并选中。
+    """
     script = _script()
     client = _client(monkeypatch, script)
     script.audio_plan = _plan_with_script()
@@ -279,12 +316,49 @@ def test_generate_audio_appends_a_take_and_selects_it(monkeypatch, audio_spy):
     second = client.post(f"{PLAN_URL}/generate-audio", json={"character_ids": ["char-1"]})
 
     assert first.status_code == second.status_code == 200
-    plan = second.json()["audio_plan"]
-    assert len(plan["takes"]) == 2, "两版都要留着，方便对比着听"
-    take_ids = [t["id"] for t in plan["takes"]]
+    queued_take = second.json()["take"]
+    assert queued_take["status"] == "queued"
+    assert queued_take["audio_url"] == "", "占位版本还没有地址"
+
+    plan = script.audio_plan
+    assert len(plan.takes) == 2, "两版都要留着，方便对比着听"
+    take_ids = [t.id for t in plan.takes]
     assert len(set(take_ids)) == 2, "版本 id 要唯一"
-    assert plan["selected_take_id"] == take_ids[-1], "新生成的那版自动选中"
-    assert plan["takes"][0]["audio_url"].endswith(".mp3")
+    assert plan.selected_take_id == take_ids[-1], "新生成的那版自动选中"
+    assert [t.status for t in plan.takes] == ["completed", "completed"]
+    assert plan.takes[0].audio_url.endswith(".mp3")
+
+
+def test_generate_audio_failure_lands_on_the_take(monkeypatch):
+    """生成失败落在**这一版**上（带原因），不影响其它版本、也不把端点打成 500。"""
+    script = _script()
+    client = _client(monkeypatch, script)
+    script.audio_plan = _plan_with_script()
+
+    def boom(**_kwargs):
+        raise RuntimeError("网关 524")
+
+    monkeypatch.setattr("src.models.jiucaihezi.generate_audio", boom)
+
+    response = client.post(f"{PLAN_URL}/generate-audio", json={"character_ids": []})
+
+    assert response.status_code == 200, "排队本身是成功的，失败发生在后台"
+    take = script.audio_plan.takes[-1]
+    assert take.status == "failed"
+    assert "524" in (take.error or "")
+    assert take.audio_url == ""
+
+
+def test_second_submit_while_running_reuses_the_task(monkeypatch):
+    """连着点两下不该起两个任务 —— 幂等靠 plan.script_task_id。"""
+    script = _script()
+    _client(monkeypatch, script)
+
+    plan, first_task = api_mod.pipeline.create_audio_plan_task(PROJECT_ID)
+    plan, second_task = api_mod.pipeline.create_audio_plan_task(PROJECT_ID)
+
+    assert first_task == second_task
+    assert plan.script_status == "queued"
 
 
 # ---------------------------------------------------------------------------

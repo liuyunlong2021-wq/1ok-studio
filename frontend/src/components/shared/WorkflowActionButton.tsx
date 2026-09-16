@@ -6,13 +6,13 @@
  * + 半透明品牌色 + backdrop-blur，让按钮看起来"漂浮"在 dark glass 之上。
  *
  * 适配 One OK Studio：
- *   · 用紫色 #646cff 替代蓝色（与 BorderGlow / StepHeader / 整体品牌一致）
+ *   · 颜色全部走主题变量（primary / on-accent / hover-bg），切主题自动跟随
  *   · backdrop-blur 落到 One OK Studio 已有的 glass 语言里
  *   · 顶部 inset highlight 约 1px 白色 4-5% —— 极克制，不喧宾
  *   · 三档 variant：
- *       - primary  : 紫色填充 + 顶部高光，主行动（"应用并继续" / "Generate ×N"）
- *       - secondary: 紫色 outline + 极浅紫填充，次行动（"导入" / "保存"）
- *       - ghost    : 透明 + 紫文字 + hover 显玻璃，纯导航（"取消" / 占位）
+ *       - primary  : 主题色填充 + 顶部高光，主行动（"应用并继续" / "Generate ×N"）
+ *       - secondary: 主题色 outline + 极浅填充，次行动（"导入" / "保存"）
+ *       - ghost    : 透明 + 主题文字 + hover 显玻璃，纯导航（"取消" / 占位）
  *   · loading 态：左前显 spinner，禁交互
  *   · disabled 态：opacity 50% + cursor not-allowed
  *
@@ -44,38 +44,44 @@ interface WorkflowActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButton
 /* ───────────────────────────────────────────────────────────────────
    Variant 风格表
    每档样式写在这里，避免 className 拼接里塞条件，可读性更好。
+
+   ⚠️ 颜色一律走**主题变量**（`primary/xx` / `on-accent` / `hover-bg`），
+   不写死色值。这里原来把紫色 `rgba(100,108,255,…)` 写死在 secondary/ghost 里，
+   只有 primary 跟着主题跑 —— 于是切到非紫色主题（例如 atelier-light 的 teal）
+   时，同一行里的按钮一个 teal、一个紫，看起来像两套组件。
    ─────────────────────────────────────────────────────────────────── */
 const variantStyles: Record<Variant, string> = {
-    /* Primary — 实色紫 fill + frosted 顶部高光。
-       v2 调整：把 frosted 从"身体半透明"挪到"顶部反射"——身体保持紫色实色
-       让对比度足够（在 #050508 dark bg 上白字读得清），仅顶部 1.5px 白色 14%
-       inset 高光模拟"玻璃球反射"。底部加 inset 紫暗边 + outer 紫 glow。 */
+    /* Primary — 实色主题色 fill + frosted 顶部高光。
+       光晕走 `.workflow-btn-primary`（定义在 globals.css）：各主题用自己的
+       `--glow-primary`，亮色主题那版刻意更克制。别改回 Tailwind 的
+       `shadow-[var(--…)]` —— 它解析不出颜色会把整条丢掉，按钮就没有阴影了。 */
     primary: clsx(
-        "text-foreground",
+        "workflow-btn-primary",
+        // on-accent = 「压在实色上的对比色」（暗主题下近黑、亮主题下白）。
+        // 原来写 text-foreground 只在暗色主题下恰好是对的。
+        "text-on-accent",
         "bg-primary",
-        "border border-[rgba(100,108,255,0.65)]",
-        "shadow-[inset_0_1.5px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(60,68,200,0.45),0_4px_14px_-2px_rgba(100,108,255,0.45)]",
+        "border border-primary/65",
         "hover:bg-primary-hover",
-        "hover:border-[rgba(100,108,255,0.85)]",
-        "hover:shadow-[inset_0_1.5px_0_rgba(255,255,255,0.20),inset_0_-1px_0_rgba(60,68,200,0.55),0_6px_18px_-2px_rgba(100,108,255,0.60)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+        "hover:border-primary/85",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
     ),
-    /* Secondary — 紫 outline + 浅紫 frosted 底。
-       身体仍是 frosted（10% 紫 + backdrop-blur），border 紫 40%。
-       hover 加深到接近 primary 但更轻。 */
+    /* Secondary — 主题色 outline + 极浅填充。hover 加深但比 primary 轻。 */
     secondary: clsx(
         "text-primary",
-        "bg-[rgba(100,108,255,0.10)]",
-        "border border-[rgba(100,108,255,0.40)]",
+        "bg-primary/10",
+        "border border-primary/40",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
         "backdrop-blur-md",
-        "hover:bg-[rgba(100,108,255,0.22)] hover:border-[rgba(100,108,255,0.60)] hover:text-foreground",
+        "hover:bg-primary/22 hover:border-primary/60 hover:text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55",
     ),
-    /* Ghost — 透明，hover 才显玻璃。最低权重的导航 / 取消按钮。 */
+    /* Ghost — 透明，hover 才显玻璃。最低权重的导航 / 取消 / 次要动作。
+       hover 底色走 `hover-bg`：它每个主题各定义一次（暗色是白 4.5%、
+       亮色是黑 4%），写死白色在亮主题上等于没有 hover。 */
     ghost: clsx(
         "text-text-secondary bg-transparent border border-transparent",
-        "hover:bg-[rgba(255,255,255,0.06)] hover:text-foreground hover:border-glass-border",
+        "hover:bg-hover-bg hover:text-foreground hover:border-glass-border",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55",
     ),
 };

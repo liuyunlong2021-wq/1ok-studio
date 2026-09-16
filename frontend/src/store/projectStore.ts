@@ -251,6 +251,10 @@ export interface PromptConfig {
     character_prompt?: string;
     scene_prompt?: string;
     prop_prompt?: string;
+    /** 全局声音导演稿（声音步骤「生成导演稿」用的 Skill / 文本）。 */
+    audio_plan?: string;
+    /** 角色参考音设计（工作台「声音面 → 生成提示词」用的 Skill / 文本）。 */
+    voice_prompt?: string;
     skill_bindings?: Record<string, string>;
 }
 
@@ -307,19 +311,34 @@ export interface Project {
     starred?: boolean;
 }
 
+/** 声音生成的异步状态。`queued` / `processing` 都算「在跑」，页面据此轮询。 */
+export type AudioJobStatus = "idle" | "queued" | "processing" | "completed" | "failed";
+
+/** 「在跑」的判定 —— 轮询与按钮禁用都用它，别在组件里重写一遍。 */
+export function isAudioJobRunning(status?: string | null): boolean {
+    return status === "queued" || status === "processing";
+}
+
 export interface AudioTake {
     id: string;
+    /** 空串 = 还没生成完（status 不是 completed 时）。 */
     audio_url: string;
     duration_ms?: number | null;
     reference_character_ids?: string[];
     /** 这一版是基于哪版导演稿生成的；与 plan.script_hash 不同即「已过期」。 */
     script_hash?: string | null;
+    /** 老数据没有这个字段，按已生成完处理。 */
+    status?: AudioJobStatus;
+    error?: string | null;
     created_at?: number;
 }
 
 export interface AudioPlan {
     script_text?: string | null;
     script_hash?: string | null;
+    /** 导演稿的生成状态；undefined / "idle" = 没在跑。 */
+    script_status?: AudioJobStatus;
+    script_error?: string | null;
     takes?: AudioTake[];
     selected_take_id?: string | null;
 }

@@ -1414,8 +1414,8 @@ Return a JSON object with ALL fields below. null is acceptable for optional fiel
         if not self.is_configured:
             raise PolishError(
                 reason="is_configured_false",
-                message_zh="LLM 未配置（缺少 DASHSCOPE_API_KEY），请到设置中检查。",
-                message_en="LLM not configured (missing DASHSCOPE_API_KEY). Please check settings.",
+                message_zh="文本模型未配置（缺少韭菜盒子 API Key），请到「设置」里填写。",
+                message_en="Text model not configured (missing Jiucaihezi API key). Please check settings.",
             )
 
         has_images = bool(image_urls)
@@ -1555,8 +1555,8 @@ Return a JSON object with ALL fields below. null is acceptable for optional fiel
         if not self.is_configured:
             raise PolishError(
                 reason="is_configured_false",
-                message_zh="LLM 未配置（缺少 DASHSCOPE_API_KEY），请到设置中检查。",
-                message_en="LLM not configured (missing DASHSCOPE_API_KEY). Please check settings.",
+                message_zh="文本模型未配置（缺少韭菜盒子 API Key），请到「设置」里填写。",
+                message_en="Text model not configured (missing Jiucaihezi API key). Please check settings.",
             )
 
         has_images = bool(image_urls)

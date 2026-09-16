@@ -2573,11 +2573,20 @@ class UpdateAudioPlanRequest(BaseModel):
 
 
 @app.post("/projects/{script_id}/audio-plan/generate-script")
-def generate_audio_plan_script(script_id: str):
-    """生成全局声音导演稿（LLM）。"""
+def queue_audio_plan_script(script_id: str, background_tasks: BackgroundTasks):
+    """排队生成导演稿，立即返回。
+
+    响应里是**提交那一刻**的计划快照（`script_status="queued"`）。进度靠前端轮询
+    `GET /projects/{id}` 看 `audio_plan.script_status` —— 这个端点不等 LLM。
+    """
     try:
-        plan = pipeline.generate_audio_plan_script(script_id)
-        return signed_response({"audio_plan": plan.model_dump()})
+        plan, task_id = pipeline.create_audio_plan_task(script_id)
+        background_tasks.add_task(pipeline.process_audio_plan_task, task_id)
+        return signed_response({
+            "audio_plan": plan.model_dump(),
+            "task_id": task_id,
+            "status": plan.script_status,
+        })
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -2585,12 +2594,22 @@ def generate_audio_plan_script(script_id: str):
 
 
 @app.post("/projects/{script_id}/audio-plan/generate-audio")
-def generate_episode_audio(script_id: str, request: GenerateEpisodeAudioRequest):
-    """生成一版全集声音（seed-audio-1.0），追加到版本列表并选中。"""
+def queue_episode_audio(
+    script_id: str, request: GenerateEpisodeAudioRequest, background_tasks: BackgroundTasks
+):
+    """排队生成一版全集声音（seed-audio-1.0），立即返回。
+
+    参数错误（导演稿是空的、勾了没绑音色的角色）在这一层就抛 —— 不能在后台才失败。
+    响应里的 take 是 `status="queued"` 的占位（`audio_url` 还是空的）。
+    """
     try:
-        take = pipeline.generate_episode_audio(script_id, request.character_ids)
-        plan = pipeline.get_script(script_id).audio_plan
-        return signed_response({"audio_plan": plan.model_dump(), "take": take.model_dump()})
+        plan, take = pipeline.create_episode_audio_task(script_id, request.character_ids)
+        background_tasks.add_task(pipeline.process_episode_audio_task, take.id)
+        return signed_response({
+            "audio_plan": plan.model_dump(),
+            "take": take.model_dump(),
+            "status": take.status,
+        })
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

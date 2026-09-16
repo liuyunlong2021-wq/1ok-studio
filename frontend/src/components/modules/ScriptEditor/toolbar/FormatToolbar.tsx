@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import {
   Undo2,
   Redo2,
-  Sparkles,
   Download,
   ChevronDown,
   Pencil,
@@ -22,10 +21,9 @@ export interface FormatToolbarProps {
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
   onExport?: () => void;
-  onOpenAi?: () => void;
 }
 
-export default function FormatToolbar({ editor, viewMode = 'edit', onViewModeChange, onExport, onOpenAi }: FormatToolbarProps) {
+export default function FormatToolbar({ editor, viewMode = 'edit', onViewModeChange, onExport }: FormatToolbarProps) {
   const t = useTranslations('scriptEditor');
   const { currentFormat, currentRendering, setFormat, setRendering } = useFormatEngine();
 
@@ -118,14 +116,6 @@ export default function FormatToolbar({ editor, viewMode = 'edit', onViewModeCha
         aria-label={t('toolbar.redo')}
       >
         <Redo2 size={15} />
-      </button>
-
-      {/* Separator */}
-      <div className="mx-1 h-5 w-px bg-white/10" />
-
-      <button type="button" onClick={onOpenAi} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-text-secondary transition-colors hover:bg-hover-bg hover:text-foreground" aria-label="AI 修改剧本">
-        <Sparkles size={14} />
-        <span>AI</span>
       </button>
 
       {/* Spacer */}

@@ -13,7 +13,7 @@
 - `ui.selection_group`、可见页面、排序、推荐状态
 - `status`、运行时网关和凭据来源
 
-韭菜盒子文本模型固定纳入目录：`claude-fable-5-1`、`claude-sonnet-5`、`deepseek-v4-pro-0813`、`gemini-3.8-flash`、`gpt-5.6-sol`。
+韭菜盒子文本模型固定纳入目录：`claude-fable-5-1`、`claude-sonnet-5`、`deepseek-flash`、`gemini-3.8-flash`、`gpt-5.6-sol`。
 
 ## 默认与覆盖
 

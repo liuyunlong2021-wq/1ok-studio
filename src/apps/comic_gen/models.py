@@ -600,17 +600,22 @@ class PromptConfig(BaseModel):
         default_factory=dict,
         description="Prompt stage to Skill Package ID bindings",
     )
-    # Polish 调用使用的 LLM 模型。空 = 用 LLMAdapter 默认（qwen3.6-plus）。
-    # 显式覆盖时用于切到 vision-capable 或更便宜的模型（qwen3.6-flash、kimi-k2.6 等）。
+    # Polish 调用使用的 LLM 模型。空 = 用全局文本模型（`output/settings.json`，
+    # 即「设置 → 文本模型」那一项；见 `src/utils/global_settings.py`）。
     polish_model: str = Field("", description="Override LLM model id used for polish calls; empty = use system default")
 
 class AudioTake(BaseModel):
     """一版全集声音。
 
     「绑定参考音了就多生成几段」—— 每次生成追加一版，人对比着听，程序不挑。
+
+    生成是异步的：提交那一刻就先追加一条 `queued` 的占位（`audio_url` 还是空的），
+    后台跑完才回填地址。这样人切走再切回来能看见「还在生成」，而且进程重启时
+    `_recover_orphan_tasks` 扫得到它 —— 内存里的任务表活不过重启。
     """
     id: str = Field(..., description="Unique identifier for this take")
-    audio_url: str = Field(..., description="Local path (relative to output/) or URL of the audio")
+    #: 空串 = 还没生成完（status 不是 completed 时）。
+    audio_url: str = Field("", description="Local path (relative to output/) or URL of the audio")
     duration_ms: Optional[int] = Field(None, description="Duration in milliseconds, for the timeline")
     reference_character_ids: List[str] = Field(
         default_factory=list,
@@ -621,6 +626,9 @@ class AudioTake(BaseModel):
         description="Hash of the director script this take was generated from — "
         "lets the UI flag takes that predate an edit",
     )
+    #: queued | processing | completed | failed。老数据没有这个字段 → 默认 completed。
+    status: str = Field("completed", description="queued | processing | completed | failed")
+    error: Optional[str] = Field(None, description="Why this take failed (status='failed')")
     created_at: float = Field(default_factory=time.time, description="Timestamp of creation")
 
 
@@ -629,12 +637,20 @@ class EpisodeAudioPlan(BaseModel):
 
     这一步的产出**纯粹给人听**：不参与任何自动决策，「哪几个分镜一组」仍由人听完
     自己判断。整块可选 —— 没做这一步时本字段为 None，流程与之前完全一致。
+
+    两个生成动作都是异步的（提交即返回，前端轮询项目状态），所以状态落在字段上：
+    导演稿看 `script_status`，每一版音频看 `AudioTake.status`。
     """
     script_text: Optional[str] = Field(None, description="Global voice direction script (director's draft)")
     script_hash: Optional[str] = Field(
         None,
         description="Hash of script_text at audio generation time; a mismatch marks existing takes stale",
     )
+    #: idle = 没在跑。其余取值与 AudioTake.status 同一套。
+    script_status: str = Field("idle", description="idle | queued | processing | completed | failed")
+    script_error: Optional[str] = Field(None, description="Why the director script failed")
+    #: 正在跑的那次提交的 id —— 幂等用：连着点两下不重复起任务。
+    script_task_id: Optional[str] = Field(None, description="Id of the in-flight director-script task")
     takes: List[AudioTake] = Field(default_factory=list, description="Generated full-episode audio takes")
     selected_take_id: Optional[str] = Field(None, description="Take the user is currently listening to")
 

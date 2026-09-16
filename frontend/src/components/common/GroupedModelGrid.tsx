@@ -69,6 +69,14 @@ interface GroupedModelGridProps {
     columns?: 2 | 3;
     /** Optional className applied to the root wrapper. */
     className?: string;
+    /**
+     * 置顶的一组「目录外」条目（典型用法：用户手动填写的模型）。
+     *
+     * 为什么不直接混进 `models`：组名与组序都来自 catalog（`FAMILY_DISPLAY_NAMES`
+     * / `MODEL_ORDER`），混进去只会落到 `_ungrouped`、排到最后 —— 而「当前生效的
+     * 模型不在目录里」恰恰是最需要一眼看到的情况。
+     */
+    pinnedGroup?: { label: string; models: GroupableModel[] };
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +126,79 @@ function buildGroups(models: GroupableModel[]): FamilyGroup[] {
 // Component
 // ---------------------------------------------------------------------------
 
+/** 一组卡片：分组头 + 网格。置顶组和 catalog 组共用同一套渲染，避免两份样式各自漂。 */
+function ModelGroup({
+    label,
+    models,
+    selectedId,
+    onSelect,
+    selectedClass,
+    checkClass,
+    gridCols,
+}: {
+    label: string;
+    models: GroupableModel[];
+    selectedId: string;
+    onSelect: (id: string) => void;
+    selectedClass: string;
+    checkClass: string;
+    gridCols: string;
+}) {
+    return (
+        <div>
+            {/* Section header */}
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-[0.6875rem] font-medium uppercase tracking-wider text-text-muted">
+                    {label}
+                </span>
+                <div className="flex-1 h-px bg-glass-border" />
+            </div>
+
+            {/* Model cards */}
+            <div className={`grid ${gridCols} gap-2`}>
+                {models.map((model) => {
+                    const isSelected = model.id === selectedId;
+                    return (
+                        <button
+                            key={model.id}
+                            onClick={() => onSelect(model.id)}
+                            className={`relative flex flex-col items-start p-3.5 rounded-lg border transition-all text-left ${
+                                isSelected
+                                    ? selectedClass
+                                    : 'border-glass-border bg-glass hover:-translate-y-0.5 hover:border-primary/40'
+                            }`}
+                        >
+                            {isSelected && (
+                                <div className="absolute top-2 right-2">
+                                    <Check size={14} className={checkClass} />
+                                </div>
+                            )}
+                            <span className="text-[0.9375rem] font-semibold text-foreground leading-snug break-all">
+                                {model.name}
+                            </span>
+                            <span className="text-[0.8125rem] text-text-secondary mt-0.5 leading-relaxed">
+                                {model.description}
+                            </span>
+                            {model.badges && model.badges.length > 0 && (
+                                <div className="flex gap-1 mt-1.5">
+                                    {model.badges.map((badge) => (
+                                        <span
+                                            key={badge}
+                                            className="text-[0.625rem] px-1.5 py-0.5 rounded bg-elevated text-text-secondary"
+                                        >
+                                            {badge}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export default function GroupedModelGrid({
     models,
     selectedId,
@@ -125,6 +206,7 @@ export default function GroupedModelGrid({
     accent = 'green',
     columns = 2,
     className,
+    pinnedGroup,
 }: GroupedModelGridProps) {
     const groups = useMemo(() => buildGroups(models), [models]);
     const accentClasses = ACCENT_CLASSES[accent];
@@ -133,58 +215,28 @@ export default function GroupedModelGrid({
 
     return (
         <div className={`space-y-4${className ? ` ${className}` : ''}`}>
+            {pinnedGroup && pinnedGroup.models.length > 0 ? (
+                <ModelGroup
+                    label={pinnedGroup.label}
+                    models={pinnedGroup.models}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    selectedClass={accentClasses.selected}
+                    checkClass={accentClasses.check}
+                    gridCols={gridCols}
+                />
+            ) : null}
             {groups.map((group) => (
-                <div key={group.family}>
-                    {/* Section header */}
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[0.6875rem] font-medium uppercase tracking-wider text-text-muted">
-                            {group.displayName}
-                        </span>
-                        <div className="flex-1 h-px bg-glass-border" />
-                    </div>
-
-                    {/* Model cards */}
-                    <div className={`grid ${gridCols} gap-2`}>
-                        {group.models.map((model) => {
-                            const isSelected = model.id === selectedId;
-                            return (
-                                <button
-                                    key={model.id}
-                                    onClick={() => onSelect(model.id)}
-                                    className={`relative flex flex-col items-start p-3.5 rounded-lg border transition-all text-left ${
-                                        isSelected
-                                            ? accentClasses.selected
-                                            : 'border-glass-border bg-glass hover:-translate-y-0.5 hover:border-primary/40'
-                                    }`}
-                                >
-                                    {isSelected && (
-                                        <div className="absolute top-2 right-2">
-                                            <Check size={14} className={accentClasses.check} />
-                                        </div>
-                                    )}
-                                    <span className="text-[0.9375rem] font-semibold text-foreground leading-snug">
-                                        {model.name}
-                                    </span>
-                                    <span className="text-[0.8125rem] text-text-secondary mt-0.5 leading-relaxed">
-                                        {model.description}
-                                    </span>
-                                    {model.badges && model.badges.length > 0 && (
-                                        <div className="flex gap-1 mt-1.5">
-                                            {model.badges.map((badge) => (
-                                                <span
-                                                    key={badge}
-                                                    className="text-[0.625rem] px-1.5 py-0.5 rounded bg-elevated text-text-secondary"
-                                                >
-                                                    {badge}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                <ModelGroup
+                    key={group.family}
+                    label={group.displayName}
+                    models={group.models}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    selectedClass={accentClasses.selected}
+                    checkClass={accentClasses.check}
+                    gridCols={gridCols}
+                />
             ))}
         </div>
     );
