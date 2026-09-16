@@ -38,6 +38,7 @@ import uuid
 import logging
 import traceback
 import sys
+import webbrowser
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
 from .skill_packages import SkillPackageError
 from .models import (
@@ -4619,11 +4620,16 @@ def get_env_key():
 
 @app.post("/config/jiucaihezi/open-keys")
 def open_jiucaihezi_keys():
-    """Open the fixed Jiucaihezi key-management page in the system browser."""
-    import subprocess
+    """Open the fixed Jiucaihezi key-management page in the system browser.
 
+    ``webbrowser`` is the stdlib's cross-platform opener — os.startfile on
+    Windows, ``open`` on macOS, xdg-open on Linux. This used to shell out to
+    /usr/bin/open directly, so the button raised FileNotFoundError (500) on
+    everything except macOS.
+    """
     url = "https://api.jiucaihezi.studio/keys"
-    subprocess.run(["/usr/bin/open", url], check=True)
+    if not webbrowser.open(url):
+        raise HTTPException(status_code=500, detail="Could not open the system browser")
     return {"status": "ok"}
 
 

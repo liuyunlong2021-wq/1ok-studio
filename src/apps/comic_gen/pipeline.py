@@ -2832,9 +2832,13 @@ class ComicGenPipeline:
         # Step 2: Run Demucs separation (two-stems: vocals + no_vocals)
         try:
             if getattr(sys, "frozen", False):
+                # PyInstaller onedir layout is <resources>/1okstudio-backend/<exe>,
+                # so the helper lives two levels up. Windows needs the .exe suffix;
+                # without it the dub workflow silently fell back to plain
+                # replacement instead of separating the vocals.
                 helper = os.path.join(
                     os.path.dirname(os.path.dirname(sys.executable)),
-                    "1okstudio-demucs",
+                    "1okstudio-demucs.exe" if os.name == "nt" else "1okstudio-demucs",
                 )
                 result = subprocess.run(
                     [helper, "--input", extracted_audio, "--out", work_dir],
