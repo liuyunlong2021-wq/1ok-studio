@@ -35,7 +35,6 @@ from .audio import AudioGenerator
 from .export import ExportManager
 from .skill_packages import SkillPackageStore
 from ...utils import get_logger
-from ...utils.oss_utils import is_object_key
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 from ...utils.global_settings import get_active_text_model
@@ -1437,7 +1436,7 @@ class ComicGenPipeline:
             asset_type: "character", "scene", or "prop"
             asset_id: The asset ID
             upload_type: "full_body", "head_shot", "three_views", or "image"
-            image_url: URL of the uploaded image (OSS Object Key)
+            image_url: Media ref of the uploaded image, relative to output/
             description: Optional modified description for reverse generation
         """
         from .models import ImageVariant, AssetUnit
@@ -2234,7 +2233,7 @@ class ComicGenPipeline:
             for url in ref_image_urls:
                 if not url:
                     continue
-                if is_object_key(url) or url.startswith("http"):
+                if url.startswith("http"):
                     ref_image_paths.append(url)
                 else:
                     potential_path = _safe_resolve_path("output", url)
@@ -2243,7 +2242,7 @@ class ComicGenPipeline:
             
             # Also handle single path if provided (legacy support)
             if ref_image_url and ref_image_url not in ref_image_urls:
-                if is_object_key(ref_image_url) or ref_image_url.startswith("http"):
+                if ref_image_url.startswith("http"):
                     if ref_image_url not in ref_image_paths:
                         ref_image_paths.append(ref_image_url)
                 else:
@@ -2538,11 +2537,7 @@ class ComicGenPipeline:
         if not os.path.exists(output_path):
             raise RuntimeError("Failed to extract last frame from video")
 
-        # Upload to OSS if configured
-        from ...utils.oss_utils import OSSImageUploader
-        uploader = OSSImageUploader()
-        oss_url = uploader.upload_image(output_path)
-        image_url = oss_url if oss_url else to_media_ref(os.path.relpath(output_path, "output"))
+        image_url = to_media_ref(os.path.relpath(output_path, "output"))
 
         # Create new variant
         variant = ImageVariant(
@@ -2581,11 +2576,7 @@ class ComicGenPipeline:
         if not frame:
             raise ValueError("Frame not found")
 
-        # Upload to OSS if configured
-        from ...utils.oss_utils import OSSImageUploader
-        uploader = OSSImageUploader()
-        oss_url = uploader.upload_image(safe_path)
-        image_url = oss_url if oss_url else to_media_ref(os.path.relpath(safe_path, "output"))
+        image_url = to_media_ref(os.path.relpath(safe_path, "output"))
 
         # Create new variant
         variant = ImageVariant(
@@ -2753,8 +2744,7 @@ class ComicGenPipeline:
 
         Handles three cases:
         1. Local relative path (e.g. 'video/xxx.mp4') → resolve under output/
-        2. OSS object key (e.g. 'lumenx/videos/xxx.mp4') → sign URL then download
-        3. Full HTTP URL → download directly
+        2. Full HTTP URL → download directly
         """
         if not url:
             return None
@@ -2764,19 +2754,9 @@ class ComicGenPipeline:
             local_path = _safe_resolve_path("output", url)
             if os.path.exists(local_path):
                 return local_path
-            # Not found locally — might be an OSS object key
-            if is_object_key(url):
-                from ...utils.oss_utils import OSSImageUploader
-                uploader = OSSImageUploader()
-                if uploader.is_configured:
-                    url = uploader.sign_url_for_api(url)
-                else:
-                    logger.error(f"[DUB] File not local and OSS not configured: {url}")
-                    return None
-            else:
-                return None
+            return None
 
-        # Case 2 & 3: Download from HTTP URL
+        # Case 2: Download from HTTP URL
         import hashlib
         url_hash = hashlib.md5(url.split("?")[0].encode()).hexdigest()[:12]
         cache_dir = os.path.join("output", "cache")
@@ -3537,7 +3517,7 @@ class ComicGenPipeline:
             if not final_audio_url and task.generate_audio:
                 final_audio_url = self._generate_ai_sound(task)
 
-            # Ensure img_url is passed correctly for OSS
+            # Image ref handed to the video adapter (local path or remote URL)
             img_url = task.image_url
 
             # 目录里只有韭菜盒子一家，所以视频只有一个适配器。

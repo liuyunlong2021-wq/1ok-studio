@@ -15,7 +15,6 @@ LOCAL_MEDIA_PREFIXES = (
 )
 
 MEDIA_REF_LOCAL_PATH = "local_path"
-MEDIA_REF_OBJECT_KEY = "object_key"
 MEDIA_REF_REMOTE_URL = "remote_url"
 MEDIA_REF_BLOB_URL = "blob_url"
 MEDIA_REF_DATA_URI = "data_uri"
@@ -69,15 +68,9 @@ def _is_under(path: Path, parent: Path) -> bool:
     return resolved == parent_real or resolved.startswith(parent_real + os.sep)
 
 
-def _normalized_oss_base_path(oss_base_path: Optional[str] = None) -> str:
-    value = oss_base_path if oss_base_path is not None else os.getenv("OSS_BASE_PATH", "lumenx")
-    return str(value).strip().strip("'\"/ ")
-
-
 def classify_media_ref(
     value: str,
     *,
-    oss_base_path: Optional[str] = None,
     project_root: Optional[str] = None,
 ) -> str:
     """Classify media reference string used in project state."""
@@ -104,10 +97,6 @@ def classify_media_ref(
     relative = raw.lstrip("/")
     if relative.startswith(LOCAL_MEDIA_PREFIXES):
         return MEDIA_REF_LOCAL_PATH
-
-    base_path = _normalized_oss_base_path(oss_base_path)
-    if base_path and relative.startswith(f"{base_path}/"):
-        return MEDIA_REF_OBJECT_KEY
 
     return MEDIA_REF_UNKNOWN
 
@@ -148,6 +137,5 @@ def is_remote_media_ref(value: str) -> bool:
 def is_stable_project_media_ref(value: str) -> bool:
     return classify_media_ref(value) in {
         MEDIA_REF_LOCAL_PATH,
-        MEDIA_REF_OBJECT_KEY,
         MEDIA_REF_REMOTE_URL,
     }

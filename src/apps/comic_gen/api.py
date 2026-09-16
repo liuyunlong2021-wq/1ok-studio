@@ -57,7 +57,6 @@ _SIDECAR_MTIME = (
     else None
 )
 from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
-from ...utils.oss_utils import OSSImageUploader, sign_oss_urls_in_data
 from ...utils.global_settings import get_global_text_model, set_global_text_model
 from ...utils import setup_logging
 from fastapi.responses import JSONResponse
@@ -298,10 +297,12 @@ def report_client_error(report: ClientErrorReport):
     return {"status": "logged"}
 
 def signed_response(data):
-    """Helper to sign OSS URLs in data before returning to frontend.
-    
-    Handles Pydantic models, lists of models, and dicts.
-    Returns a JSONResponse with signed URLs.
+    """Serialize a response body to JSON, bypassing Pydantic re-validation.
+
+    Handles Pydantic models, lists of models, and dicts. The name is a
+    leftover from when responses carried OSS object keys that had to be
+    signed before reaching the frontend; media refs are now plain local
+    paths under output/.
     """
     if data is None:
         return JSONResponse(content=None)
@@ -313,12 +314,6 @@ def signed_response(data):
         processed_data = [item.model_dump() if hasattr(item, "model_dump") else item for item in data]
     else:
         processed_data = data
-    
-    # Check if OSS is configured
-    uploader = OSSImageUploader()
-    if uploader.is_configured:
-        # OSS mode: sign URLs in the data
-        processed_data = sign_oss_urls_in_data(processed_data, uploader)
     
     # Return JSONResponse directly to avoid Pydantic re-validation stripping fields
     return JSONResponse(content=processed_data)
@@ -424,7 +419,7 @@ def check_system():
 
 @app.post("/upload")
 def upload_file(file: UploadFile = File(...)):
-    """Uploads a file and returns its URL (OSS if configured, else local)."""
+    """Uploads a file and returns its media ref relative to output/."""
     try:
         file_ext = _safe_upload_ext(file.filename)
         filename = f"{uuid.uuid4()}{file_ext}"
@@ -433,12 +428,7 @@ def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Try uploading to OSS
-        oss_url = OSSImageUploader().upload_image(file_path)
-        if oss_url:
-            return signed_response({"url": oss_url})
-
-        # Fallback to local URL (relative path for frontend getAssetUrl)
+        # Relative path for the frontend's getAssetUrl
         return {"url": f"uploads/{filename}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -475,11 +465,8 @@ def upload_asset(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 2. Upload to OSS
-        uploader = OSSImageUploader()
-        oss_url = uploader.upload_image(file_path)
-        if not oss_url:
-            oss_url = f"uploads/{filename}"  # Fallback to local path
+        # 2. Media ref relative to output/
+        image_url = f"uploads/{filename}"
         
         # 3. Update asset with new variant
         updated_script = pipeline.add_uploaded_asset_variant(
@@ -487,7 +474,7 @@ def upload_asset(
             asset_type=asset_type,
             asset_id=asset_id,
             upload_type=upload_type,
-            image_url=oss_url,
+            image_url=image_url,
             description=description
         )
         
@@ -1377,9 +1364,8 @@ def upload_library_asset_image(file: UploadFile = File(...)):
     """Upload an image to use as a global library asset's master image.
 
     Saves the file under output/uploads/ (served via the /files static mount)
-    and returns {"image_url": <path-or-URL the frontend can load>}. When OSS
-    is configured the returned URL is the (signed) OSS URL; otherwise a local
-    relative path "uploads/<name>" resolvable through the frontend's
+    and returns {"image_url": "uploads/<name>"} — a local relative path
+    resolvable through the frontend's
     getAssetUrl helper. The caller then passes this image_url to
     POST /library/assets (image_url=...) or PATCH /library/assets/{type}/{id}
     to attach it to a library asset. Mirrors the generic /upload endpoint but
@@ -1391,10 +1377,6 @@ def upload_library_asset_image(file: UploadFile = File(...)):
         file_path = os.path.join("output/uploads", filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        # Prefer OSS when configured (signed), else fall back to local path.
-        oss_url = OSSImageUploader().upload_image(file_path)
-        if oss_url:
-            return signed_response({"image_url": oss_url})
         return {"image_url": f"uploads/{filename}"}
     except Exception as e:
         logger.exception("upload_library_asset_image failed")
@@ -1744,14 +1726,6 @@ def update_env_config(config: EnvConfig):
             os.environ.pop(key, None)
         remove_user_config_keys(sorted(LEGACY_USER_CONFIG_KEYS))
         remove_user_config_keys(["JIUCAIHEZI_BASE_URL"])
-
-        # Reset OSS singleton to pick up new config (non-blocking)
-        try:
-            OSSImageUploader.reset_instance()
-            logger.info("OSS instance reset successfully")
-        except Exception as oss_e:
-            # OSS reset failure should not block config saving
-            logger.warning(f"OSS reset failed (non-critical): {oss_e}")
 
         config_path = get_user_config_path()
         return {"status": "success", "message": f"Configuration saved to {config_path}"}
@@ -3452,7 +3426,7 @@ def update_character_voice_fields(
     """手改声音面：两个文本框 + 把一段现成的音频收进候选并设为主音。
 
     改「声音描述」会让右列的提示词变过期。上传参考音走的是现成的 POST /upload
-    —— 它已经处理了扩展名与 OSS/本地二选一，这里只负责把结果记到角色身上。
+    —— 它已经处理了扩展名，这里只负责把结果记到角色身上。
     """
     try:
         character = pipeline.update_voice_fields(
@@ -3565,8 +3539,7 @@ def voice_preview(request: VoicePreviewRequest):
             raise HTTPException(status_code=500, detail=f"TTS generation failed: {e}")
 
     # Static mount /files maps to output/, so the relative path under output/
-    # becomes the URL path frontend can hit. signed_response wraps for OSS
-    # signing when configured, no-op otherwise.
+    # becomes the URL path frontend can hit.
     url = f"cache/voice_preview/{cache_key}.mp3"
     return signed_response({"url": url, "cached": cached})
 

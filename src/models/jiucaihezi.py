@@ -167,7 +167,7 @@ def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
     """Upload a local URL-type reference to Jiucaihezi's temporary media API.
 
     This is intentionally fail-closed: Jiucaihezi reference URLs must never
-    fall back to OSS or any other storage provider.
+    fall back to any other storage provider.
     """
     if not os.path.isfile(path):
         raise RuntimeError(f"Jiucaihezi {media_type} upload source not found: {path}")

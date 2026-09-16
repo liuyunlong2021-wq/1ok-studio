@@ -64,18 +64,7 @@ class VideoGenerator:
                 audio_url=audio_url,
             )
 
-            # Upload to OSS if configured
             video_url = to_media_ref(os.path.relpath(output_path, "output"))
-            try:
-                from ...utils.oss_utils import OSSImageUploader
-                uploader = OSSImageUploader()
-                if uploader.is_configured:
-                    object_key = uploader.upload_file(output_path, sub_path="motion_ref")
-                    if object_key:
-                        logger.info(f"Uploaded motion ref video to OSS: {object_key}")
-                        video_url = object_key
-            except Exception as e:
-                logger.error(f"Failed to upload motion ref to OSS: {e}")
 
             return {"video_url": video_url}
 

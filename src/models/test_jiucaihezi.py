@@ -60,7 +60,7 @@ def test_local_media_upload_retries_transient_gateway_failure(post, tmp_path):
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
-def test_local_media_upload_rejects_missing_url_without_oss_fallback(post, tmp_path):
+def test_local_media_upload_rejects_missing_url_without_a_fallback(post, tmp_path):
     source = tmp_path / "reference.png"
     source.write_bytes(b"image")
     post.return_value = _response({})
