@@ -20,7 +20,7 @@
 # import_file_preview, import_file_confirm, upload_t2i_frame,
 # analyze_script_for_styles. All others are `def` for a reason.
 # ─────────────────────────────────────────────────────────────────────────────
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -3191,6 +3191,33 @@ def upload_skill_package(file: UploadFile = File(...)):
     try:
         data = file.file.read()
         return pipeline.skill_packages.import_upload(file.filename or "SKILL.md", data)
+    except SkillPackageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/skill-packages/folder")
+def upload_skill_package_folder(files: List[UploadFile] = File(...), paths: str = Form(default="[]")):
+    """整目录上传 Skill（SKILL.md 连同它的 references/ 一起）。
+
+    `paths` 是与 `files` 同序的 JSON 数组。这里特意用一条 JSON 字段而不是
+    重复的 `paths` 表单字段：重复字段的解析各家客户端并不一致（httpx 就不认
+    list-of-tuples），而这里一旦错位，代价是“路径全乱却看起来成功”的包。
+    """
+    try:
+        if not files:
+            raise SkillPackageError("没有收到任何文件")
+        try:
+            relative_paths = json.loads(paths or "[]")
+        except ValueError as exc:
+            raise SkillPackageError("上传数据损坏（路径表不是合法 JSON），请重新选择文件夹") from exc
+        if not isinstance(relative_paths, list) or len(relative_paths) != len(files):
+            # 宁可拒绝也不猜：猜错就是把 A 的文件写进 B 的路径。
+            raise SkillPackageError("上传数据不完整（文件与路径数量不一致），请重新选择文件夹")
+        entries = [
+            (str(relative_paths[index]) or (upload.filename or ""), upload.file.read())
+            for index, upload in enumerate(files)
+        ]
+        return pipeline.skill_packages.import_upload_folder(entries)
     except SkillPackageError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

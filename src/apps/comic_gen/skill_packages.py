@@ -8,7 +8,7 @@ import shutil
 import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...utils import get_logger
 
@@ -67,6 +67,62 @@ class SkillPackageStore:
             raise SkillPackageError("仅支持 .zip、.md、.markdown 或 .txt Skill")
         return self.create(files, filename)
 
+    def import_upload_folder(self, entries: List[Tuple[str, bytes]], source_name: str = "") -> Dict[str, Any]:
+        """整目录上传：前端把文件夹里每个文件单独送来一份。
+
+        `entries` 是 (相对路径, 字节)。相对路径来自浏览器的 `webkitRelativePath`，
+        所以 `my-skill/references/a.md` 到这儿还是原样，由 `_strip_common_root`
+        负责剥掉 `my-skill/` 那层壳 —— Skill 包的入口必须落在根目录。
+
+        先按扩展名过滤、再数文件数：整目录里常混着图片、`.git` 残留之类，
+        它们本来就不会被收录，不该反过来触发「文件数超限」把用户挡在门外。
+        """
+        candidates: List[Tuple[str, bytes]] = []
+        for raw_path, data in entries:
+            safe = self._safe_path(raw_path)
+            if posixpath.basename(safe).startswith("."):
+                continue  # .DS_Store / .redskill-installed 这类隐藏文件
+            if os.path.splitext(safe)[1].lower() not in ALLOWED_TEXT_EXTENSIONS:
+                continue
+            candidates.append((safe, data))
+        if not candidates:
+            raise SkillPackageError("所选文件夹里没有可用的文本文件（.md / .markdown / .txt / .json / .yaml）")
+        if len(candidates) > MAX_FILES:
+            raise SkillPackageError(f"Skill 包文本文件数超过 {MAX_FILES}")
+        files: Dict[str, str] = {}
+        total = 0
+        for safe, data in candidates:
+            if len(data) > MAX_FILE_BYTES:
+                raise SkillPackageError(f"Skill 文件超过 512KB: {safe}")
+            total += len(data)
+            if total > MAX_PACKAGE_BYTES:
+                raise SkillPackageError("Skill 文本总量超过 4MB")
+            try:
+                files[safe] = data.decode("utf-8-sig")
+            except UnicodeDecodeError as exc:
+                raise SkillPackageError(f"Skill 文件不是 UTF-8: {safe}") from exc
+        if not source_name:
+            first = candidates[0][0]
+            source_name = first.split("/")[0] if "/" in first else first
+        return self.create(self._strip_common_root(files), source_name)
+
+    @staticmethod
+    def _strip_common_root(files: Dict[str, str]) -> Dict[str, str]:
+        """剥掉整目录上传时多出来的那层外壳。
+
+        选文件夹时浏览器给的路径是 `my-skill/SKILL.md`，而 `create()` 只认根目录
+        下的 SKILL.md。只在这层壳是所有文件共同前缀时才剥 —— 直接上传单个
+        SKILL.md 时路径不带斜杠，prefix 为空，原样返回，不会被误伤。
+        """
+        entries = [path for path in files if path.lower().endswith("skill.md")]
+        if not entries:
+            return files
+        entry = min(entries, key=lambda value: (value.count("/"), len(value)))
+        prefix = entry[: -len("SKILL.md")]
+        if not prefix or not all(path.startswith(prefix) for path in files):
+            return files
+        return {path[len(prefix):]: content for path, content in files.items()}
+
     def _read_zip(self, data: bytes) -> Dict[str, str]:
         try:
             archive = zipfile.ZipFile(io.BytesIO(data))
@@ -109,7 +165,12 @@ class SkillPackageStore:
             raise SkillPackageError("Skill 包根目录中缺少 SKILL.md")
         validation = self.validate_files(normalized, entry)
         if validation["errors"]:
-            raise SkillPackageError("；".join(validation["errors"]))
+            message = "；".join(validation["errors"])
+            # 「缺少引用文件」几乎都是只传了 SKILL.md 而没带上 references/。
+            # 光报一个文件名用户不知道该干什么，所以补一句怎么修。
+            if any("缺少引用文件" in item for item in validation["errors"]):
+                message += "。这个 Skill 引用了同目录下的其它文件，请改用「上传文件夹」或打包成 .zip 整包上传"
+            raise SkillPackageError(message)
         package_id = f"skillpkg_{uuid.uuid4().hex}"
         metadata = {
             "id": package_id,
