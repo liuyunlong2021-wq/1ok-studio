@@ -9,12 +9,13 @@ description: One OK Studio GitHub 发布流程 - 安全提交、敏感数据扫�
 ## 核心规则
 
 - **禁止直接推送 `main` 分支** — 必须通过 feature 分支 + PR
-- **只推送 `github` remote**，发布时忽略 `origin`（已废弃的 GitLab）
+- **只推送 `origin`** —— 它是本仓库唯一的 remote，也就是下面的 GitHub 仓库。
+  （旧版本此处写的是 `github` remote，实际不存在；`origin` 也不是已废弃的 GitLab 镜像。）
 - **推送前必须执行敏感数据扫描**
 - **Commit Message 遵循 Conventional Commits** (`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`)
-- **GitHub remote 名称为 `github`**，仓库地址：`https://github.com/liuyunlong2021-wq/1ok-studio.git`
-- **GitHub 镜像提交的作者固定为** `Mike4Ellis <1007062267@qq.com>`
-- **GitHub PR 统一由** `Star-Lotus` **账号发起**；如果 `Mike4Ellis` 缺少 `createPullRequest` 权限，需要先切换 `gh` 活跃账号再执行 `gh pr create`
+- **Git remote 名称为 `origin`**，仓库地址：`https://github.com/liuyunlong2021-wq/1ok-studio.git`
+- **沿用仓库已配置的提交身份**，不要覆盖提交作者；`git config user.name` / `user.email` 已指向维护者账号
+- **创建 PR 需要 GitHub CLI**；若本机未安装 `gh`，先推送分支、再在浏览器里开 PR —— 分支推上去就算发布了
 
 ## 阶段一：提交前检查
 
@@ -107,9 +108,7 @@ git commit -m "feat: your descriptive commit message"
 git log -1 --format='%an <%ae>'
 ```
 
-期望作者：
-
-- `Mike4Ellis <1007062267@qq.com>`
+期望作者：仓库已配置的维护者身份（`git config user.name` / `user.email`），不要覆盖。
 
 Commit 类型：
 - `feat:` 新功能
@@ -123,7 +122,7 @@ Commit 类型：
 ### 3. 推送到 GitHub
 
 ```bash
-git push -u github <branch-name>
+git push -u origin <branch-name>
 ```
 
 ### 4. 创建 Pull Request

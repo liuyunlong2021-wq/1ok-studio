@@ -325,7 +325,7 @@ For feature requests, please describe:
 ## 📞 Questions?
 
 - **Technical Questions**: [GitHub Discussions](https://github.com/liuyunlong2021-wq/1ok-studio/discussions)
-- **Security Issues**: Email security@alibaba-inc.com (do not file public issues)
+- **Security Issues**: Open a private advisory at https://github.com/liuyunlong2021-wq/1ok-studio/security/advisories/new (do not file a public issue)
 
 ## 📄 License
 

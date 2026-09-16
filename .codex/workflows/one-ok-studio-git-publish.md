@@ -10,15 +10,19 @@ Use this workflow when working in this repository and the user asks to publish w
 ## Core Rules
 
 - Never push directly to `main`. Use a feature, fix, or docs branch and open a PR.
-- Push to the `github` remote only. Ignore `origin` for publishing.
+- Push to `origin`. It is the only remote in this repository, and it is the GitHub
+  repository below. (Earlier revisions named a `github` remote; none exists, and
+  `origin` is not a GitLab mirror.)
 - Run sensitive-data checks before any push.
 - Commit messages must follow Conventional Commits.
-- Use `Mike4Ellis <1007062267@qq.com>` as the git commit author for GitHub mirror submissions in this repo.
-- Open GitHub PRs with the `Star-Lotus` GitHub account. If `Mike4Ellis` lacks `createPullRequest` permission, switch `gh` to `Star-Lotus` before running `gh pr create`.
+- Keep the repository's configured git identity; do not override the commit author.
+  `git config user.name` and `user.email` already point at the maintainer account.
+- Creating a PR needs the GitHub CLI. If `gh` is not installed, push the branch and
+  open the PR in the browser -- the push is what publishes the work.
 
 Repository-specific constraints:
 
-- GitHub remote: `github`
+- Git remote: `origin`
 - GitHub repository: `https://github.com/liuyunlong2021-wq/1ok-studio.git`
 - Allowed branch prefixes: `feature/`, `fix/`, `docs/`
 
@@ -128,9 +132,8 @@ Before committing, confirm the author identity matches the project convention:
 git log -1 --format='%an <%ae>'
 ```
 
-Expected author for GitHub-bound commits in this repo:
-
-- `Mike4Ellis <1007062267@qq.com>`
+Expected author: the maintainer identity already configured in the repository
+(`git config user.name` / `user.email`). Do not override it.
 
 Common prefixes:
 
@@ -144,10 +147,10 @@ Common prefixes:
 
 ## Step 8: Push to GitHub
 
-Push the current branch to the `github` remote:
+Push the current branch to `origin`:
 
 ```bash
-git push -u github <branch-name>
+git push -u origin <branch-name>
 ```
 
 ## Step 9: Create a Pull Request
