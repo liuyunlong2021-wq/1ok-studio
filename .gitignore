@@ -62,6 +62,14 @@ dist_windows/
 *.dmg
 *.pkg
 
+# Bundled FFmpeg — provided per platform at build time, never committed.
+# Shipping one here only ever worked on the machine that produced it: the old
+# bin/ffmpeg was an arm64 Mach-O stub dynamically linked against
+# /opt/homebrew/Cellar/ffmpeg/7.1.1_1/, so it was useless on both Windows and
+# any Mac without that exact Homebrew formula.
+bin/ffmpeg
+bin/ffmpeg.exe
+
 # OS
 Thumbs.db
 
