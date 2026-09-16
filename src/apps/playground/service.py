@@ -19,6 +19,7 @@ from .models import (
 )
 from .storage import PlaygroundStorage
 from ...utils import get_logger
+from ...utils.media_refs import to_media_ref
 
 logger = get_logger(__name__)
 
@@ -113,7 +114,18 @@ class PlaygroundService:
             response_format=gen.parameters.get("response_format", "mp3"),
         )
 
-        gen.outputs.append(PlaygroundOutput(id=str(uuid.uuid4()), media_path=out_path, media_type="audio"))
+        # ``out_path`` is a filesystem path (os.path.join, so backslashes on
+        # Windows); the stored ref must stay POSIX because it is also a URL-ish
+        # identifier — see models.py, "relative to output/". Storing the raw
+        # path made the frontend's /^output\// strip miss on Windows and every
+        # generated file 404 behind /files/output/output/...
+        gen.outputs.append(
+            PlaygroundOutput(
+                id=str(uuid.uuid4()),
+                media_path=to_media_ref(out_path),
+                media_type="audio",
+            )
+        )
         self.storage.update_generation(gen)
 
     def save_to_library(self, generation_id: str, output_id: str, category: str = "general") -> bool:
@@ -214,7 +226,7 @@ class PlaygroundService:
 
                 output_entry = PlaygroundOutput(
                     id=str(uuid.uuid4()),
-                    media_path=out_path,
+                    media_path=to_media_ref(out_path),
                     media_type="image",
                 )
                 gen.outputs.append(output_entry)
@@ -259,7 +271,7 @@ class PlaygroundService:
 
                 output_entry = PlaygroundOutput(
                     id=str(uuid.uuid4()),
-                    media_path=out_path,
+                    media_path=to_media_ref(out_path),
                     media_type="video",
                 )
                 gen.outputs.append(output_entry)

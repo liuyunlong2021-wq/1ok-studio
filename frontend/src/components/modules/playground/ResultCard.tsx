@@ -28,7 +28,7 @@ const MODE_LABELS: Record<string, string> = {
 };
 
 function getMediaUrl(path: string): string {
-  const relativePath = path.replace(/^output\//, '');
+  const relativePath = path.replace(/\\/g, '/').replace(/^output\//, '');
   return `${API_URL}/files/${relativePath}`;
 }
 

@@ -21,7 +21,7 @@ interface GalleryViewProps {
 // ---------------------------------------------------------------------------
 
 function getMediaUrl(path: string): string {
-  return API_URL + '/files/' + path.replace(/^output\//, '');
+  return API_URL + '/files/' + path.replace(/\\/g, '/').replace(/^output\//, '');
 }
 
 function formatTime(dateStr: string): string {

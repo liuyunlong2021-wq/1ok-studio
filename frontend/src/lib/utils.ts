@@ -24,8 +24,15 @@ export function getAssetUrl(path: string | null | undefined): string {
         return "";
     }
 
+    // Normalize separators before stripping the prefix. Refs written by
+    // os.path.join (Windows) arrive as `output\playground\images\x.png`, which
+    // `/^output\//` does not match — the prefix survived and /files resolved
+    // output/output/... instead. Refs are documented as relative to output/ in
+    // apps/playground/models.py.
     // Remove leading slash if present to avoid double slashes with API_URL/files/
-    const cleanPath = (path.startsWith("/") ? path.slice(1) : path).replace(/^output\//, "");
+    const cleanPath = (path.startsWith("/") ? path.slice(1) : path)
+        .replace(/\\/g, "/")
+        .replace(/^output\//, "");
     return `${API_URL}/files/${encodeURI(cleanPath)}`;
 }
 

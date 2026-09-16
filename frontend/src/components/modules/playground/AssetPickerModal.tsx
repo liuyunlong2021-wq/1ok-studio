@@ -42,7 +42,7 @@ function getFileName(path: string): string {
 
 /** Convert a media_path (e.g. "output/storyboard/foo.png") to a /files/ URL */
 function toFileUrl(mediaPath: string): string {
-  const relative = mediaPath.replace(/^output\//, '');
+  const relative = mediaPath.replace(/\\/g, '/').replace(/^output\//, '');
   return API_URL + '/files/' + relative;
 }
 

@@ -95,7 +95,7 @@ function isAudioPath(path: string): boolean { return /\.(mp3|wav|ogg|opus|pcm|m4
 // in store state + the generate payload — only the <img>/<video> src is resolved.
 function resolveMediaSrc(path: string): string {
   if (/^(https?:|blob:|data:|\/)/i.test(path)) return path;
-  return `${API_URL}/files/${path.replace(/^output\//, '')}`;
+  return `${API_URL}/files/${path.replace(/\\/g, '/').replace(/^output\//, '')}`;
 }
 
 // ---------------------------------------------------------------------------
