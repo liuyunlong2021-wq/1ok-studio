@@ -13,6 +13,11 @@ crate-type = ["lib", "cdylib", "staticlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# macos-private-api stays enabled on every platform on purpose. tauri-build
+# validates Cargo features against tauri.conf.json's allowlist regardless of
+# host OS, so scoping this to the macOS target table makes the Windows build
+# fail with "features ... does not match the allowlist". The feature itself is
+# cfg'd to macOS inside tauri, so enabling it elsewhere is inert.
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-shell = "2"
 tauri-plugin-notification = "2"

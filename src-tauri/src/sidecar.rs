@@ -19,6 +19,35 @@ fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
     }
 }
 
+/// Stop the backend, children included.
+///
+/// `Child::kill` only signals the direct child. PyInstaller's bootloader
+/// re-execs itself, so the interpreter that actually serves 17177 can survive
+/// as an orphan — the next launch then finds a stale backend answering
+/// /health, which `start_backend` has to reason about (see the reuse guards
+/// there). `taskkill /T` walks the tree instead.
+fn terminate(process: &mut Child) {
+    #[cfg(windows)]
+    {
+        let pid = process.id().to_string();
+        let walked_tree = Command::new("taskkill")
+            .args(["/PID", &pid, "/T", "/F"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false);
+        if walked_tree {
+            let _ = process.wait();
+            return;
+        }
+        // Fall through to the portable path when taskkill is unavailable.
+    }
+
+    let _ = process.kill();
+    let _ = process.wait();
+}
+
 /// Start the Python backend sidecar process
 /// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
 /// In production: runs the bundled PyInstaller binary
@@ -79,8 +108,7 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
             loop {
                 if !running.load(Ordering::SeqCst) {
                     // Application is shutting down, kill the backend
-                    let _ = process.kill();
-                    let _ = process.wait();
+                    terminate(&mut process);
                     println!("[sidecar] Backend process terminated");
                     break;
                 }
@@ -121,17 +149,46 @@ pub(crate) fn user_data_dir() -> std::path::PathBuf {
     let configured = std::env::var("ONEOKSTUDIO_DATA_DIR").unwrap_or_default();
     let trimmed = configured.trim();
     if let Some(rest) = trimmed.strip_prefix("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
-            return std::path::PathBuf::from(home).join(rest);
+        if let Some(home) = home_dir() {
+            return home.join(rest);
         }
     }
     if !trimmed.is_empty() {
         return std::path::PathBuf::from(trimmed);
     }
-    std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)
+    home_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join(".1okstudio")
+}
+
+/// The user's home directory, per platform.
+///
+/// `HOME` is a POSIX convention; Windows sets `USERPROFILE`, and `HOME` is
+/// usually absent. Reading only `HOME` therefore sent the data dir to
+/// `%TEMP%\.1okstudio` on Windows — the app came up looking like it had lost
+/// every project, and the real data was still sitting in the profile.
+fn home_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(std::path::PathBuf::from)
+}
+
+/// Interpreter used by `tauri dev`.
+///
+/// The repo's own venv comes first. A GUI-launched process inherits no shell
+/// PATH, so on Windows a bare `python` is typically missing (the launcher is
+/// `py`) and on macOS it resolves to the system python — neither has the
+/// project's dependencies.
+fn dev_python(project_root: &std::path::Path) -> std::path::PathBuf {
+    let venv = if cfg!(windows) {
+        project_root.join(".venv").join("Scripts").join("python.exe")
+    } else {
+        project_root.join(".venv").join("bin").join("python")
+    };
+    if venv.is_file() {
+        return venv;
+    }
+    std::path::PathBuf::from(if cfg!(windows) { "python" } else { "python3" })
 }
 
 fn start_dev_backend() -> Result<Child, std::io::Error> {
@@ -140,7 +197,7 @@ fn start_dev_backend() -> Result<Child, std::io::Error> {
         .expect("src-tauri has no parent directory");
     let data_dir = user_data_dir();
     std::fs::create_dir_all(&data_dir)?;
-    Command::new("python")
+    Command::new(dev_python(project_root))
         .current_dir(&data_dir)
         .args([
             "-m",
@@ -169,19 +226,41 @@ fn start_prod_backend(app_handle: &tauri::AppHandle) -> Result<Child, std::io::E
         .append(true)
         .open(log_path)?;
     let stderr = stdout.try_clone()?;
-    Command::new(prod_sidecar_path(app_handle)?)
+
+    let mut command = Command::new(prod_sidecar_path(app_handle)?);
+    command
         .arg("--port")
         .arg("17177")
         .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()
+        .stderr(Stdio::from(stderr));
+
+    // The sidecar is a PyInstaller `--console` build. The main binary is
+    // windows_subsystem = "windows", but a spawned process is not, so Windows
+    // gives the backend a console window of its own and a black box appears
+    // alongside the app. Output still reaches the log file via the handles
+    // above; only the console is suppressed.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    command.spawn()
 }
 
 fn prod_sidecar_path(app_handle: &tauri::AppHandle) -> Result<std::path::PathBuf, std::io::Error> {
+    // PyInstaller appends the platform's executable suffix, and the bundle
+    // resource list has to name the same file (see build_tauri_windows.ps1).
+    let relative = if cfg!(windows) {
+        "1okstudio-backend/1okstudio-backend.exe"
+    } else {
+        "1okstudio-backend/1okstudio-backend"
+    };
     app_handle
         .path()
         .resource_dir()
-        .map(|path| path.join("1okstudio-backend/1okstudio-backend"))
+        .map(|path| path.join(relative))
         .map_err(std::io::Error::other)
 }
 
