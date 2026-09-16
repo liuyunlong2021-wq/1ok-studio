@@ -911,6 +911,13 @@
     "exportComplete": "Export Complete!",
     "exportReadyDesc": "Your video is ready to be shared with the world.",
     "downloadVideo": "Download Video",
+    "openVideoFile": "Open video file",
+    "copyPrompt": "Copy prompt",
+    "promptCopied": "Prompt copied",
+    "copyFailed": "Failed to copy prompt",
+    "videoSaved": "Video saved",
+    "downloadFailed": "Failed to download video",
+    "openFailed": "Failed to open video",
     "exportHint": "Configure your export settings and click \"Start Render\"",
     "extractFrame": "Extract frame"
   },

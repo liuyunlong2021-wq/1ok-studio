@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, RefreshCw, Copy, Download, Trash2, AlertCircle, Scissors } from "lucide-react";
+import { Loader2, RefreshCw, Copy, Download, FolderOpen, AlertCircle, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { VideoTask, API_URL } from "@/lib/api";
+import { VideoTask } from "@/lib/api";
+import { revealMedia, saveMedia } from "@/lib/mediaActions";
 import { getAssetUrl } from "@/lib/utils";
+import { toast } from "@/store/toastStore";
 import FrameExtractOverlay from "./FrameExtractOverlay";
 
 interface VideoQueueProps {
@@ -41,14 +43,14 @@ export default function VideoQueue({ tasks, onRemix, onExtractFrame }: VideoQueu
                 </div>
 
                 <div className="flex bg-glass rounded-lg p-1 gap-1">
-                    {[
+                    {([
                         { id: "all", label: tv("all") },
                         { id: "processing", label: tv("processing") },
                         { id: "completed", label: tv("completed") },
-                    ].map((tab) => (
+                    ] as const).map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setFilter(tab.id as any)}
+                            onClick={() => setFilter(tab.id)}
                             className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${filter === tab.id
                                 ? "bg-hover-bg text-foreground font-medium shadow-sm"
                                 : "text-text-muted hover:text-text-secondary"
@@ -80,6 +82,7 @@ export default function VideoQueue({ tasks, onRemix, onExtractFrame }: VideoQueu
 
 function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix: (t: VideoTask) => void; onExtractFrame?: (t: VideoTask, file: File, name: string) => void }) {
     const [extracting, setExtracting] = useState(false);
+    const [mediaAction, setMediaAction] = useState<"download" | "open" | null>(null);
     const tv = useTranslations("video");
     const isCompleted = task.status === "completed";
     const isProcessing = task.status === "processing" || task.status === "pending";
@@ -88,6 +91,44 @@ function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix:
 
     const getDisplayUrl = (url: string) => {
         return getAssetUrl(url);
+    };
+
+    const mediaUrl = task.video_url ? getDisplayUrl(task.video_url) : "";
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(task.prompt);
+            toast.success(tv("promptCopied"));
+        } catch {
+            toast.error(tv("copyFailed"));
+        }
+    };
+
+    const handleDownload = async () => {
+        if (!task.video_url || mediaAction) return;
+        setMediaAction("download");
+        try {
+            const saved = await saveMedia(task.video_url, mediaUrl);
+            if (saved) toast.success(tv("videoSaved"));
+        } catch (error) {
+            toast.error(tv("downloadFailed"), { body: error instanceof Error ? error.message : undefined });
+        } finally {
+            setMediaAction(null);
+        }
+    };
+
+    const handleOpen = async () => {
+        if (!task.video_url || mediaAction) return;
+        setMediaAction("open");
+        try {
+            if (!await revealMedia(task.video_url)) {
+                window.open(mediaUrl, "_blank", "noopener,noreferrer");
+            }
+        } catch (error) {
+            toast.error(tv("openFailed"), { body: error instanceof Error ? error.message : undefined });
+        } finally {
+            setMediaAction(null);
+        }
     };
 
     return (
@@ -221,16 +262,36 @@ function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix:
                                         <Scissors size={14} />
                                     </button>
                                 )}
-                                <button className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground">
+                                <button
+                                    type="button"
+                                    onClick={handleCopy}
+                                    aria-label={tv("copyPrompt")}
+                                    title={tv("copyPrompt")}
+                                    className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground"
+                                >
                                     <Copy size={14} />
                                 </button>
-                                <button className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground">
-                                    <Download size={14} />
+                                <button
+                                    type="button"
+                                    onClick={handleDownload}
+                                    disabled={!task.video_url || mediaAction !== null}
+                                    aria-label={tv("downloadVideo")}
+                                    title={tv("downloadVideo")}
+                                    className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {mediaAction === "download" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleOpen}
+                                    disabled={!task.video_url || mediaAction !== null}
+                                    aria-label={tv("openVideoFile")}
+                                    title={tv("openVideoFile")}
+                                    className="p-1.5 hover:bg-hover-bg rounded text-text-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {mediaAction === "open" ? <Loader2 size={14} className="animate-spin" /> : <FolderOpen size={14} />}
                                 </button>
                             </div>
-                            <button className="p-1.5 hover:bg-red-500/20 rounded text-text-muted hover:text-red-400">
-                                <Trash2 size={14} />
-                            </button>
                         </div>
                     </div>
                 </div>

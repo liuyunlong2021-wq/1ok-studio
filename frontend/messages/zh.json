@@ -911,6 +911,13 @@
     "exportComplete": "导出完成！",
     "exportReadyDesc": "您的视频已准备好与世界分享。",
     "downloadVideo": "下载视频",
+    "openVideoFile": "打开视频文件",
+    "copyPrompt": "复制提示词",
+    "promptCopied": "提示词已复制",
+    "copyFailed": "复制提示词失败",
+    "videoSaved": "视频已保存",
+    "downloadFailed": "下载视频失败",
+    "openFailed": "打开视频失败",
     "exportHint": "配置导出设置后点击「开始渲染」",
     "extractFrame": "截帧"
   },
