@@ -4,10 +4,16 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::Manager;
+
+/// The running backend process, shared with the window-close handler.
+///
+/// It lives in a slot rather than on the monitoring thread's stack because
+/// shutdown has to reach it from the Tauri event loop — see `terminate_backend`.
+pub type SharedChild = Arc<Mutex<Option<Child>>>;
 
 fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
     if let Some(window) = app_handle.get_webview_window("main") {
@@ -48,10 +54,38 @@ fn terminate(process: &mut Child) {
     let _ = process.wait();
 }
 
+/// Stop the backend from outside the monitoring thread, on shutdown.
+///
+/// The monitor loop cannot be trusted for this. Closing the window ends the
+/// Tauri event loop, and the process exits while that thread is still asleep in
+/// its one-second poll interval, so a `running = false` check there never runs.
+/// The backend then survives as an orphan holding port 17177: the next launch
+/// finds a backend already answering /health, and — per the reuse rules in
+/// `start_backend` — a stale release sidecar is exactly the thing that must not
+/// be adopted, because it still holds the project list it read at its own
+/// startup and would write that back over the real data.
+///
+/// Called synchronously from the window-close handler, before the process can
+/// exit.
+pub fn terminate_backend(child_slot: &SharedChild) {
+    let taken = match child_slot.lock() {
+        Ok(mut guard) => guard.take(),
+        Err(_) => None,
+    };
+    if let Some(mut process) = taken {
+        terminate(&mut process);
+        println!("[sidecar] Backend process terminated on shutdown");
+    }
+}
+
 /// Start the Python backend sidecar process
 /// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
 /// In production: runs the bundled PyInstaller binary
-pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
+pub fn start_backend(
+    app_handle: &tauri::AppHandle,
+    running: Arc<AtomicBool>,
+    child_slot: SharedChild,
+) {
     if let Some(health) = backend_health() {
         // "Healthy on 17177" is not the same as "the backend this build would
         // run". A leftover release sidecar — or an orphan whose app already
@@ -89,9 +123,12 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
     };
 
     match child {
-        Ok(mut process) => {
+        Ok(process) => {
             running.store(true, Ordering::SeqCst);
             println!("[sidecar] Backend process started (pid: {})", process.id());
+            if let Ok(mut guard) = child_slot.lock() {
+                *guard = Some(process);
+            }
 
             // The unpacked runtime should expose its health endpoint promptly.
             let ready = wait_for_backend_ready(150); // 150 * 200ms = 30s
@@ -118,28 +155,44 @@ pub fn start_backend(app_handle: &tauri::AppHandle, running: Arc<AtomicBool>) {
             // wanted.
             show_main_window(app_handle, false);
 
-            // Keep monitoring the process
+            // Backstop for a backend that dies on its own.
+            //
+            // This loop deliberately does NOT own shutdown: ending the window
+            // ends the Tauri event loop, and the process exits while this
+            // thread is still asleep in its poll interval — so a `running =
+            // false` check here is never reached in time. The window handler
+            // calls `terminate_backend` synchronously instead; all this has to
+            // do is notice a backend that quit by itself and never hold the
+            // lock across a sleep.
             loop {
+                thread::sleep(Duration::from_secs(1));
+
+                let mut guard = match child_slot.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => break,
+                };
+                let Some(process) = guard.as_mut() else {
+                    // Already terminated by the window handler.
+                    break;
+                };
+
                 if !running.load(Ordering::SeqCst) {
-                    // Application is shutting down, kill the backend
-                    terminate(&mut process);
+                    terminate(process);
+                    *guard = None;
                     println!("[sidecar] Backend process terminated");
                     break;
                 }
 
-                // Check if process is still alive
                 match process.try_wait() {
                     Ok(Some(status)) => {
+                        *guard = None;
                         eprintln!("[sidecar] Backend exited with status: {:?}", status);
                         running.store(false, Ordering::SeqCst);
                         break;
                     }
-                    Ok(None) => {
-                        // Still running, sleep a bit
-                        thread::sleep(Duration::from_secs(1));
-                    }
-                    Err(e) => {
-                        eprintln!("[sidecar] Error checking backend status: {}", e);
+                    Ok(None) => {}
+                    Err(error) => {
+                        eprintln!("[sidecar] Error checking backend status: {}", error);
                         break;
                     }
                 }

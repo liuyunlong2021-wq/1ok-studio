@@ -7,7 +7,7 @@ use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 mod sidecar;
 mod menu;
@@ -184,6 +184,9 @@ fn reveal_media(media_path: String) -> Result<(), String> {
 pub fn run() {
     let backend_running = Arc::new(AtomicBool::new(false));
     let backend_running_clone = backend_running.clone();
+    let backend_child: sidecar::SharedChild = Arc::new(Mutex::new(None));
+    let backend_child_for_thread = backend_child.clone();
+    let backend_child_for_events = backend_child.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -230,15 +233,24 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let running = backend_running_clone.clone();
             std::thread::spawn(move || {
-                sidecar::start_backend(&app_handle, running);
+                sidecar::start_backend(&app_handle, running, backend_child_for_thread);
             });
 
             Ok(())
         })
         .on_window_event(move |_window, event| {
-            // Clean up sidecar on window close
-            if let tauri::WindowEvent::Destroyed = event {
-                backend_running.store(false, Ordering::SeqCst);
+            match event {
+                // Stop the sidecar synchronously, here rather than on Destroyed.
+                // Destroyed fires while the event loop is already shutting down,
+                // and the process can exit before anything gets to run — which
+                // is how the backend used to survive as an orphan still holding
+                // port 17177 after the app was closed. CloseRequested still has
+                // a live process to clean up. The slot makes both idempotent.
+                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed => {
+                    backend_running.store(false, Ordering::SeqCst);
+                    sidecar::terminate_backend(&backend_child_for_events);
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
