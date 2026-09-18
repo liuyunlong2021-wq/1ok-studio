@@ -893,7 +893,20 @@ class ScriptProcessor:
             return f"{custom_prompt}\n\nText:\n{text}"
         return DEFAULT_ENTITY_EXTRACTION_PROMPT.replace("{text}", text)
 
-    def generate_asset_prompt(self, asset_type: str, name: str, description: str, custom_prompt: str = "", model: str = "", style_prompt: str = "") -> str:
+    @staticmethod
+    def _aspect_ratio_hint(aspect_ratio: str) -> str:
+        """画幅的取向说明。
+
+        Skill 里每个画幅都有单独的版式段落（16:9 横屏 / 9:16 竖屏 / 1:1），
+        不写清楚模型会自己挑 —— 之前就固定挑成 16:9：设置里选 9:16，提示词却写
+        「16:9横屏三格」，与真正出图用的 9:16 自相矛盾。
+        """
+        orientation = {"16:9": "横屏", "9:16": "竖屏", "1:1": "正方形"}.get(aspect_ratio)
+        if not orientation:
+            return "（按规则中该画幅对应的版式段落执行）"
+        return f"（{orientation}，执行规则中该画幅对应的版式段落，不要套用其他画幅的布局）"
+
+    def generate_asset_prompt(self, asset_type: str, name: str, description: str, custom_prompt: str = "", model: str = "", style_prompt: str = "", aspect_ratio: str = "") -> str:
         defaults = {"character": DEFAULT_CHARACTER_ASSET_PROMPT, "scene": DEFAULT_SCENE_ASSET_PROMPT, "prop": DEFAULT_PROP_ASSET_PROMPT}
         default_template = defaults.get(asset_type)
         if not default_template:
@@ -908,6 +921,8 @@ class ScriptProcessor:
             "规则正文、步骤说明、标题或解释。"
         )
         user_prompt = f"资产类型：{asset_type}\n资产名称：{name or ''}\n资产描述：{description or ''}"
+        if aspect_ratio:
+            user_prompt += f"\n画幅：{aspect_ratio}{self._aspect_ratio_hint(aspect_ratio)}"
         if style_prompt:
             user_prompt += f"\n整体视觉风格：{style_prompt}"
 
@@ -930,6 +945,8 @@ class ScriptProcessor:
         # A deterministic built-in prompt is safer than returning the assembled
         # instructions when a compatible gateway responds with empty content.
         fallback = default_template.replace("{name}", name or "").replace("{description}", description or "")
+        if aspect_ratio:
+            fallback += f"\n画幅：{aspect_ratio}"
         if style_prompt:
             fallback += f"\n整体视觉风格：{style_prompt}"
         return fallback.strip()

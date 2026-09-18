@@ -805,16 +805,7 @@ class ComicGenPipeline:
         
         # Get effective size based on asset type (aspect_ratio param overrides model_settings)
         from .assets import ASPECT_RATIO_TO_SIZE
-        if aspect_ratio:
-            effective_aspect = aspect_ratio
-        elif asset_type == "character":
-            effective_aspect = script.model_settings.character_aspect_ratio
-        elif asset_type == "scene":
-            effective_aspect = script.model_settings.scene_aspect_ratio
-        elif asset_type == "prop":
-            effective_aspect = script.model_settings.prop_aspect_ratio
-        else:
-            effective_aspect = "9:16"
+        effective_aspect = aspect_ratio or self.get_effective_asset_aspect_ratio(script, asset_type)
 
         if asset_type == "character":
             default_size = "576*1024"
@@ -1113,9 +1104,26 @@ class ComicGenPipeline:
             "created_at": task.get("created_at")
         }
 
+    def get_effective_asset_aspect_ratio(self, script: Script, asset_type: str) -> str:
+        """资产画幅的唯一解析处。
+
+        出图和提示词必须用同一个值。以前出图走这段逻辑，而提示词那条路**完全没带
+        画幅**，模型就自己挑（Skill 里 16:9 排在前面）——于是出 9:16 的图、提示词
+        却写着「16:9横屏」。
+        """
+        if asset_type == "character":
+            return script.model_settings.character_aspect_ratio
+        if asset_type == "scene":
+            return script.model_settings.scene_aspect_ratio
+        if asset_type == "prop":
+            return script.model_settings.prop_aspect_ratio
+        # 与出图路径的历史默认保持一致
+        return "9:16"
+
     def create_prompt_generation_task(
         self, script_id: str, asset_id: str, asset_type: str,
         name: str, description: str, custom_prompt: str, model: str, style_prompt: str = "",
+        aspect_ratio: str = "",
     ) -> str:
         """Persist a lightweight prompt job on its asset and return immediately."""
         script = self.scripts.get(script_id)
@@ -1133,6 +1141,7 @@ class ComicGenPipeline:
             "asset_type": asset_type, "name": name, "description": description,
             "description_version": int(getattr(asset, "description_version", 1) or 1),
             "custom_prompt": custom_prompt, "model": model, "style_prompt": style_prompt,
+            "aspect_ratio": aspect_ratio,
             "status": "queued", "error": None, "created_at": time.time(),
         }
         self.prompt_generation_tasks[task_id] = task
@@ -1161,6 +1170,7 @@ class ComicGenPipeline:
                 prompt = self.script_processor.generate_asset_prompt(
                     task["asset_type"], task["name"], task["description"],
                     task["custom_prompt"], task["model"], task["style_prompt"],
+                    task.get("aspect_ratio", ""),
                 )
                 # Do not overwrite a prompt generated for an older description.
                 if int(getattr(asset, "description_version", 1) or 1) != task["description_version"]:
