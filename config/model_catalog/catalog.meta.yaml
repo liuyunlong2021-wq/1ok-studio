@@ -3,9 +3,9 @@ defaults:
   model_settings:
     t2i_model: jiucaihezi/gpt-image-2.5-1k
     i2i_model: jiucaihezi/gpt-image-2.5-1k
-    # 视频侧只剩韭菜盒子两个全能模型（文生/图生/参考生/编辑），
-    # 所以 i2v/r2v 默认值都指向它们，不再有 happyhorse/wan 可回退。
-    i2v_model: dola-seedance2.5
-    r2v_model: dola-seedance2.5
+    # 视频侧只有韭菜盒子的全能模型（文生/图生/参考生/编辑）。默认指向海通道的
+    # Seedance 2.5（固定 30 秒 / 720p）；dola 通道因任务频繁超时已下线。
+    i2v_model: 海seedance2.5
+    r2v_model: 海seedance2.5
     image_model: jiucaihezi/gpt-image-2.5-1k
     text_model: gpt-5.6-sol

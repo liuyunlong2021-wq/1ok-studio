@@ -331,10 +331,10 @@ DEFAULT_STORYBOARD_EXTRACTION_PROMPT = """# 角色
 8. **对白**: 如果帧中有角色说话，dialogue 和 speaker 必须填写。一帧只能有一个说话人——多人对话必须拆为多帧。
 
 # 剧本格式说明
-- **场景标题行**: `1-1 地点名称 [时间] [内/外]`
-- **人物行**: `人物：角色名1，角色名2`
-- **动作描述**: 以 `△` 开头
-- **对话**: `角色名（情绪）：对话内容`，或 `角色名 (V.O.)：` 表示画外音
+- **场次标题行**: `场X-X 地点名称 - 时间`
+- **动作、画面或人物状态**: 以 `△` 开头
+- **人物行（可选）**: `人物：角色名1，角色名2`
+- **对话**: `角色名（情绪）：对话内容`，或 `角色名（VO）：` 表示画外音
 
 # 已提取的实体
 {entities_str}
@@ -408,8 +408,8 @@ DEFAULT_AUDIO_PLAN_PROMPT = (
     "5. 台词要口语化、能直接念；不要保留剧本里的运镜、画面描述。"
 )
 
-# 角色音色提示词（喂给 CosyVoice 的 voice_prompt）。原文写死在
-# pipeline.translate_character_to_voice_prompt 里。
+# 角色音色提示词。现在它是**中列「声音描述」的默认提示词**
+# （声音设计弹窗已随音色选择一起收掉，2026-09-17）。
 DEFAULT_VOICE_PROMPT = (
     "你是一个语音设计师，擅长将角色设定转化为简洁的中文音色描述。"
     "输出要求："
@@ -418,13 +418,33 @@ DEFAULT_VOICE_PROMPT = (
     "3. 重点：性别·年龄·音色质感·语速·气质氛围。"
 )
 
+# 角色工作台「声音」那一面右列的默认提示词。
+#
+# 跟上面那条是两个不同的东西：中列那条产出的是一段**声音描述**（人话）；工作台要的是
+# 一个**给人看、可直接复制的成品**，里面既有九维声音档案（程序会拆出来写回中列），
+# 又有角色在剧本里的真实台词。
+# 两段靠标题切开，所以标题是硬约定（见 VOICE_PROMPT_OUTPUT_CONTRACT）。
+DEFAULT_VOICE_ARTIFACT_PROMPT = (
+    "你是一个语音设计师，擅长结合角色的形象（体型、年龄、气质）与剧本台词，"
+    "定出一个人的声音身份。"
+    "输出要求："
+    "1. 先读形象再定声音：身材魁梧就该中气十足、胸腔共鸣厚；瘦小年轻就该轻、薄、"
+    "未过变声期；身份与时代决定口音和用词。声音跟长相不能打架。"
+    "2. 两段，标题逐字写 `### 九维声音档案` 和 `### 可直接使用的提示词`，不要序号、不要额外标题。"
+    "3. 第一段按九维逐项写：年龄感、音高、明暗、厚薄、共鸣、气息、颗粒感、口音、稳定表达习惯。"
+    "   每维一句可执行的听觉描述，维度之间音色逻辑要自洽；总共不超过 600 字，不要标题、"
+    "   不要引号。这一段会写回中列的「声音描述」。"
+    "4. 第二段是一段可直接复制使用的提示词：先用一句话捏合九维要点，再跟 "
+    "   `配音内容：“<台词原文>”`，台词必须用资料里给的原句（1-2 句），不要改写。"
+)
+
 # 换成 Skill / 自定义提示词之后仍然要守住的下游硬契约。
 #
 # 内置默认里已经逐条写了这些限制，所以只在「用户或 Skill 覆盖了」的时候才追加，
 # 否则会重复一遍。这不是防君子 —— 下游是真的会坏：导演稿超了 3000 字符会被
-# seed-audio-1.0 拒收，音色提示词超了 500 字符会被静默截成半句。
-# 数值来源：src/models/jiucaihezi.py 的 AUDIO_MAX_INPUT_CHARS；CosyVoice 的
-# voice_prompt 500 字符上限（pipeline 里按 dashscope 合同 [:500]）。
+# seed-audio-1.0 拒收，九维档案超了写回中列时的截断长度会被截成半句。
+# 数值来源：src/models/jiucaihezi.py 的 AUDIO_MAX_INPUT_CHARS（3000）；
+# pipeline 写回中列时的 [:600]。
 AUDIO_PLAN_OUTPUT_CONTRACT = (
     "\n\n【输出硬要求，任何 Skill 都不得覆盖】\n"
     "1. 全篇 ≤ 2500 个汉字（下游 seed-audio-1.0 的输入上限是 3000 字符）。\n"
@@ -434,9 +454,15 @@ AUDIO_PLAN_OUTPUT_CONTRACT = (
 )
 VOICE_PROMPT_OUTPUT_CONTRACT = (
     "\n\n【输出硬要求，任何 Skill 都不得覆盖】\n"
-    "1. 单段纯文本，≤ 200 字；不要标题、分点、引号或多余说明。\n"
-    "2. 只写音色本身：性别、年龄感、音色质感、语速、气质氛围。\n"
-    "3. 不要外貌、服装、剧情。"
+    "1. 固定两段，标题逐字写成 `### 九维声音档案` 与 `### 可直接使用的提示词`："
+    "程序按这两个标题切分，切不出来就只能整段当成品、中列留空。\n"
+    "2. 声音必须跟**形象**搭上：体型、年龄、性别、气质是判断音色的第一依据"
+    "（魁梧 → 中气足、胸腔共鸣厚；瘦小年轻 → 轻薄、未过变声期）。\n"
+    "3. 第一段（九维声音档案）≤ 600 字，只写声音本身 —— 年龄感、音高、明暗、厚薄、"
+    "共鸣、气息、颗粒感、口音、稳定表达习惯；不要外貌、服装、剧情、标题或引号。\n"
+    "4. 第二段要能直接复制使用：先一句话捏合九维要点，再跟 `配音内容：“<台词原文>”`；"
+    "台词用资料里给的剧本原句（1-2 句），不得改写。\n"
+    "5. 不要输出音色之外的说明、字数统计或核对清单。"
 )
 
 
@@ -456,6 +482,7 @@ class ScriptProcessor:
         text: str,
         custom_extraction_prompt: str = "",
         model: str = "",
+        known_entities: Optional[List[Dict[str, Any]]] = None,
     ) -> Script:
         """
         Parses the raw novel text into a structured Script object using an LLM.
@@ -463,6 +490,11 @@ class ScriptProcessor:
         custom_extraction_prompt: optional per-project override for the entity
         extraction system prompt (PromptConfig.entity_extraction). Empty =
         use the built-in _construct_prompt template.
+
+        known_entities: 已有资产名册（[{"type": "characters"|"scenes"|"props",
+        "name": ..., "description": ...}]），拼进 system prompt 让模型**沿用已有的
+        名字**。同一个角色在第 2 集被重新起名（刘备 → 刘玄德）之后就只能靠事后
+        匹配去猜，一开始就把名册给它便宜得多。不传 = 老行为。
         """
         logger.info(f"Parsing novel: {title}...")
         
@@ -476,6 +508,11 @@ class ScriptProcessor:
         else:
             system_prompt = self._construct_prompt("[剧本文本见用户消息]")
             user_prompt = text
+
+        # 已有名册拼在最后：无论用的是内置模板还是用户绑定的 Skill，都要看到它。
+        roster = self._render_known_entities(known_entities)
+        if roster:
+            system_prompt = f"{system_prompt}\n\n{roster}"
 
         try:
             content = self.llm.chat(
@@ -502,6 +539,45 @@ class ScriptProcessor:
             error_msg = f"剧本解析失败: {str(e)}"
             logger.error(error_msg, exc_info=True)
             raise RuntimeError(error_msg)
+
+    # 名册每类最多写多少个：名字够模型认人就行，描述截断到 40 字 ——
+    # 长系列几十个角色全塞进去会把提示词撞得很长，收益递减。
+    _ROSTER_MAX_PER_KIND = 30
+    _ROSTER_DESC_CHARS = 40
+
+    @classmethod
+    def _render_known_entities(cls, known_entities: Optional[List[Dict[str, Any]]] = None) -> str:
+        """把“这个项目/系列已经有这些资产”渲染成一段 prompt。
+
+        空名册返回空字符串（调用方据此决定拼不拼），所以没有任何已有资产时
+        提示词与从前完全一致。
+        """
+        if not known_entities:
+            return ""
+
+        lines: List[str] = []
+        for key, label in (("characters", "角色"), ("scenes", "场景"), ("props", "道具")):
+            items = [e for e in known_entities if e.get("type") == key and e.get("name")]
+            if not items:
+                continue
+            rendered: List[str] = []
+            for entity in items[: cls._ROSTER_MAX_PER_KIND]:
+                name = str(entity["name"]).strip()
+                desc = str(entity.get("description") or "").strip()
+                rendered.append(f"{name}（{desc[: cls._ROSTER_DESC_CHARS]}）" if desc else name)
+            extra = len(items) - len(rendered)
+            suffix = f"……等共 {len(items)} 个" if extra > 0 else ""
+            lines.append(f"- {label}：" + "、".join(rendered) + suffix)
+
+        if not lines:
+            return ""
+        return (
+            "# 已有的资产（务必沿用名字）\n"
+            "下面是这个项目/系列里已经存在的角色、场景和道具。正文里出现**同一个**实体时，"
+            "必须直接使用下面的名字，不要另起新名、也不要加括号补充别名；"
+            "只有确认原文写的是新实体，才用新名字。\n"
+            + "\n".join(lines)
+        )
 
     def _create_script_from_data(self, title: str, original_text: str, data: Dict[str, Any]) -> Script:
         script_id = str(uuid.uuid4())
@@ -951,7 +1027,7 @@ class ScriptProcessor:
         logger.info("Analyzing script for visual style recommendations...")
         
         if not self.is_configured:
-            logger.warning("DASHSCOPE_API_KEY not set. Returning default recommendations.")
+            logger.warning("文本模型未配置（设置 → 模型），返回内置默认风格推荐。")
             return self._mock_style_recommendations()
         
         if custom_style_prompt and custom_style_prompt.strip():
@@ -1113,7 +1189,7 @@ class ScriptProcessor:
         logger.info(f"Analyzing text to storyboard: {text[:100]}...")
         
         if not self.is_configured:
-            logger.warning("DASHSCOPE_API_KEY not set. Returning mock frames.")
+            logger.warning("文本模型未配置（设置 → 模型），返回 mock 分镜。")
             return self._mock_storyboard_frames(text)
         
         # Build entities context

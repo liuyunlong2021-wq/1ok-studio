@@ -33,6 +33,7 @@ from src.apps.comic_gen import api as api_mod
 from src.apps.comic_gen.llm import (
     AUDIO_PLAN_OUTPUT_CONTRACT,
     DEFAULT_AUDIO_PLAN_PROMPT,
+    DEFAULT_VOICE_ARTIFACT_PROMPT,
     DEFAULT_VOICE_PROMPT,
     VOICE_PROMPT_OUTPUT_CONTRACT,
 )
@@ -184,15 +185,19 @@ def test_audio_plan_keeps_the_downstream_contract_when_a_skill_overrides_it(monk
 # 2. 角色音色提示词（图三「生成提示词」）
 # ---------------------------------------------------------------------------
 
-def test_voice_prompt_default_is_byte_for_byte_the_old_hardcoded_prompt(monkeypatch, llm_spy):
+def test_voice_prompt_default_is_the_two_section_artifact_prompt(monkeypatch, llm_spy):
+    """工作台右列的默认不是弹窗那条 —— 那条产出单段、直接当 voice_prompt 用；
+    工作台要的是「九维 + 台词」两段式成品（用户 2026-09-17 拍板）。"""
     script = _script()
     _client(monkeypatch, script)
 
     api_mod.pipeline.generate_voice_prompt(PROJECT_ID, "char-1")
 
     system = _system_prompt(llm_spy)
-    assert system == DEFAULT_VOICE_PROMPT
+    assert system == DEFAULT_VOICE_ARTIFACT_PROMPT
     assert "你是一个语音设计师" in system
+    assert DEFAULT_VOICE_PROMPT not in system, "弹窗那条单段默认不该串进来"
+    assert VOICE_PROMPT_OUTPUT_CONTRACT not in system, "内置默认已经逐条写了，不重复追加"
 
 
 def test_voice_prompt_uses_the_bound_skill(monkeypatch, llm_spy):
@@ -206,8 +211,9 @@ def test_voice_prompt_uses_the_bound_skill(monkeypatch, llm_spy):
     assert SKILL_TEXT in _system_prompt(llm_spy)
 
 
-def test_voice_prompt_keeps_the_500_char_contract_when_a_skill_overrides_it(monkeypatch, llm_spy):
-    """CosyVoice 的 voice_prompt 上限 500 字符，超了会被 [:500] 静默截成半句。"""
+def test_voice_prompt_keeps_the_section_and_500_char_contract_when_a_skill_overrides_it(monkeypatch, llm_spy):
+    """Skill 可以换人格，但「两段式标题」是程序拆分的依据、九维那段 ≤500 是
+    create_voice 的下游限制 —— 两个都不能被盖掉。"""
     script = _script()
     _client(monkeypatch, script)
     _fake_skill(monkeypatch)
@@ -215,25 +221,9 @@ def test_voice_prompt_keeps_the_500_char_contract_when_a_skill_overrides_it(monk
 
     api_mod.pipeline.generate_voice_prompt(PROJECT_ID, "char-1")
 
-    assert VOICE_PROMPT_OUTPUT_CONTRACT in _system_prompt(llm_spy)
-
-
-def test_bindings_do_not_leak_into_the_voice_design_dialog(monkeypatch, llm_spy):
-    """音色设计弹窗（/voice/design/translate）不属于任何项目，不该继承项目绑定。
-
-    两个入口共用 translate_character_to_voice_prompt，所以这里直接调它、不传
-    system_prompt —— 传参一旦写成默认从 pipeline 里读，这个测试就会红。
-    """
-    script = _script()
-    _client(monkeypatch, script)
-    _fake_skill(monkeypatch)
-    _bind(script, "voice_prompt")
-
-    api_mod.pipeline.translate_character_to_voice_prompt("陈默，四十岁，话少。")
-
     system = _system_prompt(llm_spy)
-    assert system == DEFAULT_VOICE_PROMPT
-    assert SKILL_TEXT not in system
+    assert SKILL_TEXT in system
+    assert VOICE_PROMPT_OUTPUT_CONTRACT in system
 
 
 # ---------------------------------------------------------------------------
@@ -349,3 +339,66 @@ def test_skill_bindings_is_replaced_wholesale_not_merged(monkeypatch):
 
     saved = res.json()["prompt_config"]["skill_bindings"]
     assert saved == {"audio_plan": PACKAGE_ID}, "没提到的绑定应当被这条整表写掉"
+
+
+# ---------------------------------------------------------------------------
+# 5. 中列「AI 提取 / AI 修改」跟着「音色提示词 Skill」走
+#
+# 中列和右列共用 `voice_prompt` 这一个槽位（用户 2026-09-17 拍板）：那类 Skill 本来
+# 就是照「从角色资料设计音色」写的，中列是它的第一步。两列同一个人设，才不会出现
+# 「描述按 A 写、提示词按 B 生成」。
+# ---------------------------------------------------------------------------
+
+def test_voice_description_default_keeps_its_own_persona(monkeypatch, llm_spy):
+    """没绑 skill：中列还是内置的「声音指导」。
+
+    关键是不能把右列的内置默认（`DEFAULT_VOICE_PROMPT`，写给「描述 → 提示词」方向）
+    串过来 —— 那会让模型去做下一列的事。
+    """
+    script = _script()
+    _client(monkeypatch, script)
+
+    api_mod.pipeline.generate_voice_description(PROJECT_ID, "char-1")
+
+    system = _system_prompt(llm_spy)
+    assert "你是一个声音指导" in system
+    assert "你是一个语音设计师" not in system, "右列的内置默认不能串到中列"
+
+
+def test_voice_description_follows_the_bound_voice_prompt_skill(monkeypatch, llm_spy):
+    script = _script()
+    _client(monkeypatch, script)
+    _fake_skill(monkeypatch)
+    _bind(script, "voice_prompt")
+
+    api_mod.pipeline.generate_voice_description(PROJECT_ID, "char-1")
+
+    system = _system_prompt(llm_spy)
+    assert SKILL_TEXT in system
+    assert VOICE_PROMPT_OUTPUT_CONTRACT not in system, "输出契约是给右列的，中列不追加"
+
+
+def test_voice_description_rewrite_uses_the_same_persona(monkeypatch, llm_spy):
+    """「AI 修改」和「AI 提取」是同一列，不能一个有 Skill 一个没有。"""
+    script = _script()
+    _client(monkeypatch, script)
+    _fake_skill(monkeypatch)
+    _bind(script, "voice_prompt")
+
+    api_mod.pipeline.rewrite_voice_description(PROJECT_ID, "char-1", instruction="稳一点")
+
+    assert SKILL_TEXT in _system_prompt(llm_spy)
+
+
+def test_voice_prompt_column_still_gets_the_contract_and_the_skill(monkeypatch, llm_spy):
+    """右列不受影响：skill + 输出契约都在（这条链路是既有的，锁住别被 5 节带坏）。"""
+    script = _script()
+    _client(monkeypatch, script)
+    _fake_skill(monkeypatch)
+    _bind(script, "voice_prompt")
+
+    api_mod.pipeline.generate_voice_prompt(PROJECT_ID, "char-1")
+
+    system = _system_prompt(llm_spy)
+    assert SKILL_TEXT in system
+    assert VOICE_PROMPT_OUTPUT_CONTRACT in system

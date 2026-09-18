@@ -6,8 +6,10 @@ const DEBOUNCE_MS = 500;
 
 // 英文场景标题正则: INT. OFFICE - DAY
 const EN_SCENE_RE = /^(?:INT|EXT|INT\/EXT)\.?\s+(.+?)\s*[-–—]\s*(.+)$/i;
-// 中文场景标题正则: 内景. 办公室 - 日
-const ZH_SCENE_RE = /^(?:内景|外景|内\/外)\.?\s*(.+?)\s*[-–—·]\s*(.+)$/;
+// 中文场次标题正则: 内景. 办公室 - 日 / 场1-2 别墅客厅 - 日 / 1-2 别墅客厅 - 日 / 别墅客厅 - 日
+// 场次编号（`场1-2 ` 或 `1-2 `）必须整段吃掉，否则非贪婪的 `(.+?)` 会在编号自己的破折号上断开。
+// 导出是为了让测试盯着它 —— 短剧的场次标题能不能解析出地点和时间全看这条。
+export const ZH_SCENE_RE = /^(?:场?\s*\d+\s*[-–—]\s*\d+\s+)?(?:(?:内景|外景|内\/外)\.?\s*)?(.+?)\s*[-–—·]\s*(.+)$/;
 
 /**
  * 从场景标题文本提取地点
@@ -67,7 +69,9 @@ function deriveFromDocument(editor: Editor) {
     }
 
     if (node.type.name === 'characterCue') {
-      const name = node.textContent.trim().toUpperCase();
+      // `叶墨（冷笑）`、`叶墨（VO）` 里的括号是表演提示，不能当角色名的一部分，
+      // 否则角色面板会多出「叶墨（冷笑）」这种假角色。
+      const name = node.textContent.replace(/[（(][^）)]*[）)]/g, '').trim().toUpperCase();
       if (name) {
         const existing = characterMap.get(name);
         if (existing) {

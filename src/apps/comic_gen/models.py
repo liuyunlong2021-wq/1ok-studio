@@ -247,6 +247,11 @@ class VideoTask(BaseModel):
         description="Storyboard R2V workbench tab the user generated from: 't2i_i2v' | 'direct_r2v'",
     )
     created_at: float = Field(default_factory=time.time)
+    #: 处理时间线。只有创建时间不够 —— 出问题时要知道「排了多久 / 跑了多久 / 什么时候
+    #: 结束的」，界面上也要能跟后端日志的时间对上。
+    started_at: float = Field(0.0, description="When the processor picked this task up (0 = never started)")
+    finished_at: float = Field(0.0, description="When it reached completed/failed (0 = still running)")
+
 
 class Character(BaseModel):
     id: str = Field(..., description="Unique identifier for the character")
@@ -321,16 +326,10 @@ class Character(BaseModel):
     headshot_updated_at: float = Field(0.0, description="[LEGACY] Timestamp of last headshot update")
 
     base_character_id: Optional[str] = Field(None, description="ID of the base character if this is a variant")
-    voice_id: Optional[str] = Field(None, description="ID of the voice model to use")
-    voice_name: Optional[str] = Field(None, description="Human-readable name of the voice")
-    voice_speed: float = Field(1.0, description="Default speech rate (0.5-2.0)")
-    voice_pitch: float = Field(1.0, description="Default pitch rate (0.5-2.0)")
-    voice_volume: int = Field(50, description="Default volume (0-100)")
-    # PR-3g (r2v-workflow-v3) — Voice source tracking. 'system' = built-in
-    # voice from TTS_VOICE_REGISTRY; 'clone' = user-uploaded reference
-    # audio (PR-3h); 'design' = voice generated from text prompt (PR-3i).
-    # Picker modal Tabs filter by this field (Q15.5 B).
-    voice_origin: str = Field("system", description="Voice source: 'system' | 'clone' | 'design'")
+    # 别名：同一个角色在不同集可能被写成别的名字（刘备 / 刘玄德）。
+    # 「关联」时会把被合并掉的那个名字自动记进来，之后提取/分镜匹配都能命中，
+    # 不用用户每次重新关联一次。
+    aliases: List[str] = Field(default_factory=list, description="Alternative names that resolve to this character")
 
     # 那个角色工作台有两面镜子：一面生图，一面生声。左=素材、中=人的描述、
     # 右=给模型的提示词，两边一一对应 —— 所以字段也照着生图那套镜像一份。
@@ -359,7 +358,7 @@ class Character(BaseModel):
     voice_description_updated_at: float = Field(0.0, description="Timestamp of last voice_description change")
     voice_description_version: int = Field(0, description="Increments on every voice_description change")
     voice_prompt: Optional[str] = Field(
-        None, description="Voice prompt handed to voice design / TTS customization")
+        None, description="Voice prompt handed to the audio model (seed-audio-1.0)")
     voice_prompt_source: Optional[str] = Field(
         None, description="Where voice_prompt came from: 'ai' | 'manual'")
     voice_prompt_model: Optional[str] = Field(None, description="Model that produced voice_prompt")
@@ -386,6 +385,8 @@ class Scene(BaseModel):
     visual_weight: int = Field(3, description="Visual importance weight (1-5)")
     time_of_day: Optional[str] = Field(None, description="Time of day (e.g. Night, Day)")
     lighting_mood: Optional[str] = Field(None, description="Lighting atmosphere")
+    # 别名（同一地点在不同集可能叫不同名字），机制见 Character.aliases
+    aliases: List[str] = Field(default_factory=list, description="Alternative names that resolve to this scene")
     image_url: Optional[str] = Field(None, description="URL of the generated scene reference image (Legacy)")
     image_asset: Optional[ImageAsset] = Field(default_factory=ImageAsset, description="Scene image asset container")
     
@@ -414,6 +415,8 @@ class Prop(BaseModel):
     audio_url: Optional[str] = None
     sfx_url: Optional[str] = None
     bgm_url: Optional[str] = None
+    # 别名（同一道具在不同集可能叫不同名字），机制见 Character.aliases
+    aliases: List[str] = Field(default_factory=list, description="Alternative names that resolve to this prop")
     image_url: Optional[str] = Field(None, description="URL of the generated prop image (Legacy)")
     image_asset: Optional[ImageAsset] = Field(default_factory=ImageAsset, description="Prop image asset container")
     
@@ -480,10 +483,10 @@ class StoryboardFrame(BaseModel):
     audio_error: Optional[str] = Field(None, description="Audio generation error message")
     sfx_url: Optional[str] = Field(None, description="URL of the generated sound effect")
     # PR-3j · Stale detection for dialogue audio. text_hash combines
-    # dialogue text + voice_id + instructions; UI flags audio as STALE
+    # dialogue text + reference audio + instructions; UI flags audio as STALE
     # when current state hashes differently than the snapshot.
-    dialogue_text_hash: Optional[str] = Field(None, description="MD5 of (dialogue|voice_id|instructions) at audio generation time")
-    dialogue_voice_id: Optional[str] = Field(None, description="Voice id used to generate the current audio")
+    dialogue_text_hash: Optional[str] = Field(None, description="MD5 of (dialogue|reference_audio_url|instructions) at audio generation time")
+    dialogue_reference_audio_url: Optional[str] = Field(None, description="Reference audio used to generate the current dialogue audio")
     dialogue_instructions: Optional[str] = Field(None, description="Emotion/style instructions used for the current audio")
     
     dubbed_video_url: Optional[str] = Field(None, description="URL of the video with TTS audio dubbed over original track")
@@ -534,30 +537,6 @@ class StoryboardFrame(BaseModel):
         description="Task ID of the chosen final take for this frame (singular). Set in Assembly stage; read by Storyboard.",
     )
 
-class CustomVoice(BaseModel):
-    """PR-3h/i — User-created custom voice (clone or design).
-
-    Lives on Series.custom_voices[] (Q16.1 推荐: per-series 共享池).
-    The picker modal's 我的复刻/我的设计 tabs read from this list.
-
-    For clones: source_audio_url retains the original upload reference for
-    later re-clone or audit; voice_prompt is None.
-    For designs (PR-3i): voice_prompt retains the description for iteration;
-    source_audio_url is None.
-    """
-    id: str = Field(..., description="voice_id returned by dashscope customization API")
-    label: str = Field(..., description="User-given display name (e.g. '林墨真人声')")
-    origin: str = Field(..., description="'clone' (PR-3h) | 'design' (PR-3i)")
-    target_model: str = Field(
-        "cosyvoice-v3.5-plus",
-        description="Speech-synth model the voice was bound to at creation time. Required for /voice/preview model override because custom voice_id is NOT in static VOICES registry.",
-    )
-    family: str = Field("cosyvoice", description="'cosyvoice' | 'qwen3' — for picker UI filtering")
-    created_at: float = Field(default_factory=time.time)
-    source_audio_url: Optional[str] = Field(None, description="Clone only: original upload URL")
-    voice_prompt: Optional[str] = Field(None, description="Design only: prompt used to generate (≤500 chars)")
-
-
 class ModelSettings(BaseModel):
     """Model selection settings for different generation stages"""
     t2i_model: str = Field(_DEFAULT_MODEL_SETTINGS.t2i_model, description="Text-to-Image model for Assets")
@@ -595,7 +574,7 @@ class PromptConfig(BaseModel):
     scene_prompt: str = Field("", description="System prompt for scene asset prompt generation")
     prop_prompt: str = Field("", description="System prompt for prop asset prompt generation")
     audio_plan: str = Field("", description="System prompt for the episode sound-director script (seed-audio-1.0)")
-    voice_prompt: str = Field("", description="System prompt for generating a character's timbre prompt (CosyVoice)")
+    voice_prompt: str = Field("", description="System prompt for generating a character's timbre prompt (seed-audio-1.0)")
     skill_bindings: Dict[str, str] = Field(
         default_factory=dict,
         description="Prompt stage to Skill Package ID bindings",
@@ -776,11 +755,6 @@ class Series(BaseModel):
     # the shot card tab toggle. See Project.default_generation_mode for
     # full semantics.
     default_generation_mode: str = Field("r2v", description="Default per-shot generation_mode for new episodes: 'r2v' (节奏优先) or 'i2v' (画面优先)")
-
-    # PR-3h/i (r2v-workflow-v3) — Custom voice pool (clones + designs).
-    # Per Q16.1: series-level scope. Any character in this series can pick
-    # from this pool via VoicePickerModal's 我的复刻 / 我的设计 tabs.
-    custom_voices: List["CustomVoice"] = Field(default_factory=list, description="User-created custom voices (clones + designs)")
 
     # R2V v2 Phase 6 — content source mode. Orthogonal to workflow_mode.
     # 'scripted'  = traditional flow (Script step parses entities first)

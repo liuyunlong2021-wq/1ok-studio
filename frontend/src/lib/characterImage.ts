@@ -45,3 +45,26 @@ export function characterVariants(c: Character): ImageVariant[] {
 export function characterImageUrl(c: Character): string | undefined {
   return selectedVariantUrl(characterImageAsset(c)) || c.image_url || c.full_body_image_url;
 }
+
+/**
+ * 场景 / 道具的展示图（与角色同一套回退顺序，只差没有 reference_sheet 那一层历史包袱）。
+ *
+ * 存在的理由和 characterImageUrl 一样：资产库页、旧资产库（ConsistencyVault）、Cast
+ * 三处各自手写过一份取图逻辑，而其中一份漏了 `reference_sheet` —— 于是同一个资产
+ * 在新 UI 有图、旧 UI 是空占位。取图只走这里，别再各写一份。
+ */
+export function scenePropImageUrl(asset?: {
+  image_asset?: ImageAsset | null;
+  reference_sheet?: AssetUnit | null;
+  image_url?: string | null;
+  reference_image_url?: string | null;
+} | null): string | undefined {
+  if (!asset) return undefined;
+  return (
+    selectedVariantUrl(asset.image_asset) ||
+    selectedVariantUrl(asset.reference_sheet) ||
+    asset.image_url ||
+    asset.reference_image_url ||
+    undefined
+  );
+}

@@ -466,7 +466,11 @@ export default function ParameterBar() {
     }
     if (hasQuality) {
       const cur = parameters.quality as string | undefined;
-      if (cur && !qualityOptions.includes(cur)) patches.quality = qualityDefault;
+      // 没有值时也落默认档：保证「界面显示的质量」=「发给网关的质量」。
+      if (!cur || !qualityOptions.includes(cur)) patches.quality = qualityDefault;
+    } else if (parameters.quality !== undefined) {
+      // 新模型没有质量档：清掉上一个模型留下的值，别跟着请求发给网关。
+      patches.quality = undefined;
     }
 
     if (isVideoMode && modelDuration) {

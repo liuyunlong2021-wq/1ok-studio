@@ -53,6 +53,13 @@ const HEURISTIC_RULES: HeuristicRule[] = [
     suggest: 'SceneHeading',
   },
   {
+    id: 'scene_heading_short_drama',
+    // 中文短剧场次标题：场1-2 别墅客厅 - 日 / 1-2 别墅客厅 - 日 / 别墅客厅 - 日
+    // 必须用时间词收尾，否则会把普通带破折号的行当场景标题。
+    pattern: /^[^：:△]{1,24}[-–—]\s*(日|夜|白天|夜晚|早晨|清晨|上午|中午|下午|傍晚|黄昏|深夜|凌晨|连续)$/,
+    suggest: 'SceneHeading',
+  },
+  {
     id: 'transition_japanese',
     // Match: ◆ or ◇ at start (Japanese scene separator/transition)
     pattern: /^[◆◇]\s*.*/,
@@ -84,7 +91,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
 
 // ─── Analysis Logic ──────────────────────────────────────────────────────────
 
-function analyzeText(text: string): PasteAnalysis {
+export function analyzeText(text: string): PasteAnalysis {
   const lines = text.split('\n');
   const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
 
@@ -125,7 +132,7 @@ function analyzeText(text: string): PasteAnalysis {
 
 // ─── Apply Formatting ────────────────────────────────────────────────────────
 
-function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
+export function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
   const lines = text.split('\n');
   const suggestionByLine = new Map<number, PasteSuggestion>();
   suggestions.forEach((s) => suggestionByLine.set(s.lineIndex, s));
@@ -148,10 +155,10 @@ function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
       return;
     }
 
-    switch (suggestion.ruleId) {
-      case 'scene_heading_western':
-      case 'scene_heading_japanese':
-      case 'section_heading_japanese_bracket':
+    // 按 suggestedType 而不是 ruleId 分支：新增规则只要写对 `suggest` 就生效，
+    // 不用记得回来改这里（以前忘记登记就掉进 default 变成 action）。
+    switch (suggestion.suggestedType) {
+      case 'SceneHeading':
         nodes.push({
           type: 'sceneHeading',
           attrs: { id: crypto.randomUUID() },
@@ -159,8 +166,7 @@ function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
         });
         break;
 
-      case 'transition':
-      case 'transition_japanese':
+      case 'Transition':
         nodes.push({
           type: 'transition',
           attrs: { type: 'custom' },
@@ -168,7 +174,7 @@ function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
         });
         break;
 
-      case 'parenthetical':
+      case 'Parenthetical':
         // Parenthetical → Action with centered attribute
         nodes.push({
           type: 'action',
@@ -177,7 +183,7 @@ function buildFormattedContent(text: string, suggestions: PasteSuggestion[]) {
         });
         break;
 
-      case 'character_dialogue':
+      case 'CharacterCue + Dialogue':
         // Split into CharacterCue + Dialogue nodes
         if (suggestion.characterName) {
           nodes.push({

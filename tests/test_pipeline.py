@@ -148,16 +148,39 @@ class TestGenerateAudio:
         # No video yet → no video-to-audio SFX
         pipeline.audio_generator.generate_sfx_from_video.assert_not_called()
 
-    def test_dialogue_uses_speaker_voice_settings(self, pipeline, project):
+    def test_dialogue_uses_speaker_reference_audio(self, pipeline, project):
+        """对白不再传 speed/pitch/volume —— 声音由说话人的参考音决定。"""
         pipeline.generate_audio(project.id)
         frame = project.frames[0]
         speaker = next(c for c in project.characters if c.id == frame.character_ids[0])
-        pipeline.audio_generator.generate_dialogue.assert_called_once_with(
-            frame, speaker,
-            speed=speaker.voice_speed,
-            pitch=speaker.voice_pitch,
-            volume=speaker.voice_volume,
-        )
+        pipeline.audio_generator.generate_dialogue.assert_called_once_with(frame, speaker)
+
+    def test_dialogue_uses_the_named_speaker_not_the_first_character_id(self, pipeline, project):
+        """一帧里站着好几个人时，念这一句的是**说话人**，不是 ids 首位。
+
+        参考音是按角色存的，取错人就是拿别人的嗓子念这一句（帧 56784d7b 那种：
+        说话人「彪形大汉」，character_ids[0] 却是「中年卖草鞋人」）。
+        """
+        frame = project.frames[0]
+        other, luna = project.characters[0], project.characters[1]
+        frame.character_ids = [other.id, luna.id]
+        frame.speaker = "Luna"
+        frame.dialogue_structured = None
+
+        pipeline.generate_audio(project.id)
+
+        pipeline.audio_generator.generate_dialogue.assert_called_once_with(frame, luna)
+
+    def test_dialogue_falls_back_to_the_first_character_id_when_unnamed(self, pipeline, project):
+        """没写说话人（老数据）时仍按 ids 首位走，不能变成「没有对白可生成」。"""
+        frame = project.frames[0]
+        frame.speaker = None
+        frame.dialogue_structured = None
+
+        pipeline.generate_audio(project.id)
+
+        expected = next(c for c in project.characters if c.id == frame.character_ids[0])
+        pipeline.audio_generator.generate_dialogue.assert_called_once_with(frame, expected)
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +208,7 @@ class TestCatalogFailureIsLoud:
             side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
         ):
             with pytest.raises(FileNotFoundError):
-                _is_jiucaihezi_family_model("dola-seedance2.5")
+                _is_jiucaihezi_family_model("海seedance2.5")
 
     def test_catalog_failure_propagates_from_backend_resolution(self):
         """无适配器的模型请求也应把目录故障原样抛出去。"""
@@ -194,11 +217,11 @@ class TestCatalogFailureIsLoud:
             side_effect=FileNotFoundError("config/model_catalog/ is not packaged"),
         ):
             with pytest.raises(FileNotFoundError):
-                resolve_provider_backend("dola-seedance2.5")
+                resolve_provider_backend("海seedance2.5")
 
     def test_flat_jiucaihezi_id_is_recognized_as_jiucaihezi(self):
-        """扁平 id（dola-seedance2.5）必须认成韭菜盒子，否则会被改成已删除的模型。"""
-        assert _is_jiucaihezi_family_model("dola-seedance2.5") is True
+        """扁平 id（海seedance2.5）必须认成韭菜盒子，否则会被改成已删除的模型。"""
+        assert _is_jiucaihezi_family_model("海seedance2.5") is True
         assert _is_jiucaihezi_family_model("jiucaihezi/gpt-image-2.5-1k") is True
         assert _is_jiucaihezi_family_model("") is False
         assert _is_jiucaihezi_family_model("happyhorse-1.1-r2v") is False

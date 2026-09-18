@@ -170,6 +170,33 @@ models:
     params: *gpt_image_25_params_full
     inputs:
       reference_images: {max: 16, reference_type: image}
+  - id: jiucaihezi/gpt-image-2.5-菠萝
+    display_name: "GPT Image 2.5 菠萝 · 韭菜盒子"
+    description: "GPT Image 2.5 菠萝，1K/2K/4K + 质量档，via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2i, i2i]
+    docs: {context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
+    params:
+      # 与 CF-超分 同规格（1K/2K/4K + 17 比例表），外加质量档：这是本目录里第一个
+      # 暴露 quality 的模型（网关接受 high/medium/low）。Playground 的 ParameterBar
+      # 看到 quality 才渲染「质量」下拉；值经 playground service → JiucaiheziImageModel
+      # 转给网关，三处缺一不可。
+      size:
+        resolutions: ["1K", "2K", "4K"]
+        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
+        default: "1024x1024"
+      quality:
+        options: ["high", "medium", "low"]
+        default: "high"
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
+    inputs:
+      reference_images: {max: 16, reference_type: image}
   - id: jiucaihezi/grok-imagine-image-2.0
     display_name: "Grok Imagine Image 2.0 · 韭菜盒子"
     description: "Grok Imagine Image 2.0 via 韭菜盒子"
@@ -189,20 +216,24 @@ models:
       watermark: false
     inputs:
       reference_images: {max: 5, reference_type: image}
-  - id: dola-seedance2.5
-    display_name: "Seedance 2.5 · 韭菜盒子"
-    description: "文生 / 图生 / 参考生 / 编辑全能，via 韭菜盒子"
+  # 海通道：网关上的模型名原文就是「海seedance2.5」（中文前缀，不是拼写错误）。
+  # Seedance 2.5 在本目录的唯一通道（dola 通道因任务频繁超时已下线）。
+  # 能力顺序决定 capabilities[0]，但本条目有显式 ui.selection_group（优先级更高），
+  # 所以分组仍是 r2v；后面三个能力是给「只有韭菜盒子」的目录当全能模型兜底用的。
+  # 固定 30 秒 / 720p、参考图 ≤9 张：这条 id 特判在 pipeline 的 seedance 分支与
+  # 前端 VideoCreator 的 forces30sAnd720p 里。
+  - id: 海seedance2.5
+    display_name: "Seedance 2.5 海 · 韭菜盒子"
+    description: "文生 / 图生 / 参考生 / 编辑全能（海通道），via 韭菜盒子"
     status: active
     release_stage: stable
-    # 能力顺序决定 capabilitiy[0]，但本条目有显式 ui.selection_group（优先级更高），
-    # 所以分组仍是 r2v；后面三个能力是给「只有韭菜盒子」的目录当全能模型兜底用的。
     capabilities: [r2v, i2v, t2v, v2v]
     docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
       selection_group: r2v
       visible_in: [project_settings, series_settings, video_sidebar, global_settings]
-      order: 1000
+      order: 999
       recommended: false
       badges: [韭菜盒子]
     duration: {type: fixed, value: 30}
@@ -216,7 +247,7 @@ models:
     description: "图片/音频参考生视频及文生、图生、编辑全能，via 韭菜盒子"
     status: active
     release_stage: stable
-    # 同 dola-seedance2.5：显式 selection_group 优先，分组仍是 r2v。
+    # 同 海seedance2.5：显式 selection_group 优先，分组仍是 r2v。
     capabilities: [r2v, i2v, t2v, v2v]
     docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}

@@ -433,21 +433,23 @@ export default function StoryboardR2V() {
         const withDialogue = frames.filter((f: any) =>
             f.dialogue_structured?.line || f.dialogue
         );
-        const charsWithVoice = new Set(
-            (currentProject as any).characters?.filter((c: any) => c.voice_id).map((c: any) => c.id) ?? []
+        // 「能配音」= 说话人有参考音（产品的音频通道只有 seed-audio-1.0 参考生音频，
+        // 2026-09-17 收掉了音色选择）。
+        const charsWithReference = new Set(
+            (currentProject as any).characters?.filter((c: any) => c.reference_audio_url).map((c: any) => c.id) ?? []
         );
-        const charNameToVoice = new Map<string, boolean>(
-            (currentProject as any).characters?.filter((c: any) => c.voice_id).map((c: any) => [c.name?.toLowerCase(), true]) ?? []
+        const charNameToReference = new Map<string, boolean>(
+            (currentProject as any).characters?.filter((c: any) => c.reference_audio_url).map((c: any) => [c.name?.toLowerCase(), true]) ?? []
         );
-        const hasVoiceBinding = (f: any): boolean => {
-            if (f.character_ids?.[0] && charsWithVoice.has(f.character_ids[0])) return true;
+        const hasReferenceAudio = (f: any): boolean => {
+            if (f.character_ids?.[0] && charsWithReference.has(f.character_ids[0])) return true;
             const speaker = f.dialogue_structured?.speaker || f.speaker;
-            return !!(speaker && charNameToVoice.has(speaker.toLowerCase()));
+            return !!(speaker && charNameToReference.has(speaker.toLowerCase()));
         };
         const dialogueReady = withDialogue.filter((f: any) =>
-            hasVoiceBinding(f) && !f.audio_url
+            hasReferenceAudio(f) && !f.audio_url
         ).length;
-        const dialogueMissing = withDialogue.filter((f: any) => !hasVoiceBinding(f)).length;
+        const dialogueMissing = withDialogue.filter((f: any) => !hasReferenceAudio(f)).length;
         return { frameCount, dialogueReady, dialogueMissing };
     }, [currentProject?.frames, (currentProject as any)?.characters]);
 
@@ -465,8 +467,8 @@ export default function StoryboardR2V() {
                 toast.warning(`对白生成完成：${stats.generated} 条成功，${stats.failed} 条失败`);
             } else if (stats.generated > 0) {
                 toast.success(`已生成 ${stats.generated} 条对白音频`);
-            } else if (stats.no_voice > 0 && stats.skipped === 0) {
-                toast.warning(`${stats.no_voice} 条对白的角色尚未绑定语音`);
+            } else if (stats.no_reference > 0 && stats.skipped === 0) {
+                toast.warning(`${stats.no_reference} 条对白的角色还没有参考音`);
             } else if (stats.skipped > 0) {
                 toast.success(t("dialogueAllUpToDate"));
             } else {
@@ -1966,7 +1968,7 @@ export default function StoryboardR2V() {
                         />
                         {/* PR-3j · Frame-level dialogue audio row. Only renders
                             when the frame has dialogue text; resolves the
-                            bound character's voice_id and tracks stale state. */}
+                            speaker's reference audio and tracks stale state. */}
                         {(() => {
                             const frame = currentProject?.frames?.find((f: any) => f.id === shot.id);
                             if (!frame) return null;
@@ -1982,11 +1984,10 @@ export default function StoryboardR2V() {
                                         scriptId={currentProject!.id}
                                         frameId={frame.id}
                                         dialogue={dialogueText}
-                                        voiceId={speaker?.voice_id}
+                                        referenceAudioUrl={speaker?.reference_audio_url}
                                         audioUrl={frame.audio_url}
                                         audioError={frame.audio_error}
                                         snapshotDialogue={dialogueText}
-                                        snapshotVoiceId={frame.dialogue_voice_id}
                                         snapshotInstructions={frame.dialogue_instructions}
                                         onUpdateDialogue={async (text: string) => {
                                             if (!currentProject) return;

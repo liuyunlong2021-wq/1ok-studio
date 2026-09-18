@@ -39,13 +39,20 @@ from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructio
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
 from ...utils.global_settings import get_active_text_model
 from ...utils.media_refs import media_ref, to_media_ref
-from ...models.jiucaihezi import AUDIO_MAX_REFERENCE_AUDIOS
+from ...models.jiucaihezi import AUDIO_MAX_INPUT_CHARS, AUDIO_MAX_REFERENCE_AUDIOS
 
 logger = get_logger(__name__)
 
 #: 文本模型没配置时的统一报错。产品只有韭菜盒子一条通道，所以这里直接点名它 ——
 #: 旧文案写的是 "missing DASHSCOPE_API_KEY"，让用户跑去配一个产品根本不用的 key。
 NOT_CONFIGURED_MESSAGE = "文本模型未配置：请在「设置」里填写韭菜盒子 API Key"
+
+#: 角色工作台右列「音色提示词」成品的防跑飞上限。
+#:
+#: 它不是喂模型的输入，而是给人看、拿去任何声音模型用的一段话，所以不再是 500
+#: （那个数是 CosyVoice 的 voice_prompt 上限，管的是中列那段九维档案）。
+#: 单人九维 + 两句台词正常在 400-800 字；超过这个数基本就是模型跑飞了。
+VOICE_PROMPT_ARTIFACT_MAX_CHARS = 1600
 
 
 def _probe_audio_duration_ms(path: str) -> Optional[int]:
@@ -120,10 +127,10 @@ def _load_json_store(path: str, label: str) -> Optional[Any]:
 
 
 def _is_jiucaihezi_family_model(model_id: Optional[str]) -> bool:
-    """模型是否由韭菜盒子提供（兼容 dola-seedance2.5 这类 legacy 扁平 id）。
+    """模型是否由韭菜盒子提供（兼容扁平 id，如 海seedance2.5）。
 
     pipeline 里多处用 `model.startswith("jiucaihezi/")` 判断供应商，但目录里韭菜盒子
-    的 R2V 模型 id 就是扁平形式（dola-seedance2.5 / minimax_h3_image_audio_to_video_v2_15s），
+    的 R2V 模型 id 就是扁平形式（海seedance2.5 / minimax_h3_image_audio_to_video_v2_15s），
     前缀判断会漏掉它们 —— 漏掉的后果是 R2V 自动切换分支静默把模型改写成
     happyhorse / kling / pixverse 这些已删除 provider 的 id，请求被交给一个不存在的通道。
 
@@ -235,6 +242,11 @@ class ComicGenPipeline:
     _ORPHAN_RECOVERY_REASON = (
         "Backend was restarted while this task was running. Click Retry to run it again."
     )
+    #: 有上游任务号时用这条：号还在，就能接着等结果，不必重新生成（会重复计费）。
+    _ORPHAN_RESUMABLE_REASON = (
+        "后端在这个任务跑的时候重启了。上游任务号已保存 —— 点「继续回捞」接着等结果，"
+        "不要重新生成（重新生成会再付一次费）。"
+    )
 
     def _recover_orphan_tasks(self) -> None:
         """Sweep persisted state for video tasks left in pending/processing.
@@ -245,11 +257,10 @@ class ComicGenPipeline:
         "pending" or "processing". The frontend then shows an eternal
         spinner and the user has no recovery path.
 
-        Strategy: on boot, find every such record and stamp it `failed`
-        with a clear, user-readable reason so the existing Retry button
-        becomes usable. Auto-resume is intentionally NOT done — a
-        half-run video generation may have already incurred provider
-        cost and re-running could double-charge.
+        策略分两种：
+        - 任务上存了上游任务号 → 标 failed、但提示语说明**可以接着回捞**（不联网，
+          不重复提交；重新生成才会再付一次费）。
+        - 没有上游任务号 → 只能重新生成，给原来的重试提示。
 
         Asset / motion-ref tasks live in transient in-process dicts
         (self.asset_generation_tasks etc.) and never persist, so they
@@ -257,18 +268,36 @@ class ComicGenPipeline:
         """
         STUCK = ("pending", "processing")
         recovered = 0
+        #: 旧版本失败时不写原因，界面只能显示「未知错误，请重试」。补一句能说清的话，
+        #: 别让人以为是自己的操作问题。
+        no_reason = (
+            "这次失败没留下原因（当时的版本没有记录失败原因，也没保存上游任务号），"
+            "只能重新生成。"
+        )
 
         for script in self.scripts.values():
             tasks = getattr(script, "video_tasks", None) or []
             for task in tasks:
                 if getattr(task, "status", None) in STUCK:
                     task.status = "failed"
+                    # 判失败 = 这条跑完了，界面上不能一直算着「已等 N 分」。
+                    if not getattr(task, "finished_at", 0.0):
+                        task.finished_at = time.time()
                     if not getattr(task, "error", None):
                         try:
-                            task.error = self._ORPHAN_RECOVERY_REASON
+                            task.error = (
+                                self._ORPHAN_RESUMABLE_REASON
+                                if getattr(task, "provider_task_id", None)
+                                else self._ORPHAN_RECOVERY_REASON
+                            )
                         except Exception:
                             pass
                     recovered += 1
+                elif getattr(task, "status", None) == "failed" and not getattr(task, "error", None):
+                    try:
+                        task.error = no_reason
+                    except Exception:
+                        pass
             for collection in (script.characters, script.scenes, script.props):
                 for asset in collection:
                     if getattr(asset, "prompt_generation_status", None) in STUCK:
@@ -475,6 +504,9 @@ class ComicGenPipeline:
                 # spurious wrapper exception or a late cancel.
                 return False
             task.status = "failed"
+            # 结束时间也要落：取消/包装异常都算这一条跑完了，界面上要能显示用了多久。
+            if not getattr(task, "finished_at", 0.0):
+                task.finished_at = time.time()
             try:
                 if not getattr(task, "error", None):
                     task.error = error_message
@@ -599,28 +631,91 @@ class ComicGenPipeline:
         series = self.get_series(existing_script.series_id) if existing_script.series_id else None
         custom_extraction = self.get_effective_prompt("entity_extraction", existing_script, series)
         model = self.get_effective_polish_model(existing_script)
-        new_script = self.script_processor.parse_novel(existing_script.title, text, custom_extraction, model)
+        new_script = self.script_processor.parse_novel(
+            existing_script.title, text, custom_extraction, model,
+            known_entities=self._known_entity_roster(existing_script),
+        )
         self._stamp_extracted_descriptions(new_script)
         self._extraction_cache[script_id] = (time.time(), new_script)
         return new_script
 
-    def reparse_project(self, script_id: str, text: str) -> Script:
-        """Re-parse the text for an existing project, replacing all entities."""
+    def _known_entity_roster(self, script: Script) -> List[Dict[str, str]]:
+        """本集已经能看到的资产名册（集内 + 系列 + 全局库），喂给实体提取。
+
+        作用是让模型**沿用已有的名字**。名册越准，事后要靠名字匹配去猜的
+        机会就越少（“没胡子的少年（张飞）”这类漂移是事后无法可靠救回来的）。
+        """
+        resolved = self.resolve_episode_assets(script)
+        roster: List[Dict[str, str]] = []
+        for key in self._ASSET_LAYER_KEYS:
+            for asset in resolved.get(key, []):
+                roster.append({
+                    "type": key,
+                    "name": asset.name or "",
+                    "description": getattr(asset, "description", "") or "",
+                })
+        return roster
+
+    def _reuse_shared_entities(self, parsed: Script, series: Optional[Series]) -> None:
+        """同名复用：刚提取出来的实体里，已存在于**系列池 / 全局库**的，本集不再建副本。
+
+        为什么：合并读取是按 **id** 去重的，不按名字。第 2 集再把「刘备」存一份本地
+        副本，项目里就会出现两张同名的卡，用户每集都得手动关联一次。直接引用共享
+        那条，图和描述就跟着复用（这才是“做一次全系列能用”）。
+
+        代价：本集不能单独改这条的名字/描述 —— 需要单独改就用「在本集独立一份」（fork）。
+
+        只写 `extracted_description`，**不动** `description`：后者是生图依据，
+        改它会把已经生成好的图标记成过期。
+        """
+        for field in self._ASSET_LAYER_KEYS:
+            shared: List[Any] = []
+            if series:
+                shared.extend(getattr(series, field))
+            shared.extend(getattr(self.library_store, field))
+            if not shared:
+                continue
+            by_name: Dict[str, Any] = {}
+            for shared_asset in shared:
+                for key in self._asset_name_keys(shared_asset):
+                    by_name.setdefault(key, shared_asset)
+            kept = []
+            for entity in getattr(parsed, field):
+                # 名字或别名命中 → 复用共享那条（别名让上一集关联过的叫法自动生效）
+                match = by_name.get((entity.name or "").strip().lower()) if entity.name else None
+                if match is None:
+                    kept.append(entity)
+                    continue
+                if getattr(entity, "description", ""):
+                    match.extracted_description = entity.description
+            setattr(parsed, field, kept)
+
+    def reparse_project(self, script_id: str, text: str, reuse_existing: bool = True) -> Script:
+        """Re-parse the text for an existing project, replacing all entities.
+
+        reuse_existing: 同名实体已在系列池/全局库时，本集不再建副本
+        （见 `_reuse_shared_entities`）。默认开：第 2 集提取出「刘备」不该再存一份，
+        否则项目里就是两张同名的卡。传 False 恢复旧行为。
+        """
         existing_script = self.scripts.get(script_id)
         if not existing_script:
             raise ValueError("Script not found")
+        series = self.get_series(existing_script.series_id) if existing_script.series_id else None
 
         # Use cached extraction if available (from extract_preview)
         cached = self._extraction_cache.pop(script_id, None)
         if cached and (time.time() - cached[0]) < 300:
             new_script = cached[1]
-            self._stamp_extracted_descriptions(new_script, existing_script)
         else:
-            series = self.get_series(existing_script.series_id) if existing_script.series_id else None
             custom_extraction = self.get_effective_prompt("entity_extraction", existing_script, series)
             model = self.get_effective_polish_model(existing_script)
-            new_script = self.script_processor.parse_novel(existing_script.title, text, custom_extraction, model)
-            self._stamp_extracted_descriptions(new_script, existing_script)
+            new_script = self.script_processor.parse_novel(
+                existing_script.title, text, custom_extraction, model,
+                known_entities=self._known_entity_roster(existing_script),
+            )
+        self._stamp_extracted_descriptions(new_script, existing_script)
+        if reuse_existing:
+            self._reuse_shared_entities(new_script, series)
         
         # Preserve the original script ID and timestamps
         new_script.id = existing_script.id
@@ -640,7 +735,8 @@ class ComicGenPipeline:
         # (it returns [] for any project without a series_id). Same for
         # prompt_config, default_generation_mode, bgm_url, mix_settings —
         # all project-level fields unrelated to entity extraction.
-        # custom_voices lives on Series, NOT Script — do not touch it here.
+        # custom_voices 已经随「音色选择」一起收掉了（产品只有一个音频通道），
+        # 系列池里只留角色本体的参考音。
         new_script.series_id = existing_script.series_id
         new_script.episode_number = existing_script.episode_number
         new_script.prompt_config = existing_script.prompt_config
@@ -1214,14 +1310,30 @@ class ComicGenPipeline:
         return self._delete_asset(script_id, "prop", prop_id)
 
     def delete_series_asset(self, series_id: str, asset_type: str, asset_id: str) -> Script:
-        episode = next((s for s in self.scripts.values() if s.series_id == series_id), None)
-        if episode:
-            return self._delete_asset(episode.id, asset_type, asset_id)
         series = self.series_store.get(series_id)
         if not series:
             raise ValueError("Series not found")
         field = {"character": "characters", "scene": "scenes", "prop": "props"}.get(asset_type)
-        if not field or not any(item.id == asset_id for item in getattr(series, field)):
+        if not field:
+            raise ValueError(f"Invalid asset type: {asset_type}")
+
+        episodes = [s for s in self.scripts.values() if s.series_id == series_id]
+        # 资产可能在**某一集**的本地池里。以前这里拿“该系列的第一集”去删，
+        # 资产属于别的集时 _find_asset_with_source 找不到，就报 not found ——
+        # 所以要先找出真正持有它的那一集。
+        holder = next(
+            (ep for ep in episodes if any(a.id == asset_id for a in getattr(ep, field))),
+            None,
+        )
+        if holder:
+            return self._delete_asset(holder.id, asset_type, asset_id)
+        if episodes:
+            # 不在任何一集的本地池 → 应在系列池。走任一集同一条路径，
+            # 顺便把全系列分镜里指向它的引用一并清掉。
+            return self._delete_asset(episodes[0].id, asset_type, asset_id)
+
+        # 系列一集都没建 → 没地方挂帧引用，直接删系列池。
+        if not any(item.id == asset_id for item in getattr(series, field)):
             raise ValueError(f"Asset {asset_id} of type {asset_type} not found in series")
         setattr(series, field, [item for item in getattr(series, field) if item.id != asset_id])
         self._save_series_data()
@@ -1615,10 +1727,20 @@ class ComicGenPipeline:
         all_props = resolved["props"]
 
         # Build entities JSON from resolved characters, scenes, props
+        # aliases 一并给出去：模型看到「刘备（别名：刘玄德）」之后，剧本里写哪个都认得。
         entities_json = {
-            "characters": [{"id": c.id, "name": c.name, "description": c.description} for c in all_characters],
-            "scenes": [{"id": s.id, "name": s.name, "description": s.description} for s in all_scenes],
-            "props": [{"id": p.id, "name": p.name, "description": p.description} for p in all_props],
+            "characters": [
+                {"id": c.id, "name": c.name, "description": c.description, "aliases": list(c.aliases or [])}
+                for c in all_characters
+            ],
+            "scenes": [
+                {"id": s.id, "name": s.name, "description": s.description, "aliases": list(s.aliases or [])}
+                for s in all_scenes
+            ],
+            "props": [
+                {"id": p.id, "name": p.name, "description": p.description, "aliases": list(p.aliases or [])}
+                for p in all_props
+            ],
         }
 
         # Resolve effective storyboard-extraction prompt (Episode → Series → built-in default).
@@ -1639,11 +1761,14 @@ class ComicGenPipeline:
         # Convert raw frame dicts to StoryboardFrame objects
         new_frames = []
         for idx, frame_data in enumerate(raw_frames):
-            # Resolve scene ID by name
-            scene_ref_name = frame_data.get("scene_ref_name", "")
+            # Resolve scene ID by name（别名也算命中）
+            scene_ref_name = (frame_data.get("scene_ref_name") or "").strip().lower()
             scene_id = None
             for scene in all_scenes:
-                if scene.name == scene_ref_name or scene_ref_name in scene.name:
+                if any(
+                    scene_ref_name == key or scene_ref_name in key
+                    for key in self._asset_name_keys(scene)
+                ):
                     scene_id = scene.id
                     break
             if not scene_id and all_scenes:
@@ -1657,8 +1782,7 @@ class ComicGenPipeline:
             for char_name in char_ref_names:
                 cn = char_name.strip().lower()
                 for char in all_characters:
-                    cname = char.name.strip().lower()
-                    if cname == cn or cn in cname or cname in cn:
+                    if any(key == cn or cn in key or key in cn for key in self._asset_name_keys(char)):
                         character_ids.append(char.id)
                         break
 
@@ -1668,8 +1792,7 @@ class ComicGenPipeline:
             for prop_name in prop_ref_names:
                 pn = prop_name.strip().lower()
                 for prop in all_props:
-                    pname = prop.name.strip().lower()
-                    if pname == pn or pn in pname or pname in pn:
+                    if any(key == pn or pn in key or key in pn for key in self._asset_name_keys(prop)):
                         prop_ids.append(prop.id)
                         break
             
@@ -2357,13 +2480,15 @@ class ComicGenPipeline:
             if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
                 raise ValueError("Selected storyboard frames must be consecutive and ordered")
 
-        is_jiucaihezi_seedance = isinstance(model, str) and model.endswith(("dola-seedance2.5", "dola-seedance2.5-r2v"))
+        # Seedance 2.5（海通道，网关模型名就是「海seedance2.5」）：
+        # 固定 30 秒 / 720p，参考图最多 9 张。
+        is_jiucaihezi_seedance = isinstance(model, str) and model.endswith("海seedance2.5")
         if is_jiucaihezi_seedance:
             prompt = (prompt or "").strip()
             if not 1 <= len(prompt) <= 12000:
                 raise ValueError("Seedance 2.5 prompt must contain 1-12000 characters")
-            if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 30:
-                raise ValueError("Seedance 2.5 reference mode requires 1-30 reference images")
+            if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 9:
+                raise ValueError("Seedance 2.5 reference mode requires 1-9 reference images")
             if generation_mode == "r2v" and not source_frame_ids:
                 raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
             duration = 30
@@ -2386,7 +2511,7 @@ class ComicGenPipeline:
             # 两种情况都不动：
             # 1. 已经直接选了带 -r2v 后缀的模型；
             # 2. 选的是韭菜盒子自家的模型 —— 它的 R2V id 不一定带 -r2v 后缀
-            #    （dola-seedance2.5 / minimax_h3_zm_u24 都是扁平 id），按后缀判断
+            #    （海seedance2.5 / minimax_h3_zm_u24 都是扁平 id），按后缀判断
             #    会把它当成没选 R2V 而覆盖掉。
             # 其余（空、或 happyhorse / kling / pixverse / vidu / seedance 这类
             # 已下线 provider 的旧 id）一律落到目录默认值，不按族名改写成某个写死的
@@ -2405,7 +2530,7 @@ class ComicGenPipeline:
         # 取参考视频，现在所有 R2V 模型都取参考图，所以那个分支已删除。
         #
         # ponytail: 已知天花板 —— 判据是 `-r2v` 后缀，而韭菜盒子的 R2V id 是扁平的
-        # （dola-seedance2.5 / minimax_h3_zm_u24），所以这个校验对它们**不生效**。
+        # （海seedance2.5 / minimax_h3_zm_u24），所以这个校验对它们**不生效**。
         # 不能简单换成 `generation_mode == "r2v"`：MiniMax H3 允许只带参考音频，
         # 那样会把合法流程拦成 400。要收紧得先确认各模型的最低参考素材要求。
         is_r2v_model = isinstance(model, str) and model.endswith("-r2v")
@@ -3499,8 +3624,29 @@ class ComicGenPipeline:
         self._save_data()
         return script, task_id
 
-    def process_video_task(self, script_id: str, task_id: str):
-        """Processes a video task."""
+    def get_video_task(self, script_id: str, task_id: str) -> Optional[VideoTask]:
+        script = self.get_script(script_id)
+        if not script:
+            return None
+        return next((t for t in script.video_tasks if t.id == task_id), None)
+
+    def _remember_provider_task_id(self, script: Script, task: VideoTask, provider_task_id: str) -> None:
+        """把上游任务号落到任务上（一拿到就写，不等跑完）。
+
+        这是「回捞」的唯一凭据：轮询要几分钟，中间后端一重启（dev `--reload` 天天在
+        发生）这个号就没了，只能重新生成 = 再付一次费。以前这个字段从没被写入过，
+        所以失败之后连查都没得查。
+        """
+        task.provider_name = task.provider_name or "jiucaihezi"
+        task.provider_task_id = provider_task_id
+        self._save_data()
+
+    def process_video_task(self, script_id: str, task_id: str, resume: bool = False):
+        """跑一个视频任务。
+
+        ``resume=True``：上游已经有这个任务了（``provider_task_id`` 有值），只续上
+        轮询 + 补下载，**不重新提交**。这是「回捞」的实现 —— 重新提交会再付一次费。
+        """
         script = self.get_script(script_id)
         if not script:
             logger.error(f"Script {script_id} not found for task {task_id}")
@@ -3512,64 +3658,91 @@ class ComicGenPipeline:
             logger.error(f"Task {task_id} not found in script {script_id}")
             return
 
+        if resume and not task.provider_task_id:
+            logger.error(f"Task {task_id} has no provider task id — cannot resume")
+            return
+
         try:
             # Update status to processing
             task.status = "processing"
+            task.error = None
+            # 第一次开始的时间留着不动（续跑时「已等多久」该算全程），
+            # 但上一次的结束时间要清掉 —— 它现在是「正在跑」。
+            if not task.started_at:
+                task.started_at = time.time()
+            task.finished_at = 0.0
             self._save_data()
-            
-            # Download image to temp file
-            img_path = None
-            if task.image_url:
-                img_path = self._download_temp_image(task.image_url)
-            
-            # Generate video
+
             output_filename = f"video_{task_id}.mp4"
             output_path = os.path.join("output", "video", output_filename)
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            # Handle Audio Logic —— 前端 VideoSidebar 的三态：
-            # 1. mute   audio_url=None, generate_audio=False
-            # 2. ai     audio_url=None, generate_audio=True → 用 seed-audio-1.0 生成
-            # 3. custom audio_url=URL → 直接当参考音频发给上游
-            #
-            # 音频生成是一个独立模型（seed-audio-1.0，POST /v1/audio/speech），
-            # 不是视频模型上的开关。放在视频之前：音频失败就让任务失败，此时还
-            # 没为视频付费。
-            final_audio_url = task.audio_url or None
-            if not final_audio_url and task.generate_audio:
-                final_audio_url = self._generate_ai_sound(task)
 
-            # Image ref handed to the video adapter (local path or remote URL)
-            img_url = task.image_url
+            if resume:
+                # 续跑：上游任务号在手，直接接着问。跳过音频/图片准备 —— 那些在第一次
+                # 提交前就已经做过，重做只会再烧一次钱。
+                from ...models.jiucaihezi import poll_video_task
+                poll_video_task(task.provider_task_id, output_path)
+            else:
+                # Download image to temp file
+                img_path = None
+                if task.image_url:
+                    img_path = self._download_temp_image(task.image_url)
 
-            # 目录里只有韭菜盒子一家，所以视频只有一个适配器。
-            #
-            # 这里原来按 provider 分派到 wanx / mulerouter / kling / vidu 四个适配器，
-            # 那些家族已随目录收敛删除。已下线的旧 task.model 不再有任何本地适配器
-            # 可退 —— 交给网关按模型名报错，比在本地挑一个猜的适配器清楚。
-            if self._jiucaihezi_video_model is None:
-                from ...models.jiucaihezi import JiucaiheziVideoModel
-                self._jiucaihezi_video_model = JiucaiheziVideoModel({})
-            video_path, _ = self._jiucaihezi_video_model.generate(
-                prompt=task.prompt, output_path=output_path, img_url=img_url, img_path=img_path,
-                model_name=task.model, duration=task.duration, resolution=task.resolution,
-                audio_url=final_audio_url, reference_audio_urls=task.reference_audio_urls or [],
-                aspect_ratio=task.ratio or "16:9",
-                ref_image_urls=task.reference_image_urls or [],
-            )
+                # Handle Audio Logic —— 前端 VideoSidebar 的三态：
+                # 1. mute   audio_url=None, generate_audio=False
+                # 2. ai     audio_url=None, generate_audio=True → 用 seed-audio-1.0 生成
+                # 3. custom audio_url=URL → 直接当参考音频发给上游
+                #
+                # 音频生成是一个独立模型（seed-audio-1.0，POST /v1/audio/speech），
+                # 不是视频模型上的开关。放在视频之前：音频失败就让任务失败，此时还
+                # 没为视频付费。
+                final_audio_url = task.audio_url or None
+                if not final_audio_url and task.generate_audio:
+                    final_audio_url = self._generate_ai_sound(task)
+
+                # Image ref handed to the video adapter (local path or remote URL)
+                img_url = task.image_url
+
+                # 目录里只有韭菜盒子一家，所以视频只有一个适配器。
+                #
+                # 这里原来按 provider 分派到 wanx / mulerouter / kling / vidu 四个适配器，
+                # 那些家族已随目录收敛删除。已下线的旧 task.model 不再有任何本地适配器
+                # 可退 —— 交给网关按模型名报错，比在本地挑一个猜的适配器清楚。
+                if self._jiucaihezi_video_model is None:
+                    from ...models.jiucaihezi import JiucaiheziVideoModel
+                    self._jiucaihezi_video_model = JiucaiheziVideoModel({})
+                video_path, _ = self._jiucaihezi_video_model.generate(
+                    prompt=task.prompt, output_path=output_path, img_url=img_url, img_path=img_path,
+                    model_name=task.model, duration=task.duration, resolution=task.resolution,
+                    audio_url=final_audio_url, reference_audio_urls=task.reference_audio_urls or [],
+                    aspect_ratio=task.ratio or "16:9",
+                    ref_image_urls=task.reference_image_urls or [],
+                    # 上游任务号一到手就落盘，否则后端重启就彻底丢了。
+                    on_task_id=lambda pid: self._remember_provider_task_id(script, task, pid),
+                )
             
             task.video_url = to_media_ref(os.path.relpath(output_path, "output"))
             task.status = "completed"
+            task.error = None
+            task.finished_at = time.time()
             
             # Sync with asset if this is an asset video
             if task.asset_id:
                 self._sync_asset_video_task(script, task)
             
         except Exception as e:
-            import traceback
             logger.exception("Failed to process video task")
             logger.error(f"Video generation failed: {e}")
             task.status = "failed"
+            task.finished_at = time.time()
+            # 以前这里不写 error，前端只能显示「未知错误，请重试」—— 用户拿不到任何
+            # 线索，我们事后也查不出。失败原因必须落到任务上。
+            task.error = str(e) or e.__class__.__name__
+            if task.provider_task_id:
+                task.error += (
+                    f"（上游任务号 {task.provider_task_id} 已保存："
+                    "点「继续回捞」可以接着等结果，不用重新生成）"
+                )
             if task.asset_id:
                 self._sync_asset_video_task(script, task)
             
@@ -3653,6 +3826,37 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
+    def frame_speaker(self, script: Script, frame: 'StoryboardFrame') -> Optional[Character]:
+        """这一帧是谁在说话 —— 对白音频要拿他的参考音。
+
+        先认**说话人名字**（``frame.speaker`` / ``dialogue_structured.speaker``），
+        认不出来才退回 ``character_ids[0]``。顺序不能反：一帧里常常站着好几个人
+        （刘备 + 彪形大汉），``character_ids`` 首位往往不是开口的那个 ——
+        按首位取参考音就是拿别人的嗓子念这一句。
+
+        名字匹配只做「精确 → 包含」两级，跟别处的兑名一致；角色可能只活在系列池
+        或全局库里，所以走三层合并而不是只看本集。
+        """
+        name = (frame.speaker or (
+            frame.dialogue_structured.speaker if frame.dialogue_structured else None
+        ) or "").strip().lower()
+        if name:
+            characters = [c for c, _ in self.resolve_episode_assets_with_source(script)["characters"]]
+            exact = next((c for c in characters if c.name.strip().lower() == name), None)
+            if exact:
+                return exact
+            loose = next(
+                (c for c in characters
+                 if name in c.name.strip().lower() or c.name.strip().lower() in name),
+                None,
+            )
+            if loose:
+                return loose
+        if frame.character_ids:
+            # 帧引用的是三层合并后的 id，角色可能只活在系列池里。
+            return self._find_asset_with_source(script, frame.character_ids[0], "character")[0]
+        return None
+
     def generate_audio(self, script_id: str) -> Script:
         """Step 5: Generate audio (Dialogue & SFX)."""
         script = self.scripts.get(script_id)
@@ -3664,17 +3868,9 @@ class ComicGenPipeline:
         for frame in script.frames:
             # Generate Dialogue
             if frame.dialogue:
-                speaker = None
-                if frame.character_ids:
-                    speaker = next((c for c in script.characters if c.id == frame.character_ids[0]), None)
-                
+                speaker = self.frame_speaker(script, frame)
                 if speaker:
-                    self.audio_generator.generate_dialogue(
-                        frame, speaker,
-                        speed=speaker.voice_speed,
-                        pitch=speaker.voice_pitch,
-                        volume=speaker.voice_volume
-                    )
+                    self.audio_generator.generate_dialogue(frame, speaker)
             
             # Generate SFX (Text-to-Audio)
             if frame.action_description:
@@ -3695,16 +3891,15 @@ class ComicGenPipeline:
         self,
         script_id: str,
         frame_id: str,
-        speed: float = 1.0,
-        pitch: float = 1.0,
-        volume: int = 50,
         instructions: Optional[str] = None,
     ) -> Script:
-        """Generates audio for a specific frame with parameters.
+        """给某一帧生成对白音频。
 
-        PR-3j: accepts `instructions` (chip emotion + free text). For
-        custom voices (clone/design) we resolve the target_model/family
-        override here so generation reuses the registered voice model.
+        声音完全由这个角色的**参考音**决定（seed-audio-1.0 参考生音频），所以这里
+        已经没有任何 speed/pitch/volume/音色参数 —— 角色有没有参考音由 audio 层
+        报错，不在这一层静默失败。
+
+        ``instructions`` 是情绪标签 + 自由文本，拼进提示词里当演绎要求。
         """
         script = self.scripts.get(script_id)
         if not script:
@@ -3719,57 +3914,12 @@ class ComicGenPipeline:
             or frame.dialogue
         )
         if dialogue_text:
-            speaker = None
-            if frame.character_ids:
-                speaker = next((c for c in script.characters if c.id == frame.character_ids[0]), None)
-            speaker_name = frame.speaker or (
-                frame.dialogue_structured.speaker if frame.dialogue_structured else None
-            )
-            if not speaker and speaker_name:
-                key = speaker_name.strip().lower()
-                speaker = next(
-                    (c for c in script.characters if c.name.strip().lower() == key
-                     or key in c.name.strip().lower()
-                     or c.name.strip().lower() in key),
-                    None,
-                )
-
+            speaker = self.frame_speaker(script, frame)
             if speaker:
-                model_override = None
-                family_override = None
-                if speaker.voice_id:
-                    custom = self.find_custom_voice(speaker.voice_id)
-                    if custom:
-                        model_override = custom.target_model
-                        family_override = custom.family
                 self.audio_generator.generate_dialogue(
-                    frame, speaker, speed, pitch, volume,
-                    instructions=instructions,
-                    model_override=model_override,
-                    family_override=family_override,
+                    frame, speaker, instructions=instructions
                 )
 
-        self._save_data()
-        return script
-
-    def bind_voice(self, script_id: str, char_id: str, voice_id: str, voice_name: str) -> Script:
-        """Binds a voice to a character."""
-        script = self.get_script(script_id)
-        if not script:
-            raise ValueError("Script not found")
-            
-        char = next((c for c in script.characters if c.id == char_id), None)
-        if not char:
-            raise ValueError("Character not found")
-            
-        char.voice_id = voice_id
-        char.voice_name = voice_name
-        # voice_origin 要跟着走。音色选择器按它分「系统 / 我的复刻 / 我的设计」
-        # 三个 tab（Q15.5 B），只写 id/name 的话绑了设计音色它也还写着 'system'。
-        # 自定义音色在 series.custom_voices 里，它自己记着是 clone 还是 design；
-        # 找不到就当静态音色表里的系统音色。
-        custom = self.find_custom_voice(voice_id)
-        char.voice_origin = custom.origin if custom else "system"
         self._save_data()
         return script
 
@@ -4157,8 +4307,7 @@ class ComicGenPipeline:
         project-independent global pool. Tolerates a partial payload (used
         by the Playground录入 flow, which calls this directly rather than
         through a request model). Recognized payload keys: name,
-        description, image_url, persona (characters), voice_id
-        (characters)."""
+        description, image_url, persona (characters)."""
         from .models import Character, Scene, Prop, AssetUnit, ImageVariant
         with self._save_lock:
             payload = dict(payload or {})
@@ -4176,7 +4325,6 @@ class ComicGenPipeline:
                     name=name,
                     description=description,
                     persona=payload.get("persona") or "",
-                    voice_id=payload.get("voice_id"),
                     reference_sheet=ref_sheet,
                 )
             elif asset_type == "scene":
@@ -4281,12 +4429,18 @@ class ComicGenPipeline:
             self._save_library_data_unlocked()
 
     def promote_asset_to_library(self, source_kind: str, source_id: str, asset_type: str, asset_id: str):
-        """Deep-copy an asset from a Project (episode) or Series into the
-        global library with a fresh id, persist, and return the new asset.
+        """Move an asset from a Project (episode) or Series into the global
+        library, persist, and return the promoted asset.
 
-        Reuses the import_assets_from_series deepcopy + new-uuid pattern.
-        The source asset is left intact (D1 活引用: promotion is additive;
-        fork-on-use of the original is a documented follow-up, design Q3).
+        **Move, not copy, and the id is preserved.** Both properties matter:
+        the three-layer merge dedupes by id, so a promoted copy that kept the
+        original around (or that arrived with a fresh uuid) would show up as a
+        second, same-named card in every project of that series. Keeping the id
+        also means every existing frame reference keeps resolving — the
+        resolver just falls through to the global layer.
+
+        Promoted assets are shared, so later edits affect every project that
+        sees them; use ``fork_library_asset_to_project`` to break that link.
         `source_kind` ∈ {"project", "series"}."""
         import copy
         if asset_type not in ("character", "scene", "prop"):
@@ -4314,44 +4468,65 @@ class ComicGenPipeline:
                 raise ValueError(
                     f"Asset {asset_id} of type {asset_type} not found in {source_kind} {source_id}"
                 )
+            if any(a.id == asset_id for a in self._library_list_for_type(asset_type)):
+                raise ValueError(
+                    f"Asset {asset_id} of type {asset_type} is already in the global library"
+                )
 
-            new_asset = copy.deepcopy(source_asset)
-            new_asset.id = str(uuid.uuid4())
-            self._library_list_for_type(asset_type).append(new_asset)
+            kept = [a for a in src_list if a.id != asset_id]
+            if asset_type == "character":
+                container.characters = kept
+            elif asset_type == "scene":
+                container.scenes = kept
+            else:  # prop
+                container.props = kept
+
+            promoted = copy.deepcopy(source_asset)
+            self._library_list_for_type(asset_type).append(promoted)
             self._save_library_data_unlocked()
-            return new_asset
+            if source_kind == "series":
+                self._save_series_data_unlocked()
+            else:
+                self._save_data()
+            return promoted
 
     def fork_library_asset_to_project(self, script_id: str, asset_type: str, library_asset_id: str):
-        """Deep-copy a *global library* asset into a project's local asset list
-        with a fresh id, persist the project, and return the new (now
-        project-owned) asset.
+        """Deep-copy a *shared* asset (series pool or global library) into a
+        project's local asset list with a fresh id, persist the project, and
+        return the new (now project-owned) asset.
 
         This is the inverse direction of promote_asset_to_library and the
         "按需 fork" of design Q3: under D1 活引用 semantics a project references
-        shared library assets live; forking materializes an independent,
-        editable local copy so subsequent edits no longer touch the shared
-        original. The source library asset is left intact (additive).
+        shared assets live; forking materializes an independent, editable local
+        copy so subsequent edits no longer touch the shared original. That is
+        exactly what "取消关联（在本集独立一份）" needs after a link. The source
+        asset is left intact (additive).
 
-        Raises ValueError when the project, asset type, or library asset is
+        查找顺序 系列池 → 全局库，与 `_find_asset_with_source` 一致。
+        Raises ValueError when the project, asset type, or source asset is
         absent. ``asset_type`` ∈ {"character", "scene", "prop"}."""
         import copy
-        if asset_type not in ("character", "scene", "prop"):
+        field = self._ASSET_FIELD_BY_TYPE.get(asset_type)
+        if not field:
             raise ValueError(f"Invalid asset type: {asset_type}")
         with self._save_lock:
             script = self.scripts.get(script_id)
             if not script:
                 raise ValueError(f"Project not found: {script_id}")
-            # _find_library_asset raises ValueError when the id/type is absent.
-            source_asset = self._find_library_asset(asset_type, library_asset_id)
+            source_asset = None
+            if script.series_id:
+                series = self.series_store.get(script.series_id)
+                if series:
+                    source_asset = next(
+                        (a for a in getattr(series, field) if a.id == library_asset_id), None
+                    )
+            if source_asset is None:
+                # 系列池没有就回落全局库；_find_library_asset 缺失时抛 ValueError。
+                source_asset = self._find_library_asset(asset_type, library_asset_id)
             new_asset = copy.deepcopy(source_asset)
             prefix = {"character": "char", "scene": "scene", "prop": "prop"}[asset_type]
             new_asset.id = f"{prefix}_{uuid.uuid4().hex[:12]}"
-            if asset_type == "character":
-                script.characters.append(new_asset)
-            elif asset_type == "scene":
-                script.scenes.append(new_asset)
-            else:  # prop
-                script.props.append(new_asset)
+            getattr(script, field).append(new_asset)
             script.updated_at = time.time()
             self._save_data()
             return new_asset
@@ -4451,303 +4626,6 @@ class ComicGenPipeline:
             self._save_series_data_unlocked()
             return series
 
-    # ─────────────────────────────────────────────────────────────
-    # PR-3h/i · Custom voice (clone + design) management
-    # Per Q16.1: series-level pool. Episodes / characters in the series
-    # share access via VoicePickerModal's 我的复刻 / 我的设计 tabs.
-    # ─────────────────────────────────────────────────────────────
-
-    def create_voice_clone(
-        self,
-        series_id: str,
-        audio_url: str,
-        label: str,
-        target_model: str = "cosyvoice-v3.5-plus",
-    ) -> 'CustomVoice':
-        """Clone a voice from a reference audio URL via dashscope customization.
-
-        Calls /services/audio/tts/customization with model='voice-enrollment'
-        action='create_voice'. Persists the returned voice_id under
-        series.custom_voices[]. Returns the CustomVoice entry.
-
-        Per doc: audio must be ≤10MB, MP3/WAV/M4A, ≥16kHz, 10-20s recommended.
-        Frontend should pre-validate before calling.
-        """
-        import requests
-        from .models import CustomVoice  # local import to avoid circular
-
-        with self._save_lock:
-            series = self.series_store.get(series_id)
-            if not series:
-                raise ValueError(f"Series not found: {series_id}")
-
-            api_key = os.getenv("DASHSCOPE_API_KEY")
-            if not api_key:
-                raise RuntimeError("DASHSCOPE_API_KEY not configured")
-
-            # Dashscope customization endpoint (Beijing region; intl uses
-            # dashscope-intl URL — TODO when One OK Studio supports intl deployment)
-            url = "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization"
-            payload = {
-                "model": "voice-enrollment",
-                "input": {
-                    "action": "create_voice",
-                    "target_model": target_model,
-                    "prefix": label[:20],  # API has prefix length limit
-                    "url": audio_url,
-                },
-            }
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-            logger.info(f"[voice/clone] creating voice for series={series_id} label='{label}' target={target_model}")
-            resp = requests.post(url, json=payload, headers=headers, timeout=60)
-            if resp.status_code != 200:
-                logger.error(f"[voice/clone] dashscope error {resp.status_code}: {resp.text[:500]}")
-                raise RuntimeError(f"Voice clone failed: HTTP {resp.status_code} — {resp.text[:200]}")
-
-            data = resp.json()
-            # Per doc shape: output.voice (CosyVoice) or output.voice_id (Qwen-TTS)
-            voice_id = (
-                data.get("output", {}).get("voice")
-                or data.get("output", {}).get("voice_id")
-                or data.get("voice")
-            )
-            if not voice_id:
-                logger.error(f"[voice/clone] no voice_id in response: {data}")
-                raise RuntimeError(f"Voice clone succeeded but voice_id missing in response: {data}")
-
-            custom = CustomVoice(
-                id=str(voice_id),
-                label=label,
-                origin="clone",
-                target_model=target_model,
-                family="cosyvoice",  # PR-3h hardcodes CosyVoice clone target
-                source_audio_url=audio_url,
-            )
-            if series.custom_voices is None:
-                series.custom_voices = []
-            series.custom_voices.append(custom)
-            series.updated_at = time.time()
-            self._save_series_data_unlocked()
-            logger.info(f"[voice/clone] success voice_id={voice_id} stored on series={series_id}")
-            return custom
-
-    def list_custom_voices(self, series_id: str) -> List['CustomVoice']:
-        """Return all custom voices in a series (clones + designs).
-        Empty list if series has none or doesn't exist."""
-        series = self.series_store.get(series_id)
-        if not series:
-            return []
-        return list(series.custom_voices or [])
-
-    def delete_custom_voice(self, series_id: str, voice_id: str) -> bool:
-        """Remove a custom voice entry. Returns True if removed, False if
-        not found. Note: does NOT call dashscope to delete the underlying
-        voice (the platform allows re-use for 24h; cleanup is best-effort)."""
-        with self._save_lock:
-            series = self.series_store.get(series_id)
-            if not series or not series.custom_voices:
-                return False
-            before = len(series.custom_voices)
-            series.custom_voices = [v for v in series.custom_voices if v.id != voice_id]
-            removed = before != len(series.custom_voices)
-            if removed:
-                series.updated_at = time.time()
-                self._save_series_data_unlocked()
-            return removed
-
-    def find_custom_voice(self, voice_id: str) -> Optional['CustomVoice']:
-        """Search all series for a custom voice by voice_id. Used by
-        /voice/preview to resolve target_model for cloned/designed voices
-        (which aren't in the static TTS_VOICE_REGISTRY)."""
-        for series in self.series_store.values():
-            for cv in (series.custom_voices or []):
-                if cv.id == voice_id:
-                    return cv
-        return None
-
-    # ─────────────────────────────────────────────────────────────
-    # PR-3i · Voice design (iterate: prompt → preview → accept)
-    # Unlike clone (audio-driven, 1 shot), design is text-driven and
-    # users naturally iterate. Each preview mints a new voice on
-    # dashscope; we only persist the voice the user explicitly accepts.
-    # ─────────────────────────────────────────────────────────────
-
-    def voice_design_preview(
-        self,
-        voice_prompt: str,
-        preview_text: str,
-        target_model: str = "cosyvoice-v3.5-plus",
-    ) -> Dict[str, Any]:
-        """Mint a new design voice via dashscope (preview returned inline).
-
-        Per dashscope contract: create_voice with voice_prompt MUST be paired
-        with preview_text in the same call; the API returns both the voice_id
-        and a preview audio URL. We download the URL into our cache dir so
-        the frontend can play it through the same /files static mount used
-        by /voice/preview.
-
-        Does NOT persist; user iterates by re-calling with tweaked params.
-        """
-        import requests
-        import hashlib
-
-        api_key = os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
-            raise RuntimeError("DASHSCOPE_API_KEY not configured")
-
-        url = "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization"
-        payload = {
-            "model": "voice-enrollment",
-            "input": {
-                "action": "create_voice",
-                "target_model": target_model,
-                "prefix": "design",
-                "voice_prompt": voice_prompt[:500],
-                "preview_text": (preview_text or "你好，这是一段音色测试。")[:200],
-            },
-        }
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-
-        logger.info(f"[voice/design] preview voice_prompt='{voice_prompt[:60]}…' target={target_model}")
-        # dashscope voice design has variable latency (10-60s); the customization
-        # service occasionally returns its own timeout. Retry once on 5xx/timeout.
-        resp = None
-        last_err = None
-        for attempt in range(2):
-            try:
-                resp = requests.post(url, json=payload, headers=headers, timeout=120)
-                if resp.status_code == 200:
-                    break
-                last_err = f"HTTP {resp.status_code} — {resp.text[:200]}"
-                if resp.status_code < 500 and "Timeout" not in (resp.text or ""):
-                    break  # client error, don't retry
-                logger.warning(f"[voice/design] attempt {attempt+1} failed: {last_err}; retrying")
-            except requests.RequestException as e:
-                last_err = str(e)
-                logger.warning(f"[voice/design] attempt {attempt+1} network error: {e}; retrying")
-        if resp is None or resp.status_code != 200:
-            logger.error(f"[voice/design] all attempts failed: {last_err}")
-            raise RuntimeError(f"Voice design failed: {last_err}")
-
-        data = resp.json()
-        output = data.get("output", {}) or {}
-        voice_id = output.get("voice") or output.get("voice_id") or data.get("voice")
-        remote_preview = output.get("preview_audio") or output.get("preview_audio_url") or output.get("audio_url")
-        if not voice_id:
-            logger.error(f"[voice/design] no voice_id in response: {data}")
-            raise RuntimeError(f"Voice design API returned no voice_id: {data}")
-
-        voice_id_str = str(voice_id)
-
-        cache_dir = "output/cache/voice_design_preview"
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_key = hashlib.md5(f"{voice_id_str}|{preview_text}".encode("utf-8")).hexdigest()
-        cache_path = os.path.join(cache_dir, f"{cache_key}.mp3")
-
-        if remote_preview:
-            # Download the dashscope-served preview into our cache.
-            try:
-                audio_resp = requests.get(remote_preview, timeout=60)
-                audio_resp.raise_for_status()
-                with open(cache_path, "wb") as f:
-                    f.write(audio_resp.content)
-            except Exception as e:
-                logger.warning(f"[voice/design] preview download failed, falling back to local TTS: {e}")
-                remote_preview = None
-
-        if not remote_preview:
-            if not self.audio_generator.tts:
-                raise RuntimeError("TTS unavailable; cannot synthesize preview")
-            self.audio_generator.tts.synthesize(
-                text=preview_text,
-                output_path=cache_path,
-                voice=voice_id_str,
-                model_override=target_model,
-                family_override="cosyvoice",
-            )
-
-        preview_url = f"cache/voice_design_preview/{cache_key}.mp3"
-        return {"voice_id": voice_id_str, "preview_url": preview_url, "target_model": target_model}
-
-    def voice_design_save(
-        self,
-        series_id: str,
-        voice_id: str,
-        voice_prompt: str,
-        label: str,
-        target_model: str = "cosyvoice-v3.5-plus",
-    ) -> 'CustomVoice':
-        """Persist a previewed design voice into series.custom_voices[]."""
-        from .models import CustomVoice
-
-        with self._save_lock:
-            series = self.series_store.get(series_id)
-            if not series:
-                raise ValueError(f"Series not found: {series_id}")
-
-            existing = next(
-                (cv for cv in (series.custom_voices or []) if cv.id == voice_id),
-                None,
-            )
-            if existing:
-                logger.info(f"[voice/design] save: voice_id={voice_id} already exists; returning existing")
-                return existing
-
-            custom = CustomVoice(
-                id=voice_id,
-                label=label,
-                origin="design",
-                target_model=target_model,
-                family="cosyvoice",
-                voice_prompt=voice_prompt[:500],
-            )
-            if series.custom_voices is None:
-                series.custom_voices = []
-            series.custom_voices.append(custom)
-            series.updated_at = time.time()
-            self._save_series_data_unlocked()
-            logger.info(f"[voice/design] saved voice_id={voice_id} to series={series_id}")
-            return custom
-
-    def translate_character_to_voice_prompt(
-        self,
-        description: str,
-        source_label: str = "角色设定",
-        system_prompt: Optional[str] = None,
-    ) -> str:
-        """LLM helper: convert a character description into a CosyVoice
-        voice_prompt suitable for /services/audio/tts/customization.
-
-        The prompt should describe vocal qualities (timbre, pace, age, mood)
-        in concise Chinese. CosyVoice voice_prompt cap is 500 chars; we
-        target ~120-200 to leave headroom for tone hints.
-
-        ``source_label`` 只影响提示词里那行的抬头：音色设计弹窗喂的是角色设定，
-        工作台右列喂的是已经提炼过的「声音描述」，别让模型以为拿到的是人物小传。
-
-        ``system_prompt`` 是工作台那条路传进来的 project/series Skill 解析结果。
-        故意的：音色设计弹窗（``/voice/design/translate``）不属于任何项目，读不到
-        skill 绑定，所以它不传，用下面的内置默认 —— 绑定不能从这条路漏进弹窗。
-        """
-        from .llm_adapter import LLMAdapter
-        from .llm import DEFAULT_VOICE_PROMPT
-
-        adapter = LLMAdapter()
-        if not adapter.is_configured:
-            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
-
-        system_prompt = system_prompt or DEFAULT_VOICE_PROMPT
-        user_prompt = f"{source_label}：\n{description.strip()[:1000]}\n\n请输出音色描述。"
-
-        text = adapter.chat(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-        return (text or "").strip()[:500]
-
     # ------------------------------------------------------------------
     # 角色工作台的「声音面」—— 生图面的镜像
     #
@@ -4757,6 +4635,11 @@ class ComicGenPipeline:
     # 右列由中列生成、并记下自己基于哪一版描述。
     # ------------------------------------------------------------------
 
+    #: 参考音的**存储引用前缀**（存进角色身上的那种 URL 式相对路径）。
+    #:
+    #: 它是个 URL，不是磁盘路径 —— 磁盘上它在 `output/` 下面（静态挂载 `/files` 的根
+    #: 就是 `output/`），跟上传接口同一套约定（写 `output/uploads/x`、存 `uploads/x`）。
+    #: 历史上这里被当成磁盘路径用过，于是文件落在数据目录根下、前端取的时候永远 404。
     REFERENCE_AUDIO_DIR = "uploads/reference_audio"
 
     # 默认试听词。带上角色名，人一听就知道这段是谁的；用户可以改。
@@ -4765,16 +4648,154 @@ class ComicGenPipeline:
     _VOICE_DESCRIPTION_SYSTEM_PROMPT = (
         "你是一个声音指导，擅长从人物设定里听出这个人该怎么说话。"
         "输出要求："
-        "1. 只写声音：性别、年龄感、音色质感、语速、口音、说话习惯、情绪底色。"
-        "2. 不要外貌、不要剧情、不要服装。"
-        "3. 用 80-160 字中文，单段，不加标题、引号或分点。"
+        "1. 先读形象（体型、年龄、性别、气质），再定声音 —— 身材魁梧就该中气十足、"
+        "胸腔共鸣厚；矮小年轻就该轻、薄、还没过变声期。声音跟长相不能打架。"
+        "2. 按九维逐项写：年龄感、音高、明暗、厚薄、共鸣、气息、颗粒感、口音、稳定表达习惯。"
+        "3. 每一维一句可执行的听觉描述，维度之间音色逻辑要自洽。"
+        "4. 不要外貌、不要剧情、不要服装，不要标题、分点或引号。"
+        "5. 用 100-300 字中文，单段。这段会直接喂给音色设计接口，超长会被截断。"
     )
 
-    def _character_or_raise(self, script: Script, character_id: str) -> Character:
-        character = next((c for c in script.characters if c.id == character_id), None)
-        if character is None:
+    def _character_art_prompt(self, character: Character) -> str:
+        """这个角色的**生图提示词** —— 形象的事实源。
+
+        声音得跟长相搭（用户 2026-09-17 提的：定好形象之后，魁梧的人一看就该中气
+        十足）。取「真用过的那一条」最准：先看已选中的那张参考图是用什么提示词生成
+        的，再退到 `reference_sheet.image_prompt`，最后才翻三张 legacy 资产的 prompt。
+        """
+        sheet = getattr(character, "reference_sheet", None)
+        if sheet is not None:
+            selected = getattr(sheet, "selected_image_id", None)
+            for variant in getattr(sheet, "image_variants", None) or []:
+                used = (getattr(variant, "prompt_used", None) or "").strip()
+                if selected and variant.id == selected and used:
+                    return used
+            prompt = (getattr(sheet, "image_prompt", None) or "").strip()
+            if prompt:
+                return prompt
+        for field in ("full_body_prompt", "three_view_prompt", "headshot_prompt"):
+            prompt = (getattr(character, field, None) or "").strip()
+            if prompt:
+                return prompt
+        return ""
+
+    def _voice_description_system_prompt(self, script: Script) -> str:
+        """中列的 persona：绑了「音色提示词 Skill」就跟它走，没绑用内置声音指导。
+
+        中列与右列共用 `voice_prompt` 一个槽位（用户 2026-09-17 拍板）：那类 Skill
+        本来就是照「从角色资料设计音色」写的，中列是它的第一步，两列用同一个人设
+        才不会出现「描述按 A 写、提示词按 B 生成」。
+
+        **只用用户/Skill 真正提供的那一层**：内置默认 `DEFAULT_VOICE_PROMPT` 是写给
+        右列方向的（「描述 → 提示词」），串到中列会让模型去做下一列的事。
+        """
+        series = self.series_store.get(script.series_id) if script.series_id else None
+        return (
+            self._resolve_stage_override("voice_prompt", script, series)
+            or self._VOICE_DESCRIPTION_SYSTEM_PROMPT
+        )
+
+    #: 成品提示词的段标题。程序按它把「九维档案」拆出来写回中列，所以这是硬约定
+    #: （给用户的 Skill 也靠这两个标题，见 llm.VOICE_PROMPT_OUTPUT_CONTRACT）。
+    VOICE_ARCHIVE_HEADING = "### 九维声音档案"
+    VOICE_ARTIFACT_HEADING = "### 可直接使用的提示词"
+
+    def _voice_artifact_system_prompt(self, script: Script) -> str:
+        """右列的 persona：绑了 Skill 跟它走，没绑用两段式的内置默认。
+
+        跟中列不共用那个默认：`DEFAULT_VOICE_PROMPT` 是给音色设计弹窗的
+        （产出单段、直接当 voice_prompt 用），而右列要的是「九维 + 台词」的成品。
+
+        绑了 Skill 时补上硬契约：两段式标题是**程序**拆分的依据，九维那段的字数上限
+        是写回中列时的截断长度 —— Skill 可以换人格，不能把这些盖掉。
+        （内置默认里已经逐条写了，所以只在被覆盖时追加，否则重复一遍。）
+        """
+        from .llm import DEFAULT_VOICE_ARTIFACT_PROMPT, VOICE_PROMPT_OUTPUT_CONTRACT
+
+        series = self.series_store.get(script.series_id) if script.series_id else None
+        override = self._resolve_stage_override("voice_prompt", script, series)
+        if override:
+            return override + VOICE_PROMPT_OUTPUT_CONTRACT
+        return DEFAULT_VOICE_ARTIFACT_PROMPT
+
+    def _split_voice_artifact(self, text: str) -> Tuple[str, str]:
+        """把两段式成品拆成 ``(九维档案, 成品)``。
+
+        模型没照格式写就整段当成品、档案留空 —— 宁可中列空着，也不能把整段
+        一两千字塞进中列：中列是给人看、给下一次微调看的（存的时候 [:600]）。
+        遇到不认识的 `### 标题` 就停止收集：用户的 Skill 模板里有
+        `### 参考录音绑定` 夹在两段之间，那是给人看的，不该进档案。
+        """
+        archive: List[str] = []
+        artifact: List[str] = []
+        bucket: Optional[List[str]] = None
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("### "):
+                if stripped.startswith(self.VOICE_ARCHIVE_HEADING):
+                    bucket = archive
+                elif stripped.startswith(self.VOICE_ARTIFACT_HEADING):
+                    bucket = artifact
+                else:
+                    bucket = None
+                continue
+            if bucket is not None:
+                bucket.append(line)
+        if not artifact:
+            return "", text
+        return "\n".join(archive).strip(), "\n".join(artifact).strip()
+
+    def _character_script_lines(
+        self, script: Script, character_id: str, name: str, limit: int = 2
+    ) -> List[str]:
+        """这个角色在本集剧本里说过的台词（最多 ``limit`` 句）。
+
+        右列要拿真台词当「配音内容」—— 参考音听起来才是这个角色在剧里说话。
+        先走分镜（台词带说话人，最准）；还没生成分镜就回剧本原文里按
+        `角色名（情绪）：台词` 那样挑。ponytail: 原文那条是朴素启发式，
+        只认行首名字 + 全角冒号；分镜生成后就走上面那条准确路径了。
+        """
+        lines: List[str] = []
+        for frame in script.frames or []:
+            structured = getattr(frame, "dialogue_structured", None)
+            text = ((getattr(structured, "line", None) if structured else None) or frame.dialogue or "").strip()
+            if not text:
+                continue
+            speaker = (getattr(frame, "speaker", None) or (getattr(structured, "speaker", None) if structured else None) or "").strip()
+            by_id = bool(frame.character_ids) and frame.character_ids[0] == character_id
+            by_name = bool(speaker) and bool(name) and speaker == name.strip()
+            if by_id or by_name:
+                lines.append(text)
+                if len(lines) >= limit:
+                    return lines
+        if lines:
+            return lines
+        for raw in (script.original_text or "").splitlines():
+            stripped = raw.strip().lstrip("△ ")
+            if not name or not stripped.startswith(name):
+                continue
+            _, sep, tail = stripped.partition("：")
+            if sep and tail.strip():
+                lines.append(tail.strip())
+                if len(lines) >= limit:
+                    break
+        return lines
+
+    def _character_or_raise(self, script: Script, character_id: str) -> Tuple[Character, str]:
+        """按三层池子找角色，并把「它住在哪一层」一并交出来。
+
+        角色不一定在本集：同名提取 / 手动关联之后，本集那份副本会被合并掉，
+        只留系列池（或全局库）里那一条。以前只扫 `script.characters`，于是
+        前端列表里明明看得见（它走三层合并），一点「AI 提取」就整列报
+        「角色不存在」。
+
+        返回 source 是因为改完必须落回**持有它的那一层**：角色在系列池却按
+        `_save_data()` 写 projects.json 的话，改动直接消失，而且不报错。
+        """
+        character, source = self._find_asset_with_source(script, character_id, "character")
+        if character is None or source is None:
             raise ValueError(f"角色不存在：{character_id}")
-        return character
+        return character, source  # type: ignore[return-value]
 
     def generate_voice_description(self, script_id: str, character_id: str) -> Character:
         """中列：把角色设定提炼成一段人话的「声音描述」。
@@ -4785,7 +4806,7 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
         from .llm_adapter import LLMAdapter
 
@@ -4799,7 +4820,7 @@ class ComicGenPipeline:
 
         text = adapter.chat(
             messages=[
-                {"role": "system", "content": self._VOICE_DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "system", "content": self._voice_description_system_prompt(script)},
                 {"role": "user", "content": f"角色设定：\n{source_text[:1200]}\n\n请输出这个角色的声音描述。"},
             ],
         )
@@ -4812,7 +4833,7 @@ class ComicGenPipeline:
         character.voice_description_version += 1
         character.voice_description_updated_at = time.time()
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     def rewrite_voice_description(
@@ -4832,7 +4853,7 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
         current = (description if description is not None else character.voice_description or "").strip()
         if not current:
@@ -4847,7 +4868,7 @@ class ComicGenPipeline:
         ask = (instruction or "").strip() or "改得更具体、更能指导音色设计"
         text = adapter.chat(
             messages=[
-                {"role": "system", "content": self._VOICE_DESCRIPTION_SYSTEM_PROMPT},
+                {"role": "system", "content": self._voice_description_system_prompt(script)},
                 {"role": "user", "content": (
                     f"当前声音描述：\n{current[:1200]}\n\n"
                     f"修改要求：{ask}\n\n"
@@ -4864,91 +4885,142 @@ class ComicGenPipeline:
         character.voice_description_version += 1
         character.voice_description_updated_at = time.time()
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     def generate_voice_prompt(self, script_id: str, character_id: str) -> Character:
-        """右列：由中列的「声音描述」生成音色提示词，并记下基于哪一版描述。"""
+        """右列：把「角色资料 + 中列档案 + 本集台词」定成一段可直接用的音色提示词。
+
+        产出是**两段式**成品（九维档案 + 可直接使用的提示词），因为用户要的是
+        「拿去任何一个声音模型都能用」的一段话：既有九维维度，也有这个角色在
+        剧本里的真台词。程序把九维那段拆回中列 —— 中列是喂 `create_voice` 的
+        那一层（≤ 500），也是「AI 修改」能改的那一层。
+
+        中列可以为空：产品入口就是这一下（用户 2026-09-17 拍板去掉「AI 提取」，
+        直接点「生成提示词」）。
+        """
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
+        sections = [f"角色名：{character.name}"]
+        profile = (character.description or character.extracted_description or "").strip()
+        if profile:
+            sections.append(f"角色资料：\n{profile[:1000]}")
+        # 形象单独成段：声音要跟它搭。体型/年龄/气质是判断音色的第一依据，
+        # 而生图提示词是把形象定下来的那句话（描述里可能没写全）。
+        visual = []
+        if getattr(character, "age", None):
+            visual.append(f"年龄：{character.age}")
+        if getattr(character, "gender", None):
+            visual.append(f"性别：{character.gender}")
+        if getattr(character, "clothing", None):
+            visual.append(f"服装与身份：{character.clothing}")
+        art_prompt = self._character_art_prompt(character)
+        if art_prompt:
+            visual.append(f"生图提示词（这个角色的形象就是这么定下来的）：\n{art_prompt[:800]}")
+        if visual:
+            sections.append("形象（声音要跟它搭得上）：\n" + "\n".join(visual))
+        lines = self._character_script_lines(script, character_id, character.name)
+        if lines:
+            sections.append("本集剧本里这个角色的台词：\n" + "\n".join(f"「{line}」" for line in lines))
+        elif (script.original_text or "").strip():
+            sections.append("剧本节选（自行找出这个角色的台词）：\n" + script.original_text.strip()[:1500])
         description = (character.voice_description or "").strip()
-        if not description:
-            raise ValueError(f"「{character.name}」还没有声音描述，先生成或写一段再来生成音色提示词")
+        if description:
+            sections.append(f"已定的九维声音档案（沿用，可细化）：\n{description[:600]}")
+        sections.append("请输出这个角色的音色提示词。")
 
-        series = self.series_store.get(script.series_id) if script.series_id else None
-        prompt = self.translate_character_to_voice_prompt(
-            description,
-            source_label="声音描述",
-            system_prompt=self.get_effective_prompt("voice_prompt", script, series),
+        from .llm_adapter import LLMAdapter
+
+        adapter = LLMAdapter()
+        if not adapter.is_configured:
+            raise RuntimeError(NOT_CONFIGURED_MESSAGE)
+        text = adapter.chat(
+            messages=[
+                {"role": "system", "content": self._voice_artifact_system_prompt(script)},
+                {"role": "user", "content": "\n\n".join(sections)},
+            ],
         )
-        if not prompt:
+        artifact = (text or "").strip()
+        if not artifact:
             raise RuntimeError("音色提示词生成失败：模型返回了空内容")
 
-        character.voice_prompt = prompt
+        archive, artifact = self._split_voice_artifact(artifact)
+        if archive:
+            character.voice_description = archive[:600]
+            character.voice_description_source = "ai"
+            character.voice_description_version += 1
+            character.voice_description_updated_at = time.time()
+        # 成品不过 500：它是给人看、拿去任何模型用的；真正喂 create_voice 的是
+        # 中列那段九维档案。只挡一个防跑飞的硬上限。
+        character.voice_prompt = artifact[:VOICE_PROMPT_ARTIFACT_MAX_CHARS]
         character.voice_prompt_source = "ai"
         character.voice_prompt_description_version = character.voice_description_version
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     def generate_reference_audio(
         self, script_id: str, character_id: str, text: Optional[str] = None
     ) -> Character:
-        """左列：用这个角色绑定的音色念一句，产出一个真实的参考音文件。
+        """左列：让声音模型按右列的提示词产出一个声音，试听那段就是参考音。
 
-        为什么必须有这一步：参考音要的是**实物**，而「音色设计」造出来的音色
-        天生没有源音频（只有「克隆」才有）。所以设计音色想当参考音，只能现场念一段。
-
-        存仓库内相对路径而不是网关 URL —— 网关临时素材 15 分钟失效，存了就是死链；
-        适配器在真正生成时再转存一次。
+        产品里只有 seed-audio-1.0 一个音频通道，它直接参考生音频：这里产出的是
+        「按提示词生成的声音」，不是某个已绑音色的朗读样本（用户 2026-09-17 拍板）。
+        每次点都出新的一版、攒进候选条对比 —— 跟生图面一个逻辑。
         """
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
-        if not character.voice_id:
-            raise ValueError(f"「{character.name}」还没有绑定音色，先选一个音色再生成参考音")
-
-        tts = getattr(self.audio_generator, "tts", None)
-        if not tts:
-            raise RuntimeError("TTS 服务不可用，请先配置 DASHSCOPE_API_KEY")
-
-        sample = (text or "").strip() or self.REFERENCE_AUDIO_TEXT.format(name=character.name)
+        prompt = self._reference_audio_prompt(character, text)
         # 每次一个文件名 —— 固定成 {char_id}.mp3 的话，生成第二版就把第一版覆盖掉了，
         # 候选条会全部指向同一个文件、旧版音频直接没了。
-        output_path = os.path.join(
-            self.REFERENCE_AUDIO_DIR, f"{character_id}_{uuid.uuid4().hex[:8]}.mp3"
-        )
-        os.makedirs(self.REFERENCE_AUDIO_DIR, exist_ok=True)
+        #
+        # 存两份写法：`stored_url` 是存进角色身上的引用（前端拼 `/files/<它>`），
+        # `output_path` 是磁盘上的位置 —— 两者差一个 `output/` 前缀，不能混。
+        filename = f"{character_id}_{uuid.uuid4().hex[:8]}.mp3"
+        stored_url = media_ref(self.REFERENCE_AUDIO_DIR, filename)
+        output_path = media_ref("output", stored_url)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-        # 设计/克隆音色不在静态音色表里，得把它自己的 model/family 带上，
-        # 否则 TTS 会按默认版本去解析、报「音色不存在」。
-        custom = self.find_custom_voice(character.voice_id)
+        from ...models.jiucaihezi import generate_audio
+
         try:
-            tts.synthesize(
-                text=sample,
-                output_path=output_path,
-                voice=character.voice_id,
-                speech_rate=character.voice_speed,
-                pitch_rate=character.voice_pitch,
-                volume=character.voice_volume,
-                model_override=custom.target_model if custom else None,
-                family_override=custom.family if custom else None,
-            )
+            generate_audio(prompt=prompt, output_path=output_path)
         except Exception as exc:
             raise RuntimeError(f"参考音生成失败：{exc}") from exc
 
         # 每生成一版就多一条候选 —— 跟生图面一个逻辑：改一版提示词、再生一版，
         # 攒几条之后回头看哪条好。不覆盖上一版。
-        self._add_reference_variant(character, output_path, origin=character.voice_name or character.voice_id)
+        self._add_reference_variant(character, stored_url, origin="seed-audio-1.0")
         script.updated_at = time.time()
-        self._save_data()
-        logger.info("[voice-face] reference take for %s → %s", character_id, output_path)
+        self._save_after_asset_mutation(character_source)
+        logger.info("[voice-face] reference take for %s → %s", character_id, stored_url)
         return character
+
+    def _reference_audio_prompt(self, character: Character, text: Optional[str] = None) -> str:
+        """喂给音频模型的那段话。
+
+        右列的成品（九维 + `配音内容：“台词”`）就是模型要的东西，直接用；
+        只有中列档案时补一句要念的台词。
+        """
+        archive = (character.voice_description or "").strip()
+        artifact = (character.voice_prompt or "").strip()
+        if not archive and not artifact:
+            raise ValueError(
+                f"「{character.name}」还没有音色提示词：先点右列的「生成提示词」"
+            )
+        spoken = (text or "").strip()
+        if not spoken:
+            return (artifact or (
+                f"{archive}\n配音内容：“{self.REFERENCE_AUDIO_TEXT.format(name=character.name)}”"
+            ))[:AUDIO_MAX_INPUT_CHARS]
+        return f"{archive or artifact}\n配音内容：“{spoken}”"[:AUDIO_MAX_INPUT_CHARS]
+
     # 参考音只认这些扩展名。客户端已经用 accept="audio/*" 挡了一道，这里再挡一道：
     # 传上来一个 .jpg 的话，要到真正生成音频时才炸，而且炸在网关上、报错看不懂。
     REFERENCE_AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".webm")
@@ -4969,7 +5041,7 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
         if voice_description is not None and voice_description.strip() != (character.voice_description or ""):
             character.voice_description = voice_description.strip()
@@ -4988,7 +5060,7 @@ class ComicGenPipeline:
             self._add_reference_variant(character, candidate, origin="upload")
 
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     # ── 参考音的候选条 ─────────────────────────────────────────────
@@ -5034,7 +5106,7 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
         variant = next((v for v in character.reference_audio_variants if v.id == variant_id), None)
         if variant is None:
@@ -5043,7 +5115,7 @@ class ComicGenPipeline:
         character.reference_audio_selected_id = variant.id
         character.reference_audio_url = variant.url
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     def delete_reference_audio_variant(
@@ -5057,7 +5129,7 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        character = self._character_or_raise(script, character_id)
+        character, character_source = self._character_or_raise(script, character_id)
 
         remaining = [v for v in character.reference_audio_variants if v.id != variant_id]
         if len(remaining) == len(character.reference_audio_variants):
@@ -5070,7 +5142,7 @@ class ComicGenPipeline:
             character.reference_audio_url = newest.url if newest else None
 
         script.updated_at = time.time()
-        self._save_data()
+        self._save_after_asset_mutation(character_source)
         return character
 
     def _assert_audio_reference(self, url: str, character_name: str) -> None:
@@ -5123,7 +5195,7 @@ class ComicGenPipeline:
 
         cast_lines = []
         for character in script.characters:
-            voice = character.voice_name or ("未绑定音色" if not character.voice_id else character.voice_id)
+            voice = "已有参考音" if character.reference_audio_url else "还没有参考音"
             cast_lines.append(f"- {character.name}（{voice}）：{character.description}")
         cast_block = "\n".join(cast_lines) or "（暂无角色）"
 
@@ -5132,7 +5204,7 @@ class ComicGenPipeline:
         series = self.series_store.get(script.series_id) if script.series_id else None
         system_prompt = self.get_effective_prompt("audio_plan", script, series)
         user_prompt = (
-            f"【角色与已绑定音色】\n{cast_block}\n\n"
+            f"【角色与参考音】\n{cast_block}\n\n"
             f"【剧本】\n{(script.original_text or '')[:8000]}"
         )
 
@@ -5241,12 +5313,8 @@ class ComicGenPipeline:
     ) -> List[str]:
         """把角色 id 解析成参考音频的**本地路径**。
 
-        链路（工作台「声音面」补上了第一层）：
-        ``Character.reference_audio_url`` → ``Character.voice_id`` →
-        ``Series.custom_voices[].id`` → ``source_audio_url``。
-
-        第一层是给「音色设计」用的：设计出来的音色天生没有源音频，只能靠
-        「用这个音色念一句」产出一个真实文件。克隆音色仍然走后面那层。
+        链路就一层：``Character.reference_audio_url`` —— 角色工作台「声音面」生出的
+        那条参考音。音色池、音色克隆随「音色选择」一起收掉了（产品只有一个音频通道）。
 
         取到的通常是 ``uploads/xxx`` 这种仓库内相对路径 —— 交给适配器在**生成时**
         转存成网关 URL 即可，这样天然避开网关临时素材 15 分钟失效的问题（存成
@@ -5266,31 +5334,22 @@ class ComicGenPipeline:
                 f"当前选了 {len(wanted)} 个角色"
             )
 
-        characters = {c.id: c for c in script.characters}
-        voices: Dict[str, Any] = {}
-        if script.series_id:
-            series = self.series_store.get(script.series_id)
-            for voice in (getattr(series, "custom_voices", None) or []) if series else []:
-                voices[voice.id] = voice
-
         resolved: List[str] = []
         missing: List[str] = []
         for character_id in wanted:
-            character = characters.get(character_id)
+            # 走三层池子：同名提取/关联之后角色可能只活在系列池或全局库里，
+            # 只查本集会在这里误报「角色不存在」。
+            character, _source = self._find_asset_with_source(script, character_id, "character")
             if character is None:
                 raise ValueError(f"角色不存在：{character_id}")
             own = getattr(character, "reference_audio_url", None)
             if own:
                 resolved.append(own)
-                continue
-            voice = voices.get(character.voice_id) if character.voice_id else None
-            if voice is not None and getattr(voice, "source_audio_url", None):
-                resolved.append(voice.source_audio_url)
             else:
                 missing.append(character.name)
         if missing:
             raise ValueError(
-                "这些角色还没有参考音，请先到 Cast 里绑定音色（或用参考音克隆）："
+                "这些角色还没有参考音，请先到资产里他们的声音面生成一版参考音："
                 + "、".join(missing)
             )
         return resolved
@@ -5304,7 +5363,7 @@ class ComicGenPipeline:
         也可以给 1–3 个角色带上他们的参考音。多生成几版对比着听是预期用法。
 
         提交时就追加一条 `queued` 的占位 take：前端据此显示「生成中」，进程重启时
-        也扫得到它。参考音在**这里**解析（不是后台）—— 勾了没绑音色的角色要当场报错。
+        也扫得到它。参考音在**这里**解析（不是后台）—— 勾了没参考音的角色要当场报错。
         """
         script = self.get_script(script_id)
         if not script:
@@ -5478,6 +5537,180 @@ class ComicGenPipeline:
         两层（Episode/Series）合并完全一致。"""
         layered = self.resolve_episode_assets_with_source(episode, series)
         return {key: [asset for asset, _source in items] for key, items in layered.items()}
+
+    # ---- 跨集复用：候选清单 + 关联（合并） ----------------------------------
+    _ASSET_FIELD_BY_TYPE = {"character": "characters", "scene": "scenes", "prop": "props"}
+    # 帧引用按类型存在不同字段上：场景单值，角色/道具多值。
+    _ASSET_FRAME_REF = {"character": "character_ids", "scene": "scene_id", "prop": "prop_ids"}
+
+    @staticmethod
+    def _asset_name_keys(asset: Any) -> set:
+        """一条资产可用于匹配的全部名字（本体名 + 别名），统一小写去空白。
+
+        别名是让「刘玄德」也能解析到「刘备」那条 —— 用户关联过一次之后，
+        下一集再提取到这个名字不该再问一遍。空别名时就等于只看名字。
+        """
+        keys = {(getattr(asset, "name", "") or "").strip().lower()}
+        for alias in getattr(asset, "aliases", None) or []:
+            keys.add(str(alias).strip().lower())
+        keys.discard("")
+        return keys
+
+    def list_asset_candidates(self, script_id: str, asset_type: str) -> List[Dict[str, Any]]:
+        """列出这一集可以把某条本地资产“关联过去”的候选资产。
+
+        候选分四类，顺序就是推荐顺序：
+          1. `series` —— 系列池。该系列任何一集都解析得到。
+          2. `global` —— 全局库。所有项目都解析得到。
+          3. `episode` —— 本集自己池里的其它条目（同一集内部的重复，直接合并即可）。
+          4. `episode` + `needs_promote=True` —— 同系列**其它集**的私有资产。
+             帧引用解析不到它（`_find_asset_with_source` 只看 本集 → 系列 → 全局），
+             所以关联时必须先把它提升到系列池（沿用原 id），否则这条引用是断的。
+
+        返回的是资产本身（`model_dump()`）加上 `source` / `needs_promote` /
+        `owner_episode_*` 几个归属字段 —— 图片字段原样带出去，前端复用
+        `lib/characterImage` 那套取图逻辑，不在后端重算。
+        """
+        field = self._ASSET_FIELD_BY_TYPE.get(asset_type)
+        if not field:
+            raise ValueError(f"Invalid asset type: {asset_type}")
+        script = self.scripts.get(script_id)
+        if not script:
+            raise ValueError("Script not found")
+
+        candidates: List[Dict[str, Any]] = []
+        seen: set = set()
+
+        def add(asset, source: str, owner: Optional[Script] = None, needs_promote: bool = False) -> None:
+            if asset.id in seen:
+                return
+            seen.add(asset.id)
+            candidates.append({
+                **asset.model_dump(),
+                "source": source,
+                "needs_promote": needs_promote,
+                "owner_episode_id": owner.id if owner else None,
+                "owner_episode_title": owner.title if owner else None,
+            })
+
+        series = self.series_store.get(script.series_id) if script.series_id else None
+        if series:
+            for asset in getattr(series, field):
+                add(asset, "series")
+        for asset in getattr(self.library_store, field):
+            add(asset, "global")
+        for asset in getattr(script, field):
+            add(asset, "episode", script)
+        if series:
+            for sibling in self.scripts.values():
+                if sibling.id == script.id or sibling.series_id != script.series_id:
+                    continue
+                for asset in getattr(sibling, field):
+                    add(asset, "episode", sibling, needs_promote=True)
+        return candidates
+
+    def _rewrite_asset_refs(self, script: Script, asset_type: str, old_id: str, new_id: str) -> None:
+        """把这一集分镜里指向 old_id 的引用改写成 new_id。
+
+        只改这一集：跨集合并是逐集做的，别的集有自己的分镜。场景是单值字段，
+        角色/道具是多值列表。
+        """
+        ref = self._ASSET_FRAME_REF.get(asset_type)
+        if not ref:
+            return
+        for frame in script.frames:
+            if ref == "scene_id":
+                if frame.scene_id == old_id:
+                    frame.scene_id = new_id
+            else:
+                current = getattr(frame, ref) or []
+                setattr(frame, ref, [new_id if item == old_id else item for item in current])
+
+    def link_local_asset(self, script_id: str, asset_type: str, local_id: str, target_id: str) -> Script:
+        """把本集的某条资产合并到另一条已存在的资产上（“这个刘玄德就是刘备”）。
+
+        全流程只有这一份实现：改写本集帧引用 → 删掉本集这条。目标可以是
+        系列池 / 全局库 / 本集另一条 / 同系列其它集的私有资产；最后一类先提升到
+        系列池（沿用原 id，所以那一集的帧引用不用动）再合并。
+        """
+        field = self._ASSET_FIELD_BY_TYPE.get(asset_type)
+        if not field:
+            raise ValueError(f"Invalid asset type: {asset_type}")
+        if not target_id or target_id == local_id:
+            raise ValueError("target_id 必须不同于 local_id")
+        script = self.scripts.get(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        local_pool = getattr(script, field)
+        local = next((a for a in local_pool if a.id == local_id), None)
+        if local is None:
+            raise ValueError(f"Asset {local_id} of type {asset_type} not found in project")
+
+        target, source = self._find_asset_with_source(script, target_id, asset_type)
+        sibling_owner: Optional[Script] = None
+        if target is None and script.series_id:
+            for sibling in self.scripts.values():
+                if sibling.id == script.id or sibling.series_id != script.series_id:
+                    continue
+                found = next((a for a in getattr(sibling, field) if a.id == target_id), None)
+                if found is not None:
+                    target, source, sibling_owner = found, "sibling", sibling
+                    break
+        if target is None:
+            raise ValueError(f"Target asset {target_id} of type {asset_type} not found")
+
+        with self._save_lock:
+            if source == "sibling" and sibling_owner is not None:
+                series = self.series_store.get(script.series_id)
+                if not series:
+                    raise ValueError("Series not found")
+                sibling_pool = getattr(sibling_owner, field)
+                setattr(sibling_owner, field, [a for a in sibling_pool if a.id != target_id])
+                sibling_owner.updated_at = time.time()
+                getattr(series, field).append(target)
+                series.updated_at = time.time()
+                self._save_series_data_unlocked()
+                self._save_data()
+
+            self._rewrite_asset_refs(script, asset_type, local_id, target_id)
+            # 记住这次的判断：被合并掉的那个名字变成目标的别名 —— 以后任何一集
+            # 再提取到这个名字（「刘玄德」）会直接命中「刘备」，不用再关联一次。
+            local_name = (local.name or "").strip()
+            target_name = (target.name or "").strip()
+            if local_name and target_name and local_name.lower() != target_name.lower():
+                if local_name.lower() not in {k for k in self._asset_name_keys(target)}:
+                    target.aliases = [*(getattr(target, "aliases", None) or []), local_name]
+            setattr(script, field, [a for a in local_pool if a.id != local_id])
+            script.updated_at = time.time()
+            self._save_data()
+        return script
+
+    def set_asset_aliases(
+        self, script_id: str, asset_type: str, asset_id: str, aliases: List[str]
+    ) -> Script:
+        """覆盖式设置某条资产的别名（传统空列表 = 清空）。
+
+        路由走 `_find_asset_with_source`：资产可能住在集内 / 系列池 / 全局库，
+        得写到真正持有它的那一层（与 `toggle_asset_starred` 同一套约定）。
+        本体名不进别名表（它已经是名字了）。
+        """
+        script = self.scripts.get(script_id)
+        if not script:
+            raise ValueError("Script not found")
+        target, source = self._find_asset_with_source(script, asset_id, asset_type)
+        if target is None:
+            raise ValueError(f"Asset {asset_id} of type {asset_type} not found")
+
+        cleaned: List[str] = []
+        seen = self._asset_name_keys(target)
+        for alias in aliases:
+            name = str(alias).strip()
+            if name and name.lower() not in seen:
+                seen.add(name.lower())
+                cleaned.append(name)
+        target.aliases = cleaned
+        self._save_after_asset_mutation(source)
+        return script
 
     # ============================================================
     # File Import & Episode Splitting
@@ -5736,6 +5969,34 @@ class ComicGenPipeline:
             self._save_series_data_unlocked()
             return target, imported_ids, skipped_ids
 
+    def _resolve_stage_override(
+        self, prompt_type: str, episode: Script, series: Optional[Series] = None
+    ) -> str:
+        """这一阶段**用户或 Skill 真正提供**的那一层：不含内置默认，也不含输出契约。
+
+        解析顺序：集内 skill_binding → 系列 skill_binding → 集内文本 → 系列文本。
+        单独抽出来是因为有两个用途：
+        1. `get_effective_prompt` 落地默认值之前得先记住「有没有被覆盖」
+           （音频那两个硬契约只在被覆盖时才补）；
+        2. 中列「AI 提取」要区分「用户绑了 Skill」和「没绑、用内置」。
+        """
+        resolved = ""
+        episode_bindings = getattr(episode.prompt_config, "skill_bindings", {}) or {}
+        if episode_bindings.get(prompt_type):
+            resolved = self.skill_packages.compile(episode_bindings[prompt_type])
+        if not resolved and series:
+            series_bindings = getattr(series.prompt_config, "skill_bindings", {}) or {}
+            if series_bindings.get(prompt_type):
+                resolved = self.skill_packages.compile(series_bindings[prompt_type])
+        episode_value = getattr(episode.prompt_config, prompt_type, "")
+        if not resolved and episode_value.strip():
+            resolved = episode_value
+        if not resolved and series:
+            series_value = getattr(series.prompt_config, prompt_type, "")
+            if series_value.strip():
+                resolved = series_value
+        return resolved
+
     def get_effective_prompt(self, prompt_type: str, episode: Script, series: Optional[Series] = None) -> str:
         """Resolve Skill Package/text/default, then attach the stage's output contract."""
         valid_prompt_types = (
@@ -5769,21 +6030,7 @@ class ComicGenPipeline:
             "audio_plan": DEFAULT_AUDIO_PLAN_PROMPT,
             "voice_prompt": DEFAULT_VOICE_PROMPT,
         }
-        resolved = ""
-        episode_bindings = getattr(episode.prompt_config, "skill_bindings", {}) or {}
-        if episode_bindings.get(prompt_type):
-            resolved = self.skill_packages.compile(episode_bindings[prompt_type])
-        if not resolved and series:
-            series_bindings = getattr(series.prompt_config, "skill_bindings", {}) or {}
-            if series_bindings.get(prompt_type):
-                resolved = self.skill_packages.compile(series_bindings[prompt_type])
-        episode_value = getattr(episode.prompt_config, prompt_type, "")
-        if not resolved and episode_value.strip():
-            resolved = episode_value
-        if not resolved and series:
-            series_value = getattr(series.prompt_config, prompt_type, "")
-            if series_value.strip():
-                resolved = series_value
+        resolved = self._resolve_stage_override(prompt_type, episode, series)
         # 到这里 `resolved` 还是「用户或 Skill 真正提供的那一层」；下面一落地默认值
         # 就分不出是谁给的，所以先把「有没有被覆盖」记下来 —— 音频那两个硬契约
         # 只在被覆盖时才补（内置默认里已经逐条写了，不加会重复）。

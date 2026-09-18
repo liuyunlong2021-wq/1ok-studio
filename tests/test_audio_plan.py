@@ -21,7 +21,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.apps.comic_gen import api as api_mod
-from src.apps.comic_gen.models import Character, CustomVoice, Script, Series, StoryboardFrame
+from src.apps.comic_gen.models import Character, Script, Series, StoryboardFrame
 
 
 PROJECT_ID = "test-project"
@@ -42,9 +42,9 @@ def _script() -> Script:
         series_id=SERIES_ID,
         characters=[
             Character(id="char-1", name="小满", description="女主",
-                      voice_id="voice-a", voice_name="清澈女声"),
+                      reference_audio_url="uploads/voice-a.wav"),
             Character(id="char-2", name="陈默", description="男主",
-                      voice_id="voice-b", voice_name="低沉男声"),
+                      reference_audio_url="uploads/voice-b.wav"),
             Character(id="char-3", name="老师", description="配角"),
             Character(id="char-4", name="路人", description="配角"),
         ],
@@ -55,22 +55,13 @@ def _script() -> Script:
 
 
 def _series() -> Series:
-    """音色池：角色的参考音就存在这里（CustomVoice.source_audio_url）。"""
+    """系列自身没有音色池了 —— 参考音存在角色自己身上（2026-09-17 收掉音色选择）。"""
     now = time.time()
     return Series(
         id=SERIES_ID,
         title="声音测试系列",
         created_at=now,
         updated_at=now,
-        custom_voices=[
-            CustomVoice(id="voice-a", label="小满·清澈", origin="clone",
-                        source_audio_url="uploads/voice-a.wav"),
-            CustomVoice(id="voice-b", label="陈默·低沉", origin="clone",
-                        source_audio_url="uploads/voice-b.wav"),
-            # 设计音色没有源音频 —— 拿不到参考音时要报清楚
-            CustomVoice(id="voice-c", label="老师·温和", origin="design",
-                        voice_prompt="温和的中年女声"),
-        ],
     )
 
 
@@ -232,8 +223,7 @@ def test_generate_audio_without_references_sends_no_metadata(monkeypatch, audio_
 
 
 def test_generate_audio_resolves_character_reference_audio(monkeypatch, audio_spy):
-    """勾了角色 → 取这些角色绑定音色的参考音频。走真实的解析链：
-    Character.voice_id → Series.custom_voices[].id → source_audio_url。
+    """勾了角色 → 取这些角色自己的参考音（Character.reference_audio_url）。
 
     取的是 uploads/xxx 这种**本地相对路径**，生成时才转存，天然避开网关临时
     素材 15 分钟失效。"""
@@ -263,7 +253,7 @@ def test_generate_audio_reports_characters_without_reference_audio(monkeypatch, 
     client = _client(monkeypatch, script)
     script.audio_plan = _plan_with_script()
 
-    # char-3 绑的是设计音色（voice-c），没有 source_audio_url；char-4 根本没绑。
+    # char-3 没生成过参考音；char-4 也是。
     response = client.post(
         f"{PLAN_URL}/generate-audio", json={"character_ids": ["char-3", "char-4"]}
     )

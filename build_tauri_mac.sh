@@ -43,6 +43,17 @@ if pgrep -f 'One OK Studio\.app/Contents/(MacOS/one-ok-studio|Resources/1okstudi
     exit 1
 fi
 
+# `next build` and `next dev` share frontend/.next. Building while a dev server
+# is up corrupts that cache: the server keeps serving chunk references the build
+# already replaced, and the webview then dies with
+# `ChunkLoadError: Loading chunk app/layout failed (timeout: .../app/layout.js)`
+# until the stack is restarted with a deleted .next.
+if lsof -nP -iTCP:3008 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "❌ A dev server is still listening on 3008. Stop it (npm run dev) before rebuilding."
+    echo "   next build would corrupt frontend/.next. If dev already broke: rm -rf frontend/.next"
+    exit 1
+fi
+
 # ─── Notarization credentials ───
 # A notarytool Keychain item's ACL is bound to whichever notarytool binary
 # created it, and this machine ships TWO (Xcode's and the Command Line Tools').
@@ -92,6 +103,14 @@ cd frontend
 TAURI_BUILD=true npm run build
 cd ..
 echo "  ✓ Frontend built to frontend/out/"
+
+# Leave .next in a dev-safe state. `next build` and `next dev` share it, and a
+# dev server started on top of this build's cache serves chunk references that
+# don't match the emitted chunks -- the webview then hangs on
+# `ChunkLoadError: Loading chunk app/layout failed (timeout: ...)` until the
+# whole stack is restarted with a deleted .next. frontend/out/ is the artifact
+# Tauri bundles; .next is intermediate only.
+rm -rf frontend/.next
 echo ""
 
 # ─── Step 4: Build Tauri app ───

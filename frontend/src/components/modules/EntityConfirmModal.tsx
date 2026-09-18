@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, MapPin, Box, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -13,7 +14,9 @@ interface EntityConfirmModalProps {
     isOpen: boolean;
     preview: ExtractionPreview | null;
     currentCounts: { characters: number; scenes: number; props: number };
-    onConfirm: () => void;
+    /** 已存在于系列池/全局库的实体键（`${kind}:${小写名}`）。命中的会被直接复用。 */
+    sharedKeys?: Set<string>;
+    onConfirm: (reuseExisting: boolean) => void;
     onDiscard: () => void;
 }
 
@@ -21,18 +24,28 @@ export default function EntityConfirmModal({
     isOpen,
     preview,
     currentCounts,
+    sharedKeys,
     onConfirm,
     onDiscard,
 }: EntityConfirmModalProps) {
     const t = useTranslations("script");
+    // 同名直接复用：默认开（hook 必须在 `if (!preview)` 之前，否则钩子顺序会变）
+    const [reuseExisting, setReuseExisting] = useState(true);
 
     if (!preview) return null;
+
+    const shared = sharedKeys ?? new Set<string>();
+    const isShared = (key: string, name: string) => shared.has(`${key}:${name.trim().toLowerCase()}`);
 
     const sections = [
         { key: "characters" as const, icon: Users, items: preview.characters, prev: currentCounts.characters },
         { key: "scenes" as const, icon: MapPin, items: preview.scenes, prev: currentCounts.scenes },
         { key: "props" as const, icon: Box, items: preview.props, prev: currentCounts.props },
     ];
+    const reuseCount = sections.reduce(
+        (n, s) => n + s.items.filter((i) => isShared(s.key, i.name)).length,
+        0,
+    );
 
     return (
         <AnimatePresence>
@@ -77,15 +90,23 @@ export default function EntityConfirmModal({
                                     </div>
                                     {items.length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5">
-                                            {items.map((item, i) => (
-                                                <span
-                                                    key={i}
-                                                    className="inline-flex items-center px-2 py-0.5 rounded-md bg-elevated border border-glass-border text-xs text-foreground"
-                                                    title={item.description}
-                                                >
-                                                    {item.name}
-                                                </span>
-                                            ))}
+                                            {items.map((item, i) => {
+                                                const already = isShared(key, item.name);
+                                                return (
+                                                    <span
+                                                        key={i}
+                                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-elevated border text-xs text-foreground ${already ? "border-primary/50" : "border-glass-border"}`}
+                                                        title={item.description}
+                                                    >
+                                                        {item.name}
+                                                        {already && (
+                                                            <span className="font-mono text-[0.5625rem] uppercase tracking-wide text-primary">
+                                                                {t("extractExistingChip")}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <p className="text-xs text-text-tertiary italic">{t("noEntities")}</p>
@@ -93,6 +114,22 @@ export default function EntityConfirmModal({
                                 </div>
                             ))}
                         </div>
+
+                        {/* 同名直接复用（默认开）：不选就回到"每集各存一份"的旧行为 */}
+                        {reuseCount > 0 && (
+                            <label className="flex items-start gap-2 px-6 py-3 border-t border-glass-border text-xs text-text-secondary cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={reuseExisting}
+                                    onChange={(e) => setReuseExisting(e.target.checked)}
+                                    className="mt-0.5 accent-[var(--color-primary)]"
+                                />
+                                <span>
+                                    {t("extractReuseExisting", { count: reuseCount })}
+                                    <span className="mt-0.5 block text-text-tertiary">{t("extractReuseHint")}</span>
+                                </span>
+                            </label>
+                        )}
 
                         {/* Footer */}
                         <footer className="flex items-center justify-end gap-3 px-6 py-4 border-t border-glass-border">
@@ -104,7 +141,7 @@ export default function EntityConfirmModal({
                                 {t("extractDiscard")}
                             </button>
                             <button
-                                onClick={onConfirm}
+                                onClick={() => onConfirm(reuseExisting)}
                                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
                             >
                                 <Check size={14} />

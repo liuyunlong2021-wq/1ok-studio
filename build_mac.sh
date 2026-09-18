@@ -102,12 +102,13 @@ chmod +x bin/ffmpeg
 # 使用 PyInstaller 打包
 echo "6. 使用 PyInstaller 打包..."
 
-# 检查图标文件是否存在
-if [ -f "icon.icns" ]; then
-    ICON_PARAM="--icon=icon.icns"
+# 检查图标文件是否存在（真源在 src-tauri/icons/，由 ./create_icon.sh 生成）
+ICON_SRC="src-tauri/icons/icon.icns"
+if [ -f "$ICON_SRC" ]; then
+    ICON_PARAM="--icon=$ICON_SRC"
 else
     ICON_PARAM=""
-    echo "提示: 未找到 icon.icns，将使用默认图标"
+    echo "提示: 未找到 $ICON_SRC，将使用默认图标（可先跑 ./create_icon.sh）"
 fi
 
 pyinstaller --clean --noconfirm \

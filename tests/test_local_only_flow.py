@@ -104,7 +104,7 @@ def test_video_task_snapshots_local_input_and_preserves_project_refs():
         script_id=script.id,
         image_url=script.frames[0].rendered_image_url,
         prompt="Pan and zoom on the character",
-        model="dola-seedance2.5",
+        model="海seedance2.5",
     )
     task = next(t for t in script.video_tasks if t.id == task_id)
 
@@ -121,7 +121,7 @@ def test_video_task_snapshots_local_input_and_preserves_project_refs():
     # 适配器拿到的是快照文件的绝对路径，不是用户原始引用。
     assert len(video_model.calls) == 1
     call = video_model.calls[0]
-    assert call["model_name"] == "dola-seedance2.5"
+    assert call["model_name"] == "海seedance2.5"
     assert Path(call["img_path"]).resolve() == snapshot.resolve()
 
     # 请求侧的变换不回写项目数据。
@@ -140,7 +140,7 @@ def _submit(pipeline, script, **overrides):
         "script_id": script.id,
         "image_url": script.frames[0].rendered_image_url,
         "prompt": "Pan and zoom on the character",
-        "model": "dola-seedance2.5",
+        "model": "海seedance2.5",
     }
     kwargs.update(overrides)
     _, task_id = pipeline.create_video_task(**kwargs)
@@ -227,7 +227,7 @@ def test_ai_sound_failure_fails_the_task_before_paying_for_video():
             script_id=script.id,
             image_url=script.frames[0].rendered_image_url,
             prompt="Pan and zoom on the character",
-            model="dola-seedance2.5",
+            model="海seedance2.5",
             generate_audio=True,
         )
         pipeline.process_video_task(script.id, task_id)

@@ -83,12 +83,12 @@ describe('model catalog selectors', () => {
         }
         // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
-            'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
+            '海seedance2.5',
         ]);
-        // 默认必须是 dola-seedance2.5（列表顺序是按 ui.order 排的，不是默认值）
-        expect(DEFAULT_R2V_MODEL_ID).toBe('dola-seedance2.5');
+        // 默认必须是 海seedance2.5（列表顺序是按 ui.order 排的，不是默认值）
+        expect(DEFAULT_R2V_MODEL_ID).toBe('海seedance2.5');
     });
 
     it('exposes Grok image generation and editing without resetting the selection', () => {
@@ -143,15 +143,17 @@ describe('model catalog fallbacks', () => {
         );
         expect(stale.t2i_model).toBe(imageDefault);
         expect(stale.image_model).toBe(imageDefault);
-        expect(stale.r2v_model).toBe('dola-seedance2.5');
+        expect(stale.r2v_model).toBe('海seedance2.5');
         expect(stale.text_model).toBe('gpt-5.6-sol');
-        // 韭菜盒子自家的模型即使不在该分组里也要保留：项目把 r2v 的
-        // dola-seedance2.5 存进了 i2v_model，若走分组兜底会换成 happyhorse
-        // （没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
+        // 韭菜盒子自家的模型即使不在该分组里也要保留：若走分组兜底会换成
+        // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
+        expect(resolveModelSettings({ i2v_model: 'jiucaihezi/gpt-image-2.5-1k' }, 'project_settings').i2v_model)
+            .toBe('jiucaihezi/gpt-image-2.5-1k');
+        // 已下线的 dola-seedance2.5（老项目存量设置）落到目录默认 R2V 模型。
         expect(resolveModelSettings({ i2v_model: 'dola-seedance2.5' }, 'project_settings').i2v_model)
-            .toBe('dola-seedance2.5');
+            .toBe('海seedance2.5');
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5' }, 'project_settings').i2v_model)
-            .toBe('dola-seedance2.5');
+            .toBe('海seedance2.5');
     });
 
     it('normalizes canonical mode ids back to legacy compatibility ids when compat metadata exists', async () => {
@@ -232,21 +234,20 @@ describe('model catalog fallbacks', () => {
 
         expect(compatI2vModels.map((model) => model.id)).not.toContain('wan2.6-i2v');
         expect(compatI2vModels.some((model) => model.id === 'wan/wan2.6-video#i2v')).toBe(false);
-        // R2V selection/route ids resolve to PREFERRED_R2V_MODEL_ID (dola-seedance2.5):
-        // 白名单只留下韭菜盒子，目录默认 happyhorse-1.1-r2v 被滤掉，所以显式钉住
-        // 用户实际在跑的模型，而不是让默认值漂到 ui.order 最高的 minimax。
+        // R2V selection/route ids resolve to PREFERRED_R2V_MODEL_ID (海seedance2.5):
+        // 显式钉住用户实际在跑的模型，而不是让默认值漂到 ui.order 最高的 minimax。
         // Selection and route are unified (R2V_ROUTE_MODEL_ID = R2V_SELECTION_MODEL_ID).
-        expect(compatR2vSelectionModelId).toBe('dola-seedance2.5');
-        expect(compatR2vRouteModelId).toBe('dola-seedance2.5');
+        expect(compatR2vSelectionModelId).toBe('海seedance2.5');
+        expect(compatR2vRouteModelId).toBe('海seedance2.5');
     });
 });
 
 describe('model catalog runtime helpers', () => {
     it('derives the current R2V selection and route ids from catalog data', () => {
-        // 固定为 PREFERRED_R2V_MODEL_ID（dola-seedance2.5），不是列表首个：
-        // 列表按 ui.order 排序，会漂到 minimax_h3…（order=1001）。
-        expect(R2V_SELECTION_MODEL_ID).toBe('dola-seedance2.5');
-        expect(R2V_ROUTE_MODEL_ID).toBe('dola-seedance2.5');
+        // 固定为 PREFERRED_R2V_MODEL_ID（海seedance2.5），不是列表首个：
+        // 列表按 ui.order 排序，会漂到 minimax_h3…（order 最大）。
+        expect(R2V_SELECTION_MODEL_ID).toBe('海seedance2.5');
+        expect(R2V_ROUTE_MODEL_ID).toBe('海seedance2.5');
     });
 
     it('reads per-model reference image limits from catalog metadata', () => {

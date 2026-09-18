@@ -3,14 +3,18 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Paintbrush, User, Users, MapPin, Box, Lock, Unlock, RefreshCw, Upload, Image as ImageIcon, X, Check, Settings, ChevronRight, Trash2, Plus, Link as LinkIcon, Sparkles } from "lucide-react";
+import { Paintbrush, User, Users, MapPin, Box, Lock, Unlock, RefreshCw, Upload, Image as ImageIcon, X, Check, Settings, ChevronRight, Trash2, Plus, Link as LinkIcon, Sparkles, Copy } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, crudApi } from "@/lib/api";
-import { getAssetUrl } from "@/lib/utils";
+import { errorMessage, getAssetUrl } from "@/lib/utils";
+import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
+import { assetSourceLabel } from "@/lib/assetSourceLabel";
 import CharacterWorkbench from "./CharacterWorkbench";
 import { VariantSelector } from "../common/VariantSelector";
 import { VideoVariantSelector } from "../common/VideoVariantSelector";
 import UploadAssetModal from "../modals/UploadAssetModal";
+import AssetLinkDialog from "../modals/AssetLinkDialog";
+import ReconcileAction from "./ReconcileAction";
 import StepHeader from "@/components/shared/StepHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 
@@ -193,10 +197,44 @@ export default function ConsistencyVault() {
         } catch (error: any) {
             console.error("Failed to generate asset:", error);
             setGenerationNotice(error.response?.data?.detail || error.message || "生成图片失败");
-            alert(tv('startGenFailed', { error: error.response?.data?.detail || error.message }));
+            alert(tv('startGenFailed', { error: errorMessage(error) }));
             if (removeGeneratingTask) {
                 removeGeneratingTask(assetId, generationType);
             }
+        }
+    };
+
+    /** 关联目标：本集这条 → 选一条已有资产合并过去（“这个刘玄德就是刘备”）。 */
+    const [linkTarget, setLinkTarget] = useState<{ id: string; name: string; type: "character" | "scene" | "prop" } | null>(null);
+
+    const reloadProject = async () => {
+        if (!currentProject) return;
+        updateProject(currentProject.id, await api.getProject(currentProject.id));
+    };
+
+    /** 取消关联：把共享那条在本集 fork 一份独立副本（新 id），之后改它不影响其他集。 */
+    const handleForkShared = async (assetId: string, type: string) => {
+        if (!currentProject) return;
+        try {
+            await api.forkSharedAssetToProject(currentProject.id, type, assetId);
+            await reloadProject();
+        } catch (error) {
+            console.error("Failed to fork asset:", error);
+            alert(errorMessage(error, "独立一份失败"));
+        }
+    };
+
+    /** 覆盖式写别名（资产可能住在集内/系列/全局库，后端写到真正持有的那层）。 */
+    const handleUpdateAliases = async (assetId: string, type: string, aliases: string[]) => {
+        if (!currentProject) return;
+        try {
+            await api.setAssetAliases(currentProject.id, type, assetId, aliases);
+            // 重新拉整个项目：接口回的是裸 Script，不带三层合并的 source 字段，
+            // 直接 updateProject 会把来源角标抹掉。
+            await reloadProject();
+        } catch (error) {
+            console.error("Failed to update aliases:", error);
+            alert(errorMessage(error, "更新别名失败"));
         }
     };
 
@@ -206,12 +244,12 @@ export default function ConsistencyVault() {
         const list = type === "character" ? currentProject.characters : type === "scene" ? currentProject.scenes : currentProject.props;
         const asset = list?.find((item: any) => item.id === assetId) as any;
         const source = asset?.source || "episode";
-        const scope = source === "series" ? "整个系列" : source === "global" ? "全局模板库" : "当前集";
+        const scope = source === "series" ? "整个系列" : source === "global" ? "全局模板库（所有项目都会受影响）" : "当前集";
         if (!confirm(`确定从${scope}删除这个${type}吗？`)) return;
 
-        try {
+        const runDelete = async (force: boolean) => {
             if (source === "global") {
-                await api.deleteLibraryAsset(type, assetId);
+                await api.deleteLibraryAsset(type, assetId, force);
             } else if (source === "series" && currentProject.series_id) {
                 await crudApi.deleteSeriesAsset(currentProject.series_id, type, assetId);
             } else if (type === "character") {
@@ -221,12 +259,29 @@ export default function ConsistencyVault() {
             } else if (type === "prop") {
                 await crudApi.deleteProp(currentProject.id, assetId);
             }
+        };
+
+        try {
+            try {
+                await runDelete(false);
+            } catch (error: any) {
+                // 全局库资产还被分镜引用着 → 后端回 409 + 引用方清单。
+                // 先把"会影响谁"摆出来，用户点头才强删（强删后那些分镜就丢参考图）。
+                const detail = error?.response?.data?.detail;
+                if (source !== "global" || error?.response?.status !== 409 || !detail?.references) throw error;
+                const owners = Array.from(new Set(
+                    (detail.references as Array<{ owner_title?: string; owner_kind?: string }>)
+                        .map((r) => r.owner_title || r.owner_kind || "未知项目"),
+                ));
+                if (!confirm(`这条资产正被 ${owners.length} 个项目/系列的分镜引用：\n\n${owners.join("、")}\n\n强删会让这些分镜丢掉参考图，确定继续吗？`)) return;
+                await runDelete(true);
+            }
             // Refresh project data
             const updatedProject = await api.getProject(currentProject.id);
             updateProject(currentProject.id, updatedProject);
         } catch (error: any) {
             console.error("Failed to delete asset:", error);
-            alert(error.response?.data?.detail || error.message || "删除资产失败");
+            alert(errorMessage(error, "删除资产失败"));
         }
     };
 
@@ -338,7 +393,7 @@ export default function ConsistencyVault() {
             }
         } catch (error: any) {
             console.error("Failed to generate video:", error);
-            alert(tv('startGenFailed', { error: error.response?.data?.detail || error.message }));
+            alert(tv('startGenFailed', { error: errorMessage(error) }));
             if (removeGeneratingTask) {
                 removeGeneratingTask(assetId, generationType);
             }
@@ -438,15 +493,18 @@ export default function ConsistencyVault() {
                     />
                 </div>
 
-                <WorkflowActionButton
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={<RefreshCw />}
-                    onClick={handleSyncDescriptions}
-                    title={tv("syncDescHint")}
-                >
-                    {tv("syncDesc")}
-                </WorkflowActionButton>
+                <div className="flex items-center gap-2">
+                    <ReconcileAction scriptId={currentProject?.id ?? null} onApplied={reloadProject} />
+                    <WorkflowActionButton
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<RefreshCw />}
+                        onClick={handleSyncDescriptions}
+                        title={tv("syncDescHint")}
+                    >
+                        {tv("syncDesc")}
+                    </WorkflowActionButton>
+                </div>
             </div>
             {generationNotice && <div className="mx-6 mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">{generationNotice}</div>}
 
@@ -483,13 +541,15 @@ export default function ConsistencyVault() {
                                 type={activeTab}
                                 isGenerating={isAssetGenerating(asset.id)}
                                 onGenerate={() => handleGenerate(asset.id, activeTab)}
-                                onToggleLock={() => api.toggleAssetLock(currentProject.id, asset.id, activeTab).then(updated => updateProject(currentProject.id, updated))}
+                                onToggleLock={async () => { await api.toggleAssetLock(currentProject.id, asset.id, activeTab); await reloadProject(); }}
                                 onClick={() => {
                                     setSelectedAssetId(asset.id);
                                     setSelectedAssetType(activeTab);
                                 }}
                                 onDelete={() => handleDeleteAsset(asset.id, activeTab)}
                                 onUpload={() => handleOpenUploadModal(asset, activeTab)}
+                                onLink={() => setLinkTarget({ id: asset.id, name: asset.name, type: activeTab })}
+                                onFork={() => handleForkShared(asset.id, activeTab)}
                             />
                         ))}
                         {/* Create New Asset Button */}
@@ -520,6 +580,8 @@ export default function ConsistencyVault() {
                                 setSelectedAssetType(null);
                             }}
                             onUpdateDescription={(desc: string) => handleUpdateDescription(selectedAssetId, selectedAssetType, desc)}
+                            aliases={selectedAsset.aliases ?? []}
+                            onUpdateAliases={(aliases: string[]) => handleUpdateAliases(selectedAsset.id, selectedAssetType, aliases)}
                             onRewriteDescription={(desc: string, instruction: string) => handleRewriteDescription(selectedAssetId, selectedAssetType, desc, instruction)}
                             onGeneratePrompt={async (_type: string, description: string) => {
                                 if (description !== (selectedAsset.description || "")) {
@@ -567,6 +629,19 @@ export default function ConsistencyVault() {
                     defaultDescription={uploadTarget.description}
                     scriptId={currentProject.id}
                     onUploadComplete={handleUploadComplete}
+                />
+            )}
+
+            {/* 关联到已有资产（合并本集这条 → 已有资产） */}
+            {currentProject && (
+                <AssetLinkDialog
+                    isOpen={!!linkTarget}
+                    scriptId={currentProject.id}
+                    assetType={linkTarget?.type ?? "character"}
+                    localId={linkTarget?.id ?? ""}
+                    localName={linkTarget?.name ?? ""}
+                    onClose={() => setLinkTarget(null)}
+                    onLinked={reloadProject}
                 />
             )}
         </div >
@@ -638,7 +713,7 @@ function CharacterDetailModal({ asset, type, onClose, onUpdateDescription, onRew
             if (prompt) setImagePrompt(prompt);
         } catch (error: any) {
             console.error("Failed to generate prompt:", error);
-            alert(error?.response?.data?.detail || error?.message || "生成提示词失败，请稍后重试");
+            alert(errorMessage(error, "生成提示词失败，请稍后重试"));
         } finally {
             setIsGeneratingPrompt(false);
         }
@@ -900,9 +975,12 @@ function ImageWithRetry({ src, alt, className }: { src: string, alt: string, cla
     );
 }
 
-function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClick, onDelete, onUpload }: any) {
+function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClick, onDelete, onUpload, onLink, onFork }: any) {
     const tv = useTranslations("vault");
+    const tSource = useTranslations("assetSource");
     const isLocked = asset.locked || false;
+    // 系列共享 / 全局库的资产不是本集自己的：改它会改到其他集/项目
+    const isShared = asset.source === "series" || asset.source === "global";
     const currentProject = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
 
@@ -926,14 +1004,13 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
     };
 
     // Keep the library card in sync with the workbench: uploaded/generated
-    // character variants live in full_body_asset, while older records only
-    // have avatar_url/image_url.
-    const selectedFullBody = type === 'character'
-        ? asset.full_body_asset?.variants?.find((v: any) => v.id === asset.full_body_asset?.selected_id)
-        : null;
+    // 取图统一走 `lib/characterImage`。这里原先手写了一份，只认
+    // full_body_asset / image_asset / image_url，漏了 `reference_sheet` ——
+    // 而新生成的资产与全局库资产都只写 reference_sheet，于是卡片是空占位
+    // （同一个资产在 Cast / 资产库页反而有图）。
     const imageUrl = type === 'character'
-        ? (selectedFullBody?.url || asset.full_body_image_url || asset.avatar_url || asset.image_url)
-        : (asset.image_asset?.variants?.find((v: any) => v.id === asset.image_asset?.selected_id)?.url || asset.image_url);
+        ? characterImageUrl(asset)
+        : scenePropImageUrl(asset);
     const fullImageUrl = getAssetUrl(imageUrl);
     const promptStatus = asset.prompt_generation_status;
     const promptStatusLabel = promptStatus === "queued" ? "提示词排队中"
@@ -974,16 +1051,48 @@ function AssetCard({ asset, type, isGenerating, onGenerate, onToggleLock, onClic
                 </div>
             )}
 
-            {/* Top Actions Overlay */}
-            {promptStatusLabel && (
-                <div className={`absolute top-2 left-2 z-30 rounded-full border px-2.5 py-1 text-[0.6875rem] backdrop-blur-md ${promptStatus === "failed" || promptStatus === "stale" ? "border-red-400/40 bg-red-500/20 text-red-300" : promptStatus === "completed" ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-300" : "border-primary/40 bg-surface/80 text-primary"}`}>
-                    {(promptStatus === "queued" || promptStatus === "processing") && <RefreshCw size={11} className="mr-1 inline animate-spin" />}
-                    {promptStatusLabel}
-                </div>
-            )}
+            {/* Top Actions Overlay：来源角标 + 提示词状态。
+                没有角标时用户看不出这条资产住在哪一层 —— 全局库资产会因为
+                三层合并出现在所有项目里（「三国」里冒出「73号」就是这么来的）。 */}
+            <div className="absolute top-2 left-2 z-30 flex flex-col items-start gap-1">
+                {isShared && (
+                    <span className={`rounded-full border px-2 py-0.5 text-[0.6875rem] backdrop-blur-md ${asset.source === "global" ? "border-amber-400/40 bg-amber-500/20 text-amber-300" : "border-glass-border bg-surface/80 text-text-secondary"}`}>
+                        {assetSourceLabel(asset.source, tSource)}
+                    </span>
+                )}
+                {promptStatusLabel && (
+                    <div className={`rounded-full border px-2.5 py-1 text-[0.6875rem] backdrop-blur-md ${promptStatus === "failed" || promptStatus === "stale" ? "border-red-400/40 bg-red-500/20 text-red-300" : promptStatus === "completed" ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-300" : "border-primary/40 bg-surface/80 text-primary"}`}>
+                        {(promptStatus === "queued" || promptStatus === "processing") && <RefreshCw size={11} className="mr-1 inline animate-spin" />}
+                        {promptStatusLabel}
+                    </div>
+                )}
+            </div>
 
             {/* Top Actions Overlay */}
             <div className="absolute top-2 right-2 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isShared ? (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onFork();
+                        }}
+                        className="p-2 rounded-full backdrop-blur-md bg-surface text-foreground hover:bg-hover-bg transition-colors"
+                        title={tv("forkSharedHint")}
+                    >
+                        <Copy size={14} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onLink();
+                        }}
+                        className="p-2 rounded-full backdrop-blur-md bg-surface text-foreground hover:bg-hover-bg transition-colors"
+                        title={tv("linkHint")}
+                    >
+                        <LinkIcon size={14} />
+                    </button>
+                )}
                 <button
                     onClick={(e) => {
                         e.stopPropagation();

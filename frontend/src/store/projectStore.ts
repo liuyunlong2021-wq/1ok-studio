@@ -57,6 +57,16 @@ export interface VideoTask {
     skill_name?: string | null;
 }
 
+/** 参考音候选 —— 跟生图的 image_variants 同一个套路：每生成一版留一条。 */
+export interface ReferenceAudioVariant {
+    id: string;
+    url: string;
+    /** 生成来源：seed-audio-1.0（模型）/ upload（本地上传）/ 旧数据可能是 clone。 */
+    origin?: string;
+    prompt_used?: string;
+    created_at?: number;
+}
+
 export interface Character {
     id: string;
     name: string;
@@ -85,10 +95,16 @@ export interface Character {
     video_assets?: VideoTask[];
     video_prompt?: string;
 
-    voice_id?: string;
-    voice_name?: string;
+    /** 参考音 —— 角色「声音面」的唯一产物，也就是逐句对白/全集声音的参考音。 */
+    reference_audio_url?: string;
+    reference_audio_prompt?: string;
+    reference_audio_selected_id?: string;
+    reference_audio_variants?: ReferenceAudioVariant[];
     locked?: boolean;
     starred?: boolean;
+    /** 别名：同一个角色在别的集里可能被写成别的名字（刘备 / 刘玄德）。
+     *  关联时后端自动写入；提取同名复用、对齐建议、分镜实体回填都会认。 */
+    aliases?: string[];
     status?: string;
     is_consistent?: boolean;
     full_body_updated_at?: number;
@@ -102,7 +118,7 @@ export interface Character {
      *  Drives UI badges + the "high-cost action" confirm modal
      *  (A2 design decision). Not persisted; set fresh on every
      *  GET /projects/{id} response. */
-    source?: "episode" | "series";
+    source?: "episode" | "series" | "global";
 }
 
 export interface Scene {
@@ -118,7 +134,8 @@ export interface Scene {
     starred?: boolean;
     time_of_day?: string;
     lighting_mood?: string;
-    source?: "episode" | "series";
+    aliases?: string[];
+    source?: "episode" | "series" | "global";
 }
 
 export interface Prop {
@@ -132,7 +149,8 @@ export interface Prop {
     status?: string;
     locked?: boolean;
     starred?: boolean;
-    source?: "episode" | "series";
+    aliases?: string[];
+    source?: "episode" | "series" | "global";
 }
 
 export interface StoryboardFrame {
@@ -353,7 +371,7 @@ interface ProjectStore {
     // Entity extraction confirmation (persists across step switches)
     pendingExtraction: { characters: any[]; scenes: any[]; props: any[] } | null;
     pendingExtractionScript: string | null;
-    confirmExtraction: () => Promise<void>;
+    confirmExtraction: (reuseExisting?: boolean) => Promise<void>;
     discardExtraction: () => void;
 
     // Global Selection State
@@ -482,12 +500,12 @@ export const useProjectStore = create<ProjectStore>()(
             // Entity extraction confirmation
             pendingExtraction: null,
             pendingExtractionScript: null,
-            confirmExtraction: async () => {
+            confirmExtraction: async (reuseExisting = true) => {
                 const { currentProject, pendingExtractionScript } = get();
                 if (!currentProject?.id || !pendingExtractionScript) return;
                 set({ isAnalyzing: true });
                 try {
-                    const project = await api.reparseProject(currentProject.id, pendingExtractionScript);
+                    const project = await api.reparseProject(currentProject.id, pendingExtractionScript, reuseExisting);
                     set((state) => ({
                         projects: state.projects.map((p) =>
                             p.id === project.id ? { ...project, updatedAt: new Date().toISOString() } : p

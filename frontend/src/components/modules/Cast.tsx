@@ -19,7 +19,7 @@
  *   · NO inspector right rail yet (Q9 decision: 3-section flat, no inspector)
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Users, MapPin, Box, AlertTriangle, Sparkles, Plus, Upload, X, Loader2, Play, Pause, Volume2, Wand2, Layers, Maximize2 } from "lucide-react";
+import { Users, MapPin, Box, AlertTriangle, Sparkles, Plus, Upload, X, Loader2, Play, Wand2, Layers, Maximize2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
 import { api } from "@/lib/api";
@@ -28,8 +28,9 @@ import { useLightbox } from "@/components/shared/preview/LightboxProvider";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import PreviewImage from "@/components/shared/preview/PreviewImage";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
-import VoicePickerModal from "./cast/VoicePickerModal";
 import CastWorkbenchModal, { activePolls } from "./cast/CastWorkbenchModal";
+import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
+import ReconcileAction from "./ReconcileAction";
 
 type AssetKind = "character" | "scene" | "prop";
 
@@ -44,33 +45,9 @@ interface CastItem {
 }
 
 /**
- * Resolve a character's primary reference image URL with legacy fallback.
- * Per design v2 (Q12-补充 A): new schema is `reference_sheet`; old
- * schema is `full_body / three_views / head_shot`. Read with fallback
- * so existing data keeps rendering during migration.
+ * 取图统一走 `lib/characterImage` —— 三处（Cast / 旧资产库 / 资产库页）都曾经
+ * 各写一份，漏字段的那份就会把有图的资产rendered成空占位。
  */
-function resolveCharacterImage(c: any): string | undefined {
-    // New unified field (v2, not yet populated)
-    const sheet = c?.reference_sheet?.image_variants?.find(
-        (v: any) => v.id === c.reference_sheet.selected_image_id,
-    )?.url;
-    if (sheet) return sheet;
-    // Legacy AssetUnit v2: full_body selected variant
-    const fullBody = c?.full_body?.image_variants?.find(
-        (v: any) => v.id === c.full_body.selected_image_id,
-    )?.url;
-    if (fullBody) return fullBody;
-    // Legacy v1 url fields
-    return c?.full_body_image_url || c?.three_view_image_url || c?.headshot_image_url || c?.image_url;
-}
-
-function resolveSceneImage(s: any): string | undefined {
-    return s?.image_url || s?.reference_image_url;
-}
-
-function resolvePropImage(p: any): string | undefined {
-    return p?.image_url || p?.reference_image_url;
-}
 
 export default function Cast() {
     const tStep = useTranslations("stepHeader");
@@ -126,7 +103,7 @@ export default function Cast() {
         const propPool: any[] = currentProject?.props ?? [];
 
         const characters: CastItem[] = characterPool.map((c: any) => {
-            const imageUrl = resolveCharacterImage(c);
+            const imageUrl = characterImageUrl(c);
             return {
                 id: c.id,
                 name: c.name ?? c.id,
@@ -139,7 +116,7 @@ export default function Cast() {
         }).sort((a, b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
 
         const scenes: CastItem[] = scenePool.map((s: any) => {
-            const imageUrl = resolveSceneImage(s);
+            const imageUrl = scenePropImageUrl(s);
             return {
                 id: s.id,
                 name: s.name ?? s.id,
@@ -151,7 +128,7 @@ export default function Cast() {
         }).sort((a, b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
 
         const props: CastItem[] = propPool.map((p: any) => {
-            const imageUrl = resolvePropImage(p);
+            const imageUrl = scenePropImageUrl(p);
             return {
                 id: p.id,
                 name: p.name ?? p.id,
@@ -178,11 +155,12 @@ export default function Cast() {
                     <>
                         <StepPill label={t("charactersLabel")} value={characters.length} />
                         <StepPill
-                            label={t("voiceBoundLabel")}
-                            value={(currentProject?.characters ?? []).filter((c: any) => c.voice_id).length}
+                            label={t("referenceBoundLabel")}
+                            value={(currentProject?.characters ?? []).filter((c: any) => c.reference_audio_url).length}
                         />
                     </>
                 ) : null}
+                trailing={<ReconcileAction scriptId={currentProject?.id ?? null} />}
             />
 
             {/* Empty state — no entities extracted yet */}
@@ -326,7 +304,6 @@ function AddCastPlaceholderModal({
     const [name, setName] = useState("");
     const [persona, setPersona] = useState("");
     const [description, setDescription] = useState("");
-    const [voiceId, setVoiceId] = useState("");  // P2-c — character voice binding
     const [uploading, setUploading] = useState(false);
     const [imageUrl, setImageUrl] = useState<string>("");
     const [submitting, setSubmitting] = useState(false);
@@ -334,7 +311,7 @@ function AddCastPlaceholderModal({
 
     // Reset state when modal closes / kind changes
     const reset = () => {
-        setName(""); setPersona(""); setDescription(""); setVoiceId("");
+        setName(""); setPersona(""); setDescription("");
         setImageUrl(""); setError(null); setTab("ai");
     };
 
@@ -374,7 +351,6 @@ function AddCastPlaceholderModal({
                 name: name.trim(),
                 description: description.trim() || undefined,
                 persona: kind === "character" ? (persona.trim() || undefined) : undefined,
-                voice_id: kind === "character" ? (voiceId.trim() || undefined) : undefined,
                 image_url: imageUrl || undefined,
             });
             onCreated();
@@ -456,23 +432,6 @@ function AddCastPlaceholderModal({
                                     placeholder={t("fieldPersonaPlaceholder")}
                                     className="w-full bg-input-bg border border-glass-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-text-muted focus:outline-none focus:border-primary"
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                                    {t("fieldVoice")} <span className="text-text-muted">({t("fieldVoiceHint")})</span>
-                                </label>
-                                <select
-                                    value={voiceId}
-                                    onChange={(e) => setVoiceId(e.target.value)}
-                                    className="w-full bg-input-bg border border-glass-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
-                                >
-                                    <option value="">{t("fieldVoiceNone")}</option>
-                                    <option value="longanyang">{t("voiceLonganyang")}</option>
-                                    <option value="longshu">{t("voiceLongshu")}</option>
-                                    <option value="longtong">{t("voiceLongtong")}</option>
-                                    <option value="longfei_v2">{t("voiceLongfei")}</option>
-                                    <option value="longxiaobai_v2">{t("voiceLongxiaobai")}</option>
-                                </select>
                             </div>
                         </>
                     )}
@@ -690,68 +649,13 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
     const generatingTasks = useProjectStore((state) => state.generatingTasks);
     const isGenerating = generatingTasks.some((task) => task.assetId === item.id);
     const [historyOpen, setHistoryOpen] = useState(false);
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const [previewing, setPreviewing] = useState(false);
-    const [playing, setPlaying] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    // Look up full character to read voice_id / voice_name (CastItem is a
-    // read-only aggregation, doesn't carry voice fields).
+    // 参考音是这个角色唯一的“声音实物”（音色选择已在 2026-09-17 收掉 —— 产品只有
+    // 韭菜盒子 seed-audio 一个音频通道，它不注册音色）。
     const character = item.kind === "character"
         ? currentProject?.characters?.find((c: any) => c.id === item.id)
         : null;
-    const voiceId: string | undefined = character?.voice_id;
-    const voiceName: string | undefined = character?.voice_name;
-
-    // PR-3g · Voice bind handler: persist via existing bindVoice API
-    const handleApplyVoice = async (newVoiceId: string, newVoiceName: string) => {
-        if (!currentProject || !character) return;
-        try {
-            const updated = await api.bindVoice(currentProject.id, character.id, newVoiceId, newVoiceName);
-            // Backend returns the updated script - sync to store
-            updateProject(currentProject.id, updated);
-        } catch (e) {
-            console.error("Failed to bind voice:", e);
-        }
-    };
-
-    // PR-3g · inline preview from CastCard (uses currently-bound voice)
-    const handleInlinePreview = async () => {
-        if (!voiceId) return;
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-            if (playing) {
-                setPlaying(false);
-                return;
-            }
-        }
-        setPreviewing(true);
-        try {
-            const sampleText = item.name
-                ? `你好，我是${item.name}。今天遇到件有趣的事，让我慢慢说给你听。`
-                : "你好，这是音色试听。今天遇到件有趣的事，让我慢慢说给你听。";
-            const { url } = await api.previewVoice({ voice_id: voiceId, text: sampleText });
-            const audio = new Audio(getAssetUrl(url));
-            audio.onended = () => { setPlaying(false); audioRef.current = null; };
-            audio.onerror = () => { setPlaying(false); audioRef.current = null; };
-            audioRef.current = audio;
-            setPlaying(true);
-            await audio.play();
-        } catch (e) {
-            console.error("Voice preview failed:", e);
-        } finally {
-            setPreviewing(false);
-        }
-    };
-
-    // Cleanup on unmount
-    useEffect(() => () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-    }, []);
+    const referenceUrl: string | undefined = character?.reference_audio_url;
 
     // Per-kind visual treatment WITHOUT bulk color fills (per impeccable
     // product register: 'Heavy color or full-saturation accents on inactive
@@ -892,37 +796,6 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
                         <StatusBadge status={item.status} />
                     </div>
                 </div>
-                {/* PR-3g Stage B · Voice binding hover bar (Q2 A · characters only).
-                    Bound state: 🔊 voice_name + ▶ inline preview + ▼ open picker.
-                    Unbound state: 🔊 + 添加音色 (clickable, opens picker). */}
-                {item.kind === "character" && (
-                    <div className="flex items-center gap-1 px-0.5 opacity-0 group-hover/cast-card:opacity-100 transition-opacity">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-                            className="flex-1 inline-flex items-center gap-1.5 rounded-md border border-glass-border bg-black/30 px-2 py-1 text-[0.625rem] text-text-secondary hover:border-foreground/30 hover:text-foreground transition-colors min-w-0"
-                            title={voiceId ? t("voiceBindChange") : t("voiceBindAdd")}
-                        >
-                            <Volume2 size={10} className={voiceId ? "text-primary" : "text-text-muted"} />
-                            <span className="truncate flex-1 text-left">
-                                {voiceName || (voiceId ? voiceId : t("voiceBindNone"))}
-                            </span>
-                            <span className="font-mono text-[0.5rem] text-text-muted shrink-0">▼</span>
-                        </button>
-                        {voiceId && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleInlinePreview(); }}
-                                aria-label={playing ? "Stop preview" : "Play preview"}
-                                className={`shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${
-                                    playing
-                                        ? "border-primary bg-primary/15 text-primary"
-                                        : "border-glass-border bg-black/30 text-text-secondary hover:border-foreground/30 hover:text-foreground"
-                                }`}
-                            >
-                                {previewing ? <Loader2 size={10} className="animate-spin" /> : playing ? <Pause size={10} /> : <Play size={10} />}
-                            </button>
-                        )}
-                    </div>
-                )}
                 {/* P1-c — history (cross-episode appearances) trigger.
                     Only for characters in series-affiliated episodes. */}
                 {item.kind === "character" && currentProject?.series_id && (
@@ -940,18 +813,6 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
                     seriesId={currentProject.series_id}
                     characterId={item.id}
                     onClose={() => setHistoryOpen(false)}
-                />
-            )}
-            {pickerOpen && character && (
-                <VoicePickerModal
-                    isOpen={pickerOpen}
-                    onClose={() => setPickerOpen(false)}
-                    characterName={item.name}
-                    characterGender={character.gender}
-                    currentVoiceId={voiceId}
-                    onApply={handleApplyVoice}
-                    seriesId={currentProject?.series_id || null}
-                    characterDescription={character.description}
                 />
             )}
         </>

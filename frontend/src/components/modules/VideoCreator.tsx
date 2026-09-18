@@ -48,6 +48,9 @@ interface VideoCreatorProps {
 const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
 const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
+/** 参考生视频里固定 30 秒 / 720p 的模型：海通道的 Seedance 2.5。 */
+const forces30sAnd720p = (modelId?: string | null) => (modelId || "").includes("海seedance2.5");
+
 export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
     const currentProject = useProjectStore((state) => state.currentProject);
@@ -484,7 +487,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                     currentProject.id,
                     finalImageUrl, // Can be empty string
                     finalPrompt,
-                    generationMode === 'r2v' && actualModel.includes('dola-seedance2.5') ? 30 : params.duration,
+                    generationMode === 'r2v' && forces30sAnd720p(actualModel) ? 30 : params.duration,
                     params.seed,
                     params.resolution,
                     params.generateAudio,
@@ -585,8 +588,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     const castSlots = referenceAssets;
     const availableReferenceVideos: any[] = [];
     const r2vUsesImages = true;
-    const isSeedance25 = (params.model || "").includes("dola-seedance2.5");
-    const referenceImageLimit = isSeedance25 ? 30 : 9;
+    // 所有视频模型的参考图上限都是 9（对应目录 inputs.reference_images.max）。
+    const referenceImageLimit = 9;
     const promptLimit = 12000;
 
     // 截帧 → 上传 → 插到参考图**第一位**。
@@ -672,8 +675,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                     onParamsChange({
                                         generationMode: "r2v",
                                         model: referenceImageModel,
-                                        duration: referenceImageModel.includes("dola-seedance2.5") ? 30 : params.duration,
-                                        resolution: referenceImageModel.includes("dola-seedance2.5") ? "720p" : params.resolution,
+                                        duration: forces30sAnd720p(referenceImageModel) ? 30 : params.duration,
+                                        resolution: forces30sAnd720p(referenceImageModel) ? "720p" : params.resolution,
                                     });
                                 }}
                                 className={`px-5 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all font-medium ${generationMode === "r2v"

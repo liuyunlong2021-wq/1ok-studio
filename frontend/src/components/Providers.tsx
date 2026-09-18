@@ -22,6 +22,34 @@ function BackendGate({ children }: { children: React.ReactNode }) {
         setInitialized(true);
     }, [init]);
 
+    useEffect(() => {
+        // 开发期自愈：`.next` 被重建（换 dev server / 清缓存）之后，已经打开的窗口还
+        // 拿着旧的 chunk 名，取不到就报 `ChunkLoadError: Loading chunk app/layout
+        // failed`，而且自己不会恢复 —— 白白卡住一个窗口。
+        // 这里自动重载一次。15 秒内只做一次，防止「重载完还是坏」时来回刷。
+        if (process.env.NODE_ENV === 'production') return;
+        const RELOAD_KEY = 'chunk-error-reload-at';
+        const reloadOnce = () => {
+            const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+            if (Date.now() - last < 15_000) return;
+            sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+            window.location.reload();
+        };
+        const onError = (event: ErrorEvent) => {
+            if (/ChunkLoadError|Loading chunk .* failed/i.test(String(event?.message || ''))) reloadOnce();
+        };
+        const onRejection = (event: PromiseRejectionEvent) => {
+            const reason = String((event?.reason as Error)?.message || event?.reason || '');
+            if (/ChunkLoadError|Loading chunk .* failed/i.test(reason)) reloadOnce();
+        };
+        window.addEventListener('error', onError);
+        window.addEventListener('unhandledrejection', onRejection);
+        return () => {
+            window.removeEventListener('error', onError);
+            window.removeEventListener('unhandledrejection', onRejection);
+        };
+    }, []);
+
     if (initialized && (!isDesktop || backendReady)) return children;
 
     return (

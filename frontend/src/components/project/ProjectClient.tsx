@@ -92,7 +92,7 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
         // (no navigation behavior change).
         const frames = currentProject?.frames ?? [];
         const chars = currentProject?.characters ?? [];
-        const bound = chars.filter(c => c.voice_id).length;
+        const bound = chars.filter(c => c.reference_audio_url).length;
         const frameCount = frames.length;
         const hasArt = !!currentProject?.art_direction;
         const hasMerged = !!currentProject?.merged_video_url;
@@ -276,13 +276,26 @@ function EntityExtractionConfirm() {
     const confirmExtraction = useProjectStore((s) => s.confirmExtraction);
     const discardExtraction = useProjectStore((s) => s.discardExtraction);
 
-    const handleConfirm = async () => {
-        try {
-            await confirmExtraction();
-            const refreshed = useProjectStore.getState().currentProject;
-            if (refreshed?.series_id) {
-                document.dispatchEvent(new CustomEvent("1okstudio:openReconcile"));
+    // 已经在系列池/全局库里的实体名 —— 确认弹窗据此提示“同名直接复用”。
+    // 来源字段是后端三层合并时打的（`GET /projects/{id}`），本集自己的不算共享。
+    const sharedKeys = useMemo(() => {
+        const keys = new Set<string>();
+        const collect = (items: any[] | undefined, kind: string) => {
+            for (const asset of items ?? []) {
+                if (asset?.source && asset.source !== "episode" && asset.name) {
+                    keys.add(`${kind}:${String(asset.name).trim().toLowerCase()}`);
+                }
             }
+        };
+        collect(currentProject?.characters, "characters");
+        collect(currentProject?.scenes, "scenes");
+        collect(currentProject?.props, "props");
+        return keys;
+    }, [currentProject]);
+
+    const handleConfirm = async (reuseExisting: boolean) => {
+        try {
+            await confirmExtraction(reuseExisting);
         } catch {
             const { toast } = await import("@/store/toastStore");
             toast.error(ts("analysisFailedShort"));
@@ -298,6 +311,7 @@ function EntityExtractionConfirm() {
         <EntityConfirmModal
             isOpen={!!pendingExtraction}
             preview={pendingExtraction}
+            sharedKeys={sharedKeys}
             currentCounts={{
                 characters: currentProject?.characters?.length ?? 0,
                 scenes: currentProject?.scenes?.length ?? 0,

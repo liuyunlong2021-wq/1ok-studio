@@ -19,20 +19,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-    AudioWaveform, Check, Loader2, Play, RefreshCw, Square, Trash2, Upload, UserRound, Wand2,
+    AudioWaveform, Check, Loader2, Play, RefreshCw, Square, Trash2, Upload, UserRound,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 import { useProjectStore } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
-import VoicePickerModal from "../cast/VoicePickerModal";
 
 interface CharacterVoiceFaceProps {
     /** 同一个角色对象（来自 currentProject.characters）。 */
     character: any;
 }
 
-type Busy = null | "description" | "prompt" | "reference" | "upload" | "preview" | "accept" | "rewrite";
+type Busy = null | "prompt" | "reference" | "upload" | "rewrite";
 
 /** 跟 Motion Ref 那边的音频上传同一道门槛（10MB），别两处不一样。 */
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -57,9 +56,6 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
     const [showRewriteBar, setShowRewriteBar] = useState(false);
     const [rewriteInstruction, setRewriteInstruction] = useState("");
     const [busy, setBusy] = useState<Busy>(null);
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const [previewVoiceId, setPreviewVoiceId] = useState<string | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [playing, setPlaying] = useState(false);
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -115,10 +111,6 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
     };
 
     /* ── 中列 ─────────────────────────────────────────────────── */
-    const handleExtractDescription = () => run("description", async (project) => {
-        await api.generateCharacterVoiceDescription(project.id, character.id);
-    });
-
     const handleDescriptionBlur = () => {
         const next = descriptionDraft.trim();
         if (next === (character.voice_description || "")) return;
@@ -153,37 +145,6 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
             await api.updateCharacterVoiceFields(project.id, character.id, {
                 voice_prompt: next,
             });
-        });
-    };
-
-    const handlePreview = async () => {
-        if (!promptDraft.trim()) {
-            toast.error(t("needPrompt"));
-            return;
-        }
-        await run("preview", async () => {
-            const { voice_id, preview_url } = await api.designVoicePreview({
-                voice_prompt: promptDraft.trim(),
-            });
-            setPreviewVoiceId(voice_id);
-            setPreviewUrl(preview_url);
-            await playUrl(preview_url);
-        });
-    };
-
-    const handleAccept = async () => {
-        if (!previewVoiceId || !currentProject?.series_id) return;
-        await run("accept", async (project) => {
-            const voice = await api.designVoiceAccept({
-                series_id: project.series_id!,
-                voice_id: previewVoiceId,
-                voice_prompt: promptDraft.trim(),
-                label: character.name,
-            });
-            await api.bindVoice(project.id, character.id, voice.id, voice.label);
-            toast.success(t("bound", { name: voice.label }));
-            setPreviewVoiceId(null);
-            setPreviewUrl(null);
         });
     };
 
@@ -276,29 +237,14 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                         <>
                             <UserRound size={48} className="text-text-muted" />
                             <p className="text-center text-xs text-text-muted">{t("referenceEmpty")}</p>
-                            {!character.voice_id && (
-                                <p className="text-center text-[0.6875rem] text-text-muted">
-                                    {t("referenceNoVoice")}
-                                </p>
-                            )}
-                            {character.voice_origin === "design" && (
-                                <p className="text-center text-[0.6875rem] text-text-muted">
-                                    {t("referenceSameAsVoice")}
-                                </p>
-                            )}
                         </>
                     )}
                 </div>
 
                 <div className={headerClass}>
                     <span className="text-xs text-text-muted">
-                        {character.voice_id
-                            ? `${t("currentVoice")}：${character.voice_name || character.voice_id}`
-                            : t("noVoice")}
+                        {variants.length > 0 ? t("referenceTakeCount", { count: variants.length }) : ""}
                     </span>
-                    <button type="button" onClick={() => setPickerOpen(true)} className={linkButtonClass}>
-                        {t("pickVoice")}
-                    </button>
                 </div>
 
                 <div className="flex items-center justify-end gap-2">
@@ -327,8 +273,7 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                         onClick={() => run("reference", async (project) => {
                             await api.generateCharacterReferenceAudio(project.id, character.id);
                         })}
-                        disabled={!character.voice_id || !!busy}
-                        title={!character.voice_id ? t("referenceNoVoice") : undefined}
+                        disabled={!!busy}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {busy === "reference" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
@@ -403,14 +348,6 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                         >
                             {t("descriptionRewrite")}
                         </button>
-                        <button
-                            type="button"
-                            onClick={handleExtractDescription}
-                            disabled={!!busy}
-                            className={linkButtonClass}
-                        >
-                            {busy === "description" ? t("descriptionExtracting") : t("descriptionExtract")}
-                        </button>
                     </div>
                 </div>
                 <textarea
@@ -450,7 +387,7 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                 <p className="text-[0.6875rem] text-text-muted">
                     v{character.voice_description_version || 0}
                     {character.voice_description_source === "manual" ? " · 手工编辑" : ""}
-                    {character.voice_description_source === "ai" ? " · AI 提取" : ""}
+                    {character.voice_description_source === "ai" ? " · AI 生成" : ""}
                 </p>
             </section>
 
@@ -464,7 +401,7 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                     <button
                         type="button"
                         onClick={handleGeneratePrompt}
-                        disabled={!!busy || !descriptionDraft.trim()}
+                        disabled={!!busy}
                         className={linkButtonClass}
                     >
                         {busy === "prompt" ? t("promptGenerating") : t("promptGenerate")}
@@ -478,52 +415,7 @@ export default function CharacterVoiceFace({ character }: CharacterVoiceFaceProp
                     placeholder={t("promptPlaceholder")}
                     className={textAreaClass}
                 />
-
-                <div className="space-y-2">
-                    <div className="flex items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={handlePreview}
-                            disabled={!!busy || !promptDraft.trim()}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {busy === "preview" ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-                            {busy === "preview" ? t("previewing") : t("preview")}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleAccept}
-                            disabled={!previewVoiceId || !!busy}
-                            title={!previewVoiceId ? t("previewFirst") : undefined}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {busy === "accept" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                            {busy === "accept" ? t("accepting") : t("accept")}
-                        </button>
-                    </div>
-                    {previewUrl && (
-                        <p className="text-right text-[0.6875rem] text-text-muted">
-                            <Wand2 size={11} className="mr-1 inline" />
-                            {t("preview")} OK
-                        </p>
-                    )}
-                </div>
             </section>
-
-            <VoicePickerModal
-                isOpen={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                characterName={character.name}
-                characterGender={character.gender || undefined}
-                characterDescription={character.description || undefined}
-                currentVoiceId={character.voice_id || undefined}
-                seriesId={currentProject?.series_id || null}
-                onApply={async (voiceId: string, voiceName: string) => {
-                    if (!currentProject) return;
-                    await api.bindVoice(currentProject.id, character.id, voiceId, voiceName);
-                    await refresh();
-                }}
-            />
         </div>
     );
 }

@@ -6,6 +6,25 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+/**
+ * 从任意异常里提取一句能给人看的消息。
+ *
+ * FastAPI 的 `detail` 在 422 校验失败时是**数组**、在自定义错误里可能是**对象**
+ * （例如全局资产被引用时的 409）。直接 `alert(detail)` 会渲染成 “[object Object]”:
+ * 用户看不懂，也没了原因。
+ */
+export function errorMessage(error: unknown, fallback = "操作失败"): string {
+    const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (detail && typeof detail === "object") {
+        const message = (detail as { message?: unknown }).message;
+        if (typeof message === "string" && message.trim()) return message;
+        return JSON.stringify(detail);
+    }
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
+}
+
 export function getAssetUrl(path: string | null | undefined): string {
     if (!path) return "";
     if (path.startsWith("http") || path.startsWith("blob:")) {

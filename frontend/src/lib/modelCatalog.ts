@@ -224,8 +224,8 @@ const SORTED_MODEL_ENTRIES = [...CATALOG_MODELS].sort((left, right) => {
 // 想恢复完整目录：把下面这行改成 `const ALLOWED_MODEL_FAMILIES: string[] | null = null;`
 const ALLOWED_MODEL_FAMILIES: string[] | null = ['jiucaihezi'];
 
-/** R2V 默认模型。目录默认值 happyhorse-1.1-r2v 不在白名单里，所以显式指定。 */
-const PREFERRED_R2V_MODEL_ID = 'dola-seedance2.5';
+/** R2V 默认模型。显式指定，别让默认值随目录排序漂移。 */
+const PREFERRED_R2V_MODEL_ID = '海seedance2.5';
 
 function onlyAllowedModels(models: CatalogModel[]): CatalogModel[] {
     const allowed = ALLOWED_MODEL_FAMILIES;
@@ -352,7 +352,7 @@ function normalizeRequestedModelId(requestedId: string | null | undefined): stri
     return CANONICAL_MODEL_ID_ALIASES[requestedId] ?? requestedId;
 }
 
-/** 早期版本往项目设置里写过带家族前缀的 id（jiucaihezi/dola-seedance2.5），
+/** 早期版本往项目设置里写过带家族前缀的 id（jiucaihezi/<扁平 id>），
  *  目录里的真实 key 不带前缀。这里剥掉前缀换成真实 key，避免它被当成未知模型。
  *  ponytail: 只做前缀剥离，不做全量数据迁移；下次保存项目设置就会写回标准 id。 */
 function toCatalogModelId(requestedId: string): string | undefined {
@@ -375,8 +375,8 @@ export function resolveModelId(
         return normalizedRequestedId;
     }
 
-    // 白名单内、但不属于当前分组的模型要原样保留。实例：项目里把 r2v 的
-    // dola-seedance2.5 存进了 i2v_model —— 走分组兜底会被换成别家模型
+    // 白名单内、但不属于当前分组的模型要原样保留。实例：项目里把 r2v 的模型
+    // （如 海seedance2.5）存进了 i2v_model —— 走分组兜底会被换成别家模型
     // （happyhorse-1.1-i2v），而那份密钥没配，生成必定 401。
     const requestedCatalogId = normalizedRequestedId ? toCatalogModelId(normalizedRequestedId) : undefined;
     const requestedModel = requestedCatalogId ? MODEL_CATALOG.models[requestedCatalogId] : undefined;

@@ -97,43 +97,6 @@ export type ProviderMode = "dashscope" | "vendor";
 /** Motion 提示词生成是后台任务 + 轮询，因为一次生成可能要 2 分钟。 */
 export type MotionPromptJobStatus = "queued" | "running" | "done" | "failed";
 
-/**
- * PR-3g #3 · TTS voice metadata returned by GET /voices.
- * Family-aware fields (family/dialect/lang_primary/supports_instruction)
- * power the Voice picker modal's tabbed UI (Q15.5 B):
- *   Tab 1 系统音色 → origin === "system"
- *   Tab 2 我的复刻 → origin === "clone"   (PR-3h)
- *   Tab 3 我的设计 → origin === "design"  (PR-3i)
- * Inside Tab 1, group by family (cosyvoice / qwen3) + dialect markers.
- */
-export interface VoiceMeta {
-    id: string;
-    name: string;
-    gender: "Male" | "Female" | "Neutral" | "Unknown";
-    model: string;                                            // backend model id (cosyvoice-v3-flash / qwen3-tts-flash / ...)
-    family: "cosyvoice" | "qwen3";
-    supports_instruction: boolean;
-    dialect?: string | null;                                  // 'shanghai' | 'beijing' | 'sichuan' | 'cantonese' | etc.
-    lang_primary?: string | null;                             // 'es' | 'ru' | 'it' | 'ko' | 'ja' | 'de' | 'fr' for international
-    origin: "system" | "clone" | "design";
-}
-
-/**
- * PR-3h · Custom voice entry from series.custom_voices[].
- * Returned by GET /series/{id}/custom_voices and POST /voice/clone (single).
- * Picker tabs 2/3 render these alongside the system catalog.
- */
-export interface CustomVoice {
-    id: string;                            // dashscope voice_id
-    label: string;                         // user-given display name
-    origin: "clone" | "design";
-    target_model: string;                  // e.g. "cosyvoice-v3.5-plus"
-    family: "cosyvoice" | "qwen3";
-    created_at: number;
-    source_audio_url?: string | null;      // clone-specific
-    voice_prompt?: string | null;          // design-specific (PR-3i)
-}
-
 export interface EnvConfigPayload {
     JIUCAIHEZI_API_KEY?: string;
     endpoint_overrides?: Record<string, string>;
@@ -144,12 +107,32 @@ export interface EnvConfigPayload {
 }
 
 // R2V v2 Phase 4 — Cross-episode reconcile types
+// 关联目标可以是 系列池 / 全局库 / 同系列其它集（后者合并时会先提升为系列资产）。
+export type AssetSourceKind = "episode" | "series" | "global";
+
 export interface ReconcileSuggestion {
     local_id: string;
     local_name: string;
-    suggested_series_id: string | null;
-    suggested_series_name: string | null;
+    suggested_target_id: string | null;
+    suggested_target_name: string | null;
+    suggested_target_kind: AssetSourceKind | null;
+    /** 目标在别的集里时，合并会先把它提升为系列资产。 */
+    suggested_target_episode_title: string | null;
     confidence: number;
+}
+
+/** 「关联已有资产」的候选（后端：GET /projects/{id}/asset-candidates）。 */
+export interface AssetCandidate {
+    id: string;
+    name: string;
+    description?: string;
+    source: AssetSourceKind;
+    /** true = 这条在同系列别的集里，合并时会先提升为系列资产。 */
+    needs_promote: boolean;
+    owner_episode_id: string | null;
+    owner_episode_title: string | null;
+    /** 资产原始字段原样保留，取图交给 lib/characterImage。 */
+    [key: string]: unknown;
 }
 
 export interface BgmPreset {
@@ -161,8 +144,8 @@ export interface BgmPreset {
 
 export interface ReconcileAction {
     local_id: string;
-    action: "merge_into_series" | "create_new_in_series" | "skip";
-    target_series_id?: string;
+    action: "merge" | "create_new_in_series" | "skip";
+    target_id?: string;
 }
 
 export interface VideoTask {
@@ -180,6 +163,10 @@ export interface VideoTask {
     prompt_extend: boolean;
     negative_prompt?: string;
     created_at: number;
+    /** 处理时间线（unix 秒）。0 = 还没到那一步：started_at 0 表示一直没被处理，
+     *  finished_at 0 表示还在跑。界面用它们显示「提交 / 已等 / 用时」。 */
+    started_at?: number;
+    finished_at?: number;
     model?: string;
     frame_id?: string;
     generation_mode?: string;
@@ -312,8 +299,13 @@ export const api = {
         return res.data;
     },
 
-    reparseProject: async (scriptId: string, text: string) => {
-        const res = await axios.put(`${API_URL}/projects/${scriptId}/reparse`, { text });
+    /** 重新解析剧本（提取实体）。
+     *  reuseExisting: 同名实体已在系列池/全局库时本集不再建副本（后端同名复用）。 */
+    reparseProject: async (scriptId: string, text: string, reuseExisting = true) => {
+        const res = await axios.put(`${API_URL}/projects/${scriptId}/reparse`, {
+            text,
+            reuse_existing: reuseExisting,
+        });
         return { ...res.data, originalText: res.data.original_text };
     },
 
@@ -573,6 +565,18 @@ export const api = {
     cancelVideoTask: async (scriptId: string, taskId: string) => {
         const res = await axios.post(
             `${API_URL}/projects/${scriptId}/video_tasks/${taskId}/cancel`,
+        );
+        return res.data;
+    },
+
+    /**
+     * 「继续回捞」：拿着已保存的上游任务号接着等结果（后端重启 / 轮询超时 / 产物
+     * 下载被拦之后用）。不会重新提交，所以不会重复计费 —— 跟 createVideoTask 的区别
+     * 就在这。后端没有上游任务号时回 400。
+     */
+    resumeVideoTask: async (scriptId: string, taskId: string) => {
+        const res = await axios.post(
+            `${API_URL}/projects/${scriptId}/video_tasks/${taskId}/resume`,
         );
         return res.data;
     },
@@ -1010,182 +1014,9 @@ export const api = {
         return res.data;
     },
 
-    getVoices: async (): Promise<VoiceMeta[]> => {
-        const response = await fetch(`${API_URL}/voices`);
-        if (!response.ok) throw new Error("Failed to fetch voices");
-        return response.json();
-    },
-
-    /**
-     * PR-3g #3 · Voice picker modal inline ▶ preview.
-     * Backend caches by md5(voice_id|text|speed|pitch|volume|instructions);
-     * first call generates, subsequent calls return cached URL instantly.
-     * Returns relative URL under /files (e.g. "cache/voice_preview/abc.mp3").
-     */
-    previewVoice: async (params: {
-        voice_id: string;
-        text: string;
-        speed?: number;
-        pitch?: number;
-        volume?: number;
-        instructions?: string;
-    }): Promise<{ url: string; cached: boolean }> => {
-        const response = await fetch(`${API_URL}/voice/preview`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                voice_id: params.voice_id,
-                text: params.text,
-                speed: params.speed ?? 1.0,
-                pitch: params.pitch ?? 1.0,
-                volume: params.volume ?? 50,
-                instructions: params.instructions ?? null,
-            }),
-        });
-        if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(`Voice preview failed: ${response.status} ${detail}`);
-        }
-        return response.json();
-    },
-
-    /**
-     * PR-3h · Clone a voice from a reference audio URL.
-     * Frontend flow:
-     *   1. Upload audio file via /upload → receive URL
-     *   2. Call cloneVoice({series_id, audio_url, label}) → CustomVoice
-     *   3. Picker modal 我的复刻 tab refreshes via listCustomVoices()
-     * Audio requirements: ≤10MB, MP3/WAV/M4A, ≥16kHz, 10-20s recommended.
-     */
-    cloneVoice: async (params: {
-        series_id: string;
-        audio_url: string;
-        label: string;
-        target_model?: string;
-    }): Promise<CustomVoice> => {
-        const response = await fetch(`${API_URL}/voice/clone`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                series_id: params.series_id,
-                audio_url: params.audio_url,
-                label: params.label,
-                target_model: params.target_model ?? "cosyvoice-v3.5-plus",
-            }),
-        });
-        if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(`Voice clone failed: ${response.status} ${detail}`);
-        }
-        return response.json();
-    },
-
-    /** PR-3h · List custom voices (clones + designs) on a series. */
-    listCustomVoices: async (seriesId: string): Promise<CustomVoice[]> => {
-        const response = await fetch(`${API_URL}/series/${seriesId}/custom_voices`);
-        if (!response.ok) throw new Error("Failed to list custom voices");
-        return response.json();
-    },
-
-    /** PR-3h · Remove a custom voice. Does NOT delete on dashscope side. */
-    deleteCustomVoice: async (seriesId: string, voiceId: string): Promise<{ removed: boolean }> => {
-        const response = await fetch(`${API_URL}/series/${seriesId}/custom_voices/${voiceId}`, {
-            method: "DELETE",
-        });
-        if (!response.ok) throw new Error("Failed to delete custom voice");
-        return response.json();
-    },
-
-    /**
-     * PR-3i · Voice design — mint a new voice from a text prompt + return preview.
-     * Iterative: re-call with tweaked voice_prompt; only persist via designVoiceAccept.
-     */
-    designVoicePreview: async (params: {
-        voice_prompt: string;
-        preview_text?: string;
-        target_model?: string;
-    }): Promise<{ voice_id: string; preview_url: string; target_model: string }> => {
-        const response = await fetch(`${API_URL}/voice/design/preview`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                voice_prompt: params.voice_prompt,
-                preview_text: params.preview_text ?? "你好，这是一段音色测试。请仔细听一听是否符合预期。",
-                target_model: params.target_model ?? "cosyvoice-v3.5-plus",
-            }),
-        });
-        if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(`Voice design preview failed: ${response.status} ${detail}`);
-        }
-        return response.json();
-    },
-
-    /** PR-3i · Commit a previewed design voice to series.custom_voices[]. */
-    designVoiceAccept: async (params: {
-        series_id: string;
-        voice_id: string;
-        voice_prompt: string;
-        label: string;
-        target_model?: string;
-    }): Promise<CustomVoice> => {
-        const response = await fetch(`${API_URL}/voice/design/accept`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                series_id: params.series_id,
-                voice_id: params.voice_id,
-                voice_prompt: params.voice_prompt,
-                label: params.label,
-                target_model: params.target_model ?? "cosyvoice-v3.5-plus",
-            }),
-        });
-        if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(`Voice design accept failed: ${response.status} ${detail}`);
-        }
-        return response.json();
-    },
-
-    /** PR-3i · LLM helper — translate character.description → CosyVoice voice_prompt. */
-    translateVoicePrompt: async (description: string): Promise<{ voice_prompt: string }> => {
-        const response = await fetch(`${API_URL}/voice/design/translate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description }),
-        });
-        if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(`Voice prompt translate failed: ${response.status} ${detail}`);
-        }
-        return response.json();
-    },
-
-    bindVoice: async (scriptId: string, charId: string, voiceId: string, voiceName: string) => {
-        const response = await fetch(`${API_URL}/projects/${scriptId}/characters/${charId}/voice`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ voice_id: voiceId, voice_name: voiceName }),
-        });
-        if (!response.ok) throw new Error("Failed to bind voice");
-        return response.json();
-    },
-
     // ── 角色工作台「声音面」────────────────────────────────────────
     // 生图面的镜像：左列是实物，中列是人改的那层，右列由中列生成。
     // 这几个都直接返回更新后的角色对象；调用方拉一次项目即可。
-
-    /** 中列：角色设定 → 一段人话的声音描述。 */
-    generateCharacterVoiceDescription: async (scriptId: string, charId: string) => {
-        const response = await fetch(
-            `${API_URL}/projects/${scriptId}/characters/${charId}/voice-description`,
-            { method: "POST" },
-        );
-        if (!response.ok) {
-            throw new Error(await describeFailure(response, "声音描述生成失败"));
-        }
-        return response.json();
-    },
 
     /** 右列：声音描述 → 音色提示词。没描述时后端会报「先生成声音描述」。 */
     generateCharacterVoicePrompt: async (scriptId: string, charId: string) => {
@@ -1356,15 +1187,12 @@ export const api = {
     generateLineAudio: async (
         scriptId: string,
         frameId: string,
-        speed: number,
-        pitch: number,
-        volume: number = 50,
         instructions?: string,
     ) => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/frames/${frameId}/audio`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ speed, pitch, volume, instructions: instructions || null }),
+            body: JSON.stringify({ instructions: instructions || null }),
         });
         if (!response.ok) throw new Error("Failed to generate line audio");
         return response.json();
@@ -1372,7 +1200,7 @@ export const api = {
 
     /** PR-3j · Generate dialogue audio for every frame with dialogue.
      *  Skips frames whose snapshot hash still matches. */
-    generateDialogueAudioBatch: async (scriptId: string): Promise<{ _batch_stats: { generated: number; skipped: number; failed: number; no_voice: number } }> => {
+    generateDialogueAudioBatch: async (scriptId: string): Promise<{ _batch_stats: { generated: number; skipped: number; failed: number; no_reference: number } }> => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/dialogue_audio/batch`, {
             method: "POST",
         });
@@ -1463,16 +1291,6 @@ export const api = {
         return response.json();
     },
 
-    updateVoiceParams: async (scriptId: string, charId: string, speed: number, pitch: number, volume: number) => {
-        const response = await fetch(`${API_URL}/projects/${scriptId}/characters/${charId}/voice_params`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ speed, pitch, volume }),
-        });
-        if (!response.ok) throw new Error("Failed to update voice params");
-        return response.json();
-    },
-
     exportProject: async (scriptId: string, options: any) => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/export`, {
             method: "POST",
@@ -1557,15 +1375,19 @@ export const api = {
         const res = await axios.get(`${API_URL}/library/assets`);
         return res.data;
     },
-    deleteLibraryAsset: async (assetType: string, assetId: string) => {
-        const res = await axios.delete(`${API_URL}/library/assets/${assetType}/${assetId}`);
+    deleteLibraryAsset: async (assetType: string, assetId: string, force = false) => {
+        // force 只在“已经看过引用方清单、仍然要删”时传：后端默认会先扫分镜引用，
+        // 有引用就回 409 + references 列表。
+        const res = await axios.delete(`${API_URL}/library/assets/${assetType}/${assetId}`, {
+            params: force ? { force: true } : undefined,
+        });
         return res.data;
     },
     /** 新建一条全局/共享资产。后端：POST /library/assets。
-     *  assetType 为单数（"character"|"scene"|"prop"）。data 可含 name/description/persona/image_url/voice_id。 */
+     *  assetType 为单数（"character"|"scene"|"prop"）。data 可含 name/description/persona/image_url。 */
     createLibraryAsset: async (
         assetType: string,
-        data: { name: string; description?: string; persona?: string; image_url?: string; voice_id?: string },
+        data: { name: string; description?: string; persona?: string; image_url?: string },
     ) => {
         const res = await axios.post(`${API_URL}/library/assets`, { asset_type: assetType, ...data });
         return res.data;
@@ -1590,7 +1412,6 @@ export const api = {
             description?: string;
             persona?: string;
             image_url?: string;
-            voice_id?: string;
             starred?: boolean;
             locked?: boolean;
             visual_weight?: number;
@@ -1659,8 +1480,10 @@ export const api = {
     },
 
     /** R2V v2 Phase 4 — fetch reconcile suggestions for this episode's
-     *  extracted entities vs the parent series's shared library. */
+     *  extracted entities vs every asset this episode could reuse
+     *  (系列池 + 全局库 + 本集 + 同系列其它集). */
     getReconcileSuggestions: async (scriptId: string): Promise<{
+        has_series: boolean;
         characters: ReconcileSuggestion[];
         scenes: ReconcileSuggestion[];
         props: ReconcileSuggestion[];
@@ -1682,11 +1505,52 @@ export const api = {
         return res.data;
     },
 
+    /** 「关联已有资产」的候选清单。后端：GET /projects/{id}/asset-candidates。
+     *  assetType 单数（"character"|"scene"|"prop"）。 */
+    getAssetCandidates: async (scriptId: string, assetType: string): Promise<{ candidates: AssetCandidate[] }> => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/asset-candidates`, {
+            params: { asset_type: assetType },
+        });
+        return res.data;
+    },
+
+    /** 把本集某条资产关联（合并）到另一条已存在的资产上。
+     *  后端会改写本集分镜引用后删掉本集这条；目标在别的集里时会先提升为系列资产。 */
+    linkAsset: async (
+        scriptId: string,
+        payload: { asset_type: string; local_id: string; target_id: string },
+    ) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/link`, payload);
+        return res.data;
+    },
+
+    /** 覆盖式设置某条资产的别名（空数组 = 清空）。
+     *  别名记住的是「刘玄德 = 刘备」这类判断：关联时后端自动写入，之后提取同名
+     *  复用、对齐建议、分镜实体回填都会认。后端：POST /projects/{id}/assets/aliases。 */
+    setAssetAliases: async (scriptId: string, assetType: string, assetId: string, aliases: string[]) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/aliases`, {
+            asset_type: assetType,
+            asset_id: assetId,
+            aliases,
+        });
+        return res.data;
+    },
+
+    /** 取消关联：把共享资产（系列池 / 全局库）在本集 fork 一份独立副本（新 id），
+     *  之后改它不会再影响其他集。后端：POST /projects/{id}/assets/fork_from_library。 */
+    forkSharedAssetToProject: async (scriptId: string, assetType: string, assetId: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/fork_from_library`, {
+            asset_type: assetType,
+            library_asset_id: assetId,
+        });
+        return res.data;
+    },
+
     /** R2V v2 Phase 5 — series-scope quick-create CRUD for Cast modal. */
     createSeriesAsset: async (
         seriesId: string,
         kind: "characters" | "scenes" | "props",
-        data: { name: string; description?: string; persona?: string; image_url?: string; voice_id?: string },
+        data: { name: string; description?: string; persona?: string; image_url?: string },
     ) => {
         const res = await axios.post(`${API_URL}/series/${seriesId}/${kind}`, data);
         return res.data;

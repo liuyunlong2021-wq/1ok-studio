@@ -20,6 +20,10 @@ interface CharacterWorkbenchProps {
     assetType?: "character" | "scene" | "prop";
     onClose: () => void;
     onUpdateDescription: (desc: string) => void;
+    /** 别名：同一个角色在别的集里可能被写成别的名字（刘备 / 刘玄德）。
+     *  传了才显示别名编辑区。 */
+    aliases?: string[];
+    onUpdateAliases?: (aliases: string[]) => void;
     onRewriteDescription?: (description: string, instruction: string) => Promise<string | null>;
     onGenerate: (type: string, prompt: string, applyStyle: boolean, negativePrompt: string, batchSize: number) => void | Promise<void>;
     onGeneratePrompt?: (assetType: string, description: string) => Promise<void>;
@@ -31,7 +35,7 @@ interface CharacterWorkbenchProps {
     isGeneratingVideo?: boolean;
 }
 
-export default function CharacterWorkbench({ asset, assetType = "character", onClose, onUpdateDescription, onRewriteDescription, onGenerate, onGeneratePrompt, generatingTypes = [], stylePrompt = "", styleNegativePrompt = "", onGenerateVideo, onDeleteVideo, isGeneratingVideo }: CharacterWorkbenchProps) {
+export default function CharacterWorkbench({ asset, assetType = "character", onClose, onUpdateDescription, aliases = [], onUpdateAliases, onRewriteDescription, onGenerate, onGeneratePrompt, generatingTypes = [], stylePrompt = "", styleNegativePrompt = "", onGenerateVideo, onDeleteVideo, isGeneratingVideo }: CharacterWorkbenchProps) {
     const tc = useTranslations("character");
     const tv = useTranslations("characterVoice");
     // 工作台有两面镜子：生图 / 声音。左=素材、中=人的描述、右=给模型的提示词，
@@ -94,6 +98,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     const [headshotPrompt, setHeadshotPrompt] = useState(getInitialPrompt("headshot", asset.headshot_prompt));
     const [videoPrompt, setVideoPrompt] = useState(asset.video_prompt || "");
     const [descriptionDraft, setDescriptionDraft] = useState(asset.description || "");
+    const [aliasDraft, setAliasDraft] = useState("");
     const [isRewritingDescription, setIsRewritingDescription] = useState(false);
     const [showRewriteBar, setShowRewriteBar] = useState(true);
     const [rewriteInstruction, setRewriteInstruction] = useState("");
@@ -417,6 +422,39 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         <textarea value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} onBlur={() => { if (descriptionDraft !== (asset.description || "")) onUpdateDescription(descriptionDraft); }} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
                         {showRewriteBar && <div className="rounded-xl border border-primary/25 bg-glass p-3"><div className="relative"><textarea value={rewriteInstruction} onChange={(e) => setRewriteInstruction(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleRewriteDescription(); } }} placeholder="输入修改要求，例如：补充服装细节" disabled={isRewritingDescription} className="min-h-[104px] w-full resize-none rounded-lg border border-glass-border bg-input-bg p-3 pb-11 text-xs leading-relaxed text-text-secondary outline-none focus:border-primary/60 placeholder:text-text-muted" /><button type="button" onClick={handleRewriteDescription} disabled={isRewritingDescription} className="absolute bottom-2 right-2 rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50">{isRewritingDescription ? "生成中" : "生成修改"}</button></div>{rewriteError && <p className="mt-2 text-xs text-red-400">{rewriteError}</p>}</div>}
                         {asset.extracted_description && <details className="text-xs text-text-muted"><summary className="cursor-pointer hover:text-text-secondary">查看原始剧本描述</summary><p className="mt-2 rounded-lg bg-glass p-3 leading-relaxed">{asset.extracted_description}</p></details>}
+                        {/* 别名：记住「刘玄德 = 刘备」这类判断。关联时后端会自动写入，
+                            这里只是让用户看得见、能删除（写错了的别名会一直自动命中）。 */}
+                        {onUpdateAliases && (
+                            <div className="flex flex-wrap items-center gap-1.5 border-t border-glass-border pt-3">
+                                <span className="text-xs text-text-muted">别名</span>
+                                {aliases.map((alias) => (
+                                    <button
+                                        key={alias}
+                                        type="button"
+                                        onClick={() => onUpdateAliases(aliases.filter((a) => a !== alias))}
+                                        title="移除这个别名"
+                                        className="inline-flex items-center gap-1 rounded-full border border-glass-border bg-glass px-2 py-0.5 text-[0.6875rem] text-text-secondary transition-colors hover:border-red-400/50 hover:text-red-300"
+                                    >
+                                        {alias}
+                                        <X size={10} />
+                                    </button>
+                                ))}
+                                <input
+                                    value={aliasDraft}
+                                    onChange={(e) => setAliasDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key !== "Enter") return;
+                                        e.preventDefault();
+                                        const next = aliasDraft.trim();
+                                        if (!next || aliases.includes(next)) return;
+                                        onUpdateAliases([...aliases, next]);
+                                        setAliasDraft("");
+                                    }}
+                                    placeholder="+ 添加别名"
+                                    className="w-24 rounded-full border border-dashed border-glass-border bg-transparent px-2 py-0.5 text-[0.6875rem] text-text-secondary outline-none transition-colors focus:border-primary/60 placeholder:text-text-muted"
+                                />
+                            </div>
+                        )}
                     </section>
                     <section className="min-w-0 min-h-0 p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
                         <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">生图提示词</h3><p className="text-xs text-text-muted mt-1">基于当前描述生成</p></div><button type="button" onClick={handleGenerateAssetPrompt} disabled={!onGeneratePrompt || isGeneratingAssetPrompt || ["queued", "processing"].includes(asset.prompt_generation_status)} className="text-xs text-primary disabled:opacity-50">{asset.prompt_generation_status === "queued" ? "排队中..." : asset.prompt_generation_status === "processing" ? "生成中..." : asset.prompt_generation_status === "failed" || asset.prompt_generation_status === "stale" ? "重试生成" : asset.prompt_generation_status === "completed" ? "重新生成" : isGeneratingAssetPrompt ? "提交中..." : "生成提示词"}</button></div>

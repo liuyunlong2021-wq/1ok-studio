@@ -106,9 +106,17 @@ pub fn start_backend(
             return;
         }
         if !terminate_stale_backend(&health) {
-            eprintln!(
-                "[sidecar] Port 17177 is occupied by a backend that cannot be safely replaced"
-            );
+            // Dev backend (uvicorn, `python -m uvicorn ...`) and the release
+            // sidecar share port 17177, and the dev one is deliberately not
+            // killable from here (see the pid guard in `terminate_stale_backend`).
+            // The window still opens and adopts whatever answers /health — but if
+            // that backend is mid-reload, the frontend's gate spins for its full
+            // 30s deadline and then reports "服务启动失败" with no cause. Record the
+            // cause first, so the "打开启动日志" button lands on something useful.
+            let message = "Port 17177 is occupied by a backend that cannot be safely replaced \
+                           (usually the dev backend — stop it, or quit and relaunch this app)";
+            eprintln!("[sidecar] {message}");
+            append_sidecar_log(message);
             show_main_window(app_handle, false);
             return;
         }

@@ -681,7 +681,7 @@ export default function SettingsPage() {
     { key: "scene_prompt", label: "场景资产 Skill", desc: "基于场景描述与项目风格生成场景提示词。" },
     { key: "prop_prompt", label: "道具资产 Skill", desc: "基于道具描述与项目风格生成道具提示词。" },
     { key: "audio_plan", label: "全局导演声音稿 Skill", desc: "声音步骤里「生成导演稿」用的 Skill；产出直接喂给 seed-audio-1.0。" },
-    { key: "voice_prompt", label: "角色参考音设计 Skill", desc: "角色工作台「声音→生成提示词」用的 Skill；产出喂给 CosyVoice 音色设计。" },
+    { key: "voice_prompt", label: "角色参考音设计 Skill", desc: "角色工作台「声音」那一面的 Skill：「AI 提取 / AI 修改」（声音描述）和「生成提示词」都用它；产出喂给 seed-audio-1.0 生成参考音。" },
   ];
 
   const renderPrompts = () => (

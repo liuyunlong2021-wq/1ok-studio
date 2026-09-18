@@ -829,7 +829,7 @@ function MotionInspector() {
 
 function AudioInspector({ project }: { project: any }) {
     const tp = useTranslations("properties");
-    const assignedCount = project?.characters?.filter((c: any) => c.voice_id).length || 0;
+    const assignedCount = project?.characters?.filter((c: any) => c.reference_audio_url).length || 0;
     const totalCount = project?.characters?.length || 0;
 
     return (

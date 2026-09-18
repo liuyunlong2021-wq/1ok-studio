@@ -6,7 +6,7 @@ import { Search, Star, ArrowDownUp, ChevronDown, Check, Plus } from "lucide-reac
 import { api } from "@/lib/api";
 import type { Series, Project, Character, Scene, Prop, ImageAsset } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
-import { characterImageUrl, characterVariants } from "@/lib/characterImage";
+import { characterImageUrl, characterVariants, scenePropImageUrl } from "@/lib/characterImage";
 import { coverGradient, GRAIN_URL } from "@/lib/atelierCover";
 import { rovingKeyDown } from "@/lib/a11y";
 import { getAssetUrl } from "@/lib/utils";
@@ -45,15 +45,10 @@ interface RenderGroup {
   items: RenderItem[];
 }
 
-/** 取图：character 走 characterImageUrl（reference_sheet→full_body→legacy）；scene/prop 用 image_asset。 */
+/** 取图：character / scene / prop 统一走 `lib/characterImage`（各 UI 只准有一套取图逻辑）。 */
 function getImageUrl(asset: Character | Scene | Prop, type: AssetTab): string | undefined {
   if (type === "characters") return getAssetUrl(characterImageUrl(asset as Character));
-  const a = asset as Scene | Prop;
-  if (a.image_asset?.variants?.length) {
-    const sel = a.image_asset.variants.find((v) => v.id === a.image_asset?.selected_id);
-    return getAssetUrl(sel?.url || a.image_asset.variants[0]?.url);
-  }
-  return a.image_url ? getAssetUrl(a.image_url) : undefined;
+  return getAssetUrl(scenePropImageUrl(asset as Scene | Prop));
 }
 
 function variantCount(asset: Character | Scene | Prop, type: AssetTab): number {

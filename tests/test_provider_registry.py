@@ -8,7 +8,7 @@ class TestProviderRegistryRouting:
     """resolve_backend 的契约：家族前缀 → backend_default，env 可覆盖。
 
     用注入的合成家族，不靠产品目录：当前目录只有 jiucaihezi 一家，而且模型 id
-    是不带家族前缀的扁平名（如 dola-seedance2.5），匹配不上 routing_prefixes，
+    是不带家族前缀的扁平名（如 海seedance2.5），匹配不上 routing_prefixes，
     所以目录本身测不了这段逻辑。
     """
 

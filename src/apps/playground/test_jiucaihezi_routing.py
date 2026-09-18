@@ -35,7 +35,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             "src.apps.playground.service.IMAGE_OUTPUT_DIR", output_dir
         ), patch("src.apps.playground.service.VIDEO_OUTPUT_DIR", output_dir):
             service._process_image_generation(_generation("jiucaihezi/gpt-image-2.5-1k", PlaygroundMode.T2I))
-            service._process_video_generation(_generation("dola-seedance2.5", PlaygroundMode.R2V))
+            service._process_video_generation(_generation("海seedance2.5", PlaygroundMode.R2V))
             # 已下线的旧 id 同样落到唯一适配器
             service._process_image_generation(_generation("wan2.7-image-pro", PlaygroundMode.T2I))
 
@@ -62,6 +62,29 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             ratio="16:9",
             ref_image_urls=[],
         )
+
+    def test_image_quality_parameter_reaches_adapter(self):
+        """质量档必须透传到适配器：没选时是 None，选了原样带走。"""
+        service = PlaygroundService(Mock())
+        service._jiucaihezi_image_model = Mock()
+
+        service._generate_image_jiucaihezi(
+            _generation("jiucaihezi/gpt-image-2.5-菠萝", PlaygroundMode.T2I),
+            "/tmp/out.png",
+        )
+        service._jiucaihezi_image_model.generate.assert_called_once_with(
+            "test",
+            "/tmp/out.png",
+            model_name="jiucaihezi/gpt-image-2.5-菠萝",
+            size="1024x1024",
+            n=1,
+            quality=None,
+        )
+
+        gen = _generation("jiucaihezi/gpt-image-2.5-菠萝", PlaygroundMode.T2I)
+        gen.parameters = {"size": "1024x1024", "quality": "low"}
+        service._generate_image_jiucaihezi(gen, "/tmp/out.png")
+        assert service._jiucaihezi_image_model.generate.call_args.kwargs["quality"] == "low"
 
     @patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"})
     @patch("src.models.jiucaihezi.upload_to_jiucaihezi")

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
-import { api, type CustomVoice, type SkillPackageSummary } from "@/lib/api";
+import { api, type SkillPackageSummary } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 import { toast } from "@/store/toastStore";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
@@ -289,7 +289,6 @@ export default function SoundDesign() {
     const [draft, setDraft] = useState(scriptText);
     const [dirty, setDirty] = useState(false);
     const [picked, setPicked] = useState<string[]>([]);
-    const [customVoices, setCustomVoices] = useState<CustomVoice[]>([]);
     const [skillPackages, setSkillPackages] = useState<SkillPackageSummary[]>([]);
     /** 系列级的 Skill 绑定 —— 导演稿的绑定可以是系列级的，只显示项目级会误导。 */
     const [seriesBindings, setSeriesBindings] = useState<Record<string, string>>({});
@@ -309,16 +308,14 @@ export default function SoundDesign() {
         if (!dirty) setDraft(scriptText);
     }, [scriptText, dirty]);
 
-    // 参考音可用性 = 角色 voice_id 命中 clone 音色且带 source_audio_url。
-    // 与后端 resolve_character_reference_audios 的链路一致。
+    // 参考音可用性 = 角色自己有没有参考音（左列生成的）。
+    // seed-audio 通道不注册音色，所以不再去查「自定义音色表」——与后端
+    // resolve_character_reference_audios 现在的逻辑一致。
     // 顺便把系列的 Skill 绑定读回来：导演稿的绑定可以是系列级的。
     useEffect(() => {
         const seriesId = currentProject?.series_id;
-        if (!seriesId) { setCustomVoices([]); setSeriesBindings({}); return; }
+        if (!seriesId) { setSeriesBindings({}); return; }
         let cancelled = false;
-        api.listCustomVoices(seriesId)
-            .then((list) => { if (!cancelled) setCustomVoices(list ?? []); })
-            .catch(() => { if (!cancelled) setCustomVoices([]); });
         api.getSeries(seriesId)
             .then((series) => {
                 if (!cancelled) setSeriesBindings(series?.prompt_config?.skill_bindings ?? {});
@@ -334,19 +331,10 @@ export default function SoundDesign() {
             .catch(() => setSkillPackages([]));
     }, []);
 
-    const voiceById = useMemo(() => {
-        const map = new Map<string, CustomVoice>();
-        for (const voice of customVoices) map.set(voice.id, voice);
-        return map;
-    }, [customVoices]);
-
     const referenceUrlOf = useCallback(
-        (characterId: string): string | null => {
-            const character = characters.find((c) => c.id === characterId);
-            const voice = character?.voice_id ? voiceById.get(character.voice_id) : undefined;
-            return voice?.source_audio_url || null;
-        },
-        [characters, voiceById],
+        (characterId: string): string | null =>
+            characters.find((c) => c.id === characterId)?.reference_audio_url ?? null,
+        [characters],
     );
 
     /* ── 播放控制（同一时刻只响一条）────────────────────────────── */
@@ -586,7 +574,7 @@ export default function SoundDesign() {
                                                 {isPlaying ? <Square size={9} /> : <Play size={10} />}
                                             </button>
                                             <span className={`truncate font-mono text-[0.59375rem] ${referenceUrl ? "text-text-muted" : "text-text-muted/60"}`}>
-                                                {referenceUrl ? (character.voice_name || t("castPreview")) : t("castUnbound")}
+                                                {referenceUrl ? t("castPreview") : t("castNoReference")}
                                             </span>
                                         </div>
                                     </div>

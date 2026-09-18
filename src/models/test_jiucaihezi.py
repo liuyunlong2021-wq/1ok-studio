@@ -95,6 +95,33 @@ def test_grok_text_to_image_uses_openai_image_channel(post, download):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download")
+@patch("src.models.jiucaihezi.requests.post")
+def test_image_quality_reaches_gateway_payload(post, download):
+    """菠萝的质量档要进 JSON payload；没传 quality 的模型不带这个键。"""
+    post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
+
+    JiucaiheziImageModel({}).generate(
+        "prompt",
+        "/tmp/output.png",
+        model_name="jiucaihezi/gpt-image-2.5-菠萝",
+        size="1024x1024",
+        quality="low",
+    )
+    assert post.call_args.kwargs["json"]["quality"] == "low"
+    assert post.call_args.kwargs["json"]["model"] == "gpt-image-2.5-菠萝"
+
+    post.reset_mock()
+    JiucaiheziImageModel({}).generate(
+        "prompt",
+        "/tmp/output.png",
+        model_name="jiucaihezi/gpt-image-2.5-1k",
+        size="1024x1024",
+    )
+    assert "quality" not in post.call_args.kwargs["json"]
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
 def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
     post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
@@ -151,12 +178,12 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_content)
     JiucaiheziVideoModel({}).generate(
         "prompt",
         "/tmp/output.mp4",
-        model_name="dola-seedance2.5",
+        model_name="海seedance2.5",
         ratio="9:16",
     )
 
     assert post.call_args.kwargs["json"] == {
-        "model": "dola-seedance2.5",
+        "model": "海seedance2.5",
         "prompt": "prompt",
         "ratio": "9:16",
     }
@@ -169,7 +196,7 @@ def test_video_create_timeout_is_not_retried(post, tmp_path):
 
     with pytest.raises(RuntimeError, match="not retried to avoid duplicate billing"):
         JiucaiheziVideoModel({}).generate(
-            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+            "prompt", str(tmp_path / "output.mp4"), model_name="海seedance2.5"
         )
 
     assert post.call_count == 1
@@ -212,7 +239,7 @@ def test_video_keeps_polling_queued_and_in_progress(post, get, _sleep, _download
     ]
 
     _, elapsed = JiucaiheziVideoModel({}).generate(
-        "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+        "prompt", str(tmp_path / "output.mp4"), model_name="海seedance2.5"
     )
 
     assert get.call_count == 3
@@ -241,7 +268,7 @@ def test_video_poll_failures_are_retried_without_recreating_the_task(post, get, 
     get.side_effect = _get
     output_path = tmp_path / "output.mp4"
 
-    JiucaiheziVideoModel({}).generate("prompt", str(output_path), model_name="dola-seedance2.5")
+    JiucaiheziVideoModel({}).generate("prompt", str(output_path), model_name="海seedance2.5")
 
     assert post.call_count == 1
     assert output_path.read_bytes() == b"video-bytes"
@@ -260,7 +287,7 @@ def test_video_failure_surfaces_structured_error_message(post, get, _sleep, tmp_
 
     with pytest.raises(RuntimeError, match="cdn.example.com 无法访问"):
         JiucaiheziVideoModel({}).generate(
-            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+            "prompt", str(tmp_path / "output.mp4"), model_name="海seedance2.5"
         )
 
 
@@ -275,7 +302,7 @@ def test_video_create_rejection_surfaces_structured_error_message(post, tmp_path
 
     with pytest.raises(RuntimeError, match="images\\[0\\] 素材格式不受支持"):
         JiucaiheziVideoModel({}).generate(
-            "prompt", str(tmp_path / "output.mp4"), model_name="dola-seedance2.5"
+            "prompt", str(tmp_path / "output.mp4"), model_name="海seedance2.5"
         )
 
     assert post.call_count == 1
@@ -323,7 +350,7 @@ def test_minimax_sibling_model_shares_the_same_config(post, get, _sleep, _downlo
 @patch("src.models.jiucaihezi.time.sleep")
 @patch("src.models.jiucaihezi.requests.get")
 @patch("src.models.jiucaihezi.requests.post")
-def test_dola_never_receives_minimax_only_fields(post, get, _sleep, _download_content):
+def test_seedance_never_receives_minimax_only_fields(post, get, _sleep, _download_content):
     """反向守：只有 MiniMax H3 系列能带 duration/resolution/audios。"""
     post.return_value = _response({"task_id": "task-1"})
     get.return_value = _response({"status": "completed"})
@@ -331,13 +358,13 @@ def test_dola_never_receives_minimax_only_fields(post, get, _sleep, _download_co
     JiucaiheziVideoModel({}).generate(
         "prompt",
         "/tmp/output.mp4",
-        model_name="dola-seedance2.5",
+        model_name="海seedance2.5",
         duration=12,
         resolution="768p竖",
     )
 
     payload = post.call_args.kwargs["json"]
-    assert payload == {"model": "dola-seedance2.5", "prompt": "prompt", "ratio": "16:9"}
+    assert payload == {"model": "海seedance2.5", "prompt": "prompt", "ratio": "16:9"}
 
 
 @pytest.mark.parametrize(

@@ -183,44 +183,29 @@ os.makedirs("output/assets", exist_ok=True)
 
 SKILLS_FILE = os.path.join("output", "script_skills.json")
 DELETED_BUILTINS_FILE = os.path.join("output", "script_skills_deleted.json")
-BUILTIN_SHORT_SCRIPT_SKILL = """你是中文短剧剧本格式整理器。把输入内容规范为以下 Markdown 格式，只整理格式，不续写、不润色、不新增剧情事实。
+BUILTIN_SHORT_SCRIPT_SKILL = """你是中文短剧剧本格式整理器。把输入内容规范为下面的行格式，只整理格式，不续写、不润色、不新增剧情事实。
+
+# 行格式
+场X-X 地点 - 时间
+△ 画面、环境或人物状态描述。
+△ 可执行动作、走位、表情变化、道具使用或节奏转折。
+角色名（情绪或表演提示）：台词
+角色名：台词
 
 # 核心原则
 - 保留原文的剧情、事件顺序、角色关系、台词语言、情绪、动作和结局，不擅自增删或改写。
-- 只使用输入中已有的信息。无法确定的时间、场景、人物或道具不要猜测；字段不能可靠填写时保留为空，道具明确没有时写“无”。
+- 只使用输入中已有的信息。无法确定的时间或场景不要猜测，写不出来的信息就不写。
 - 不访问外部 Wiki，不创建人物、场景或道具档案。
-- 输入是完整剧本时，输出完整集标题和全部场次；输入只是局部选区时，只整理选中内容，不补写集标题、前后场或缺失剧情。
-- 只输出规范化后的剧本文本，不解释，不写 Markdown 代码块。
+- 输入是完整剧本时，输出全部场次；输入只是局部选区时，只整理选中内容，不补写前后场或缺失剧情。
+- 只输出规范化后的剧本文本，不解释，不写 Markdown 代码块，不插空行，不用任何 Markdown 标记。
 
-# 完整剧本格式
-
-# 第X集：集名
-
-## 场X-X
-时间：
-场景：
-人物：
-道具：
-
-△ 环境、画面或人物状态描述。
-
-▲ 明确动作、走位、表情变化、道具使用或节奏转折。
-
-角色名（可选的情绪或表演提示）：台词
-
-字数：约XXX字
-
-# 格式规则
-- 场次使用“场X-X”；前一位是集号，后一位是本集场次序号。原文已有清晰编号时沿用，缺少编号且能从上下文确定时按出现顺序编号。
-- 时间只写原文可确认的白天、夜晚、黄昏、连续等信息。
-- 场景填写实际表演空间。名称明确时写作 `[[场景/场景名]]`；需要区分大地点与具体空间时可并列写明。
-- 人物只列本场实际出场者，写作 `[[角色/角色名]]`，多人用中文逗号分隔。仅被提及但未出场者不列入。
-- 道具只列实际出镜或被使用的物件，写作 `[[道具/道具名]]`；仅在台词中提及的不列入，没有则写“无”。
-- `△` 用于环境、画面可见信息、人物状态和情绪铺垫；`▲` 用于可执行动作、调度、表情、道具使用和节奏转折。根据原文语义拆分，不把同一句内容重复写入两类。
-- 对白统一写作 `角色名（情绪或表演提示）：台词`。不添加引号；原文没有情绪提示时写 `角色名：台词`。
-- 旁白、画外音、音效和画面文字若原文已有，分别保留为 `[VO]`、`[OS]`、`[SFX]`、`[画面文字]`；不要凭空添加。
-- 每场末尾写 `字数：约XXX字`，按该场正文的实际中文字符量给出近似值，不为了凑字数修改正文。
-- 不加入镜号、景别、运镜、焦段、图片或视频提示词、模型参数、分析结论。
+# 逐行规则
+- 场次标题独占一行，写作 `场X-X 地点 - 时间`。前一位是集号，后一位是本集场次序号；原文已有清晰编号时沿用，缺少编号时按出现顺序编号。地点写实际表演空间；时间只写原文可确认的白天、夜晚、黄昏、连续等信息。
+- 所有非对白内容都用 `△` 开头，一行一件事：画面可见信息、环境、人物状态、情绪铺垫、动作、走位、表情变化、道具使用、节奏转折。原文一句话里同时有状态和动作时拆成两行，同一句内容不重复写。
+- 对白独占一行，写作 `角色名（情绪或表演提示）：台词`，不加引号；原文没有情绪提示时写作 `角色名：台词`。
+- 场景名、角色名、道具名照原文的写法直接写，不加方括号、双链、`#`、`*` 之类的标记，也不改写名称。
+- 旁白、画外音写作 `角色名（VO）：台词`。音效和画面文字写在 `△` 行首并用方括号标注，例如 `△ [SFX] 玻璃碎裂声。`、`△ [画面文字] 三年后。`。这些只在原文已有时保留，不凭空添加。
+- 不写集名或集标题，不写时间/场景/人物/道具字段清单，不写字数统计，不加入镜号、景别、运镜、焦段、图片或视频提示词、模型参数、分析结论。
 
 # 忠实性检查
 输出前确认没有改变说话人、台词含义、动作先后、人物态度、因果关系或场次顺序；没有把推测写成事实；输入中的有效内容没有遗漏。"""
@@ -575,6 +560,9 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
 
 class ReparseProjectRequest(BaseModel):
     text: str
+    # 同名实体已在系列池/全局库时，本集不再建副本（默认开）。关掉就是旧行为：
+    # 每集都存一份自己的，之后靠「关联」手动合并。
+    reuse_existing: bool = True
 
 
 class UpdateScriptTextRequest(BaseModel):
@@ -876,7 +864,7 @@ async def reparse_project(script_id: str, request: ReparseProjectRequest):
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,  # Use default executor
-            partial(pipeline.reparse_project, script_id, request.text)
+            partial(pipeline.reparse_project, script_id, request.text, request.reuse_existing)
         )
         return signed_response(result)
     except ValueError as e:
@@ -1246,7 +1234,6 @@ class CreateSeriesAssetRequest(BaseModel):
     description: Optional[str] = ""
     persona: Optional[str] = ""        # characters only — grouping label
     image_url: Optional[str] = None    # optional uploaded master sheet
-    voice_id: Optional[str] = None     # characters only — TTS voice binding
 
 
 def _new_id(prefix: str) -> str:
@@ -1272,7 +1259,6 @@ def create_series_character(series_id: str, request: CreateSeriesAssetRequest):
         name=request.name,
         description=request.description or "",
         persona=request.persona or "",
-        voice_id=request.voice_id,
         reference_sheet=ref_sheet,
     )
     series.characters.append(char)
@@ -1348,7 +1334,6 @@ class CreateLibraryAssetRequest(BaseModel):
     description: Optional[str] = ""
     persona: Optional[str] = ""        # characters only — grouping label
     image_url: Optional[str] = None    # optional pre-uploaded master image
-    voice_id: Optional[str] = None     # characters only — TTS voice binding
 
 
 class UpdateLibraryAssetRequest(BaseModel):
@@ -1358,7 +1343,6 @@ class UpdateLibraryAssetRequest(BaseModel):
     description: Optional[str] = None
     persona: Optional[str] = None
     image_url: Optional[str] = None
-    voice_id: Optional[str] = None
     starred: Optional[bool] = None
     locked: Optional[bool] = None
     visual_weight: Optional[int] = None
@@ -1843,77 +1827,92 @@ def delete_project(script_id: str):
 # ─────────────────────────────────────────────────────────────────────
 # R2V v2 Phase 4 — Cross-episode asset reconcile
 # ─────────────────────────────────────────────────────────────────────
-def _name_match_confidence(local_name: str, series_name: str) -> int:
+def _name_match_confidence(local_name: str, known_names) -> int:
     """0-100 simple confidence score.
     Phase 4 v1: exact match = 100, substring match = 75, none = 0.
+
+    `known_names` 是候选资产的全部叫法（本体名 + 别名）：「刘玄德」对「刘备」的
+    别名也要算 100，否则用户关联过一次的判断就白记了。
     Future: embedding-based semantic similarity on `description`."""
-    a, b = (local_name or "").strip().lower(), (series_name or "").strip().lower()
-    if not a or not b:
+    a = (local_name or "").strip().lower()
+    if not a:
         return 0
-    if a == b:
-        return 100
-    if a in b or b in a:
-        return 75
-    return 0
+    best = 0
+    for name in known_names:
+        b = (name or "").strip().lower()
+        if not b:
+            continue
+        if a == b:
+            return 100
+        if a in b or b in a:
+            best = max(best, 75)
+    return best
 
 
 @app.get("/projects/{script_id}/reconcile/suggestions")
 def reconcile_suggestions(script_id: str):
-    """Compute match suggestions for the current episode's just-extracted
-    entities vs the parent series's shared asset library.
+    """给本集刚提取出来的每条实体，在当前可用的资产里找一条最像的做建议。
+
+    匹配池来自 `pipeline.list_asset_candidates` —— 系列池 + 全局库 + 本集 +
+    同系列**其它集**的私有资产。以前这里只跟 `series.characters` 比，所以
+    "第一集和第九集场景一样" 这种情况永远匹配不到（第一集那条还躺在第一集里）。
 
     Returned shape:
     {
+      "has_series": true,
       "characters": [
-        { local_id, local_name, suggested_series_id|null, suggested_series_name|null, confidence }
+        { local_id, local_name, suggested_target_id|null, suggested_target_name|null,
+          suggested_target_kind|null, suggested_target_episode_title|null, confidence }
       ],
-      "scenes": [...],
-      "props": [...],
+      "scenes": [...], "props": [...],
     }
-    Frontend uses this to render the ReconcileModal after script parse.
+    `suggested_target_kind` ∈ {"episode"|"series"|"global"}。confidence 0 表示
+    没找到像的（前端默认动作据此决定）。前端拿它渲染 ReconcileModal。
     """
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not script.series_id:
-        # Standalone projects have no series library to reconcile against
-        return {"characters": [], "scenes": [], "props": []}
-    series = pipeline.get_series(script.series_id)
-    if not series:
-        return {"characters": [], "scenes": [], "props": []}
 
-    def best_match(local_name: str, pool: list, key: str = "name"):
-        best_id, best_name, best_conf = None, None, 0
-        for item in pool:
-            sname = getattr(item, key, "") if hasattr(item, key) else item.get(key, "")
-            conf = _name_match_confidence(local_name, sname)
-            if conf > best_conf:
-                best_id, best_name, best_conf = item.id if hasattr(item, "id") else item.get("id"), sname, conf
-        return best_id, best_name, best_conf
-
-    def build(local_pool, series_pool):
+    def build(asset_type: str, local_pool: list) -> list:
+        candidates = pipeline.list_asset_candidates(script_id, asset_type)
         result = []
         for local in local_pool:
-            sid, sname, conf = best_match(local.name, series_pool)
+            best, best_conf = None, 0
+            for cand in candidates:
+                if cand["id"] == local.id:
+                    continue
+                conf = _name_match_confidence(
+                    local.name, [cand.get("name", ""), *(cand.get("aliases") or [])]
+                )
+                if conf > best_conf:
+                    best, best_conf = cand, conf
             result.append({
                 "local_id": local.id,
                 "local_name": local.name,
-                "suggested_series_id": sid if conf > 0 else None,
-                "suggested_series_name": sname if conf > 0 else None,
-                "confidence": conf,
+                "suggested_target_id": best["id"] if best else None,
+                "suggested_target_name": best.get("name") if best else None,
+                "suggested_target_kind": best.get("source") if best else None,
+                "suggested_target_episode_title": best.get("owner_episode_title") if best else None,
+                "confidence": best_conf,
             })
         return result
 
     return {
-        "characters": build(script.characters, series.characters),
-        "scenes": build(script.scenes, series.scenes),
-        "props": build(script.props, series.props),
+        "has_series": bool(script.series_id),
+        "characters": build("character", script.characters),
+        "scenes": build("scene", script.scenes),
+        "props": build("prop", script.props),
     }
 
 
 class ReconcileAction(BaseModel):
     local_id: str
-    action: str  # "merge_into_series" | "create_new_in_series" | "skip"
+    # "merge"  = 合并到一条已存在的目标资产（系列池 / 全局库 / 其它集提升过来的）
+    # "create_new_in_series" = 把本集这条提升为系列共享资产
+    # "skip"   = 保持本集私有
+    action: str
+    target_id: Optional[str] = None
+    # 旧字段名，继续接受（1.3.x 的前端发过这个）
     target_series_id: Optional[str] = None
 
 
@@ -1925,65 +1924,116 @@ class ApplyReconcileRequest(BaseModel):
 
 @app.post("/projects/{script_id}/reconcile/apply")
 def reconcile_apply(script_id: str, request: ApplyReconcileRequest):
-    """Apply user-confirmed reconcile decisions.
-    - merge_into_series: drop the local episode entity, replace all
-      frame references with target_series_id (the series-shared asset).
-    - create_new_in_series: promote the local entity to series scope.
-    - skip: no-op (keep local-only).
+    """应用用户确认过的 reconcile 决定。
+
+    - `merge`（旧名 `merge_into_series`）：把本集这条合并到 `target_id`。
+      走 `pipeline.link_local_asset` —— "改写本集帧引用 + 删掉本集这条" 只有
+      那一份实现，目标在别的集里时它会先提升为系列资产。
+    - `create_new_in_series`：把本集这条提升为系列共享资产（需要项目属于系列）。
+    - `skip`：保持本集私有。
     """
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not script.series_id:
-        raise HTTPException(status_code=400, detail="Project not in a series")
-    series = pipeline.get_series(script.series_id)
-    if not series:
-        raise HTTPException(status_code=404, detail="Series not found")
+    series = pipeline.get_series(script.series_id) if script.series_id else None
 
-    def apply_list(local_pool_attr: str, series_pool_attr: str, actions: list, frame_ref_attr: Optional[str] = None):
-        local_pool = getattr(script, local_pool_attr)
-        series_pool = getattr(series, series_pool_attr)
+    def apply_list(asset_type: str, field: str, actions: list) -> None:
         for act in actions:
-            local_item = next((x for x in local_pool if x.id == act.local_id), None)
-            if not local_item:
+            if act.action == "skip":
                 continue
             if act.action == "create_new_in_series":
-                # Promote: copy to series pool, drop from local
-                series_pool.append(local_item)
-                local_pool.remove(local_item)
-            elif act.action == "merge_into_series" and act.target_series_id:
-                # Rewire frame references then drop local
-                if frame_ref_attr:
-                    for frame in script.frames:
-                        if frame_ref_attr == "scene_id":
-                            if frame.scene_id == local_item.id:
-                                frame.scene_id = act.target_series_id
-                        elif frame_ref_attr == "character_ids":
-                            frame.character_ids = [
-                                act.target_series_id if cid == local_item.id else cid
-                                for cid in frame.character_ids
-                            ]
-                        elif frame_ref_attr == "prop_ids":
-                            frame.prop_ids = [
-                                act.target_series_id if pid == local_item.id else pid
-                                for pid in frame.prop_ids
-                            ]
-                local_pool.remove(local_item)
-            # skip: do nothing
-        setattr(script, local_pool_attr, local_pool)
-        setattr(series, series_pool_attr, series_pool)
+                if not series:
+                    raise HTTPException(status_code=400, detail="Project not in a series")
+                pool = getattr(script, field)
+                item = next((x for x in pool if x.id == act.local_id), None)
+                if item is None:
+                    continue
+                getattr(series, field).append(item)
+                setattr(script, field, [x for x in pool if x.id != act.local_id])
+                continue
+            target_id = act.target_id or act.target_series_id
+            if target_id:
+                pipeline.link_local_asset(script_id, asset_type, act.local_id, target_id)
 
-    apply_list("characters", "characters", request.characters, "character_ids")
-    apply_list("scenes", "scenes", request.scenes, "scene_id")
-    apply_list("props", "props", request.props, "prop_ids")
+    try:
+        apply_list("character", "characters", request.characters)
+        apply_list("scene", "scenes", request.scenes)
+        apply_list("prop", "props", request.props)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     script.updated_at = time.time()
-    series.updated_at = time.time()
     pipeline.scripts[script_id] = script
-    pipeline.series_store[series.id] = series
     pipeline._save_data()
-    pipeline._save_series_data()
+    if series:
+        series.updated_at = time.time()
+        pipeline.series_store[series.id] = series
+        pipeline._save_series_data()
     return signed_response(script)
+
+
+@app.get("/projects/{script_id}/asset-candidates")
+def list_asset_candidates(script_id: str, asset_type: str = "character"):
+    """本集「关联已有资产」的候选清单。
+
+    来源：系列池 → 全局库 → 本集 → 同系列其它集的私有资产
+    （最后一类带 `needs_promote=True`，合并时会先提升到系列池）。
+    """
+    try:
+        return signed_response({"candidates": pipeline.list_asset_candidates(script_id, asset_type)})
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class LinkAssetRequest(BaseModel):
+    asset_type: str  # "character" | "scene" | "prop"
+    local_id: str
+    target_id: str
+
+
+@app.post("/projects/{script_id}/assets/link")
+def link_project_asset(script_id: str, request: LinkAssetRequest):
+    """把本集的某条资产「关联」到另一条已存在的资产上。
+
+    改写本集分镜里指向本集那条的引用，然后删掉本集那条。目标可以是系列池 /
+    全局库 / 本集另一条 / 同系列其它集的私有资产（后者会先提升为系列资产）。
+    """
+    try:
+        updated = pipeline.link_local_asset(
+            script_id, request.asset_type, request.local_id, request.target_id
+        )
+        return signed_response(updated)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class SetAssetAliasesRequest(BaseModel):
+    asset_type: str  # "character" | "scene" | "prop"
+    asset_id: str
+    aliases: List[str] = Field(default_factory=list)
+
+
+@app.post("/projects/{script_id}/assets/aliases")
+def set_asset_aliases(script_id: str, request: SetAssetAliasesRequest):
+    """覆盖式设置某条资产的别名（空列表 = 清空）。
+
+    别名记住的是「刘玄德 = 刘备」这类判断：关联时自动写入，之后提取同名复用、
+    对齐建议、分镜实体回填都会认。资产可能住在集内 / 系列池 / 全局库，
+    后端按 `_find_asset_with_source` 写到真正持有它的那一层。
+    """
+    try:
+        updated = pipeline.set_asset_aliases(
+            script_id, request.asset_type, request.asset_id, request.aliases
+        )
+        return signed_response(updated)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -2672,7 +2722,7 @@ class CreateVideoTaskRequest(BaseModel):
     workbench_tab: Optional[str] = None  # 't2i_i2v' | 'direct_r2v'
 
 
-def process_video_task(script_id: str, task_id: str):
+def process_video_task(script_id: str, task_id: str, resume: bool = False):
     """Background task to generate video.
 
     The pipeline method has its own try/except that flips status to
@@ -2681,9 +2731,11 @@ def process_video_task(script_id: str, task_id: str):
     that inner handler armed (e.g. `get_script` raising, persistence
     layer crashing). Without it the task would stay forever-`pending`
     and the UI would show an eternal spinner.
+
+    ``resume=True`` 走「回捞」：复用已保存的上游任务号继续等结果。
     """
     try:
-        pipeline.process_video_task(script_id, task_id)
+        pipeline.process_video_task(script_id, task_id, resume=resume)
     except Exception as e:
         logger.exception(f"Error processing video task {task_id}")
         try:
@@ -2776,6 +2828,34 @@ def cancel_video_task(script_id: str, task_id: str):
     )
     if not task:
         raise HTTPException(status_code=404, detail="Video task not found")
+    return signed_response(task)
+
+
+@app.post("/projects/{script_id}/video_tasks/{task_id}/resume", response_model=VideoTask)
+def resume_video_task(script_id: str, task_id: str, background_tasks: BackgroundTasks):
+    """「继续回捞」：拿着已保存的上游任务号接着等结果。
+
+    适用情形都是「上游其实还在跑/已经跑完，我们这边没了」：后端重启、轮询超时、
+    产物下载被中转拦了一下。**不会重新提交**，所以不会重复计费 —— 这是它跟
+    「重试任务」的根本区别（后者是重新生成，会再付一次）。
+
+    没有上游任务号的任务没法回捞（那时候只能重新生成），直接报清楚。
+    """
+    task = pipeline.get_video_task(script_id, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Video task not found")
+    if not task.provider_task_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "这个任务没有上游任务号，没法回捞 —— 上游任务号是从这次改动之后"
+                "才开始保存的。只能重新生成。"
+            ),
+        )
+    task.status = "processing"
+    task.error = None
+    pipeline._save_data()
+    background_tasks.add_task(process_video_task, script_id, task_id, True)
     return signed_response(task)
 
 
@@ -3369,43 +3449,6 @@ def generate_asset_prompt(script_id: str, request: GenerateAssetPromptRequest, b
         raise HTTPException(status_code=502, detail=f"上游模型生成提示词失败：{e}")
 
 
-class BindVoiceRequest(BaseModel):
-    voice_id: str
-    voice_name: str
-
-
-@app.post("/projects/{script_id}/characters/{char_id}/voice", response_model=Script)
-def bind_voice(script_id: str, char_id: str, request: BindVoiceRequest):
-    """Binds a voice to a character."""
-    try:
-        updated_script = pipeline.bind_voice(script_id, char_id, request.voice_id, request.voice_name)
-        return signed_response(updated_script)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-class UpdateVoiceParamsRequest(BaseModel):
-    speed: float = 1.0
-    pitch: float = 1.0
-    volume: int = 50
-
-
-@app.put("/projects/{script_id}/characters/{char_id}/voice_params", response_model=Script)
-def update_voice_params(script_id: str, char_id: str, request: UpdateVoiceParamsRequest):
-    """Updates voice parameters for a character."""
-    script = pipeline.get_script(script_id)
-    if not script:
-        raise HTTPException(status_code=404, detail="Script not found")
-    char = next((c for c in script.characters if c.id == char_id), None)
-    if not char:
-        raise HTTPException(status_code=404, detail="Character not found")
-    char.voice_speed = request.speed
-    char.voice_pitch = request.pitch
-    char.voice_volume = request.volume
-    pipeline._save_data()
-    return signed_response(script)
-
-
 # ─────────────────────────────────────────────────────────────
 # 角色工作台「声音面」—— 生图面的镜像
 #
@@ -3552,230 +3595,18 @@ def delete_character_reference_audio(script_id: str, char_id: str, variant_id: s
     return signed_response(character)
 
 
-@app.get("/voices")
-def get_voices():
-    """Returns list of available voices."""
-    return pipeline.audio_generator.get_available_voices()
-
-
-class VoicePreviewRequest(BaseModel):
-    """PR-3g #3 · request shape for /voice/preview endpoint.
-
-    Backs the Voice picker modal's inline ▶ button. Frontend hits this
-    when user previews a voice card; backend either returns a cached
-    URL or generates fresh audio via TTSProcessor.
-    """
-    voice_id: str
-    text: str
-    speed: float = 1.0
-    pitch: float = 1.0
-    volume: int = 50
-    instructions: Optional[str] = None
-
-
-@app.post("/voice/preview")
-def voice_preview(request: VoicePreviewRequest):
-    """Generate or fetch cached preview audio for a voice.
-
-    Cache key = md5(voice_id|text|speed|pitch|volume|instructions). First
-    call triggers TTSProcessor.synthesize() and writes to
-    output/cache/voice_preview/{key}.mp3. Subsequent identical calls
-    return the cached URL instantly.
-
-    PR-3h #2: handles CUSTOM voices (clones/designs) by looking up
-    series.custom_voices[] for target_model + family overrides — required
-    because cloned voice_ids aren't in static TTS_VOICE_REGISTRY.
-
-    Spec: r2v-workflow-v3-unified.md §4.2.3 (cache strategy) + Q5 b/c.
-    """
-    import hashlib
-    if not pipeline.audio_generator.tts:
-        raise HTTPException(
-            status_code=503,
-            detail="TTS service unavailable. Check DASHSCOPE_API_KEY configuration.",
-        )
-
-    # PR-3h #2: resolve custom voice → target_model/family override
-    custom = pipeline.find_custom_voice(request.voice_id)
-    model_override = custom.target_model if custom else None
-    family_override = custom.family if custom else None
-
-    cache_dir = "output/cache/voice_preview"
-    os.makedirs(cache_dir, exist_ok=True)
-    cache_key = hashlib.md5(
-        f"{request.voice_id}|{request.text}|{request.speed}|{request.pitch}|{request.volume}|{request.instructions or ''}".encode("utf-8")
-    ).hexdigest()
-    cache_path = os.path.join(cache_dir, f"{cache_key}.mp3")
-    cached = os.path.exists(cache_path)
-
-    if not cached:
-        try:
-            pipeline.audio_generator.tts.synthesize(
-                text=request.text,
-                output_path=cache_path,
-                voice=request.voice_id,
-                speech_rate=request.speed,
-                pitch_rate=request.pitch,
-                volume=request.volume,
-                instructions=request.instructions,
-                model_override=model_override,
-                family_override=family_override,
-            )
-        except Exception as e:
-            logger.error(f"[/voice/preview] TTS error voice={request.voice_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"TTS generation failed: {e}")
-
-    # Static mount /files maps to output/, so the relative path under output/
-    # becomes the URL path frontend can hit.
-    url = f"cache/voice_preview/{cache_key}.mp3"
-    return signed_response({"url": url, "cached": cached})
-
-
-# ─────────────────────────────────────────────────────────────
-# PR-3h · Voice clone endpoints
-# Per Q16: series-level scope for custom voices. Frontend uploads audio
-# via existing /upload (gets URL), then calls /voice/clone with that URL.
-# ─────────────────────────────────────────────────────────────
-
-class VoiceCloneRequest(BaseModel):
-    """PR-3h request: clone a voice from a reference audio URL.
-
-    Frontend pre-validates: ≤10MB, MP3/WAV/M4A, ≥16kHz, 10-20s recommended.
-    """
-    series_id: str
-    audio_url: str
-    label: str
-    target_model: str = "cosyvoice-v3.5-plus"
-
-
-@app.post("/voice/clone")
-def voice_clone(request: VoiceCloneRequest):
-    """Create a custom voice by cloning a reference audio sample.
-
-    Per Q15.2: stored at series level so any character in the series can
-    pick from the clone via the VoicePickerModal '我的复刻' tab.
-    """
-    try:
-        custom = pipeline.create_voice_clone(
-            series_id=request.series_id,
-            audio_url=request.audio_url,
-            label=request.label,
-            target_model=request.target_model,
-        )
-        return signed_response(custom)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/series/{series_id}/custom_voices")
-def list_series_custom_voices(series_id: str):
-    """Return all custom voices (clones + designs) in a series."""
-    voices = pipeline.list_custom_voices(series_id)
-    return signed_response(voices)
-
-
-@app.delete("/series/{series_id}/custom_voices/{voice_id}")
-def delete_series_custom_voice(series_id: str, voice_id: str):
-    """Remove a custom voice from a series.
-
-    Note: does NOT delete on dashscope side (24h retention is best-effort).
-    If a character has this voice_id bound, the binding becomes orphaned
-    (frontend should warn before delete in v2).
-    """
-    removed = pipeline.delete_custom_voice(series_id, voice_id)
-    if not removed:
-        raise HTTPException(status_code=404, detail="Custom voice not found")
-    return signed_response({"removed": True})
-
-
-# ─────────────────────────────────────────────────────────────
-# PR-3i · Voice design endpoints
-# Iterative pattern: preview → (tweak prompt) → preview → accept.
-# Each preview mints a NEW voice on dashscope; only accept persists.
-# ─────────────────────────────────────────────────────────────
-
-class VoiceDesignPreviewRequest(BaseModel):
-    voice_prompt: str
-    preview_text: str = "你好，这是一段音色测试。请仔细听一听是否符合预期。"
-    target_model: str = "cosyvoice-v3.5-plus"
-
-
-@app.post("/voice/design/preview")
-def voice_design_preview(request: VoiceDesignPreviewRequest):
-    """Mint a fresh design voice and return a preview audio URL.
-
-    The user re-calls this with a tweaked voice_prompt to iterate.
-    Returns: {voice_id, preview_url, target_model}.
-    """
-    try:
-        result = pipeline.voice_design_preview(
-            voice_prompt=request.voice_prompt,
-            preview_text=request.preview_text,
-            target_model=request.target_model,
-        )
-        return signed_response(result)
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-class VoiceDesignSaveRequest(BaseModel):
-    series_id: str
-    voice_id: str
-    voice_prompt: str
-    label: str
-    target_model: str = "cosyvoice-v3.5-plus"
-
-
-@app.post("/voice/design/accept")
-def voice_design_accept(request: VoiceDesignSaveRequest):
-    """Persist a previewed design voice into series.custom_voices[]."""
-    try:
-        custom = pipeline.voice_design_save(
-            series_id=request.series_id,
-            voice_id=request.voice_id,
-            voice_prompt=request.voice_prompt,
-            label=request.label,
-            target_model=request.target_model,
-        )
-        return signed_response(custom)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-class VoiceDesignTranslateRequest(BaseModel):
-    description: str
-
-
-@app.post("/voice/design/translate")
-def voice_design_translate(request: VoiceDesignTranslateRequest):
-    """LLM helper: character.description → CosyVoice voice_prompt."""
-    if not request.description.strip():
-        raise HTTPException(status_code=400, detail="description is empty")
-    try:
-        voice_prompt = pipeline.translate_character_to_voice_prompt(request.description)
-        return {"voice_prompt": voice_prompt}
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 class GenerateLineAudioRequest(BaseModel):
-    speed: float = 1.0
-    pitch: float = 1.0
-    volume: int = 50
-    instructions: Optional[str] = None  # PR-3j · chip emotion + free text
+    # 情绪标签 + 自由文本，拼进提示词当演绎要求。没有 speed/pitch/volume ——
+    # 产品的音频通道是 seed-audio-1.0 参考生音频，声音由角色的参考音决定。
+    instructions: Optional[str] = None
 
 
 @app.post("/projects/{script_id}/frames/{frame_id}/audio", response_model=Script)
 def generate_line_audio(script_id: str, frame_id: str, request: GenerateLineAudioRequest):
-    """Generates audio for a specific frame with parameters."""
+    """用说话人的参考音给这一帧生成对白音频。"""
     try:
         updated_script = pipeline.generate_dialogue_line(
             script_id, frame_id,
-            request.speed, request.pitch, request.volume,
             instructions=request.instructions,
         )
         return signed_response(updated_script)
@@ -3885,12 +3716,13 @@ def generate_dialogue_audio_batch(script_id: str):
         script = pipeline.get_script(script_id)
         if not script:
             raise HTTPException(status_code=404, detail="Script not found")
-        char_lookup = {c.id: c for c in script.characters}
-        char_name_lookup = {c.name.strip().lower(): c for c in script.characters}
+        # 三层合并交给 pipeline.frame_speaker —— 角色可能住在系列池/全局库里
+        # （同名提取或手动关联之后本集不留副本），判定口径跟真正生成时**必须**同一套，
+        # 否则会出现「这里说没参考音、点单条却能生成」这种两套逻辑打架的情况。
         generated = 0
         skipped = 0
         failed = 0
-        no_voice = 0
+        no_reference = 0
         for frame in script.frames:
             dialogue_text = (
                 (frame.dialogue_structured.line if hasattr(frame, 'dialogue_structured') and frame.dialogue_structured else None)
@@ -3898,22 +3730,9 @@ def generate_dialogue_audio_batch(script_id: str):
             )
             if not dialogue_text:
                 continue
-            speaker = None
-            if frame.character_ids:
-                speaker = char_lookup.get(frame.character_ids[0])
-            speaker_name = frame.speaker or (
-                frame.dialogue_structured.speaker if frame.dialogue_structured else None
-            )
-            if not speaker and speaker_name:
-                key = speaker_name.strip().lower()
-                speaker = char_name_lookup.get(key)
-                if not speaker:
-                    for name, char in char_name_lookup.items():
-                        if key in name or name in key:
-                            speaker = char
-                            break
-            if not speaker or not speaker.voice_id:
-                no_voice += 1
+            speaker = pipeline.frame_speaker(script, frame)
+            if not speaker or not speaker.reference_audio_url:
+                no_reference += 1
                 continue
             if frame.audio_url and not dialogue_audio_is_stale(frame, speaker):
                 skipped += 1
@@ -3924,10 +3743,10 @@ def generate_dialogue_audio_batch(script_id: str):
             except Exception as exc:
                 logger.error(f"[batch_dialogue_audio] frame={frame.id} error={exc}")
                 failed += 1
-        logger.info(f"[batch_dialogue_audio] script={script_id} generated={generated} skipped={skipped} failed={failed} no_voice={no_voice}")
+        logger.info(f"[batch_dialogue_audio] script={script_id} generated={generated} skipped={skipped} failed={failed} no_reference={no_reference}")
         script = pipeline.get_script(script_id)
         response_data = script.model_dump() if hasattr(script, 'model_dump') else script.dict()
-        response_data["_batch_stats"] = {"generated": generated, "skipped": skipped, "failed": failed, "no_voice": no_voice}
+        response_data["_batch_stats"] = {"generated": generated, "skipped": skipped, "failed": failed, "no_reference": no_reference}
         return signed_response(response_data)
     except HTTPException:
         raise

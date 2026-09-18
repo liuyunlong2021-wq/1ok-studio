@@ -1,6 +1,6 @@
 """视频模型路由回归测试。
 
-背景（2026-09-11 线上故障）：项目里存的是 legacy 扁平 id `dola-seedance2.5`，
+背景（2026-09-11 线上故障）：项目里存的是扁平 id（现在如 `海seedance2.5`），
 R2V 自动切换分支用 `model.startswith("jiucaihezi/")` 判断供应商，扁平 id 匹配不上
 任何分支 → 落到 `else: model = "wan2.7-r2v"`，于是用户明明选了韭菜盒子，请求却被
 发给 DashScope，报 `Invalid API-key provided`。
@@ -41,17 +41,17 @@ def _task_of(pipeline, task_id):
     return next(item for item in script.video_tasks if item.id == task_id)
 
 
-def test_legacy_flat_jiucaihezi_id_is_not_switched_to_wan():
-    """dola-seedance2.5（扁平 id）必须保持原样，不能被换成 wan2.7-r2v。"""
+def test_flat_jiucaihezi_id_is_not_switched_to_wan():
+    """海seedance2.5（扁平 id）必须保持原样，不能被换成 wan2.7-r2v。"""
     pipeline = _pipeline_with_script()
 
     _, task_id = pipeline.create_video_task(
-        "project-1", "", "prompt", model="dola-seedance2.5", generation_mode="r2v",
+        "project-1", "", "prompt", model="海seedance2.5", generation_mode="r2v",
         reference_image_urls=["https://x/1.png"], source_frame_ids=["shot-1", "shot-2"],
     )
 
     task = _task_of(pipeline, task_id)
-    assert task.model == "dola-seedance2.5", f"legacy 韭菜盒子 id 被换成了 {task.model}"
+    assert task.model == "海seedance2.5", f"扁平韭菜盒子 id 被换成了 {task.model}"
     assert task.duration == 30
     assert task.resolution == "720p"
 
@@ -61,12 +61,12 @@ def test_prefixed_jiucaihezi_id_is_not_switched():
     pipeline = _pipeline_with_script()
 
     _, task_id = pipeline.create_video_task(
-        "project-1", "", "prompt", model="jiucaihezi/dola-seedance2.5", generation_mode="r2v",
+        "project-1", "", "prompt", model="jiucaihezi/海seedance2.5", generation_mode="r2v",
         reference_image_urls=["https://x/1.png"], source_frame_ids=["shot-1"],
     )
 
     task = _task_of(pipeline, task_id)
-    assert task.model == "jiucaihezi/dola-seedance2.5"
+    assert task.model == "jiucaihezi/海seedance2.5"
 
 
 def test_unregistered_model_falls_back_to_catalog_r2v_default():
@@ -86,7 +86,7 @@ def test_unregistered_model_falls_back_to_catalog_r2v_default():
 
     task = _task_of(pipeline, task_id)
     assert task.model == get_default_model_settings().r2v_model
-    assert task.model == "dola-seedance2.5"
+    assert task.model == "海seedance2.5"
 
 
 def test_missing_model_uses_catalog_i2v_default():

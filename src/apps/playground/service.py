@@ -247,6 +247,9 @@ class PlaygroundService:
             "model_name": gen.model_id,
             "size": gen.parameters.get("size", "1024x1024"),
             "n": 1,
+            # 只有声明了 quality 的模型（如 gpt-image-2.5-菠萝）在 UI 里能选到；
+            # 其余模型这里是 None，适配器会跳过不发给网关。
+            "quality": gen.parameters.get("quality"),
         }
         if gen.mode == PlaygroundMode.I2I:
             kwargs["ref_image_paths"] = list(gen.input_media)

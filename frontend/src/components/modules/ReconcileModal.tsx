@@ -1,22 +1,23 @@
 "use client";
 /**
- * ReconcileModal — R2V v2 Phase 4 cross-episode asset reconcile.
+ * ReconcileModal — 跨集资产对齐（R2V v2 Phase 4 的 Phase 4 弹窗）。
  *
- * Triggered after Script step "提取实体" completes (only when episode is
- * part of a series). Shows AI-suggested matches between the just-extracted
- * entities and the parent series's shared library, defaulting to accept
- * the recommendation. Per Q6 design (A2 + Q6.1):
- *   · default = all "merge_into_series" for high-confidence (≥75)
- *   · default = all "create_new_in_series" for low-confidence (<75)
- *   · User can override per-row via inline dropdown
- *   · "[全部确认]" applies in one click
- *   · "[去 Cast 查看 →]" navigates to Step 3 after apply
+ * 触发方式：资产库顶部「与系列对齐」按钮，**用户自己点**（不再靠提取后自动弹）。
+ * 匹配池由后端 `list_asset_candidates` 给：系列池 + 全局库 + 本集 + 同系列其它集，
+ * 所以"第一集和第九集场景一样"这种跨集重复现在能匹配到。
+ *
+ * 每行默认动作：
+ *   · conf ≥ 75 且命中目标 → merge（合并到目标那条）
+ *   · 否则 → create_new_in_series（提升为系列共享），无系列的项目则 skip
+ * 用户可以逐行改，或一键全部确认。
  */
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Check, X, Users, MapPin, Box, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api, type ReconcileSuggestion, type ReconcileAction } from "@/lib/api";
+import { errorMessage } from "@/lib/utils";
+import { assetSourceLabel } from "@/lib/assetSourceLabel";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 
 interface ReconcileModalProps {
@@ -33,12 +34,13 @@ type Kind = "character" | "scene" | "prop";
 interface Row {
     kind: Kind;
     suggestion: ReconcileSuggestion;
-    action: "merge_into_series" | "create_new_in_series" | "skip";
+    action: "merge" | "create_new_in_series" | "skip";
 }
 
 export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }: ReconcileModalProps) {
     const t = useTranslations("reconcile");
     const [rows, setRows] = useState<Row[] | null>(null);
+    const [hasSeries, setHasSeries] = useState(true);
     const [loading, setLoading] = useState(false);
     const [applying, setApplying] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,16 +54,19 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
         api.getReconcileSuggestions(scriptId)
             .then(data => {
                 if (cancelled) return;
+                const canPromote = data.has_series;
+                setHasSeries(canPromote);
                 const init: Row[] = [];
                 const seed = (kind: Kind, list: ReconcileSuggestion[]) => {
                     for (const s of list) {
                         init.push({
                             kind,
                             suggestion: s,
-                            // Default: high-confidence (>=75) → merge; else → new
-                            action: s.confidence >= 75 && s.suggested_series_id
-                                ? "merge_into_series"
-                                : "create_new_in_series",
+                            // 默认：高置信度且有目标 → 合并；否则提升为系列共享；
+                            // 不属于系列的项目没地方提升，保持本集。
+                            action: s.confidence >= 75 && s.suggested_target_id
+                                ? "merge"
+                                : (canPromote ? "create_new_in_series" : "skip"),
                         });
                     }
                 };
@@ -72,7 +77,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
             })
             .catch(err => {
                 if (cancelled) return;
-                setError(err?.response?.data?.detail || err?.message || "Load failed");
+                setError(errorMessage(err, "加载失败"));
             })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
@@ -83,7 +88,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
         if (!rows) return base;
         base.total = rows.length;
         for (const r of rows) {
-            if (r.action === "merge_into_series") base.merge++;
+            if (r.action === "merge") base.merge++;
             else if (r.action === "create_new_in_series") base.create++;
             else base.skip++;
         }
@@ -100,7 +105,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
             const act: ReconcileAction = {
                 local_id: r.suggestion.local_id,
                 action: r.action,
-                target_series_id: r.action === "merge_into_series" ? (r.suggestion.suggested_series_id ?? undefined) : undefined,
+                target_id: r.action === "merge" ? (r.suggestion.suggested_target_id ?? undefined) : undefined,
             };
             if (r.kind === "character") payload.characters.push(act);
             else if (r.kind === "scene") payload.scenes.push(act);
@@ -121,7 +126,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
                 document.dispatchEvent(new CustomEvent("1okstudio:navigateStep", { detail: "cast" }));
             }
         } catch (err: any) {
-            setError(err?.response?.data?.detail || err?.message || "Apply failed");
+            setError(errorMessage(err, "应用失败"));
         } finally {
             setApplying(false);
         }
@@ -187,6 +192,7 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
                                         <ReconcileRow
                                             key={`${row.kind}-${row.suggestion.local_id}`}
                                             row={row}
+                                            hasSeries={hasSeries}
                                             onActionChange={(action) => handleSetAction(idx, action)}
                                         />
                                     ))}
@@ -235,23 +241,31 @@ export default function ReconcileModal({ isOpen, scriptId, onClose, onApplied }:
     );
 }
 
-function ReconcileRow({ row, onActionChange }: { row: Row; onActionChange: (a: Row["action"]) => void }) {
+function ReconcileRow({ row, hasSeries, onActionChange }: { row: Row; hasSeries: boolean; onActionChange: (a: Row["action"]) => void }) {
     const t = useTranslations("reconcile");
+    const tSource = useTranslations("assetSource");
     const Icon = row.kind === "character" ? Users : row.kind === "scene" ? MapPin : Box;
-    const isHighConf = row.suggestion.confidence >= 75;
-    const isMediumConf = row.suggestion.confidence > 0 && row.suggestion.confidence < 75;
     const conf = row.suggestion.confidence;
+    const hasTarget = !!row.suggestion.suggested_target_id;
+    const isHighConf = conf >= 75;
+    const isMediumConf = conf > 0 && conf < 75;
+    // 目标住在哪一层：系列 / 全局库 / 同系列别的集（后者合并时会先提升）
+    const kind = row.suggestion.suggested_target_kind;
+    const targetLabel = assetSourceLabel(kind, tSource, row.suggestion.suggested_target_episode_title);
     return (
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-glass-border bg-glass">
             <Icon size={14} className="shrink-0 text-text-muted" />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     <span className="font-sans text-[0.8125rem] font-medium text-foreground truncate">{row.suggestion.local_name}</span>
-                    {row.suggestion.suggested_series_id && (
+                    {hasTarget ? (
                         <>
                             <span className="font-mono text-[0.625rem] text-text-muted">→</span>
                             <span className={`font-sans text-[0.8125rem] truncate ${isHighConf ? 'text-foreground' : 'text-text-secondary'}`}>
-                                {row.suggestion.suggested_series_name}
+                                {row.suggestion.suggested_target_name}
+                            </span>
+                            <span className="font-mono text-[0.59375rem] px-1.5 py-0.5 rounded-full bg-glass text-text-muted whitespace-nowrap" title={kind === "episode" ? tSource("promoteHint") : undefined}>
+                                {targetLabel}
                             </span>
                             <span
                                 className={`font-mono text-[0.59375rem] px-1.5 py-0.5 rounded-full ${
@@ -263,8 +277,7 @@ function ReconcileRow({ row, onActionChange }: { row: Row; onActionChange: (a: R
                                 {conf}%
                             </span>
                         </>
-                    )}
-                    {!row.suggestion.suggested_series_id && (
+                    ) : (
                         <span className="font-mono text-[0.59375rem] px-1.5 py-0.5 rounded-full bg-pink-400/15 text-pink-300">
                             {t("new")}
                         </span>
@@ -278,17 +291,19 @@ function ReconcileRow({ row, onActionChange }: { row: Row; onActionChange: (a: R
                     onChange={(e) => onActionChange(e.target.value as Row["action"])}
                     className="bg-input-bg border border-glass-border rounded px-2 py-1 text-[0.71875rem] text-foreground focus:outline-none focus:border-primary"
                 >
-                    {row.suggestion.suggested_series_id && (
-                        <option value="merge_into_series">{t("actionMerge")}</option>
+                    {hasTarget && (
+                        <option value="merge">{t("actionMerge")}</option>
                     )}
-                    <option value="create_new_in_series">{t("actionCreateNew")}</option>
+                    {hasSeries && (
+                        <option value="create_new_in_series">{t("actionCreateNew")}</option>
+                    )}
                     <option value="skip">{t("actionSkip")}</option>
                 </select>
             </div>
             {/* Status checkmark */}
             <div className="shrink-0 w-5 grid place-items-center">
                 {row.action !== "skip" ? (
-                    <Check size={14} className={row.action === "merge_into_series" ? "text-primary" : "text-pink-300"} />
+                    <Check size={14} className={row.action === "merge" ? "text-primary" : "text-pink-300"} />
                 ) : (
                     <X size={14} className="text-text-muted" />
                 )}

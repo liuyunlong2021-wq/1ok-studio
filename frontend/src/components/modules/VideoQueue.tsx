@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, RefreshCw, Copy, Download, FolderOpen, AlertCircle, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { VideoTask } from "@/lib/api";
+import { api, VideoTask } from "@/lib/api";
 import { revealMedia, saveMedia } from "@/lib/mediaActions";
 import { getAssetUrl } from "@/lib/utils";
 import { toast } from "@/store/toastStore";
+import { useProjectStore } from "@/store/projectStore";
 import FrameExtractOverlay from "./FrameExtractOverlay";
 
 interface VideoQueueProps {
@@ -16,6 +17,27 @@ interface VideoQueueProps {
     onRemix: (task: VideoTask) => void;
     /** 截到帧之后交给上层，最终会进「参考图」。不传则不显示截帧按钮。 */
     onExtractFrame?: (task: VideoTask, file: File, name: string) => void;
+}
+
+/** 任务的某个时间点 → `HH:MM`（跨天补月/日）。跟用户看后端日志的时间一致（本地时区）。 */
+function formatTaskTime(seconds?: number): string {
+    if (!seconds) return "";
+    const at = new Date(seconds * 1000);
+    const now = new Date();
+    const clock = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+    return at.toDateString() === now.toDateString()
+        ? clock
+        : `${at.getMonth() + 1}/${at.getDate()} ${clock}`;
+}
+
+/** 两时间点之间的时长 → `3 分 12 秒` / `1 小时 4 分`。end 缺省 = 到现在（正在跑）。 */
+function formatElapsed(fromSeconds?: number, toSeconds?: number): string {
+    if (!fromSeconds) return "";
+    const total = Math.max(0, Math.floor((toSeconds || Date.now() / 1000) - fromSeconds));
+    const minutes = Math.floor(total / 60);
+    if (minutes < 1) return `${total} 秒`;
+    if (minutes < 60) return `${minutes} 分 ${total % 60} 秒`;
+    return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分`;
 }
 
 export default function VideoQueue({ tasks, onRemix, onExtractFrame }: VideoQueueProps) {
@@ -83,10 +105,59 @@ export default function VideoQueue({ tasks, onRemix, onExtractFrame }: VideoQueu
 function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix: (t: VideoTask) => void; onExtractFrame?: (t: VideoTask, file: File, name: string) => void }) {
     const [extracting, setExtracting] = useState(false);
     const [mediaAction, setMediaAction] = useState<"download" | "open" | null>(null);
+    const [resuming, setResuming] = useState(false);
+    const [canceling, setCanceling] = useState(false);
     const tv = useTranslations("video");
     const isCompleted = task.status === "completed";
     const isProcessing = task.status === "processing" || task.status === "pending";
     const isFailed = task.status === "failed";
+
+    /**
+     * 「继续回捞」：让后端拿已保存的上游任务号接着等结果。
+     *
+     * 点完立刻把项目拉一次 —— 后端会把状态翻回 processing，列表就跟着回到「生成中」，
+     * 之后由上层已有的轮询接着刷。这里不自己起定时器，避免两套轮询打架。
+     */
+    const handleResume = async () => {
+        if (resuming) return;
+        setResuming(true);
+        try {
+            await api.resumeVideoTask(task.project_id, task.id);
+            const fresh = await api.getProject(task.project_id);
+            if (fresh) useProjectStore.getState().updateProject(task.project_id, fresh);
+            toast.success(tv("resumeStarted"));
+        } catch (error) {
+            toast.error(tv("resumeFailed"), { body: error instanceof Error ? error.message : undefined });
+        } finally {
+            setResuming(false);
+        }
+    };
+
+    /**
+     * 取消：只是**不再等它**，上游那条任务不会因此停下（网关没有强制中断的接口）。
+     * 所以文案要说实话 —— 跑完了还能用「继续回捞」把结果取回来，钱不会白花。
+     */
+    const handleCancel = async () => {
+        if (canceling) return;
+        setCanceling(true);
+        try {
+            await api.cancelVideoTask(task.project_id, task.id);
+            const fresh = await api.getProject(task.project_id);
+            if (fresh) useProjectStore.getState().updateProject(task.project_id, fresh);
+            toast.success(tv("canceled"));
+        } catch (error) {
+            toast.error(tv("cancelFailed"), { body: error instanceof Error ? error.message : undefined });
+        } finally {
+            setCanceling(false);
+        }
+    };
+
+    const submittedAt = formatTaskTime(task.created_at);
+    const startedAt = formatTaskTime(task.started_at);
+    const finishedAt = formatTaskTime(task.finished_at);
+    // 正在跑：从开始算到现在；已结束：从开始算到结束。父组件 5 秒轮询一次，
+    // 这个读数会跟着刷新，不用自己起定时器。
+    const elapsed = formatElapsed(task.started_at || task.created_at, task.finished_at);
 
 
     const getDisplayUrl = (url: string) => {
@@ -170,6 +241,21 @@ function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix:
                         </div>
                         <p className="text-xs text-text-secondary truncate">{task.prompt}</p>
                         {!!task.source_frame_ids?.length && <p className="mt-1 text-[0.625rem] text-text-muted">{task.source_frame_ids.length} 个连续镜头 · {task.reference_image_urls?.length || 0} 张参考图 · {task.duration}s</p>}
+                        {/* 时间与用时：出错时拿这两个读数去后端日志里对时间点。 */}
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[0.59375rem] text-text-muted">
+                                {tv("submittedAt", { time: submittedAt })}
+                                {elapsed ? ` · ${tv("elapsed", { elapsed })}` : ""}
+                            </span>
+                            <button
+                                onClick={handleCancel}
+                                disabled={canceling}
+                                title={tv("cancelHint")}
+                                className="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] text-text-muted transition-colors hover:bg-hover-bg hover:text-foreground disabled:opacity-50"
+                            >
+                                {canceling ? tv("canceling") : tv("cancel")}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -180,6 +266,13 @@ function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix:
                     {/* Header */}
                     <div className="px-3 py-2 border-b border-border-subtle flex justify-between items-center bg-glass">
                         <span className="text-xs font-mono text-text-muted">#{task.id.slice(0, 6)}</span>
+                        {/* 完成时间 + 用时：抽卡挑版本时也能看出哪个是刚出的。 */}
+                        {finishedAt && (
+                            <span className="font-mono text-[0.59375rem] text-text-muted">
+                                {tv("completedAt", { time: finishedAt })}
+                                {elapsed ? ` · ${tv("tookTime", { elapsed })}` : ""}
+                            </span>
+                        )}
                         <div className="flex gap-2">
                             <button
                                 onClick={() => onRemix(task)}
@@ -312,14 +405,42 @@ function TaskCard({ task, onRemix, onExtractFrame }: { task: VideoTask; onRemix:
                     <div className="flex items-center gap-2 text-red-400 mb-2">
                         <AlertCircle size={16} />
                         <span className="text-sm font-medium">{tv("genFailed")}</span>
+                        {/* 失败时间点 + 用时：跟后端日志对得上的两个读数。 */}
+                        {finishedAt && (
+                            <span className="ml-auto font-mono text-[0.59375rem] text-text-muted">
+                                {tv("failedAt", { time: finishedAt })}
+                                {elapsed ? ` · ${tv("tookTime", { elapsed })}` : ""}
+                            </span>
+                        )}
                     </div>
                     <p className="text-xs text-text-muted mb-3">{task.error || tv("unknownError")}</p>
-                    <button
-                        onClick={() => onRemix(task)}
-                        className="w-full py-1.5 bg-glass hover:bg-hover-bg rounded text-xs text-text-secondary transition-colors"
-                    >
-                        {tv("retryTask")}
-                    </button>
+                    {/* 有上游任务号时，先给「继续回捞」：上游可能还在跑或已经跑完，
+                        接着等就行 —— 重新生成会再付一次费。 */}
+                    {task.provider_task_id ? (
+                        <div className="space-y-2">
+                            <button
+                                onClick={handleResume}
+                                disabled={resuming}
+                                className="w-full py-1.5 rounded text-xs font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
+                            >
+                                {resuming ? tv("resuming") : tv("resumeTask")}
+                            </button>
+                            <p className="text-[0.625rem] text-text-muted">{tv("resumeHint")}</p>
+                            <button
+                                onClick={() => onRemix(task)}
+                                className="w-full py-1.5 bg-glass hover:bg-hover-bg rounded text-xs text-text-muted transition-colors"
+                            >
+                                {tv("retryTaskPlain")}
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => onRemix(task)}
+                            className="w-full py-1.5 bg-glass hover:bg-hover-bg rounded text-xs text-text-secondary transition-colors"
+                        >
+                            {tv("retryTask")}
+                        </button>
+                    )}
                 </div>
             )}
         </motion.div>

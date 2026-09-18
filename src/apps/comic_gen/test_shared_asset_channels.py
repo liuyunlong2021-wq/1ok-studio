@@ -30,6 +30,7 @@ from src.apps.comic_gen.models import (
     Prop,
     Script,
     Series,
+    StoryboardFrame,
     GlobalAssetLibrary,
 )
 
@@ -204,21 +205,33 @@ def test_upload_variant_routes_to_scene_and_prop_image_asset(tmp_path, asset_typ
 # --------------------------------------------------------------------------
 # promote
 # --------------------------------------------------------------------------
-def test_promote_from_project_and_series(tmp_path):
+def test_promote_moves_asset_into_library_and_keeps_id(tmp_path):
+    """提升 = 移动 + 沿用原 id。
+
+    复制 + 新 id 会让合并（按 id 去重）在每个项目里多出一张同名卡；
+    沿用 id 才能让已有的帧引用自动继续生效。
+    """
     proj = _script(sid="p1", characters=[_char("pc", "proj-char")])
     ser = _series(sid="S", scenes=[_scene("ss", "ser-scene")])
     p = _bare_pipeline(tmp_path, scripts={"p1": proj}, series_store={"S": ser})
 
     promoted_c = p.promote_asset_to_library("project", "p1", "character", "pc")
-    assert promoted_c.id != "pc"  # fresh id
+    assert promoted_c.id == "pc"  # 沿用原 id
     assert promoted_c.name == "proj-char"
-    assert any(c.id == promoted_c.id for c in p.list_library_assets().characters)
-    # original left intact
-    assert proj.characters[0].id == "pc"
+    assert [c.id for c in p.list_library_assets().characters] == ["pc"]
+    assert proj.characters == []  # 源池那条被搬走，不是留一份副本
 
     promoted_s = p.promote_asset_to_library("series", "S", "scene", "ss")
-    assert promoted_s.id != "ss" and promoted_s.name == "ser-scene"
-    assert ser.scenes[0].id == "ss"  # original intact
+    assert promoted_s.id == "ss" and promoted_s.name == "ser-scene"
+    assert ser.scenes == []
+
+    # 两个池子都落盘了
+    assert json.loads(open(p.library_data_file).read())["scenes"][0]["id"] == "ss"
+    assert json.loads(open(p.series_data_file).read())["S"]["scenes"] == []
+
+    # 已在全局库里 -> 拒绝重复提升（不报错的话会变成两条同 id 记录）
+    with pytest.raises(ValueError):
+        p.promote_asset_to_library("series", "S", "scene", "ss")
 
     # 404-ish ValueErrors
     with pytest.raises(ValueError):
@@ -227,6 +240,275 @@ def test_promote_from_project_and_series(tmp_path):
         p.promote_asset_to_library("project", "p1", "character", "ghost")
     with pytest.raises(ValueError):
         p.promote_asset_to_library("badkind", "p1", "character", "pc")
+
+
+def test_delete_series_asset_finds_the_owning_episode(tmp_path):
+    """删系列资产要认归属。
+
+    资产躺在某一集的本地池里时，旧实现拿"该系列的第一集"去删，
+    `_find_asset_with_source` 找不到就报 not found —— 在别的集里删一个
+    本集新建的角色必然失败。
+    """
+    ep1 = _script(sid="ep1", series_id="S")
+    ep2 = _script(sid="ep2", series_id="S", characters=[_char("c2", "ep2-only")])
+    ser = _series(sid="S", characters=[_char("cs", "series-char")])
+    # ep1 排在前面 —— 正是旧实现会误选的那一集
+    p = _bare_pipeline(tmp_path, series_store={"S": ser}, scripts={"ep1": ep1, "ep2": ep2})
+
+    p.delete_series_asset("S", "character", "c2")
+    assert ep2.characters == []
+    assert ep1.characters == []
+
+    # 系列池那条同样删得掉（走任一集回落到系列池）
+    p.delete_series_asset("S", "character", "cs")
+    assert ser.characters == []
+
+    with pytest.raises(ValueError):
+        p.delete_series_asset("S", "character", "ghost")
+    with pytest.raises(ValueError):
+        p.delete_series_asset("nope", "character", "cs")
+
+
+# --------------------------------------------------------------------------
+# 跨集复用：候选清单 + 关联（合并）
+# --------------------------------------------------------------------------
+def _frame(fid, scene="", chars=None, props=None):
+    return StoryboardFrame(
+        id=fid, scene_id=scene, character_ids=list(chars or []), prop_ids=list(props or [])
+    )
+
+
+def test_asset_candidates_cover_three_layers_and_flag_siblings(tmp_path):
+    """候选顺序 = 系列 → 全局 → 本集 → 其它集（后者需要先提升）。"""
+    global_char = _char("gl", "全局角色")
+    series_char = _char("sc", "系列角色")
+    sibling_char = _char("sib", "第1集私有角色")
+    mine = _char("mine", "本集角色")
+    ep1 = _script(sid="ep1", series_id="S", characters=[sibling_char])
+    ep2 = _script(sid="ep2", series_id="S", characters=[mine])
+    p = _bare_pipeline(
+        tmp_path,
+        library=GlobalAssetLibrary(characters=[global_char]),
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep1": ep1, "ep2": ep2},
+    )
+
+    cands = p.list_asset_candidates("ep2", "character")
+    by_id = {c["id"]: c for c in cands}
+
+    assert [c["id"] for c in cands][:3] == ["sc", "gl", "mine"]
+    assert by_id["sc"]["source"] == "series" and by_id["sc"]["needs_promote"] is False
+    assert by_id["gl"]["source"] == "global"
+    assert by_id["mine"]["source"] == "episode"
+    assert by_id["mine"]["needs_promote"] is False
+    # 同系列其它集的私有资产：帧引用解析不到，标出来让调用方先提升
+    assert by_id["sib"]["needs_promote"] is True
+    assert by_id["sib"]["owner_episode_id"] == "ep1"
+    assert by_id["sib"]["owner_episode_title"] == "title-ep1"
+
+    with pytest.raises(ValueError):
+        p.list_asset_candidates("ep2", "video")
+    with pytest.raises(ValueError):
+        p.list_asset_candidates("nope", "character")
+
+
+def test_link_local_asset_merges_into_series_asset_and_rewrites_frames(tmp_path):
+    series_char = _char("sc", "刘备")
+    ep = _script(sid="ep2", series_id="S", characters=[_char("local", "刘玄德")])
+    ep.frames = [
+        _frame("f1", scene="scene-1", chars=["local", "other"]),
+        _frame("f2", scene="scene-1", chars=["other"]),
+    ]
+    p = _bare_pipeline(
+        tmp_path,
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep2": ep},
+    )
+
+    p.link_local_asset("ep2", "character", "local", "sc")
+
+    assert ep.characters == []                             # 本集那条被合并掉
+    assert ep.frames[0].character_ids == ["sc", "other"]   # 帧引用改写
+    assert ep.frames[1].character_ids == ["other"]          # 没引用到的不动
+
+
+def test_link_local_asset_promotes_sibling_asset_to_series(tmp_path):
+    """目标在同系列别的集里：先提升为系列资产（沿用原 id），再合并。"""
+    ep1 = _script(sid="ep1", series_id="S", characters=[_char("sib", "第1集的刘备")])
+    ep1.frames = [_frame("ep1f", scene="s1", chars=["sib"])]
+    ep2 = _script(sid="ep2", series_id="S", characters=[_char("local", "刘备")])
+    ep2.frames = [_frame("ep2f", scene="s2", chars=["local"])]
+    ser = _series(sid="S")
+    p = _bare_pipeline(tmp_path, series_store={"S": ser}, scripts={"ep1": ep1, "ep2": ep2})
+
+    p.link_local_asset("ep2", "character", "local", "sib")
+
+    assert [c.id for c in ser.characters] == ["sib"]   # 提升进系列池，id 不变
+    assert ep1.characters == []                         # 从第 1 集摘掉
+    assert ep1.frames[0].character_ids == ["sib"]       # 第 1 集仍解析得到（id 没变）
+    assert ep2.characters == []
+    assert ep2.frames[0].character_ids == ["sib"]
+
+
+def test_link_local_asset_into_global_and_rejects_bad_input(tmp_path):
+    ep = _script(sid="ep2", series_id="S", characters=[_char("local", "本集角色")])
+    p = _bare_pipeline(
+        tmp_path,
+        library=GlobalAssetLibrary(characters=[_char("gl", "全局角色")]),
+        series_store={"S": _series(sid="S")},
+        scripts={"ep2": ep},
+    )
+
+    p.link_local_asset("ep2", "character", "local", "gl")
+    assert ep.characters == []
+
+    with pytest.raises(ValueError):
+        p.link_local_asset("ep2", "character", "ghost", "gl")  # 本集没有这条
+    with pytest.raises(ValueError):
+        p.link_local_asset("ep2", "character", "gl", "gl")     # 不能关联到自己
+    with pytest.raises(ValueError):
+        p.link_local_asset("ep2", "character", "gl", "nope")   # 目标不存在
+
+
+def test_fork_shared_asset_into_project(tmp_path):
+    """取消关联：把共享那条在本集 fork 一份独立副本（新 id），共享那条不动。"""
+    series_char = _char("sc", "刘备")
+    ep = _script(sid="ep2", series_id="S")
+    p = _bare_pipeline(
+        tmp_path,
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep2": ep},
+    )
+
+    forked = p.fork_library_asset_to_project("ep2", "character", "sc")
+
+    assert forked.id != "sc" and forked.name == "刘备"
+    assert [c.id for c in ep.characters] == [forked.id]
+    assert [c.id for c in p.series_store["S"].characters] == ["sc"]
+
+
+# --------------------------------------------------------------------------
+# 提取时的名册 + 同名复用
+# --------------------------------------------------------------------------
+def test_known_entity_roster_covers_three_layers(tmp_path):
+    ep = _script(sid="ep2", series_id="S", characters=[_char("mine", "本集角色")])
+    p = _bare_pipeline(
+        tmp_path,
+        library=GlobalAssetLibrary(characters=[_char("gl", "全局角色")]),
+        series_store={"S": _series(sid="S", characters=[_char("sc", "系列角色")])},
+        scripts={"ep2": ep},
+    )
+
+    roster = p._known_entity_roster(ep)
+
+    assert {e["name"] for e in roster} == {"全局角色", "系列角色", "本集角色"}
+    assert all(e["type"] == "characters" for e in roster)
+    assert all(e["description"] for e in roster)
+
+
+def test_reuse_shared_entities_drops_local_duplicate(tmp_path):
+    """同名复用：系列/全局已有的，本集不再存副本。
+
+    只写 `extracted_description`，不动 `description` —— 后者是生图依据，
+    改它会把用户已经生成好的图标记成过期。
+    """
+    series_char = _char("sc", "刘备")
+    series_char.description = "用户手改过的描述"
+    series_char.description_source = "manual"
+    duplicate = _char("new", "刘备")          # 第 2 集提取出来的同名实体
+    duplicate.description = "剧本新描述"
+    fresh = _char("fresh", "关羽")            # 真·新实体，应该留在本集
+    parsed = _script(
+        sid="ep2", series_id="S",
+        characters=[duplicate, fresh],
+        scenes=[_scene("s1", "涿县城门口")],
+    )
+    p = _bare_pipeline(
+        tmp_path,
+        library=GlobalAssetLibrary(characters=[_char("gl", "全局角色")]),
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep2": _script(sid="ep2", series_id="S")},
+    )
+
+    p._reuse_shared_entities(parsed, p.series_store["S"])
+
+    assert [c.id for c in parsed.characters] == ["fresh"]        # 刘备那份本集不存
+    assert series_char.description == "用户手改过的描述"          # 共享那条的描述不动
+    assert series_char.extracted_description == "剧本新描述"      # 提取到的原文描述留下来
+    assert [s.id for s in parsed.scenes] == ["s1"]               # 场景没有同名共享 → 留下
+
+
+def test_reuse_shared_entities_matches_global_layer_too(tmp_path):
+    parsed = _script(sid="ep2", characters=[_char("new", "全局角色")])
+    p = _bare_pipeline(
+        tmp_path,
+        library=GlobalAssetLibrary(characters=[_char("gl", "全局角色")]),
+        scripts={"ep2": _script(sid="ep2")},
+    )
+
+    p._reuse_shared_entities(parsed, None)
+
+    assert parsed.characters == []
+
+
+# --------------------------------------------------------------------------
+# 别名：关联一次 = 记住这个叫法
+# --------------------------------------------------------------------------
+def test_asset_name_keys_include_aliases():
+    char = _char("c1", "刘备")
+    char.aliases = ["刘玄德", "  ", "玄德公"]
+
+    assert ComicGenPipeline._asset_name_keys(char) == {"刘备", "刘玄德", "玄德公"}
+
+
+def test_link_records_alias_so_next_episode_reuses_it(tmp_path):
+    """关联一次就把被合并的名字记成别名 —— 第 3 集再提取到「刘玄德」直接复用。"""
+    series_char = _char("sc", "刘备")
+    ep2 = _script(sid="ep2", series_id="S", characters=[_char("local", "刘玄德")])
+    p = _bare_pipeline(
+        tmp_path,
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep2": ep2},
+    )
+
+    p.link_local_asset("ep2", "character", "local", "sc")
+    assert series_char.aliases == ["刘玄德"]
+
+    # 第 3 集又提取出「刘玄德」：别名命中，不再建副本
+    parsed = _script(sid="ep3", series_id="S", characters=[_char("new", "刘玄德")])
+    p._reuse_shared_entities(parsed, p.series_store["S"])
+    assert parsed.characters == []
+
+    # 再关联一次同一个叫法，不能叠出第二条别名
+    ep3 = _script(sid="ep3", series_id="S", characters=[_char("l3", "刘玄德")])
+    p.scripts["ep3"] = ep3
+    p.link_local_asset("ep3", "character", "l3", "sc")
+    assert series_char.aliases == ["刘玄德"]
+
+
+def test_set_asset_aliases_routes_to_owning_layer(tmp_path):
+    ep_char = _char("mine", "本集角色")
+    series_char = _char("sc", "系列角色")
+    ep = _script(sid="ep2", series_id="S", characters=[ep_char])
+    p = _bare_pipeline(
+        tmp_path,
+        series_store={"S": _series(sid="S", characters=[series_char])},
+        scripts={"ep2": ep},
+    )
+
+    # 去重 + 去空白，本体名不会进别名表
+    p.set_asset_aliases("ep2", "character", "mine", ["小名", "  小名 ", "本集角色", "   "])
+    assert ep_char.aliases == ["小名"]
+
+    # 系列池那条要写回系列层（这里断言的是内存对象，落盘由 _save_after_asset_mutation 负责）
+    p.set_asset_aliases("ep2", "character", "sc", ["绰号"])
+    assert series_char.aliases == ["绰号"]
+
+    p.set_asset_aliases("ep2", "character", "mine", [])
+    assert ep_char.aliases == []
+
+    with pytest.raises(ValueError):
+        p.set_asset_aliases("ep2", "character", "ghost", ["x"])
 
 
 # --------------------------------------------------------------------------

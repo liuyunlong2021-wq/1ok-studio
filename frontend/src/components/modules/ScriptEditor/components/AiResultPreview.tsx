@@ -2,13 +2,20 @@
 
 import type { Editor } from '@tiptap/react';
 import type { AiPreview } from '../panels/AiPanel';
+import { analyzeText, buildFormattedContent } from '../hooks/usePasteHandler';
 
+/**
+ * 纯文本 → 编辑器节点。
+ *
+ * 走和手动粘贴同一套启发式规则：以前的实现在这里把每行都当 action，
+ * 结果 AI 标准化的剧本进来后场次标题、角色名、对白全部丢结构（左侧场景
+ * 导航和角色面板因此永远是空的）。改格式不许再各写一套解析。
+ */
 export function textToEditorDocument(text: string) {
-  const content = text.replace(/\r\n?/g, '\n').split('\n').map((line) => ({
-    type: 'action',
-    content: line.trim() ? [{ type: 'text', text: line.trim() }] : [],
-  }));
-  return { type: 'doc', content };
+  const normalized = text.replace(/\r\n?/g, '\n');
+  const nodes = buildFormattedContent(normalized, analyzeText(normalized).suggestions);
+  // 空文本也要是个合法 doc，否则 setContent 会清不干净。
+  return { type: 'doc', content: nodes.length ? nodes : [{ type: 'action', content: [] }] };
 }
 
 export function applyAiPreview(editor: Editor, preview: AiPreview) {

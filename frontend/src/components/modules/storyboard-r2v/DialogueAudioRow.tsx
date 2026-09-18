@@ -10,11 +10,10 @@ interface DialogueAudioRowProps {
     scriptId: string;
     frameId: string;
     dialogue: string | undefined;
-    voiceId: string | undefined;
+    referenceAudioUrl: string | undefined;
     audioUrl: string | undefined;
     audioError: string | null | undefined;
     snapshotDialogue?: string;
-    snapshotVoiceId?: string;
     snapshotInstructions?: string;
     onAudioUpdated?: () => void | Promise<void>;
     onUpdateDialogue?: (text: string) => void;
@@ -43,7 +42,7 @@ export default function DialogueAudioRow({
     scriptId,
     frameId,
     dialogue,
-    voiceId,
+    referenceAudioUrl,
     audioUrl,
     audioError,
     snapshotInstructions,
@@ -118,7 +117,7 @@ export default function DialogueAudioRow({
                 scriptId={scriptId}
                 frameId={frameId}
                 dialogue={dialogue}
-                voiceId={voiceId}
+                referenceAudioUrl={referenceAudioUrl}
                 audioUrl={audioUrl}
                 audioError={audioError}
                 snapshotInstructions={snapshotInstructions}
@@ -144,7 +143,7 @@ function DialogueWorkbenchModal({
     scriptId,
     frameId,
     dialogue,
-    voiceId,
+    referenceAudioUrl,
     audioUrl,
     audioError,
     snapshotInstructions,
@@ -164,7 +163,7 @@ function DialogueWorkbenchModal({
     scriptId: string;
     frameId: string;
     dialogue: string | undefined;
-    voiceId: string | undefined;
+    referenceAudioUrl: string | undefined;
     audioUrl: string | undefined;
     audioError: string | null | undefined;
     snapshotInstructions?: string;
@@ -235,12 +234,12 @@ function DialogueWorkbenchModal({
     };
 
     const handleGenerate = async () => {
-        if (!voiceId) { setError(t("noVoiceBound")); return; }
+        if (!referenceAudioUrl) { setError(t("noReferenceAudio")); return; }
         if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; setPlaying(false); }
         setError(null);
         setBusy(true);
         try {
-            const result = await api.generateLineAudio(scriptId, frameId, 1.0, 1.0, 50, instructions);
+            const result = await api.generateLineAudio(scriptId, frameId, instructions);
             const updatedFrame = result?.frames?.find((f: any) => f.id === frameId);
             if (updatedFrame?.audio_error) {
                 setError(updatedFrame.audio_error);
@@ -344,8 +343,8 @@ function DialogueWorkbenchModal({
                             <section className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[0.75rem] font-medium text-text-secondary">{t("stepDialogueText")}</span>
-                                    {!voiceId && (
-                                        <span className="text-[0.625rem] text-accent">{t("needVoiceBindingHint")}</span>
+                                    {!referenceAudioUrl && (
+                                        <span className="text-[0.625rem] text-accent">{t("needReferenceAudioHint")}</span>
                                     )}
                                 </div>
                                 <textarea
@@ -358,7 +357,7 @@ function DialogueWorkbenchModal({
                                 />
                             </section>
 
-                            {/* Step 2: Emotion + TTS generation */}
+                            {/* Step 2: Emotion + reference-audio generation */}
                             <section className="space-y-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[0.75rem] font-medium text-text-secondary">{t("stepEmotionGen")}</span>
@@ -388,7 +387,7 @@ function DialogueWorkbenchModal({
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleGenerate}
-                                        disabled={busy || !voiceId || !dialogueDraft.trim()}
+                                        disabled={busy || !referenceAudioUrl || !dialogueDraft.trim()}
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/10 text-[0.75rem] font-medium text-primary hover:bg-primary/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         {busy ? <Loader2 size={12} className="animate-spin" /> : <Mic size={12} />}
@@ -400,7 +399,7 @@ function DialogueWorkbenchModal({
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-glass-border bg-black/30 text-[0.75rem] text-text-secondary hover:border-foreground/30 hover:text-foreground transition-colors"
                                         >
                                             {playing ? <Pause size={12} /> : <Play size={12} />}
-                                            {playing ? t("pause") : t("previewTts")}
+                                            {playing ? t("pause") : t("previewAudio")}
                                         </button>
                                     )}
                                     {audioUrl && (
