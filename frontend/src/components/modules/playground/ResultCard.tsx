@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { saveMedia, revealMedia } from '@/lib/mediaActions';
 import { usePlaygroundStore, type PlaygroundGeneration } from './usePlaygroundStore';
+import { toast } from '@/store/toastStore';
 
 interface ResultCardProps {
   generation: PlaygroundGeneration;
@@ -186,8 +187,11 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
   const handleUseAsReference = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!output?.media_path) return;
-    setResultAsReference(output.media_path, output.media_type);
-  }, [output, setResultAsReference]);
+    const result = setResultAsReference(output.media_path, output.media_type);
+    if (result === 'full') toast.error(t('media.refsFull'));
+    else if (result === 'replaced') toast.success(t('media.refReplaced'));
+    else if (result === 'duplicate') toast.success(t('media.refAlreadyAdded'));
+  }, [output, setResultAsReference, t]);
 
   return (
     <div

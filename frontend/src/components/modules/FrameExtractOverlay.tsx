@@ -23,6 +23,8 @@ interface FrameExtractOverlayProps {
     videoPath: string;
     /** 来源标识，例如 "#1ea853"，会拼进帧的名字里 */
     label: string;
+    /** 底部提示文案的 i18n 键（creator 命名空间），默认工作区那条 */
+    hintKey?: string;
     onClose: () => void;
     onExtract: (file: File, name: string) => void;
 }
@@ -48,6 +50,7 @@ function toFilename(label: string, seconds: number): string {
 export default function FrameExtractOverlay({
     videoPath,
     label,
+    hintKey = "frameExtractHint",
     onClose,
     onExtract,
 }: FrameExtractOverlayProps) {
@@ -80,6 +83,15 @@ export default function FrameExtractOverlay({
         video.src = `${getAssetUrl(videoPath)}?extract=${Date.now()}`;
         video.load();
     }, [videoPath]);
+
+    // Esc 关闭。捕获阶段注册，跟详情页/编辑器的键盘惯例一致（内层浮层优先）。
+    useEffect(() => {
+        const handler = (event: KeyboardEvent) => {
+            if (event.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", handler, true);
+        return () => document.removeEventListener("keydown", handler, true);
+    }, [onClose]);
 
     const seek = useCallback((next: number) => {
         const video = videoRef.current;
@@ -242,7 +254,7 @@ export default function FrameExtractOverlay({
                         </button>
                     </div>
 
-                    <p className="text-[0.6875rem] text-text-muted">{t("frameExtractHint")}</p>
+                    <p className="text-[0.6875rem] text-text-muted">{t(hintKey)}</p>
                     {error && <p className="text-xs text-red-400">{error}</p>}
                 </div>
             </div>

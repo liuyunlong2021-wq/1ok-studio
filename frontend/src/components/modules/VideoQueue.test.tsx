@@ -110,7 +110,10 @@ describe('VideoQueue 回捞（上游任务号还在时）', () => {
 // 失败任务要能跟后端日志对上时间，跑着的任务要能停 —— 这两条是「后台成功但界面说
 // 失败」那次的直接补救。
 describe('VideoQueue 时间与取消', () => {
-  const started = Math.floor(Date.now() / 1000) - 372; // 已跑 6 分 12 秒
+  // 在测试内部现算再渲染，把「计算→断言」的窗口压到毫秒级；断言再容忍 1 秒
+  // 漂移（跨秒边界时余数可能刚进位）。模块级 const 在收集时就算好，等测试
+  // 真正跑时已过一段时间，容易偶发失败。
+  const secondsAgo = (n: number) => Math.floor(Date.now() / 1000) - n;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -119,6 +122,7 @@ describe('VideoQueue 时间与取消', () => {
   });
 
   it('生成中的任务显示提交时间与已等时长', () => {
+    const started = secondsAgo(372); // 已跑 6 分 12 秒
     renderWithIntl(
       <VideoQueue
         tasks={[{ ...task, status: 'processing', video_url: undefined, created_at: started, started_at: started }]}
@@ -127,10 +131,11 @@ describe('VideoQueue 时间与取消', () => {
     );
 
     expect(screen.getByText(/提交/)).toBeTruthy();
-    expect(screen.getByText(/已等 6 分 12 秒/)).toBeTruthy();
+    expect(screen.getByText(/已等 6 分 1[23] 秒/)).toBeTruthy();
   });
 
   it('取消按钮只在跑着的时候出现', () => {
+    const started = secondsAgo(372);
     renderWithIntl(
       <VideoQueue tasks={[{ ...task, status: 'processing', video_url: undefined, started_at: started }]} onRemix={vi.fn()} />,
     );
@@ -138,6 +143,7 @@ describe('VideoQueue 时间与取消', () => {
   });
 
   it('已完成的任务不给取消按钮（别让人误点掉成品）', () => {
+    const started = secondsAgo(372);
     renderWithIntl(
       <VideoQueue tasks={[{ ...task, finished_at: started + 60, started_at: started }]} onRemix={vi.fn()} />,
     );
@@ -147,6 +153,7 @@ describe('VideoQueue 时间与取消', () => {
   });
 
   it('点取消会通知后端并刷新项目', async () => {
+    const started = secondsAgo(372);
     renderWithIntl(
       <VideoQueue tasks={[{ ...task, status: 'processing', video_url: undefined, started_at: started }]} onRemix={vi.fn()} />,
     );
@@ -158,6 +165,7 @@ describe('VideoQueue 时间与取消', () => {
   });
 
   it('失败的任务带着失败时间与用时，方便去后端日志里对', () => {
+    const started = secondsAgo(372);
     renderWithIntl(
       <VideoQueue
         tasks={[{

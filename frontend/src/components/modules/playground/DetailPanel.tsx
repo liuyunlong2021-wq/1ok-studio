@@ -14,11 +14,14 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
+  Scissors,
 } from 'lucide-react';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { saveMedia, revealMedia } from '@/lib/mediaActions';
 import { useTranslations } from 'next-intl';
 import { usePlaygroundStore, type PlaygroundGeneration } from './usePlaygroundStore';
+import FrameExtractOverlay from '../FrameExtractOverlay';
+import { toast } from '@/store/toastStore';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -80,6 +83,7 @@ export default function DetailPanel({
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const updateGeneration = usePlaygroundStore((s) => s.updateGeneration);
   const history = usePlaygroundStore((s) => s.history);
   const featuredByGen = usePlaygroundStore((s) => s.featuredByGen);
@@ -120,13 +124,15 @@ export default function DetailPanel({
   // first, so the innermost overlay always wins.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // 截帧浮层开着时键盘归它管 —— 否则 Esc 会把整个详情页关掉。
+      if (extracting) return;
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') navigatePrev();
       if (e.key === 'ArrowRight') navigateNext();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [onClose, navigatePrev, navigateNext]);
+  }, [onClose, navigatePrev, navigateNext, extracting]);
 
   // Lock body scroll
   useEffect(() => {
@@ -165,6 +171,22 @@ export default function DetailPanel({
       await revealMedia(output.media_path);
     } catch (err) {
       console.error('[DetailPanel] Reveal media failed:', err);
+    }
+  };
+
+  // 截帧 → 上传 → 走「用作参考图」的统一加入规则（能追加就追加到末尾，满了/
+  // 单参考模式按规则处理，见 useResultAsReference）。帧来自 canvas 截的 PNG。
+  const handleExtractFrame = async (file: File, _name: string) => {
+    try {
+      const { path } = await playgroundApi.uploadMedia(file);
+      const result = usePlaygroundStore.getState().useResultAsReference(path, 'image');
+      if (result === 'full') toast.error(t('media.refsFull'));
+      else if (result === 'replaced') toast.success(t('media.refReplaced'));
+      else if (result === 'duplicate') toast.success(t('media.refAlreadyAdded'));
+      else toast.success(t('media.frameAdded'));
+    } catch (err) {
+      console.error('[DetailPanel] Frame upload failed:', err);
+      toast.error(t('media.frameUploadFailed'));
     }
   };
 
@@ -447,6 +469,15 @@ export default function DetailPanel({
             {/* Secondary row: Download + Generate Video (neutral ghosts) */}
             {(mediaUrl || (!isVideo && output?.media_path && onGenerateVideo)) && (
               <div className="flex gap-2">
+                {isVideo && output?.media_path && (
+                  <button
+                    onClick={() => setExtracting(true)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-surface-inset border border-glass-border text-text-secondary text-[0.8125rem] font-medium hover:text-foreground hover:bg-hover-bg transition"
+                  >
+                    <Scissors className="w-4 h-4" />
+                    {t('media.extractFrame')}
+                  </button>
+                )}
                 {mediaUrl && (
                   <button
                     onClick={handleDownload}
@@ -489,6 +520,16 @@ export default function DetailPanel({
           </div>
         </div>
       </div>
+
+      {extracting && output?.media_path && (
+        <FrameExtractOverlay
+          videoPath={output.media_path}
+          label={`#${generation.id.slice(0, 6)}`}
+          hintKey="frameExtractHintPlayground"
+          onClose={() => setExtracting(false)}
+          onExtract={handleExtractFrame}
+        />
+      )}
     </>
   );
 

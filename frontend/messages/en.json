@@ -1329,6 +1329,7 @@
     "frameExtractApply": "Extract this frame → add to references",
     "frameExtractWorking": "Extracting…",
     "frameExtractHint": "Scrub to the exact moment, then extract. For pose continuity, pick the frame where positions read clearest; it goes to the first reference slot.",
+    "frameExtractHintPlayground": "Scrub to the exact moment, then extract. The frame joins the references — appended after existing ones in multi-reference modes, replacing the current one in single-reference modes.",
     "frameExtractNoVideo": "This video can't be read — it may be empty or still generating.",
     "frameExtractFailed": "Frame extraction failed.",
     "frameExtractTainted": "Blocked by browser security — the canvas was treated as cross-origin.",
@@ -1668,7 +1669,13 @@
       },
       "labelReferenceOptional": "Reference image (optional)",
       "labelReferenceAudio": "Reference audio",
-      "labelRefMaterialAV": "Reference material (image/video/audio)"
+      "labelRefMaterialAV": "Reference material (image/video/audio)",
+      "extractFrame": "Extract frame",
+      "frameAdded": "Frame added as reference",
+      "frameUploadFailed": "Frame upload failed; reference not added.",
+      "refsFull": "Reference list is full — remove one first",
+      "refReplaced": "Replaced the existing reference (single-reference mode)",
+      "refAlreadyAdded": "Already in the reference list"
     },
     "prompt": {
       "placeholder": "Describe what you want to generate…",

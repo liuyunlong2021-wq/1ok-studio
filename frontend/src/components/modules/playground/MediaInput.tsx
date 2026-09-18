@@ -4,65 +4,14 @@ import { useRef, useState, useCallback } from 'react';
 import { ImagePlus, Film, X, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
-import { usePlaygroundStore, type PlaygroundMode } from './usePlaygroundStore';
+import { usePlaygroundStore } from './usePlaygroundStore';
+import { MODE_CONFIG } from './mediaModes';
 import AssetPickerModal from './AssetPickerModal';
 
 // ---------------------------------------------------------------------------
-// Mode config
+// Mode config（每种模式对输入素材的约束，与引用加入逻辑共用 mediaModes.ts）
 // ---------------------------------------------------------------------------
 
-interface ModeConfig {
-  labelKey: string;
-  accept: string;
-  hintKey: string;
-  multiple: boolean;
-  maxFiles: number;
-  icon: 'image' | 'video' | 'audio';
-}
-
-const MODE_CONFIG: Partial<Record<PlaygroundMode, ModeConfig>> = {
-  t2i: {
-    labelKey: 'media.labelReferenceOptional',
-    accept: 'image/*',
-    hintKey: 't2i',
-    multiple: true,
-    maxFiles: 9,
-    icon: 'image',
-  },
-  i2i: {
-    labelKey: 'compose.mediaReference',
-    accept: 'image/*',
-    hintKey: 'i2i',
-    multiple: false,
-    maxFiles: 1,
-    icon: 'image',
-  },
-  i2v: {
-    labelKey: 'compose.mediaFirstFrame',
-    accept: 'image/*',
-    hintKey: 'i2v',
-    multiple: false,
-    maxFiles: 1,
-    icon: 'image',
-  },
-  r2v: {
-    labelKey: 'compose.mediaReference',
-    accept: 'image/*',
-    hintKey: 'r2v',
-    multiple: true,
-    maxFiles: 9,
-    icon: 'image',
-  },
-  v2v: {
-    labelKey: 'compose.mediaSourceVideo',
-    accept: 'video/*',
-    hintKey: 'v2v',
-    multiple: false,
-    maxFiles: 1,
-    icon: 'video',
-  },
-  r2a: { labelKey: 'compose.mediaReferenceAudio', accept: 'audio/*', hintKey: 'r2a', multiple: true, maxFiles: 3, icon: 'audio' },
-};
 
 // ---------------------------------------------------------------------------
 // Shared style tokens (Line B — semantic tokens only, theme-safe)

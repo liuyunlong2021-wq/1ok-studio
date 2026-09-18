@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { MODE_CONFIG } from './mediaModes';
 
 // ---------------------------------------------------------------------------
 // Featured (best-of-batch) persistence — client-side localStorage only.
@@ -159,15 +160,16 @@ interface PlaygroundState {
   setPrompt: (prompt: string) => void;
   setNegativePrompt: (neg: string) => void;
   setInputMedia: (media: string[]) => void;
-  /** Push a generated result back into the compose panel as reference input,
-   *  switching to the appropriate mode. Image → i2i (default) or i2v when an
-   *  explicit targetMode is given; video → v2v. Respects per-mode model
-   *  preference (same behavior as setMode). */
+  /** Push a generated result back into the compose panel as reference input。
+   *  规则（与截帧入口共用）：当前模式收得下这类素材 → 追加到末尾（已有参考图
+   *  不动，新的排后面）；单参考模式 → 替换唯一一张；收不下 → 切到承接模式
+   *  （video→v2v / audio→r2a / image→i2i，或显式 targetMode）并单独放入；
+   *  满员或重复 → 不动。返回值供调用方提示。 */
   useResultAsReference: (
     mediaPath: string,
     mediaType: 'image' | 'video' | 'audio',
     targetMode?: PlaygroundMode,
-  ) => void;
+  ) => ReferenceAddResult;
   setParameters: (params: Record<string, any>) => void;
   setBatchSize: (size: number) => void;
   setShowAdvancedParams: (show: boolean) => void;
@@ -202,6 +204,9 @@ const DEFAULT_MODE: PlaygroundMode = 't2i';
 const DEFAULT_MODEL_ID = '';
 const DEFAULT_PROMPT = '';
 const DEFAULT_BATCH_SIZE = 1;
+
+/** useResultAsReference 的结果 —— 调用方据此提示（或静默）。 */
+export type ReferenceAddResult = 'appended' | 'replaced' | 'switched' | 'full' | 'duplicate';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -307,7 +312,28 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
   setInputMedia: (inputMedia) => set({ inputMedia }),
 
   useResultAsReference: (mediaPath, mediaType, targetMode) => {
-    const { modelPreferences } = get();
+    const { modelPreferences, mode: currentMode, inputMedia } = get();
+
+    if (inputMedia.includes(mediaPath)) {
+      return 'duplicate';
+    }
+
+    // 当前模式直接收得下：追加（多张）或替换（单张），不动模式。
+    const config = MODE_CONFIG[currentMode];
+    if (config && config.icon === mediaType && !targetMode) {
+      if (config.multiple && inputMedia.length < config.maxFiles) {
+        set({ inputMedia: [...inputMedia, mediaPath] });
+        return 'appended';
+      }
+      if (!config.multiple) {
+        set({ inputMedia: [mediaPath] });
+        return 'replaced';
+      }
+      // 多张模式已满：不顶掉任何一张，交给调用方提示。
+      return 'full';
+    }
+
+    // 收不下（类型不合 / 显式指定目标模式）：切到承接模式并单独放入。
     const mode: PlaygroundMode =
       targetMode ?? (mediaType === 'video' ? 'v2v' : mediaType === 'audio' ? 'r2a' : 'i2i');
     const preferredModel = modelPreferences[mode];
@@ -316,6 +342,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
       inputMedia: [mediaPath],
       ...(preferredModel !== undefined ? { modelId: preferredModel } : {}),
     });
+    return 'switched';
   },
 
   setParameters: (parameters) => set({ parameters }),

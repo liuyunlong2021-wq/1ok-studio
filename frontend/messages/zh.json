@@ -1329,6 +1329,7 @@
     "frameExtractApply": "截此帧 → 加入参考图",
     "frameExtractWorking": "正在截帧…",
     "frameExtractHint": "拖到你要的那一刻再截。位置关系参考建议取人物站位最清楚的一帧；截下来会插到参考图第一位。",
+    "frameExtractHintPlayground": "拖到你要的那一刻再截。截下来会加入参考图：多参考模式追加在末尾（不顶掉已有的），单参考模式会替换现有那张。",
     "frameExtractNoVideo": "这段视频读不出来，可能是空文件或还没生成完。",
     "frameExtractFailed": "截帧失败。",
     "frameExtractTainted": "截帧被浏览器安全策略拦了（画布被判跨域）。",
@@ -1668,7 +1669,13 @@
       },
       "labelReferenceOptional": "参考图片（可选）",
       "labelReferenceAudio": "参考音频",
-      "labelRefMaterialAV": "参考素材（图片/视频/音频）"
+      "labelRefMaterialAV": "参考素材（图片/视频/音频）",
+      "extractFrame": "截帧",
+      "frameAdded": "已截帧并加入参考图",
+      "frameUploadFailed": "截下来的帧上传失败，参考图没加上。",
+      "refsFull": "参考图已满，先移除一张再加入",
+      "refReplaced": "已替换现有的参考图（该模式只支持一张）",
+      "refAlreadyAdded": "已经在参考图里了"
     },
     "prompt": {
       "placeholder": "描述你想生成的内容...",
