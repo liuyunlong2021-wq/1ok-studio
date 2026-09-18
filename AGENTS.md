@@ -411,7 +411,8 @@ Agent runtime（Codex 风格 approval + 独立 planner）：
 ### Configuration
 - API keys can be configured via `.env` file or app settings dialog
 - Model settings can be changed per project via `update_model_settings`
-- In development, `.env` is read from the project root. In packaged mode, `~/.lumen-x/config.json` is used.
+- In development, `.env` is read from the project root. In packaged mode, `~/.1okstudio/config.json` is used.
+  Override the data location with the `ONEOKSTUDIO_DATA_DIR` environment variable.
 
 ### Goal-Driven Execution
 
@@ -441,7 +442,7 @@ Strong success criteria enable autonomous looping; vague criteria like "make it 
 
 ### Logs
 - Backend logs appear in terminal when running start_backend.sh
-- Desktop app logs saved to: `~/.lumen-x/logs/app.log`
+- Desktop app logs saved to: `~/.1okstudio/logs/app.log`
 
 ## Deployment
 - Frontend: Built with Next.js, can be deployed as static files
@@ -486,5 +487,5 @@ Primary: independent creators (self-media, short-video makers) who need to turn 
 CDTR 仅用于 agent 协作工件；**不可** 把 `src/`、`frontend/`、`config/`、`scripts/`、`tests/`、`.codex/workflows/`、运行时数据移入或复制到 CDTR 文件夹。
 
 ### Codex / Claude 命令对偶
-- `.claude/commands/lumenx-*.md` 与 `.codex/workflows/lumenx-*.md` 是同一流程在两个 agent 上的镜像
+- `.claude/commands/one-ok-studio-*.md` 与 `.codex/workflows/one-ok-studio-*.md` 是同一流程在两个 agent 上的镜像
 - 修改任一边时，除非用户明确要求分叉，否则保持行为对等

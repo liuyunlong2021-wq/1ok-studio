@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check behavioral parity between the Claude/Codex mirrored workflow docs.
 
-`.claude/commands/lumenx-*.md` (zh) and `.codex/workflows/lumenx-*.md` (en)
+`.claude/commands/one-ok-studio-*.md` (zh) and `.codex/workflows/one-ok-studio-*.md` (en)
 are intentionally written in different languages, so prose is expected to
 differ. What must NOT drift silently is the behavioral surface:
 
