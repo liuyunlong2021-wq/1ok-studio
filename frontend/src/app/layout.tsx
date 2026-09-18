@@ -1,6 +1,7 @@
 import "./globals.css";
 import EnvConfigChecker from "@/components/EnvConfigChecker";
 import { Providers } from "@/components/Providers";
+import { publicAsset } from "@/lib/publicAsset";
 
 export default function RootLayout({
   children,
@@ -12,7 +13,7 @@ export default function RootLayout({
       <head>
         <title>One OK Studio</title>
         <meta name="description" content="漫剧制作，一个就够。" />
-        <link rel="icon" href="/1ok-logo-preview.svg" type="image/svg+xml" />
+        <link rel="icon" href={publicAsset("/1ok-logo-preview.svg")} type="image/svg+xml" />
         {/* 首屏防闪：html 的 class 要跟 DEFAULT_THEME 一致（否则先按旧主题画一帧，
             内联脚本/Providers 再改，会看到一下颜色跳变）。这里两处 fallback 都要跟着改。 */}
         <script

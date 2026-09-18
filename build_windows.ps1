@@ -99,11 +99,14 @@ if (-not (Test-Path "bin\ffmpeg.exe")) {
 }
 
 # Check if icon file exists
+# 单一源在 src-tauri/icons/（由 ./create_icon.sh 用 `npx tauri icon` 生成），
+# 与 build_mac.sh 用的那份 icns 对应。旧脚本在仓库根找 icon.ico —— 那里从来没有
+# 这个文件，于是打出来的包一律是 PyInstaller 默认图标。
 $iconParam = ""
-if (Test-Path "icon.ico") {
-    $iconParam = "--icon=icon.ico"
+if (Test-Path "src-tauri\icons\icon.ico") {
+    $iconParam = "--icon=src-tauri\icons\icon.ico"
 } else {
-    Write-Host "Note: icon.ico not found, using default icon" -ForegroundColor Yellow
+    Write-Host "Note: src-tauri\icons\icon.ico not found, using default icon (run ./create_icon.sh)" -ForegroundColor Yellow
 }
 
 # Build PyInstaller command arguments
@@ -111,9 +114,10 @@ $pyinstallerArgs = @(
     "--clean",
     "--noconfirm",
     "--onefile",
-    "--name", "TronComic",
+    "--name", "One OK Studio",
     "--windowed",
     "--add-data", "static;static",
+    "--add-data", "src-tauri\icons\icon.ico;src-tauri\icons",
     "--add-data", "src;src",
     "--add-data", "skills;skills",
     "--add-binary", "bin\ffmpeg.exe;.",
@@ -158,10 +162,11 @@ if ($iconParam) {
         "--clean",
         "--noconfirm",
         "--onefile",
-        "--name", "TronComic",
+        "--name", "One OK Studio",
         "--windowed",
         $iconParam,
         "--add-data", "static;static",
+        "--add-data", "src-tauri\icons\icon.ico;src-tauri\icons",
         "--add-data", "src;src",
         "--add-data", "skills;skills",
         "--add-binary", "bin\ffmpeg.exe;.",

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Palette, Wand2, Plus, Check, ChevronRight, Lock, RotateCcw, ArrowUp, AlertTriangle, X, Image as ImageIcon, Pencil } from "lucide-react";
 import { useProjectStore, type StyleConfig, type StylePreset, type StylePresetCategory } from "@/store/projectStore";
 import { api } from "@/lib/api";
+import { publicAsset } from "@/lib/publicAsset";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 import { toast } from "@/store/toastStore";
@@ -964,7 +965,7 @@ function StylePresetCardV2({ style, isSelected, onClick }: {
             <div className="relative aspect-[4/3] bg-elevated overflow-hidden">
                 {style.thumbnail ? (
                     <img
-                        src={style.thumbnail}
+                        src={publicAsset(style.thumbnail)}
                         alt={style.name_zh}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         style={{ objectPosition: style.object_position || "center" }}
@@ -1052,7 +1053,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                     <div className="bg-black/40 flex items-center justify-center p-4 overflow-hidden">
                         {preset.thumbnail ? (
                             <img
-                                src={preset.thumbnail}
+                                src={publicAsset(preset.thumbnail)}
                                 alt={preset.name_zh}
                                 className="max-w-full max-h-full object-contain rounded-lg"
                             />
@@ -1168,7 +1169,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                                 >
                                     {p.thumbnail ? (
                                         <img
-                                            src={p.thumbnail}
+                                            src={publicAsset(p.thumbnail)}
                                             alt={p.name_zh}
                                             className="w-full aspect-[16/9] object-cover"
                                             style={{ objectPosition: p.object_position || "center" }}

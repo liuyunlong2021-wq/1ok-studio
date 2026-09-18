@@ -26,6 +26,7 @@ import { api } from "@/lib/api";
 import { useProjectStore, IMAGE_MODELS } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
 import { getAssetUrl } from "@/lib/utils";
+import { publicAsset } from "@/lib/publicAsset";
 import PreviewImage from "@/components/shared/preview/PreviewImage";
 import GroupedModelGrid from "@/components/common/GroupedModelGrid";
 
@@ -111,14 +112,14 @@ const CHARACTER_TEMPLATES: Record<CharacterTemplate, {
         descKey: "tplSimpleDesc",
         compositionEn: "Composition: character reference sheet, single unified image, seamless layout without borders or frames, neutral gray background. Left half: large head close-up portrait (shoulders up, sharp facial details, front-facing, detailed skin texture). Right half: three equally-sized full-body standing poses arranged side by side (front view, side view, back view), head-to-toe fully visible, relaxed neutral pose. Consistent soft studio lighting across all views, no harsh shadows, even illumination.",
         negativeAppend: "text, labels, watermark, UI overlay, panel borders, frames, multiple separate images",
-        exampleImage: "/assets/templates/simple-triview.png",
+        exampleImage: publicAsset("/assets/templates/simple-triview.png"),
     },
     detailed: {
         labelKey: "tplDetailedLabel",
         descKey: "tplDetailedDesc",
         compositionEn: "Composition: detailed character reference sheet, single unified image, seamless layout without borders or frames, neutral gray background. Left section: three full-body standing views side by side (front / side / back), head-to-toe visible, neutral relaxed pose. Upper right: large face close-up portrait (shoulders up, detailed skin texture, sharp eyes, pores visible). Lower right: three smaller head shots showing different angles (front, three-quarter, profile). Consistent soft studio lighting, no harsh shadows, even illumination across all panels.",
         negativeAppend: "text, labels, watermark, UI overlay, panel borders, frames, multiple separate images",
-        exampleImage: "/assets/templates/detailed-reference.png",
+        exampleImage: publicAsset("/assets/templates/detailed-reference.png"),
     },
     design_sheet: {
         labelKey: "tplDesignSheetLabel",
@@ -126,7 +127,7 @@ const CHARACTER_TEMPLATES: Record<CharacterTemplate, {
         compositionEn: "Composition: professional character design sheet, single unified image with dark cyberpunk-themed background (deep blue-black with subtle neon circuit patterns). Layout divided into labeled panels with thin border frames: - Top left: large dramatic character portrait (bust shot, three-quarter angle, moody rim lighting, glowing blue cybernetic eye) - Center: three full-body standing views (front / side / back) with labels \"正面\" \"侧面\" \"背面\" - Top right: 4 expression close-ups in a row (neutral, smirking, intense focus, combat rage), labeled \"表情特写\" - Bottom left: 3-4 detail close-up panels showing cybernetic eye mechanism, neck circuit tattoo, armor texture, weapon holster, labeled \"细节特写\" - Bottom right: character info panel with dark translucent background containing text fields (name, age, traits, abilities). Cinematic lighting, high detail, concept art quality, game character sheet aesthetic.",
         negativeAppend: "watermark, UI overlay, signature, low quality, distorted anatomy, multiple separate images",
         comingSoon: true,
-        exampleImage: "/assets/templates/design-sheet.png",
+        exampleImage: publicAsset("/assets/templates/design-sheet.png"),
     },
 };
 

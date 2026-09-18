@@ -13,7 +13,7 @@ Visual direction: **Cyber Brutalism × Cinematic Restraint** — 在原本 dark-
 ## Brand Identity v0.2
 
 ### Logo Mark
-- 资产: `LumenX-cybr.png`（栅格化 1024×1024，frontend/public 与本工作区均有副本）
+- 资产: `LumenX-cybr.png`（栅格化 1024×1024，本工作区保留；frontend/public 下的那份副本已删除，应用运行时统一用 `frontend/public/1ok-logo-preview.svg`）
 - 形态: 锐角几何莲花，6 片左右对称花瓣 + 顶部像素化茎杆（5 块方点，3 蓝 2 白）
 - 中央: 棱柱蓝色水晶（#646cff）作为视觉重心
 - 装饰: 花瓣内部 3 段电路线 + 端点蓝色像素

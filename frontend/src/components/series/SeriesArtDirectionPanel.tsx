@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Palette, Check, Trash2, Save, X, Pencil, Image as ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
+import { publicAsset } from "@/lib/publicAsset";
 import { useProjectStore } from "@/store/projectStore";
 import type { Series, StyleConfig, StylePreset, StylePresetCategory } from "@/store/projectStore";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
@@ -256,7 +257,7 @@ export default function SeriesArtDirectionPanel({ seriesId, onSaved }: SeriesArt
                                         <div className="relative aspect-[4/3] bg-elevated overflow-hidden">
                                             {preset.thumbnail ? (
                                                 <img
-                                                    src={preset.thumbnail}
+                                                    src={publicAsset(preset.thumbnail)}
                                                     alt={preset.name_zh}
                                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                                     style={{ objectPosition: preset.object_position || "center" }}
@@ -371,7 +372,7 @@ function SeriesPresetModal({ preset, isSelected, editing, positivePrompt, negati
                 <div className="flex-1 min-h-0 grid grid-cols-[1fr_1fr] overflow-hidden">
                     <div className="bg-black/40 flex items-center justify-center p-4 overflow-hidden">
                         {preset.thumbnail ? (
-                            <img src={preset.thumbnail} alt={preset.name_zh} className="max-w-full max-h-full object-contain rounded-lg" />
+                            <img src={publicAsset(preset.thumbnail)} alt={preset.name_zh} className="max-w-full max-h-full object-contain rounded-lg" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">
                                 <ImageIcon size={48} className="text-text-muted/30" />
@@ -443,7 +444,7 @@ function SeriesPresetModal({ preset, isSelected, editing, positivePrompt, negati
                             {sameCategoryPresets.slice(0, 5).map(p => (
                                 <button key={p.id} onClick={() => onSwitchPreset(p)} className="shrink-0 w-24 rounded-lg overflow-hidden border border-glass-border hover:border-foreground/30 transition-colors">
                                     {p.thumbnail ? (
-                                        <img src={p.thumbnail} alt={p.name_zh} className="w-full aspect-[16/9] object-cover" style={{ objectPosition: p.object_position || "center" }} />
+                                        <img src={publicAsset(p.thumbnail)} alt={p.name_zh} className="w-full aspect-[16/9] object-cover" style={{ objectPosition: p.object_position || "center" }} />
                                     ) : (
                                         <div className="w-full aspect-[16/9] bg-elevated flex items-center justify-center"><ImageIcon size={12} className="text-text-muted/40" /></div>
                                     )}

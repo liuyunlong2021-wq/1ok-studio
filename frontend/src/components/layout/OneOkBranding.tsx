@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSettingsStore, type ThemePreset } from "@/store/settingsStore";
+import { publicAsset } from "@/lib/publicAsset";
 
 interface OneOkBrandingProps {
   size?: "sm" | "md";
@@ -9,12 +10,13 @@ interface OneOkBrandingProps {
 }
 
 // 1OK 品牌标志按主题复用；SVG 自带深色底，适合当前深色工作台。
+// 路径要走 publicAsset —— 带 /static 前缀的生产构建里裸 "/1ok-logo-preview.svg" 是 404。
 const LOGO_SRC: Record<ThemePreset, string> = {
-  "atelier-dark": "/1ok-logo-preview.svg",
-  "bridge-dark": "/1ok-logo-preview.svg",
-  "brand-dark": "/1ok-logo-preview.svg",
-  "atelier-light": "/1ok-logo-preview.svg",
-  "brand-light": "/1ok-logo-preview.svg",
+  "atelier-dark": publicAsset("/1ok-logo-preview.svg"),
+  "bridge-dark": publicAsset("/1ok-logo-preview.svg"),
+  "brand-dark": publicAsset("/1ok-logo-preview.svg"),
+  "atelier-light": publicAsset("/1ok-logo-preview.svg"),
+  "brand-light": publicAsset("/1ok-logo-preview.svg"),
 };
 
 export default function OneOkBranding({ size = "md", showSlogan = true }: OneOkBrandingProps) {
@@ -27,7 +29,7 @@ export default function OneOkBranding({ size = "md", showSlogan = true }: OneOkB
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const activeTheme: ThemePreset = mounted ? theme : "atelier-light";
-  const logoSrc = LOGO_SRC[activeTheme] ?? "/1ok-logo-preview.svg";
+  const logoSrc = LOGO_SRC[activeTheme] ?? publicAsset("/1ok-logo-preview.svg");
 
   return (
     <div>
