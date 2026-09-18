@@ -1,4 +1,5 @@
 import base64
+import logging
 import mimetypes
 import os
 import time
@@ -10,6 +11,48 @@ from .base import VideoGenModel
 from .image import ImageGenModel
 from ..utils.model_catalog import is_minimax_h3_model
 
+
+logger = logging.getLogger(__name__)
+
+
+def _raise_for_status_with_body(response: requests.Response, what: str) -> None:
+    """把上游的响应体带进异常。
+
+    `requests` 的 raise_for_status() 只留一句 "400 Bad Request"，而网关（New API）的
+    body 里写着真正的原因 —— `model not found` / 参数不合法 / 上游 502 之类。丢掉它
+    就只能靠猜，偏偏排障最需要的就是那一句。
+
+    判断仍然交给 raise_for_status() 自己（测试里常把 response 换成 Mock），这里只在
+    它抛错之后补上响应体。
+    """
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        detail = " ".join((response.text or "").split())[:400]
+        if not detail:
+            raise
+        raise requests.exceptions.HTTPError(
+            f"{exc} | upstream says: {detail}",
+            response=response,
+        ) from exc
+
+
+def _log_image_request(endpoint: str, payload: Dict[str, Any]) -> None:
+    """记录出图请求的关键字段（提示词只记长度）。
+
+    出图失败时第一个要回答的问题是「我们到底发了什么」，而 model / size / quality /
+    n 这几个字段正是历史踩坑点（模型名带中文、size 格式、质量档）。
+    """
+    logger.info(
+        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s n=%s format=%s prompt_chars=%s",
+        endpoint,
+        payload.get("model"),
+        payload.get("size"),
+        payload.get("quality"),
+        payload.get("n"),
+        payload.get("response_format"),
+        len(str(payload.get("prompt") or "")),
+    )
 
 
 MAX_TEMP_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -75,7 +118,7 @@ def _headers() -> Dict[str, str]:
 
 def _download(url: str, output_path: str) -> None:
     response = requests.get(url, timeout=300)
-    response.raise_for_status()
+    _raise_for_status_with_body(response, url)
     with open(output_path, "wb") as output:
         output.write(response.content)
 
@@ -333,7 +376,7 @@ class JiucaiheziImageModel(ImageGenModel):
             for ref in refs:
                 if ref.startswith(("http://", "https://")):
                     downloaded = requests.get(ref, timeout=180)
-                    downloaded.raise_for_status()
+                    _raise_for_status_with_body(downloaded, ref)
                     mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
                     files.append(("image", (os.path.basename(ref) or "reference", downloaded.content, mime)))
                     continue
@@ -347,8 +390,10 @@ class JiucaiheziImageModel(ImageGenModel):
             data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": "url"}
             if quality:
                 data["quality"] = str(quality)
+            endpoint = "/v1/images/edits"
+            _log_image_request(endpoint, data)
             try:
-                response = requests.post(f"{_base_url()}/v1/images/edits", headers=_headers(), data=data, files=files, timeout=180)
+                response = requests.post(f"{_base_url()}{endpoint}", headers=_headers(), data=data, files=files, timeout=180)
             finally:
                 for handle in handles:
                     handle.close()
@@ -356,8 +401,10 @@ class JiucaiheziImageModel(ImageGenModel):
             payload = {"model": model, "prompt": prompt, "size": size, "n": kwargs.get("n", 1), "response_format": "url"}
             if quality:
                 payload["quality"] = str(quality)
-            response = requests.post(f"{_base_url()}/v1/images/generations", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
-        response.raise_for_status()
+            endpoint = "/v1/images/generations"
+            _log_image_request(endpoint, payload)
+            response = requests.post(f"{_base_url()}{endpoint}", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
+        _raise_for_status_with_body(response, endpoint)
         item = (response.json().get("data") or [{}])[0]
         url = item.get("url")
         if url:

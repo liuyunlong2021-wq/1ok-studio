@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from unittest.mock import Mock, patch
 
@@ -9,6 +10,8 @@ from src.models.jiucaihezi import (
     JiucaiheziImageModel,
     JiucaiheziVideoModel,
     _align_ratio_with_resolution,
+    _log_image_request,
+    _raise_for_status_with_body,
     generate_audio,
     upload_to_jiucaihezi,
 )
@@ -18,6 +21,61 @@ def _response(data):
     response = Mock()
     response.json.return_value = data
     return response
+
+
+def test_upstream_error_carries_the_gateway_response_body():
+    """上游报错时要把它那句话带出来。
+
+    网关（New API）的 body 里写着真正的原因（model not found / 参数不合法 / 上游 502），
+    而 requests 的 raise_for_status() 只给一句 "400 Bad Request" —— 排障最需要的
+    那行信息就这样丢了。
+    """
+    response = Mock()
+    response.text = '{"error":{"message":"model gpt-image-2.5 is not available"}}'
+    response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+        "400 Client Error: Bad Request for url: https://api.jiucaihezi.studio/v1/images/generations"
+    )
+
+    with pytest.raises(requests.exceptions.HTTPError) as excinfo:
+        _raise_for_status_with_body(response, "/v1/images/generations")
+
+    assert "model gpt-image-2.5 is not available" in str(excinfo.value)
+    assert "400 Client Error" in str(excinfo.value)
+
+
+def test_upstream_error_without_a_body_raises_the_original():
+    """没有响应体时不要改变异常类型，也不要把错误信息搞丢。"""
+    response = Mock()
+    response.text = ""
+    original = requests.exceptions.HTTPError("524 Server Error: <none>")
+    response.raise_for_status.side_effect = original
+
+    with pytest.raises(requests.exceptions.HTTPError) as excinfo:
+        _raise_for_status_with_body(response, "/v1/images/generations")
+
+    assert excinfo.value is original
+
+
+def test_successful_response_is_passed_through():
+    response = Mock()
+
+    _raise_for_status_with_body(response, "/v1/images/generations")
+
+    response.raise_for_status.assert_called_once()
+
+
+def test_image_request_fields_are_logged(caplog):
+    """出图失败时第一个要回答的问题是「我们到底发了什么」。"""
+    caplog.set_level(logging.INFO)
+
+    _log_image_request(
+        "/v1/images/generations",
+        {"model": "gpt-image-2.5-菠萝", "size": "576*1024", "n": 1, "prompt": "x" * 20},
+    )
+
+    assert "model=gpt-image-2.5-菠萝" in caplog.text
+    assert "size=576*1024" in caplog.text
+    assert "prompt_chars=20" in caplog.text
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
