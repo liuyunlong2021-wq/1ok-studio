@@ -139,9 +139,8 @@ docs/api-reference/*
 docs/plans/*
 !docs/plans/*.md
 
-# Build/packaging configs (keep templates only)
+# Build/packaging configs
 *.spec
-!build.spec.template
 
 .omx/
 .gstack/
