@@ -83,6 +83,7 @@ describe('model catalog selectors', () => {
         }
         // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
+            'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
             '海seedance2.5',
@@ -149,10 +150,14 @@ describe('model catalog fallbacks', () => {
         // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/gpt-image-2.5-1k' }, 'project_settings').i2v_model)
             .toBe('jiucaihezi/gpt-image-2.5-1k');
-        // 已下线的 dola-seedance2.5（老项目存量设置）落到目录默认 R2V 模型。
+        // dola-seedance2.5（2026-09-18 下线、09-19 拿回）：存量设置重新解析到它自己，
+        // 不再回落到默认的海通道；早期带家族前缀的写法要一并归一化成目录 key。
         expect(resolveModelSettings({ i2v_model: 'dola-seedance2.5' }, 'project_settings').i2v_model)
-            .toBe('海seedance2.5');
+            .toBe('dola-seedance2.5');
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5' }, 'project_settings').i2v_model)
+            .toBe('dola-seedance2.5');
+        // 只有更早期数据才有的 -r2v 后缀（网关没有这个名字）目录里没有，仍落默认 R2V 模型。
+        expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5-r2v' }, 'project_settings').i2v_model)
             .toBe('海seedance2.5');
     });
 

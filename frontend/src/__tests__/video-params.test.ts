@@ -54,6 +54,7 @@ const VIDEO_MODELS = Object.entries(rawCatalog.models).filter(
 describe('视频模型参数契约', () => {
     it('目录里确实有视频模型（防止下面的断言空跑）', () => {
         expect(VIDEO_MODELS.map(([id]) => id).sort()).toEqual([
+            'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
             '海seedance2.5',

@@ -47,6 +47,29 @@ class MotionReferenceContractTest(unittest.TestCase):
         self.assertEqual(task.source_frame_ids, ["shot-1", "shot-2"])
         self.assertEqual(task.skill_name, "分镜 Skill")
 
+    def test_dola_channel_shares_the_same_contract(self):
+        """dola 通道（2026-09-19 拿回）：同家族的 id 也必须吃到 30 秒 / 720p 与
+        1-9 张参考图 —— 特判原来写死了「海seedance2.5」，只加目录条目会静默漏掉它。
+        """
+        with self.assertRaisesRegex(ValueError, "1-9 reference images"):
+            self.pipeline.create_video_task(
+                "project-1", "", "prompt", model="dola-seedance2.5",
+                generation_mode="r2v",
+                reference_image_urls=[f"https://x/{index}.png" for index in range(10)],
+                source_frame_ids=["shot-1", "shot-2"],
+            )
+
+        _, task_id = self.pipeline.create_video_task(
+            "project-1", "", "prompt", duration=5, resolution="1080p",
+            model="dola-seedance2.5", generation_mode="r2v",
+            reference_image_urls=["https://x/1.png"],
+            source_frame_ids=["shot-1", "shot-2"],
+        )
+        task = next(item for item in self.script.video_tasks if item.id == task_id)
+        self.assertEqual(task.model, "dola-seedance2.5")
+        self.assertEqual(task.duration, 30)
+        self.assertEqual(task.resolution, "720p")
+
 
 if __name__ == "__main__":
     unittest.main()

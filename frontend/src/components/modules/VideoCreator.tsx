@@ -48,8 +48,8 @@ interface VideoCreatorProps {
 const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
 const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
-/** 参考生视频里固定 30 秒 / 720p 的模型：海通道的 Seedance 2.5。 */
-const forces30sAnd720p = (modelId?: string | null) => (modelId || "").includes("海seedance2.5");
+// Seedance 2.5 家族（海 / dola 两条通道）在网关上固定 30 秒 / 720p。
+const forces30sAnd720p = (modelId?: string | null) => (modelId || "").includes("seedance2.5");
 
 export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
