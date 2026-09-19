@@ -7,11 +7,9 @@
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
+      "jiucaihezi/gpt-image-2-1k": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
+      "jiucaihezi/gpt-image-2-菠萝": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image",
       "jiucaihezi/gpt-image-2.5-1k": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
-      "jiucaihezi/gpt-image-2.5-flare-1k": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k#image",
-      "jiucaihezi/gpt-image-2.5-flare-CF-超分": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分#image",
-      "jiucaihezi/gpt-image-2.5-sunburst-1k": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k#image",
-      "jiucaihezi/gpt-image-2.5-sunburst-CF-超分": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分#image",
       "jiucaihezi/gpt-image-2.5-菠萝": "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝#image",
       "jiucaihezi/grok-imagine-image-2.0": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
       "minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
@@ -21,19 +19,19 @@
   },
   "defaults": {
     "canonical_model_settings": {
-      "i2i_model": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
+      "i2i_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
       "i2v_model": "jiucaihezi/海seedance2.5#r2v",
-      "image_model": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
+      "image_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
       "r2v_model": "jiucaihezi/海seedance2.5#r2v",
-      "t2i_model": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
+      "t2i_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
       "text_model": "jiucaihezi/gpt-5.6-sol#text"
     },
     "model_settings": {
-      "i2i_model": "jiucaihezi/gpt-image-2.5-1k",
+      "i2i_model": "jiucaihezi/gpt-image-2-1k",
       "i2v_model": "海seedance2.5",
-      "image_model": "jiucaihezi/gpt-image-2.5-1k",
+      "image_model": "jiucaihezi/gpt-image-2-1k",
       "r2v_model": "海seedance2.5",
-      "t2i_model": "jiucaihezi/gpt-image-2.5-1k",
+      "t2i_model": "jiucaihezi/gpt-image-2-1k",
       "text_model": "gpt-5.6-sol"
     }
   },
@@ -60,11 +58,9 @@
         "gemini-3.8-flash",
         "gpt-5.6-sol",
         "jiucaihezi/gemini-3-pro-image-preview",
+        "jiucaihezi/gpt-image-2-1k",
+        "jiucaihezi/gpt-image-2-菠萝",
         "jiucaihezi/gpt-image-2.5-1k",
-        "jiucaihezi/gpt-image-2.5-flare-1k",
-        "jiucaihezi/gpt-image-2.5-flare-CF-超分",
-        "jiucaihezi/gpt-image-2.5-sunburst-1k",
-        "jiucaihezi/gpt-image-2.5-sunburst-CF-超分",
         "jiucaihezi/gpt-image-2.5-菠萝",
         "jiucaihezi/grok-imagine-image-2.0",
         "minimax_h3_image_audio_to_video_v2_15s",
@@ -446,6 +442,122 @@
         }
       }
     },
+    "jiucaihezi/jiucaihezi/gpt-image-2-1k": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
+      "display_name": "GPT Image 2 1K · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/gpt-image-2-1k",
+      "legacy_model_ids": [
+        "jiucaihezi/gpt-image-2-1k"
+      ],
+      "modes": [
+        "jiucaihezi/jiucaihezi/gpt-image-2-1k#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jiucaihezi/gpt-image-2-菠萝": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
+      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝",
+      "legacy_model_ids": [
+        "jiucaihezi/gpt-image-2-菠萝"
+      ],
+      "modes": [
+        "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
     "jiucaihezi/jiucaihezi/gpt-image-2.5-1k": {
       "backend_env_key": null,
       "credential_sources": {
@@ -471,238 +583,6 @@
       ],
       "modes": [
         "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-flare-1k"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-flare-CF-超分"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-sunburst-1k"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "i2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-sunburst-CF-超分"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分#image"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -1409,6 +1289,188 @@
         ]
       }
     },
+    "jiucaihezi/gpt-image-2-1k": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
+      "display_name": "GPT Image 2 1K · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/gpt-image-2-1k",
+      "inputs": {
+        "reference_images": {
+          "max": 16,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "1024x768",
+            "768x1024",
+            "1024x576",
+            "576x1024"
+          ],
+          "resolutions": [
+            "1K"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1002,
+        "recommended": true,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/gpt-image-2-菠萝": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
+      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/gpt-image-2-菠萝",
+      "inputs": {
+        "reference_images": {
+          "max": 16,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "quality": {
+          "default": "high",
+          "options": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "1024x768",
+            "768x1024",
+            "1024x576",
+            "576x1024"
+          ],
+          "resolutions": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 993,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/gpt-image-2.5-1k": {
       "backend_env_key": null,
       "capabilities": [
@@ -1486,356 +1548,6 @@
           "韭菜盒子"
         ],
         "order": 1000,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-flare-1k": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-flare-1k",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 997,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-flare-CF-超分": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-flare-CF-超分",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子",
-          "超分"
-        ],
-        "order": 995,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-sunburst-1k": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-sunburst-1k",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 998,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-sunburst-CF-超分": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-sunburst-CF-超分",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子",
-          "超分"
-        ],
-        "order": 996,
         "recommended": false,
         "selection_group": "image",
         "visible_in": [
@@ -2744,6 +2456,204 @@
         ]
       }
     },
+    "jiucaihezi/jiucaihezi/gpt-image-2-1k#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
+      "display_name": "GPT Image 2 1K · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
+      "inputs": {
+        "reference_images": {
+          "max": 16,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jiucaihezi/gpt-image-2-1k",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2-1k",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "1024x768",
+            "768x1024",
+            "1024x576",
+            "576x1024"
+          ],
+          "resolutions": [
+            "1K"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 1002,
+        "recommended": true,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
+      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image",
+      "inputs": {
+        "reference_images": {
+          "max": 16,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jiucaihezi/gpt-image-2-菠萝",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "quality": {
+          "default": "high",
+          "options": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "seed": false,
+        "size": {
+          "default": "1024x1024",
+          "options": [
+            "1024x1024",
+            "1536x1024",
+            "1024x1536",
+            "1024x768",
+            "768x1024",
+            "1024x576",
+            "576x1024"
+          ],
+          "resolutions": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 993,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image": {
       "backend_env_key": null,
       "capabilities": [
@@ -2829,388 +2739,6 @@
           "韭菜盒子"
         ],
         "order": 1000,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-flare-1k",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-1k",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 997,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Flare CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Flare CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-flare-CF-超分",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-flare-CF-超分",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子",
-          "超分"
-        ],
-        "order": 995,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-sunburst-1k",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-1k",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 998,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 Sunburst CF 超分，1K/2K/4K，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 Sunburst CF 超分 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-sunburst-CF-超分",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-sunburst-CF-超分",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子",
-          "超分"
-        ],
-        "order": 996,
         "recommended": false,
         "selection_group": "image",
         "visible_in": [

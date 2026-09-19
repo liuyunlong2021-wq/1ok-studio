@@ -405,13 +405,25 @@ class JiucaiheziImageModel(ImageGenModel):
             _log_image_request(endpoint, payload)
             response = requests.post(f"{_base_url()}{endpoint}", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
         _raise_for_status_with_body(response, endpoint)
-        item = (response.json().get("data") or [{}])[0]
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+        raw_item = ((payload or {}).get("data") or [{}])[0] if isinstance(payload, dict) else {}
+        item = raw_item if isinstance(raw_item, dict) else {}
         url = item.get("url")
+        b64 = item.get("b64_json")
         if url:
             _download(url, output_path)
-        else:
+        elif b64:
             with open(output_path, "wb") as output:
-                output.write(base64.b64decode(item["b64_json"]))
+                output.write(base64.b64decode(b64))
+        else:
+            # 「HTTP 200 但 data 是空的」是网关的另一种坏法（z-image-turbo 实测如此）：
+            # 通道在、上游没产出。裸 item["b64_json"] 只会扔一个 KeyError，
+            # 把网关那句话丢掉，用户看到的是 `KeyError: 'b64_json'`。
+            detail = _payload_error_message(payload, "") or "响应体里没有可读的错误信息"
+            raise RuntimeError(f"出图失败：网关返回 200 但没有图片数据（{detail}）")
         return output_path, time.time() - started
 
 

@@ -35,10 +35,14 @@ TRANSIENT_RETRY_BACKOFF_SECONDS = 5.0
 # 单次 chat 调用的超时秒数。长文生成（如 Motion 提示词要写几千字）经常跑过 60 秒，
 # 超时会一路冒泡成 502，把「还在生成」误判成失败。
 #
-# 注意：韭菜盒子经 Cloudflare，边缘的代理读超时是 120 秒。客户端超时必须比它短，
-# 否则永远等不到自己的超时，只会拿到边缘的 524。
+# 韭菜盒子在 Cloudflare 后面，边缘的 Proxy Read Timeout **默认 125 秒**
+# （官方文档；实测 524 正好在 125.2 秒回来）。所以客户端超时比它长时，
+# 超过 125 秒的请求会先被边缘抓成 524 —— 这不是坏事，524 会经
+# _readable_gateway_error() 翻成人话再展示。
+# 想真正放开长任务，得先把长耗时接口挪到不经 CF 的灰云子域，或开 Enterprise 调
+# zone 的 proxy_read_timeout —— 单改这里的数字没用。
 LLM_TIMEOUT_SECONDS = 180.0
-JIUCAIHEZI_TIMEOUT_SECONDS = 115.0
+JIUCAIHEZI_TIMEOUT_SECONDS = 180.0
 
 
 def _is_transient_gateway_error(exc: Exception) -> bool:
@@ -51,9 +55,9 @@ def _readable_gateway_error(exc: Exception) -> str:
     message = str(exc)
     if "524" in message:
         return (
-            "Jiucaihezi 网关超时（524）：源站没有在 Cloudflare 的 120 秒代理读超时内返回。"
-            "这通常是网关侧瞬时过载，等 1-2 分钟后重试；若持续出现，可在项目设置里"
-            "换一个更快的文本模型，或把剧本拆短后再生成。"
+            "Jiucaihezi 网关超时（524）：源站没有在 Cloudflare 的 125 秒代理读超时"
+            "（Proxy Read Timeout）内返回。这通常是网关侧瞬时过载，等 1-2 分钟后重试；"
+            "若持续出现，可在项目设置里换一个更快的文本模型，或把剧本拆短后再生成。"
         )
     return message
 

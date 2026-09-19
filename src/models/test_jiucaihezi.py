@@ -181,6 +181,39 @@ def test_image_quality_reaches_gateway_payload(post, download):
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
+def test_empty_data_reports_the_reason_not_a_keyerror(post, tmp_path):
+    """HTTP 200 但 data 为空时要说人话，不是把 `KeyError: 'b64_json'` 扔给用户。
+
+    z-image-turbo 实测就是这种坏法：通道在、返回 200，但 data 是空的。
+    """
+    post.return_value = _response({"data": []})
+
+    with pytest.raises(RuntimeError) as excinfo:
+        JiucaiheziImageModel({}).generate(
+            "prompt", str(tmp_path / "out.png"), model_name="jiucaihezi/z-image-turbo"
+        )
+
+    message = str(excinfo.value)
+    assert "b64_json" not in message
+    assert "没有图片数据" in message
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
+    """data 为空、但网关在 body 里写了原因时，要把那句话带出来。"""
+    post.return_value = _response({"data": [], "error": {"message": "upstream returned no image"}})
+
+    with pytest.raises(RuntimeError) as excinfo:
+        JiucaiheziImageModel({}).generate(
+            "prompt", str(tmp_path / "out.png"), model_name="jiucaihezi/z-image-turbo"
+        )
+
+    assert "upstream returned no image" in str(excinfo.value)
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
 def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
     post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
 

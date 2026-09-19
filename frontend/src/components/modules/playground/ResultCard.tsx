@@ -135,6 +135,7 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
   const isAudio = output?.media_type === 'audio' || ['t2a', 'r2a'].includes(mode);
   const [saving, setSaving] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const saved = output?.saved_to_library ?? false;
   const mediaUrl = output?.media_path ? getMediaUrl(output.media_path) : null;
@@ -193,6 +194,17 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
     else if (result === 'duplicate') toast.success(t('media.refAlreadyAdded'));
   }, [output, setResultAsReference, t]);
 
+  // 让浏览器把首帧画出来当预览：`preload="metadata"` 只取头部，还得再 seek 到一个
+  // 很小的**非零**时间点才会触发解码+重绘（seek 到 0 不重绘）。打包版是
+  // WKWebView / WebView2，少了这一步卡片就是一片白 —— 这正是
+  // 「出图有预览、出视频只有白块」的原因。
+  // 故意**不设 crossOrigin**：展示用不上它，而它会跟着 <video> 参与媒体缓存，
+  // 与 /files 的 `Vary: Origin` 组合起来会把缓存弄脏（历史上踩过）。
+  const handleShowFirstFrame = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (video.currentTime === 0) video.currentTime = 0.1;
+  }, []);
+
   return (
     <div
       className={`group rounded-[20px] border bg-glass atelier-asset-card overflow-hidden transition cursor-pointer ${saved ? 'border-primary/40 ring-1 ring-primary/30' : 'border-glass-border hover:border-foreground/30'}`}
@@ -207,9 +219,21 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
               <audio src={mediaUrl} controls className="w-[85%] h-8" onClick={(e) => e.stopPropagation()} />
             </div>
           ) : isVideo ? (
-            <div className="w-full h-full bg-gradient-to-br from-elevated to-surface flex items-center justify-center">
-              <Video className="w-8 h-8 text-text-muted" />
-            </div>
+            videoError ? (
+              <div className="w-full h-full bg-gradient-to-br from-elevated to-surface flex items-center justify-center">
+                <Video className="w-8 h-8 text-text-muted" />
+              </div>
+            ) : (
+              <video
+                src={mediaUrl}
+                className="w-full h-full object-cover"
+                preload="metadata"
+                muted
+                playsInline
+                onLoadedMetadata={handleShowFirstFrame}
+                onError={() => setVideoError(true)}
+              />
+            )
           ) : imgError ? (
             <div className="w-full h-full bg-gradient-to-br from-elevated to-surface flex flex-col items-center justify-center gap-1.5">
               <svg className="w-8 h-8 text-text-muted/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

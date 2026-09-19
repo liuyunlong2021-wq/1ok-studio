@@ -74,7 +74,7 @@ models:
       order: 1000
       recommended: false
       badges: [韭菜盒子]
-    params: &gpt_image_25_params_1k
+    params: &gpt_image_params_1k
       # 像素尺寸的事实源在前端 frontend/src/lib/imageSizePresets.ts（一张表管住 17 个比例
       # × 1K/2K/4K）。目录只声明「这个模型支持哪几档分辨率」，不要再把像素枚举一遍。
       # options 仅为旧版单下拉的兼容回退，新 UI 不看它。
@@ -114,60 +114,45 @@ models:
       seed: false
       promptExtend: false
       watermark: false
-  - id: jiucaihezi/gpt-image-2.5-sunburst-1k
-    display_name: "GPT Image 2.5 Sunburst 1K · 韭菜盒子"
-    description: "GPT Image 2.5 Sunburst，固定 1K，via 韭菜盒子"
+  # 2 系列（无 .5）：网关上是与 2.5 并存的独立通道。默认出图模型就是这里的
+  # gpt-image-2-1k（见 catalog.meta.yaml 的 defaults.model_settings）。
+  - id: jiucaihezi/gpt-image-2-1k
+    display_name: "GPT Image 2 1K · 韭菜盒子"
+    description: "GPT Image 2，固定 1K，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
-    params: *gpt_image_25_params_1k
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1002, recommended: true, badges: [韭菜盒子]}
+    params: *gpt_image_params_1k
     inputs:
       reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/gpt-image-2.5-flare-1k
-    display_name: "GPT Image 2.5 Flare 1K · 韭菜盒子"
-    description: "GPT Image 2.5 Flare，固定 1K，via 韭菜盒子"
+  # 菠萝通道的 2 系列：与 2.5-菠萝 同规格 —— 1K/2K/4K + 17 比例表 + 质量档。
+  # 菠萝通道自身就支持选质量，质量档是**请求参数**（网关另有两个
+  # `gpt-image-2-中质量` / `gpt-image-2-低质量`，那是把档位预设好的整包模型 id，
+  # 跟这个参数不冲突 —— 别拿它们反推「这个模型不吃 quality」）。
+  - id: jiucaihezi/gpt-image-2-菠萝
+    display_name: "GPT Image 2 菠萝 · 韭菜盒子"
+    description: "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 997, recommended: false, badges: [韭菜盒子]}
-    params: *gpt_image_25_params_1k
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/gpt-image-2.5-sunburst-CF-超分
-    display_name: "GPT Image 2.5 Sunburst CF 超分 · 韭菜盒子"
-    description: "GPT Image 2.5 Sunburst CF 超分，1K/2K/4K，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: false, badges: [韭菜盒子, 超分]}
-    params: &gpt_image_25_params_full
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 993, recommended: false, badges: [韭菜盒子]}
+    params:
       size:
         resolutions: ["1K", "2K", "4K"]
         options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
         default: "1024x1024"
+      quality:
+        options: ["high", "medium", "low"]
+        default: "high"
       negativePrompt: false
       seed: false
       promptExtend: false
       watermark: false
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/gpt-image-2.5-flare-CF-超分
-    display_name: "GPT Image 2.5 Flare CF 超分 · 韭菜盒子"
-    description: "GPT Image 2.5 Flare CF 超分，1K/2K/4K，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子, 超分]}
-    params: *gpt_image_25_params_full
     inputs:
       reference_images: {max: 16, reference_type: image}
   - id: jiucaihezi/gpt-image-2.5-菠萝
@@ -180,7 +165,7 @@ models:
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
     params:
-      # 与 CF-超分 同规格（1K/2K/4K + 17 比例表），外加质量档：这是本目录里第一个
+      # 1K/2K/4K + 17 比例表，外加质量档：这是本目录里第一个
       # 暴露 quality 的模型（网关接受 high/medium/low）。Playground 的 ParameterBar
       # 看到 quality 才渲染「质量」下拉；值经 playground service → JiucaiheziImageModel
       # 转给网关，三处缺一不可。
