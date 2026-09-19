@@ -17,7 +17,7 @@ import { useViewMode } from './hooks/useViewMode';
 import { useOfflineCache } from './hooks/useOfflineCache';
 import { useDerivation } from './hooks/useDerivation';
 import { PasteHintBar } from './components/PasteHintBar';
-import AiResultPreview, { applyAiPreview, textToEditorDocument } from './components/AiResultPreview';
+import AiResultPreview, { applyAiPreview, previewSourceChanged, textToEditorDocument } from './components/AiResultPreview';
 import { ShortcutHelpPanel } from './components/ShortcutHelpPanel';
 import { ContinuityIndicator } from './components/ContinuityIndicator';
 import RightPanelContainer from './panels';
@@ -156,14 +156,13 @@ export default function ScriptEditorShell({
   const acceptAiPreview = useCallback(() => {
     if (!editor || !aiPreview) return;
     // 预览期间正文被改过 → 位置已经不可信。宁可让人重新框，也不能改错地方。
-    if (aiPreview.range && aiScope) {
-      const current = editor.state.doc.textBetween(aiPreview.range.from, aiPreview.range.to, '\n');
-      if (current !== aiScope.text) {
-        toast.error('原文已改动，作用范围失效', { body: '请重新框选要改的内容，再看一遍结果。' });
-        setAiPreview(null);
-        setAiScope(null);
-        return;
-      }
+    // 比对的是**发送那一刻**的原文（`aiPreview.sourceText`），不是 `aiScope.text`：
+    // scope 会跟着选区实时更新，拿它比会让「等结果时重新框了一下」也报失效。
+    if (previewSourceChanged(editor, aiPreview)) {
+      toast.error('原文已改动，作用范围失效', { body: '请重新框选要改的内容，再看一遍结果。' });
+      setAiPreview(null);
+      setAiScope(null);
+      return;
     }
     applyAiPreview(editor, aiPreview);
     setAiPreview(null);
@@ -172,7 +171,7 @@ export default function ScriptEditorShell({
     // 「查看脚本」读的是后者。不在这里落盘的话，用户接受完直接去生成分镜就会
     // 拿到老版本 —— 自动保存要等 30 秒，而且只在 dirty 时才跑。
     void save(false);
-  }, [aiPreview, aiScope, editor, save]);
+  }, [aiPreview, editor, save]);
 
   // 把作用范围画进正文：淡紫高亮的那一段，就是这次 AI 会改的地方。
   useEffect(() => {

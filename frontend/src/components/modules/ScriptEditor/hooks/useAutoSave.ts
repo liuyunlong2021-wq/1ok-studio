@@ -39,18 +39,28 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
       const content = editor.getJSON();
       isSavingRef.current = true;
 
+      let text: string;
       try {
         await scriptEditorApi.saveDocument(projectId, content, createSnapshot);
-        const text = scriptTextOf(editor);
+        text = scriptTextOf(editor);
         await scriptEditorApi.updateScriptText(projectId, text);
+      } catch (err) {
+        console.error('[useAutoSave] Save failed:', err);
+        toast.error('剧本保存失败', { body: '内容仍保留在编辑器中，请检查连接后重试。' });
+        return;
+      } finally {
+        isSavingRef.current = false;
+      }
+
+      // 落盘已经成功了，下面只是同步本地两份缓存（项目 store 的 original_text 与
+      // dirty 标记）。这一段出错**不能**说成「剧本保存失败」—— 服务端已经存好了，
+      // 用户再点一次就是重复写，还会以为上一次白存了。
+      try {
         useProjectStore.getState().updateProject(projectId, { originalText: text });
         setDirty(false);
         setLastSavedAt(new Date());
       } catch (err) {
-        console.error('[useAutoSave] Save failed:', err);
-        toast.error('剧本保存失败', { body: '内容仍保留在编辑器中，请检查连接后重试。' });
-      } finally {
-        isSavingRef.current = false;
+        console.error('[useAutoSave] Local state sync after save failed:', err);
       }
     },
     [editor, projectId, onMissingProject, setDirty, setLastSavedAt]

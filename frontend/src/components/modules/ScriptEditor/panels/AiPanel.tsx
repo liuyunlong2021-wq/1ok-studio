@@ -7,8 +7,18 @@ import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
 import { scriptTextOf } from '../documentText';
 
 export interface AiPreview {
+  /** AI 产出的新正文。 */
   text: string;
+  /** 这次要替换的位置；`null` = 全文。 */
   range: { from: number; to: number } | null;
+  /**
+   * 发送那一刻、这个 range 上的原文。
+   *
+   * 校验必须拿它比，不能拿 `AiScope.text`：scope 会跟着选区实时更新，用户在
+   * 等 AI 出结果时随手重新框一下，`scope.text` 就变成了别的段的文字，于是每次
+   * 接受都报「原文已改动，作用范围失效」—— 可正文一个字都没动。
+   */
+  sourceText: string;
 }
 
 /** 锁定的作用范围。`null` = 全文。 */
@@ -74,6 +84,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
       onPreview({
         text: result.standardized_text,
         range: scope ? { from: scope.from, to: scope.to } : null,
+        sourceText: text,
       });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '生成失败，请重试');

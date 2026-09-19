@@ -90,7 +90,7 @@ describe('AiPanel', () => {
     await waitFor(() => expect(standardizeScript).toHaveBeenCalledWith(
       'episode-1', '全文原稿', '格式规则', 'builtin-short', '只整理格式',
     ));
-    expect(onPreview).toHaveBeenCalledWith({ text: 'AI 新稿', range: null });
+    expect(onPreview).toHaveBeenCalledWith({ text: 'AI 新稿', range: null, sourceText: '全文原稿' });
   });
 
   it('框选之后只改选中的段落，并把范围报给预览', async () => {
@@ -110,7 +110,11 @@ describe('AiPanel', () => {
     await waitFor(() => expect(standardizeScript).toHaveBeenCalledWith(
       'episode-1', SELECTED_TEXT, '格式规则', 'builtin-short', '',
     ));
-    expect(onPreview).toHaveBeenCalledWith({ text: 'AI 新稿', range: { from: 2, to: 6 } });
+    expect(onPreview).toHaveBeenCalledWith({
+      text: 'AI 新稿',
+      range: { from: 2, to: 6 },
+      sourceText: SELECTED_TEXT,
+    });
   });
 
   it('光标移动到别处不会把已框选的范围丢掉', async () => {
