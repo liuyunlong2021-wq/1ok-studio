@@ -551,6 +551,43 @@ def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
         generate_audio("p", str(tmp_path / "out.mp3"))
 
 
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_translates_the_text_audit_rejection(post, tmp_path):
+    """上游文本审核拒收（`demo text audit failed`）要翻成人话 + 处置办法。
+
+    2026-09-19 实测：导演稿里一段肉搏描写会让**整篇**被拒（1 秒内返回，没进合成），
+    逐词改写无效。原始消息只有这一句英文，用户既看不懂也不知道该改哪。
+    """
+    response = Mock()
+    response.ok = False
+    response.json.return_value = {
+        "error": {"message": "demo text audit failed", "type": "seed_audio_error", "code": "45001125"}
+    }
+    post.return_value = response
+
+    with pytest.raises(RuntimeError) as excinfo:
+        generate_audio("两人猛烈冲撞在一起", str(tmp_path / "out.mp3"))
+
+    message = str(excinfo.value)
+    assert "审核" in message
+    assert "demo text audit failed" in message, "上游原文要留着，排障要看它"
+    assert not (tmp_path / "out.mp3").exists()
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.requests.post")
+def test_generate_audio_leaves_other_gateway_errors_alone(post, tmp_path):
+    """别把所有失败都套上「审核」那张皮 —— 别的错误照旧透传原文。"""
+    response = Mock()
+    response.ok = False
+    response.json.return_value = {"error": {"message": "upstream error: do request failed"}}
+    post.return_value = response
+
+    with pytest.raises(RuntimeError, match="do request failed"):
+        generate_audio("p", str(tmp_path / "out.mp3"))
+
+
 # ---------------------------------------------------------------------------
 # 合同补漏：input 必须 1-3000 字符（见 Seed Audio 1.0 接入合同）
 # ---------------------------------------------------------------------------

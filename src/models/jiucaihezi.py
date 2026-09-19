@@ -66,6 +66,9 @@ AUDIO_MODEL_DEFAULT = "seed-audio-1.0"
 AUDIO_MAX_REFERENCE_AUDIOS = 3
 AUDIO_MAX_INPUT_CHARS = 3000
 AUDIO_SPEECH_TIMEOUT = 300
+#: seed-audio 在合成前先审文本，拦下来只回一句 `demo text audit failed`（实测 2026-09-19，
+#: 1 秒内返回 —— 没进合成、也没计费）。光看这句用户不知道该改什么，见 `_audio_failure_message`。
+AUDIO_TEXT_AUDIT_CODE = "45001125"
 # Task creation returns the task id in milliseconds; the transfer of reference
 # assets and the upstream submission now happen in the background.
 VIDEO_CREATE_TIMEOUT = (15, 180)
@@ -245,6 +248,30 @@ def _payload_error_message(payload, raw_text: str = "") -> str:
     return (raw_text or "").strip()[:300]
 
 
+def _audio_failure_message(response) -> str:
+    """音频接口的错误读成人话。
+
+    `demo text audit failed` 是上游文本审核拦下来的意思：导演稿里那段肉搏 / 血腥
+    描写整篇都会被拒收，逐词改写没用（实测换掉「猛烈/粗暴/冲撞」全部无效，删两个字
+    就能从拦变过）—— 所以这里给的是**处置办法**，不是错误码。上游原文照样带上，
+    排障时还要看它。
+    """
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    message = _payload_error_message(payload, getattr(response, "text", ""))
+    error = payload.get("error") if isinstance(payload, dict) else None
+    code = str(error.get("code") or "") if isinstance(error, dict) else ""
+    if code == AUDIO_TEXT_AUDIT_CODE or "text audit" in message.lower():
+        return (
+            "上游文本审核没通过：这版导演稿里的打斗 / 血腥这类物理冲突描写会被 "
+            f"seed-audio 整篇拒收（上游原文：{message}）。把这一段改成声音层描写"
+            "（呼吸、衣料摩擦、脚步与地面、人群反应、环境声），或重新生成一版导演稿再试。"
+        )
+    return f"Jiucaihezi audio generation failed: {message}"
+
+
 def generate_audio(
     prompt: str,
     output_path: str,
@@ -285,7 +312,7 @@ def generate_audio(
         timeout=AUDIO_SPEECH_TIMEOUT,
     )
     if not response.ok:
-        raise RuntimeError(f"Jiucaihezi audio generation failed: {_error_message(response)}")
+        raise RuntimeError(_audio_failure_message(response))
 
     directory = os.path.dirname(output_path)
     if directory:

@@ -133,8 +133,8 @@ def _system_prompt(calls: list) -> str:
 # 1. 全集导演声音稿（图二）
 # ---------------------------------------------------------------------------
 
-def test_audio_plan_default_is_byte_for_byte_the_old_hardcoded_prompt(monkeypatch, llm_spy):
-    """没绑 skill 时，必须跟接进来之前一模一样 —— 不能顺手改了默认行为。"""
+def test_audio_plan_default_is_the_builtin_prompt(monkeypatch, llm_spy):
+    """没绑 skill 时逐字等于内置默认（不追加契约、不拼别的）。"""
     script = _script()
     _client(monkeypatch, script)
 
@@ -179,6 +179,27 @@ def test_audio_plan_keeps_the_downstream_contract_when_a_skill_overrides_it(monk
     assert SKILL_TEXT in system
     assert AUDIO_PLAN_OUTPUT_CONTRACT in system
     assert "3000" in system
+
+
+def test_audio_plan_forbids_physical_violence_details():
+    """导演稿里写肉搏 / 血腥细节会让**整篇**被上游文本审核拒收（2026-09-19 实测：
+    `demo text audit failed` / `error.code=45001125`），逐词改写无效、只能整段换掉。
+
+    这条约束只活在提示词里，删掉不会有任何报错 —— 所以在这里钉住，两处都要有。
+    """
+    assert "审核" in DEFAULT_AUDIO_PLAN_PROMPT
+    assert "审核" in AUDIO_PLAN_OUTPUT_CONTRACT
+    assert "声音层" in DEFAULT_AUDIO_PLAN_PROMPT
+    assert "声音层" in AUDIO_PLAN_OUTPUT_CONTRACT
+
+
+def test_audio_plan_keeps_the_three_section_structure():
+    """三段式（本片内容 / 角色音色 / 声音描述）是给上游看的语境 —— 单看肢体描写
+    容易被审核读歪，所以段名和顺序不能丢。用户 2026-09-19 拍板。
+    """
+    for prompt in (DEFAULT_AUDIO_PLAN_PROMPT, AUDIO_PLAN_OUTPUT_CONTRACT):
+        assert prompt.index("本片内容：") < prompt.index("角色音色：") < prompt.index("声音描述：")
+    assert "不念出来" in DEFAULT_AUDIO_PLAN_PROMPT, "要写明白哪两段不是台词"
 
 
 # ---------------------------------------------------------------------------
