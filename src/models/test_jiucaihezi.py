@@ -281,6 +281,45 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_content)
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_reference_images_are_capped_at_nine_for_both_channels(post, get, _sleep, _download, tmp_path):
+    """两个 Seedance 2.5 通道都是 9 张参考图上限。
+
+    这个 9 是四处一组数：目录 inputs.reference_images.max、pipeline 校验、
+    前端 referenceImageLimit、这里的切片 —— 改一处就要改四处。
+    """
+    post.return_value = _response({"task_id": "task-refs"})
+    get.return_value = _response({"status": "completed"})
+    refs = [f"https://cdn.example/{index}.png" for index in range(12)]
+
+    for channel, filename in (("dola-seedance2.5", "dola.mp4"), ("海seedance2.5", "hai.mp4")):
+        JiucaiheziVideoModel({}).generate(
+            "prompt", str(tmp_path / filename), model_name=channel, ref_image_urls=refs,
+        )
+        assert len(post.call_args.kwargs["json"]["images"]) == 9, channel
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_normalizes_the_legacy_dola_r2v_id(post, get, _sleep, _download, tmp_path):
+    """存量数据里存过的 `dola-seedance2.5-r2v` 在网关上不存在，要归一化成基础 id。"""
+    post.return_value = _response({"task_id": "task-legacy"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt", str(tmp_path / "legacy.mp4"), model_name="jiucaihezi/dola-seedance2.5-r2v"
+    )
+
+    assert post.call_args.kwargs["json"]["model"] == "dola-seedance2.5"
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.requests.post")
 def test_video_create_timeout_is_not_retried(post, tmp_path):
     post.side_effect = requests.Timeout("gateway stalled")

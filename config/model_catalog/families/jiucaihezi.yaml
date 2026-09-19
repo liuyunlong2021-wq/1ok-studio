@@ -207,7 +207,7 @@ models:
   # 能力顺序决定 capabilities[0]，但两条都有显式 ui.selection_group（优先级更高），
   # 所以分组仍是 r2v；后面三个能力是给「只有韭菜盒子」的目录当全能模型兜底用的。
   # 固定 30 秒 / 720p、参考图 ≤9 张：这个家族的特判在 pipeline 的 seedance 分支与
-  # 前端 VideoCreator 的 forces30sAnd720p 里（按 `seedance2.5` 子串匹配，两个通道都覆盖）。
+  # 前端 VideoCreator 里（按 `seedance2.5` 子串匹配，两个通道都覆盖）。
   - id: 海seedance2.5
     display_name: "Seedance 2.5 海 · 韭菜盒子"
     description: "文生 / 图生 / 参考生 / 编辑全能（海通道），via 韭菜盒子"

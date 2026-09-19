@@ -2490,9 +2490,9 @@ class ComicGenPipeline:
             if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
                 raise ValueError("Selected storyboard frames must be consecutive and ordered")
 
-        # Seedance 2.5（网关模型名就是「海seedance2.5」/「dola-seedance2.5」，目录里
-        # 两条通道同规格）：固定 30 秒 / 720p，参考图最多 9 张。按 `seedance2.5` 子串
-        # 判定，两条通道都要吃到。
+        # Seedance 2.5（网关模型名就是「海seedance2.5」/「dola-seedance2.5」，两条
+        # 通道同规格）：固定 30 秒 / 720p，参考图最多 9 张。按 `seedance2.5` 子串判定，
+        # 两条通道都要吃到。
         is_jiucaihezi_seedance = isinstance(model, str) and "seedance2.5" in model
         if is_jiucaihezi_seedance:
             prompt = (prompt or "").strip()

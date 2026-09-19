@@ -48,8 +48,8 @@ class MotionReferenceContractTest(unittest.TestCase):
         self.assertEqual(task.skill_name, "分镜 Skill")
 
     def test_dola_channel_shares_the_same_contract(self):
-        """dola 通道（2026-09-19 拿回）：同家族的 id 也必须吃到 30 秒 / 720p 与
-        1-9 张参考图 —— 特判原来写死了「海seedance2.5」，只加目录条目会静默漏掉它。
+        """dola 通道（2026-09-19 拿回）：同样固定 30 秒 / 720p，参考图同为 1-9 张 ——
+        特判原来写死了「海seedance2.5」，只加目录条目会静默漏掉它。
         """
         with self.assertRaisesRegex(ValueError, "1-9 reference images"):
             self.pipeline.create_video_task(

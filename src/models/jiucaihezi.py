@@ -458,6 +458,9 @@ class JiucaiheziVideoModel(VideoGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
         model_name = (kwargs.get("model_name") or "海seedance2.5").split("/", 1)[-1].split("#", 1)[0]
+        if model_name == "dola-seedance2.5-r2v":
+            # 存量数据里存过的旧写法，网关没有这个名字（见目录里的 legacy 别名）。
+            model_name = "dola-seedance2.5"
         images = list(kwargs.get("ref_image_urls") or [])
         if kwargs.get("img_url"):
             images.insert(0, kwargs["img_url"])
@@ -481,6 +484,8 @@ class JiucaiheziVideoModel(VideoGenModel):
             if audio_refs:
                 payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
         if images:
+            # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
+            # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]
         try:
             response = requests.post(
