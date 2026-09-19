@@ -15,8 +15,8 @@ One OK Studio 是一个本地运行的 AI 漫剧制作工具：从剧本、角�
 | 项目 | 要求 |
 | --- | --- |
 | 芯片 | Apple Silicon（M1 / M2 / M3 / M4） |
-| 系统 | macOS 12 Monterey 或更高 |
-| 磁盘 | 约 1 GB |
+| 系统 | macOS 11 Big Sur 或更高 |
+| 磁盘 | 约 300 MB（生成的图片 / 视频另计） |
 
 > 目前只发布 Apple Silicon 版本（原生 arm64，一份安装包覆盖全部 M 系列芯片）。Intel Mac 请走下面的「二、开发者」路线。
 
@@ -36,14 +36,13 @@ One OK Studio 是一个本地运行的 AI 漫剧制作工具：从剧本、角�
 App 自带的只是一个外壳，**没有任何密钥**，生成类功能需要先配置你自己的 Key：
 
 1. 打开左侧导航的 **设置**
-2. 填入对应服务商的 Key 并保存
+2. 填入韭菜盒子 Key 并保存（界面里只有这一个）
 
 | 服务商 | 用途 |
 | --- | --- |
-| 韭菜盒子 | 图像、视频模型主通道 |
-| 阿里云百炼 | 文本、配音等 |
+| 韭菜盒子 | **只有这一个**：图像 / 视频 / 文本 / 配音（含角色参考音）全走它 |
 
-不同模型走不同服务商，不用的可以留空。API Key 会产生对应服务商的费用，**不要把自己的 Key 发给别人**。
+界面里也只有这一个 Key 输入框。阿里云百炼只在**源码态**显式把文本通道切过去（`LLM_PROVIDER=dashscope`）时才会用到 —— 打包版没有这个入口，写进配置也会被当成旧配置清掉（保存设置时后端会主动剔除）。API Key 会产生对应服务商的费用，**不要把自己的 Key 发给别人**。
 
 密钥存在 `~/.1okstudio/config.json`，不会随 App 升级丢失，也不会被打进安装包。
 
@@ -98,7 +97,7 @@ DASHSCOPE_API_KEY=你的阿里云百炼Key
 JIUCAIHEZI_API_KEY=你的韭菜盒子Key
 ```
 
-不同模型需要不同服务商的 Key；不使用的服务可以留空。API Key 会产生对应服务商的费用，请不要把自己的 `.env` 发给别人。
+开发态默认也只用韭菜盒子一个 Key（图像 / 视频 / 文本 / 配音全走它）；`.env.example` 里写了可选项，例如把文本通道切到百炼。API Key 会产生对应服务商的费用，请不要把自己的 `.env` 发给别人。
 
 > 网关地址由产品内置，**不可配置**：`JIUCAIHEZI_BASE_URL` 即使写在 `.env` 里也会被忽略（后端会主动把它从环境变量和已保存配置中清除），避免请求被指向其它地址。
 
@@ -109,6 +108,10 @@ JIUCAIHEZI_API_KEY=你的韭菜盒子Key
 ```bash
 npm run dev
 ```
+
+> ⚠️ `npm run dev` 与 Tauri 开发壳里的后端绑的是 `--host 0.0.0.0` —— **同一个局域网里的
+> 其他设备能访问到它**（方便用手机 / 虚拟机调试）。方式二手动起的那条绑的是 `127.0.0.1`。
+> 只想本机访问，就把 `scripts/start-backend.js` 里的 host 换成 `127.0.0.1`。
 
 方式二，分别开两个终端，想看后端日志时更清楚：
 
@@ -131,10 +134,14 @@ npm run tauri:dev
 ### 运行测试
 
 ```bash
-.venv/bin/python -m pytest -q                            # 后端
-cd frontend && npx vitest run --config vitest.config.mts  # 前端
-cd frontend && npx tsc --noEmit -p tsconfig.json          # 前端类型检查
+.venv/bin/python -m pytest -q                               # 后端
+cd frontend && npx vitest run --config vitest.config.mts     # 前端（node：纯逻辑 / 工具函数）
+cd frontend && npx vitest run --config vitest.ui.config.mts  # 前端（happy-dom：组件 UI）
+cd frontend && npx tsc --noEmit -p tsconfig.json             # 前端类型检查
 ```
+
+> 两份 vitest config 的 `include` **互斥**：`vitest.config.mts` 只收 `src/__tests__/**`（node 环境），
+> `vitest.ui.config.mts` 只收 `src/components/**/*.test.tsx`（happy-dom）。改了组件只跑前者等于没测。
 
 ---
 
@@ -184,9 +191,11 @@ bash build_tauri_mac.sh
 
 没有证书时构建会在签名步骤失败 —— 这是刻意的，避免产出别人打不开的包。脚本最后用 `spctl` 强制校验，没通过公证不会算成功。
 
-> **FFmpeg 暂不打包**（有意为之，不是待补项）。目前 `bundle.resources` 只含 `1okstudio-backend/` 和 `1okstudio-demucs`，安装包体积优先；代价是用户要自己 `brew install ffmpeg` 一次。程序按「包内 `_internal/bin/ffmpeg` → PATH → 系统常见安装位置」的顺序查找，以后若要改成免安装，只需把一份自带依赖的 ffmpeg 放进资源目录，无需改代码。
+> **FFmpeg 暂不打包**（有意为之，不是待补项）。打包只带 `1okstudio-backend/` 与 `1okstudio-demucs` 两个资源（macOS 由 `build_tauri_mac.sh` 用 `tauri build --config` 临时注入，Windows 写在 `src-tauri/tauri.bundle.windows.conf.json`；`tauri.conf.json` 本身**没有** `bundle.resources` 这一项），安装包体积优先；代价是用户要自己 `brew install ffmpeg` 一次。程序按「包内 `_internal/bin/ffmpeg` → PATH → 系统常见安装位置」的顺序查找，以后若要改成免安装，只需把一份自带依赖的 ffmpeg 放进资源目录，无需改代码。
 
-> **本产品不带自动更新，也没有「检查更新」入口**。升级方式是重新下载 DMG 覆盖安装（见「六、更新」）。`src-tauri/Cargo.toml`、`lib.rs`、`capabilities/default.json`、`tauri.conf.json` 里都已彻底移除 Tauri updater 插件，不要只填回配置——插件没注册时，capability 里残留 `updater:default` 会让构建直接失败。
+> **不带自动更新，但设置页有「检查更新」**。前者指没有自动下载安装 —— 升级方式是重新下载 DMG 覆盖安装（见「六、更新」）；后者是 `frontend/src/components/settings/UpdateChecker.tsx`，读 GitHub 仓库的 `/releases/latest` 比版本号、只做提示，不下载。
+>
+> `src-tauri/Cargo.toml`、`lib.rs`、`capabilities/default.json`、`tauri.conf.json` 里都已彻底移除 Tauri updater 插件，不要只填回配置——插件没注册时，capability 里残留 `updater:default` 会让构建直接失败。
 
 > **⚠️ 名字已统一为 `1okstudio`（数据目录/环境变量/产物名/localStorage key），再改需要迁移**。它们对用户不可见，但改名会直接破坏已有数据或用户设置：
 > - `~/.1okstudio` 数据目录 —— 再改名会让已有用户的数据「消失」，必须配迁移并兼容旧名。
