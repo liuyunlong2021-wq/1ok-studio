@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import time
 from typing import Dict, Any, List
@@ -45,6 +46,41 @@ ASPECT_RATIO_TO_SIZE = {
     "4:3": "1024*768",    # Landscape (mild)
     "16:9": "1024*576",   # Landscape
 }
+
+# 风格预设是给「角色」写的：BJD 娃体、皮肤、发丝、五官、身材、时装……整段没有环境词。
+# 逐字拼到场景与道具上，模型就会在空镜和白底道具图里画人。场景/道具只取风格中的
+# 光位、调色、焦段、材质与媒介语言，其余子句按需删掉。
+# ponytail: 按子句粗筛，够用即可；要精确拆风格，得给每个预设补 scene/prop 变体。
+_PERSON_STYLE_RE = re.compile(
+    r"(?:\beye|\bface|facial|\bhair|skin|eyebrow|lash|portrait|expression|proportion|anatom|"
+    r"doll|mannequin|figure|streetwear|\bwear|costume|outfit|clothing|styling|\bactor|character|"
+    r"human|\bbody|emotional|"
+    r"皮肤|肤质|发丝|头发|发型|眼瞳|眼睛|五官|面部|表情|人体|身材|服装|服饰|时装|模特|妆容)",
+    re.IGNORECASE,
+)
+
+# 场景空镜与白底道具都不该有人。调用方显式点名要人（负提示词里写 people/人群/角色）时让位。
+_NO_PEOPLE_NEGATIVE = "people, person, human figures, crowd, faces, portrait, 人物, 人群"
+_NEGATIVE_PEOPLE_TOKENS = ("people", "person", "crowd", "人物", "人群", "角色", "群众")
+
+
+def strip_character_clauses(style: str) -> str:
+    """去掉风格串里的人物专属子句，供场景/道具复用。"""
+    if not style:
+        return ""
+    return ", ".join(
+        clause for clause in (c.strip() for c in style.split(","))
+        if clause and not _PERSON_STYLE_RE.search(clause)
+    )
+
+
+def _negative_without_people(negative_prompt: str) -> str:
+    """给场景/道具补一条「不要人」的负提示词；调用方已点名要人时不覆盖。"""
+    negative_prompt = (negative_prompt or "").strip()
+    if any(token in negative_prompt.lower() for token in _NEGATIVE_PEOPLE_TOKENS):
+        return negative_prompt
+    return f"{negative_prompt}, {_NO_PEOPLE_NEGATIVE}" if negative_prompt else _NO_PEOPLE_NEGATIVE
+
 
 class AssetGenerator:
     def __init__(self, config: Dict[str, Any] = None):
@@ -449,7 +485,7 @@ class AssetGenerator:
             
         return character
 
-    def generate_scene(self, scene: Scene, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None) -> Scene:
+    def generate_scene(self, scene: Scene, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "") -> Scene:
         """Generates a scene reference image."""
         scene.status = GenerationStatus.PROCESSING
         
@@ -460,7 +496,15 @@ class AssetGenerator:
         # Default size for scenes (landscape)
         effective_size = size or "1024*576"
         
-        prompt = f"Scene Concept Art: {scene.name}. {scene.description}. High quality, detailed. {positive_prompt}"
+        # 传进来的提示词（工作台编辑框 / Skill 产出）优先 —— 里面带着「不出现人物」这类
+        # 约束，旧模板只看 name + description，等于把写好的提示词整条丢掉。
+        base = (prompt or "").strip() or (scene.image_prompt or "").strip()
+        style = strip_character_clauses(positive_prompt)
+        negative_prompt = _negative_without_people(negative_prompt)
+        if base:
+            prompt = f"{base.rstrip('。., ')}. {style}".strip()
+        else:
+            prompt = f"Scene Concept Art: {scene.name}. {scene.description}. High quality, detailed. {style}"
         
         try:
             for _ in range(batch_size):
@@ -497,7 +541,7 @@ class AssetGenerator:
             
         return scene
 
-    def generate_prop(self, prop: Prop, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None) -> Prop:
+    def generate_prop(self, prop: Prop, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "") -> Prop:
         """Generates a prop reference image."""
         prop.status = GenerationStatus.PROCESSING
         
@@ -508,7 +552,14 @@ class AssetGenerator:
         # Default size for props (square)
         effective_size = size or "1024*1024"
         
-        prompt = f"Prop Design: {prop.name}. {prop.description}. Isolated on white background, high quality, detailed. {positive_prompt}"
+        # 同场景：Skill 写好的道具提示词优先，风格串只保留非人物部分。
+        base = (prompt or "").strip() or (prop.image_prompt or "").strip()
+        style = strip_character_clauses(positive_prompt)
+        negative_prompt = _negative_without_people(negative_prompt)
+        if base:
+            prompt = f"{base.rstrip('。., ')}. {style}".strip()
+        else:
+            prompt = f"Prop Design: {prop.name}. {prop.description}. Isolated on white background, high quality, detailed. {style}"
         
         try:
             for _ in range(batch_size):

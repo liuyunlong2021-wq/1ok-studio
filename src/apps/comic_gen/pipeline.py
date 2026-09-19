@@ -28,7 +28,7 @@ from .models import (
     GlobalAssetLibrary,
 )
 from .llm import ScriptProcessor
-from .assets import AssetGenerator
+from .assets import AssetGenerator, strip_character_clauses
 from .storyboard import StoryboardGenerator
 from .video import VideoGenerator
 from .audio import AudioGenerator
@@ -904,9 +904,9 @@ class ComicGenPipeline:
                     size=effective_size
                 )
             elif asset_type == "scene":
-                self.asset_generator.generate_scene(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size)
+                self.asset_generator.generate_scene(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "")
             elif asset_type == "prop":
-                self.asset_generator.generate_prop(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size)
+                self.asset_generator.generate_prop(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "")
                 
             target_asset.status = GenerationStatus.COMPLETED
         except Exception as e:
@@ -1068,6 +1068,7 @@ class ComicGenPipeline:
             self.asset_generator.generate_scene(
                 target, positive_prompt=positive_prompt, negative_prompt=negative_prompt,
                 batch_size=batch_size, model_name=t2i_model, size=effective_size,
+                prompt=prompt or "",
             )
         elif asset_type == "prop":
             target = next((p for p in series.props if p.id == asset_id), None)
@@ -1076,6 +1077,7 @@ class ComicGenPipeline:
             self.asset_generator.generate_prop(
                 target, positive_prompt=positive_prompt, negative_prompt=negative_prompt,
                 batch_size=batch_size, model_name=t2i_model, size=effective_size,
+                prompt=prompt or "",
             )
         else:
             raise ValueError(f"Unknown asset type: {asset_type}")
@@ -6059,7 +6061,22 @@ class ComicGenPipeline:
             elif art:
                 style = (getattr(art, "style_config", {}) or {}).get("positive_prompt", "")
             if style:
-                resolved += ("\n\n# 本项目视觉风格合同\n" + style + "\n执行本 Skill 时必须以该风格为视觉基础，但不得让风格覆盖资产身份、剧情事实或镜头要求。")
+                if prompt_type in {"scene_prompt", "prop_prompt"}:
+                    # 风格预设是给角色写的：整段喂给场景/道具提示词，模型就会去写人物外观
+                    # （BJD 那类风格尤其如此），空镜和白底道具图里随之长出人。
+                    usable = strip_character_clauses(style)
+                    resolved += (
+                        "\n\n# 本项目视觉风格合同\n"
+                        + (usable + "\n" if usable else "")
+                        + "本阶段只把该风格用于光线、调色、材质与摄影语言；不得描写人物外观、皮肤、五官、发型、身材或服装。"
+                        + (
+                            "画面以空景为主：描述里出现人群时只作为远景氛围，不安排可辨认面孔、主角式人物或摆拍动作。"
+                            if prompt_type == "scene_prompt"
+                            else "画面只呈现单件道具：不出现人物、手、角色剪影或使用场景。"
+                        )
+                    )
+                else:
+                    resolved += ("\n\n# 本项目视觉风格合同\n" + style + "\n执行本 Skill 时必须以该风格为视觉基础，但不得让风格覆盖资产身份、剧情事实或镜头要求。")
         return resolved
 
     def get_effective_polish_model(self, episode: Script) -> str:
