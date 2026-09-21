@@ -1741,8 +1741,10 @@
       "title": "Select media",
       "loading": "Loading…",
       "retry": "Retry",
-      "empty": "No media available",
-      "emptyHint": "Generate something in the Playground and your outputs will appear here",
+      "empty": "No asset images in the library yet",
+      "emptyHint": "Character, scene and prop images from your projects and series show up here — so do images saved to the library",
+      "globalGroup": "Global / Shared",
+      "loadFailed": "Failed to load the asset library",
       "cancel": "Cancel",
       "select": "Select"
     },

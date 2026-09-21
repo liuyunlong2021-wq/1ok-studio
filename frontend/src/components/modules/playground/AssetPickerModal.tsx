@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Image, Film, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { API_URL, playgroundApi } from '@/lib/api';
+import { assetPickerItems, loadAssetSources, type AssetPickerItem } from '@/lib/assetLibrary';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,34 +17,7 @@ interface AssetPickerModalProps {
   accept: 'image' | 'video' | 'all';
 }
 
-interface AssetItem {
-  id: string;
-  path: string;
-  type: 'image' | 'video';
-  thumbnail?: string;
-  label: string;
-}
-
 type FilterTab = 'all' | 'image' | 'video';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isVideoPath(path: string): boolean {
-  return /\.(mp4|mov|webm|avi|mkv)$/i.test(path);
-}
-
-function getFileName(path: string): string {
-  const parts = path.split('/');
-  return parts[parts.length - 1] || path;
-}
-
-/** Convert a media_path (e.g. "output/storyboard/foo.png") to a /files/ URL */
-function toFileUrl(mediaPath: string): string {
-  const relative = mediaPath.replace(/\\/g, '/').replace(/^output\//, '');
-  return API_URL + '/files/' + relative;
-}
 
 // ---------------------------------------------------------------------------
 // Animation
@@ -73,67 +46,34 @@ export default function AssetPickerModal({
   accept,
 }: AssetPickerModalProps) {
   const t = useTranslations('playground');
-  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [items, setItems] = useState<AssetPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<FilterTab>(
     accept === 'all' ? 'all' : accept
   );
 
   // -------------------------------------------------------------------------
-  // Fetch assets from playground history
+  // Load the asset library
   // -------------------------------------------------------------------------
+  //
+  // 列的是**资产库**里的角色 / 场景 / 道具图（系列池 + 独立项目 + 全局池），
+  // 与按钮「从资产库选取」说的是同一件事。以前拉的是 playground history
+  // （生成结果 + 上传素材全列一遍，还混进音频、渲染成碎图），来源与文案对不上。
 
   const fetchAssets = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setFailed(false);
     try {
-      const history = await playgroundApi.getHistory(100, 0);
-      const items: AssetItem[] = [];
-      const seen = new Set<string>();
-
-      for (const gen of history) {
-        if (gen.status !== 'completed') continue;
-        for (const output of gen.outputs) {
-          if (!output.media_path || seen.has(output.media_path)) continue;
-          seen.add(output.media_path);
-
-          const isVideo = isVideoPath(output.media_path);
-          items.push({
-            id: output.id,
-            path: output.media_path,
-            type: isVideo ? 'video' : 'image',
-            thumbnail: output.thumbnail_path || undefined,
-            label: getFileName(output.media_path),
-          });
-        }
-
-        // Also include input media from history entries
-        if (gen.input_media) {
-          for (const inputPath of gen.input_media) {
-            if (!inputPath || seen.has(inputPath)) continue;
-            seen.add(inputPath);
-
-            const isVideo = isVideoPath(inputPath);
-            items.push({
-              id: 'input-' + inputPath,
-              path: inputPath,
-              type: isVideo ? 'video' : 'image',
-              label: getFileName(inputPath),
-            });
-          }
-        }
-      }
-
-      setAssets(items);
+      setItems(assetPickerItems(await loadAssetSources(t('assetPicker.globalGroup'))));
     } catch (err) {
-      console.error('[AssetPickerModal] fetch failed:', err);
-      setError('Failed to load assets');
+      console.error('[AssetPickerModal] load failed:', err);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -153,7 +93,7 @@ export default function AssetPickerModal({
 
   const filteredAssets = useMemo(() => {
     // First filter by what the caller accepts
-    let pool = assets;
+    let pool = items;
     if (accept !== 'all') {
       pool = pool.filter((a) => a.type === accept);
     }
@@ -162,7 +102,7 @@ export default function AssetPickerModal({
       pool = pool.filter((a) => a.type === activeTab);
     }
     return pool;
-  }, [assets, accept, activeTab]);
+  }, [items, accept, activeTab]);
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -299,9 +239,9 @@ export default function AssetPickerModal({
                 </div>
               )}
 
-              {error && !loading && (
+              {failed && !loading && (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <span className="text-xs text-status-failed-fg">{error}</span>
+                  <span className="text-xs text-status-failed-fg">{t('assetPicker.loadFailed')}</span>
                   <button
                     type="button"
                     onClick={fetchAssets}
@@ -312,7 +252,7 @@ export default function AssetPickerModal({
                 </div>
               )}
 
-              {!loading && !error && filteredAssets.length === 0 && (
+              {!loading && !failed && filteredAssets.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 gap-2">
                   <Image className="w-8 h-8 text-text-muted" />
                   <span className="text-xs text-text-muted">
@@ -324,20 +264,18 @@ export default function AssetPickerModal({
                 </div>
               )}
 
-              {!loading && !error && filteredAssets.length > 0 && (
+              {!loading && !failed && filteredAssets.length > 0 && (
                 <div className="grid grid-cols-4 gap-3">
                   {filteredAssets.map((asset) => {
-                    const isSelected = selected === asset.path;
-                    const thumbUrl = asset.thumbnail
-                      ? toFileUrl(asset.thumbnail)
-                      : toFileUrl(asset.path);
+                    const isSelected = selected === asset.ref;
 
                     return (
                       <button
                         key={asset.id}
                         type="button"
+                        title={asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label}
                         onClick={() =>
-                          setSelected(isSelected ? null : asset.path)
+                          setSelected(isSelected ? null : asset.ref)
                         }
                         className={`
                           relative aspect-square rounded-lg overflow-hidden
@@ -353,14 +291,14 @@ export default function AssetPickerModal({
                         {/* Thumbnail */}
                         {asset.type === 'video' ? (
                           <video
-                            src={thumbUrl}
+                            src={asset.url}
                             className="w-full h-full object-cover"
                             muted
                             preload="metadata"
                           />
                         ) : (
                           <img
-                            src={thumbUrl}
+                            src={asset.url}
                             alt={asset.label}
                             className="w-full h-full object-cover"
                             loading="lazy"

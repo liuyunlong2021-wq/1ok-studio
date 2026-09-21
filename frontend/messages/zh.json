@@ -1741,8 +1741,10 @@
       "title": "选择素材",
       "loading": "加载中...",
       "retry": "重试",
-      "empty": "暂无可用素材",
-      "emptyHint": "在 Playground 中生成内容后，输出将出现在这里",
+      "empty": "资产库里还没有可用的资产图",
+      "emptyHint": "项目 / 系列里生成的角色、场景、道具图会出现在这里；“保存到资产库”的图也在内",
+      "globalGroup": "全局 / 共享",
+      "loadFailed": "资产库加载失败",
       "cancel": "取消",
       "select": "选择"
     },

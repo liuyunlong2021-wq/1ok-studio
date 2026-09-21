@@ -4,12 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Search, Star, ArrowDownUp, ChevronDown, Check, Plus } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Series, Project, Character, Scene, Prop, ImageAsset } from "@/store/projectStore";
+import type { Character, Scene, Prop, ImageAsset } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
 import { characterImageUrl, characterVariants, scenePropImageUrl } from "@/lib/characterImage";
 import { coverGradient, GRAIN_URL } from "@/lib/atelierCover";
 import { rovingKeyDown } from "@/lib/a11y";
 import { getAssetUrl } from "@/lib/utils";
+import { loadAssetSources, type AssetSource } from "@/lib/assetLibrary";
 import AssetInspector from "./AssetInspector";
 import NewLibraryAssetDialog from "./NewLibraryAssetDialog";
 
@@ -19,16 +20,6 @@ type SortMode = "default" | "name" | "recent" | "usage";
 type ViewAxis = "type" | "source";
 
 const SINGULAR: Record<AssetTab, string> = { characters: "character", scenes: "scene", props: "prop" };
-
-interface AssetSource {
-  id: string; // `series-X` / `project-X`（列表 key）
-  rawId: string; // 裸 series/project id（调 API 用）
-  name: string;
-  kind: "series" | "project" | "global";
-  characters: Character[];
-  scenes: Scene[];
-  props: Prop[];
-}
 
 /** 渲染条目：携带所属 source，使「按类型」视图也能按源显示/操作。 */
 interface RenderItem {
@@ -101,61 +92,7 @@ export default function AssetLibraryPage() {
   const loadAssets = async () => {
     setLoading(true);
     try {
-      const [seriesList, projects, globalPool] = await Promise.all([
-        api.listSeries(),
-        api.getProjects(),
-        api.listLibraryAssets(),
-      ]);
-      const result: AssetSource[] = [];
-
-      for (const s of seriesList as Series[]) {
-        if ((s.characters?.length || 0) + (s.scenes?.length || 0) + (s.props?.length || 0) > 0) {
-          result.push({
-            id: `series-${s.id}`,
-            rawId: s.id,
-            name: s.title,
-            kind: "series",
-            characters: s.characters || [],
-            scenes: s.scenes || [],
-            props: s.props || [],
-          });
-        }
-      }
-
-      const standaloneProjects = (projects as Project[]).filter((p) => !p.series_id);
-      for (const p of standaloneProjects) {
-        if ((p.characters?.length || 0) + (p.scenes?.length || 0) + (p.props?.length || 0) > 0) {
-          result.push({
-            id: `project-${p.id}`,
-            rawId: p.id,
-            name: p.title,
-            kind: "project",
-            characters: p.characters || [],
-            scenes: p.scenes || [],
-            props: p.props || [],
-          });
-        }
-      }
-
-      // 全局/共享池作为一个 kind:"global" 源（空池则不加）。名称在加载时取 i18n，
-      // 与 series/project 的 data 名同样存进 source.name。
-      const g = (globalPool || {}) as { characters?: Character[]; scenes?: Scene[]; props?: Prop[] };
-      const gChars = g.characters ?? [];
-      const gScenes = g.scenes ?? [];
-      const gProps = g.props ?? [];
-      if (gChars.length + gScenes.length + gProps.length > 0) {
-        result.push({
-          id: "global",
-          rawId: "global",
-          name: t("globalGroup"),
-          kind: "global",
-          characters: gChars,
-          scenes: gScenes,
-          props: gProps,
-        });
-      }
-
-      setSources(result);
+      setSources(await loadAssetSources(t("globalGroup")));
     } catch (error) {
       console.error("Failed to load asset library:", error);
       toast.error(t("loadFailed"), { body: t("loadFailedBody") });
