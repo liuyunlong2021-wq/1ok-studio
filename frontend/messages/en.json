@@ -1745,10 +1745,13 @@
       "emptyHint": "Character, scene and prop images from your projects and series show up here — so do images saved to the library",
       "globalGroup": "Global / Shared",
       "loadFailed": "Failed to load the asset library",
-      "selectedCount": "{count} selected",
+      "done": "Done",
+      "addedCount": "{count} reference",
       "roomLeft": "{count} more allowed",
-      "cancel": "Cancel",
-      "select": "Select"
+      "hintMulti": "Click to add, click again to remove — closing keeps things as they are",
+      "hintSingle": "Click to use this image as the reference",
+      "tapToAdd": "Click to add as a reference",
+      "tapToRemove": "Click to remove from references"
     },
     "parameters": {
       "imageSize": "Image size",

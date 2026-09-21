@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Image, Film, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -13,13 +14,17 @@ import { assetPickerItems, loadAssetSources, type AssetPickerItem } from '@/lib/
 interface AssetPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** 一次交回**全部新选中**的媒体引用（增量，不含 `existing`）。 */
-  onSelect: (refs: string[]) => void;
+  /** 点一张瓦片：不在参考图里的就加进去，已在里面的就移出去。**点完就生效**，
+   *  弹窗没有「提交」这一步 —— 所以直接关掉（× / Esc / 点背景 / 完成）不会丢东西。 */
+  onToggle: (ref: string) => void;
   accept: 'image' | 'video' | 'all';
-  /** 输入区已有的引用：在弹窗里显示为「已添加」，不可重复选。 */
+  /** 参考图里现有的引用（＝瓦片的勾选态）。 */
   existing?: string[];
-  /** 本次最多能再收几张（调用方算：maxFiles − 已有）。不传 = 不限。 */
+  /** 还能再收几张（调用方实时算：maxFiles − 已有）。不传 = 不限。 */
   capacity?: number;
+  /** 已在里面的那张能不能点掉。多参考模式可以；单参考模式那张是当前唯一一张，
+   *  不给点（想换就点别人）。 */
+  canRemoveExisting?: boolean;
 }
 
 type FilterTab = 'all' | 'image' | 'video';
@@ -47,20 +52,20 @@ const springModal = { type: 'spring' as const, stiffness: 400, damping: 30 };
 export default function AssetPickerModal({
   isOpen,
   onClose,
-  onSelect,
+  onToggle,
   accept,
   existing,
   capacity,
+  canRemoveExisting,
 }: AssetPickerModalProps) {
   const t = useTranslations('playground');
   const [items, setItems] = useState<AssetPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  // 选中的是**引用**（而不是 id）：勾选顺序就是加进输入区的顺序。
-  const [selected, setSelected] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>(
     accept === 'all' ? 'all' : accept
   );
+  // 勾选态直接看调用方的引用列表 —— 弹窗自己不留一份待提交的副本。
   const alreadyIn = useMemo(() => new Set(existing ?? []), [existing]);
 
   // -------------------------------------------------------------------------
@@ -85,10 +90,7 @@ export default function AssetPickerModal({
   }, [t]);
 
   useEffect(() => {
-    if (isOpen) {
-      setSelected([]);
-      fetchAssets();
-    }
+    if (isOpen) fetchAssets();
   }, [isOpen, fetchAssets]);
 
   // Reset active tab when accept changes
@@ -117,23 +119,9 @@ export default function AssetPickerModal({
   // Handlers
   // -------------------------------------------------------------------------
 
-  // 本次还能勾几张；调用方没给容量就是不限。
-  const room = capacity === undefined ? Infinity : Math.max(capacity - selected.length, 0);
+  const inCount = alreadyIn.size;
+  const room = capacity === undefined ? Infinity : Math.max(capacity, 0);
   const atCapacity = room <= 0;
-
-  /** 点一下勾上、再点取消。到上限就不给勾了 —— 宁可勾不动，也别让用户白勾。 */
-  const toggle = (ref: string) => {
-    if (alreadyIn.has(ref)) return;
-    setSelected((prev) =>
-      prev.includes(ref) ? prev.filter((r) => r !== ref) : atCapacity ? prev : [...prev, ref],
-    );
-  };
-
-  const handleSelect = () => {
-    if (selected.length === 0) return;
-    onSelect(selected);
-    onClose();
-  };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -178,9 +166,17 @@ export default function AssetPickerModal({
 
   // -------------------------------------------------------------------------
   // Render
+  //
+  // 一定要走 portal 挂到 document.body：创作台的媒体卡片是 `.glass-panel`
+  // （backdrop-blur），而 `backdrop-filter` 会给 fixed 后代创造包含块 ——
+  // 留在卡片里的话 `fixed inset-0` 的遮罩只会盖住那张卡，弹窗连同底部的按钮
+  // 被裁在卡片范围里，用户根本点不到（2026-09-21 用户在 App 里就是这么卡住的）。
+  // 同一个目录的 PromptTemplateModal / DetailPanel 都是这么挂的。
   // -------------------------------------------------------------------------
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -194,7 +190,7 @@ export default function AssetPickerModal({
         >
           <motion.div
             className="
-              w-[640px] max-h-[80vh]
+              w-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]
               bg-elevated border border-glass-border
               rounded-2xl shadow-2xl
               flex flex-col overflow-hidden
@@ -288,33 +284,35 @@ export default function AssetPickerModal({
                 <div className="grid grid-cols-4 gap-3">
                   {filteredAssets.map((asset) => {
                     const isThere = alreadyIn.has(asset.ref);
-                    const isSelected = isThere || selected.includes(asset.ref);
-                    // 到上限后没勾上的都点不动（已添加的本来就点不动）。
-                    const isLocked = isThere || (atCapacity && !isSelected);
+                    // 已在里面 + 允许移除 → 点一下移出去；单参考模式那张不给点（想换就点别人）。
+                    const removable = isThere && !!canRemoveExisting;
+                    const disabled = isThere ? !removable : atCapacity;
+                    const hint = isThere
+                      ? removable
+                        ? t('assetPicker.tapToRemove')
+                        : t('media.refAlreadyAdded')
+                      : atCapacity
+                        ? t('media.refsFull')
+                        : t('assetPicker.tapToAdd');
 
                     return (
                       <button
                         key={asset.id}
                         type="button"
-                        disabled={isThere || isLocked}
-                        aria-pressed={isSelected}
-                        title={
-                          [
-                            asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label,
-                            isThere ? t('media.refAlreadyAdded') : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' — ')
-                        }
-                        onClick={() => toggle(asset.ref)}
+                        disabled={disabled}
+                        aria-pressed={isThere}
+                        title={[asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label, hint]
+                          .filter(Boolean)
+                          .join(' — ')}
+                        onClick={() => onToggle(asset.ref)}
                         className={`
                           relative aspect-square rounded-lg overflow-hidden
                           bg-glass transition-all duration-150
-                          ${isThere ? 'cursor-default' : isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}
+                          ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}
                           ${
-                            isSelected
+                            isThere
                               ? 'border-2 border-primary ring-2 ring-primary/30'
-                              : isLocked
+                              : atCapacity
                                 ? 'border border-border-subtle opacity-40'
                                 : 'border border-border-subtle hover:border-primary/50'
                           }
@@ -344,8 +342,8 @@ export default function AssetPickerModal({
                           </div>
                         )}
 
-                        {/* Selected checkmark */}
-                        {isSelected && (
+                        {/* 已在参考图里的标记 */}
+                        {isThere && (
                           <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                             <Check className="w-3 h-3 text-on-accent" />
                           </div>
@@ -366,49 +364,40 @@ export default function AssetPickerModal({
 
             {/* -------------------------------------------------------------- */}
             {/* Footer                                                          */}
+            {/*                                                               */}
+            {/* 没有「提交」：点瓦片就已经生效了，这里只是关掉。                  */}
             {/* -------------------------------------------------------------- */}
-            <div className="flex items-center gap-2 px-6 py-4 border-t border-glass-border">
-              {/* 计数靠左：多选的时候不知道勾了几张 / 还能勾几张会心里没底。 */}
-              <div className="mr-auto flex items-center gap-2 font-mono text-[0.6875rem] text-text-muted">
-                {selected.length > 0 && (
-                  <span className="text-foreground">
-                    {t('assetPicker.selectedCount', { count: selected.length })}
-                  </span>
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-glass-border">
+              <span className="mr-auto text-[0.6875rem] text-text-muted">
+                {canRemoveExisting ? t('assetPicker.hintMulti') : t('assetPicker.hintSingle')}
+              </span>
+              <span className="font-mono text-[0.6875rem] text-text-muted">
+                <span className="text-foreground">{t('assetPicker.addedCount', { count: inCount })}</span>
+                {/* 单参考模式（canRemoveExisting=false）容量恒为 1，报「还能加 1 张」会误导 —— 那一栏只在多参考模式显示。 */}
+                {capacity !== undefined && canRemoveExisting && (
+                  <>
+                    <span className="mx-1.5 opacity-50">·</span>
+                    {t('assetPicker.roomLeft', { count: room })}
+                  </>
                 )}
-                {capacity !== undefined && (
-                  <span>{t('assetPicker.roomLeft', { count: room })}</span>
-                )}
-              </div>
+              </span>
               <button
                 type="button"
                 onClick={onClose}
                 className="
-                  px-4 py-2 rounded-lg text-xs
-                  text-text-secondary hover:text-foreground
-                  hover:bg-hover-bg
-                  transition-colors
+                  inline-flex items-center gap-[7px] px-4 py-2 rounded-full text-xs font-medium
+                  bg-primary text-on-accent shadow-[var(--glow-primary)]
+                  hover:bg-primary-hover hover:-translate-y-px transition-all
                 "
               >
-                {t('assetPicker.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSelect}
-                disabled={selected.length === 0}
-                className={[
-                  "inline-flex items-center gap-[7px] px-4 py-2 rounded-full text-xs font-medium transition-all",
-                  selected.length > 0
-                    ? "bg-primary text-on-accent shadow-[var(--glow-primary)] hover:bg-primary-hover hover:-translate-y-px"
-                    : "bg-elevated text-text-muted cursor-not-allowed",
-                ].join(" ")}
-              >
                 <Check className="w-3.5 h-3.5" />
-                {t('assetPicker.select')}
+                {t('assetPicker.done')}
               </button>
             </div>
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

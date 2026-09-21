@@ -236,8 +236,13 @@ export default function MediaInput() {
     fileInputRef.current?.click();
   };
 
-  const handleAssetSelect = (paths: string[]) => {
-    setInputMedia(mergeReferences(inputMedia, paths, activeConfig));
+  /** 选择器里点一张瓦片：不在参考图里的加进去，已在里面的移出去。 */
+  const handleAssetToggle = (ref: string) => {
+    setInputMedia(
+      inputMedia.includes(ref)
+        ? inputMedia.filter((p) => p !== ref)
+        : mergeReferences(inputMedia, [ref], activeConfig),
+    );
   };
 
   // Determine accept type for AssetPickerModal
@@ -248,7 +253,7 @@ export default function MediaInput() {
         ? 'video'
         : 'image';
 
-  // 弹窗里的容量：多参考模式看还剩几个空位；单参考模式永远只能收一张（后选替换）。
+  // 弹窗里的剩余容量：多参考模式看还剩几个空位；单参考模式永远只能收一张（后选替换）。
   const pickerCapacity = activeConfig.multiple
     ? activeConfig.maxFiles - inputMedia.length
     : 1;
@@ -337,10 +342,11 @@ export default function MediaInput() {
         <AssetPickerModal
           isOpen={showAssetPicker}
           onClose={() => setShowAssetPicker(false)}
-          onSelect={handleAssetSelect}
+          onToggle={handleAssetToggle}
           accept={acceptType}
           existing={inputMedia}
           capacity={pickerCapacity}
+          canRemoveExisting={activeConfig.multiple}
         />
       </div>
     );
@@ -460,10 +466,11 @@ export default function MediaInput() {
       <AssetPickerModal
         isOpen={showAssetPicker}
         onClose={() => setShowAssetPicker(false)}
-        onSelect={handleAssetSelect}
+        onToggle={handleAssetToggle}
         accept={acceptType}
         existing={inputMedia}
         capacity={pickerCapacity}
+        canRemoveExisting={activeConfig.multiple}
       />
     </div>
   );

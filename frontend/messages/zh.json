@@ -1745,10 +1745,13 @@
       "emptyHint": "项目 / 系列里生成的角色、场景、道具图会出现在这里；“保存到资产库”的图也在内",
       "globalGroup": "全局 / 共享",
       "loadFailed": "资产库加载失败",
-      "selectedCount": "已选 {count} 张",
+      "done": "完成",
+      "addedCount": "参考图 {count} 张",
       "roomLeft": "还能加 {count} 张",
-      "cancel": "取消",
-      "select": "选择"
+      "hintMulti": "点一下就加进参考图，再点一下移除；关掉就是现在这样",
+      "hintSingle": "点一下就换成这张参考图",
+      "tapToAdd": "点一下加入参考图",
+      "tapToRemove": "点一下从参考图移除"
     },
     "parameters": {
       "imageSize": "图像尺寸",
