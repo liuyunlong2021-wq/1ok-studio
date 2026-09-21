@@ -13,8 +13,13 @@ import { assetPickerItems, loadAssetSources, type AssetPickerItem } from '@/lib/
 interface AssetPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (path: string) => void;
+  /** 一次交回**全部新选中**的媒体引用（增量，不含 `existing`）。 */
+  onSelect: (refs: string[]) => void;
   accept: 'image' | 'video' | 'all';
+  /** 输入区已有的引用：在弹窗里显示为「已添加」，不可重复选。 */
+  existing?: string[];
+  /** 本次最多能再收几张（调用方算：maxFiles − 已有）。不传 = 不限。 */
+  capacity?: number;
 }
 
 type FilterTab = 'all' | 'image' | 'video';
@@ -44,15 +49,19 @@ export default function AssetPickerModal({
   onClose,
   onSelect,
   accept,
+  existing,
+  capacity,
 }: AssetPickerModalProps) {
   const t = useTranslations('playground');
   const [items, setItems] = useState<AssetPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  // 选中的是**引用**（而不是 id）：勾选顺序就是加进输入区的顺序。
+  const [selected, setSelected] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>(
     accept === 'all' ? 'all' : accept
   );
+  const alreadyIn = useMemo(() => new Set(existing ?? []), [existing]);
 
   // -------------------------------------------------------------------------
   // Load the asset library
@@ -77,7 +86,7 @@ export default function AssetPickerModal({
 
   useEffect(() => {
     if (isOpen) {
-      setSelected(null);
+      setSelected([]);
       fetchAssets();
     }
   }, [isOpen, fetchAssets]);
@@ -108,11 +117,22 @@ export default function AssetPickerModal({
   // Handlers
   // -------------------------------------------------------------------------
 
+  // 本次还能勾几张；调用方没给容量就是不限。
+  const room = capacity === undefined ? Infinity : Math.max(capacity - selected.length, 0);
+  const atCapacity = room <= 0;
+
+  /** 点一下勾上、再点取消。到上限就不给勾了 —— 宁可勾不动，也别让用户白勾。 */
+  const toggle = (ref: string) => {
+    if (alreadyIn.has(ref)) return;
+    setSelected((prev) =>
+      prev.includes(ref) ? prev.filter((r) => r !== ref) : atCapacity ? prev : [...prev, ref],
+    );
+  };
+
   const handleSelect = () => {
-    if (selected) {
-      onSelect(selected);
-      onClose();
-    }
+    if (selected.length === 0) return;
+    onSelect(selected);
+    onClose();
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -267,24 +287,36 @@ export default function AssetPickerModal({
               {!loading && !failed && filteredAssets.length > 0 && (
                 <div className="grid grid-cols-4 gap-3">
                   {filteredAssets.map((asset) => {
-                    const isSelected = selected === asset.ref;
+                    const isThere = alreadyIn.has(asset.ref);
+                    const isSelected = isThere || selected.includes(asset.ref);
+                    // 到上限后没勾上的都点不动（已添加的本来就点不动）。
+                    const isLocked = isThere || (atCapacity && !isSelected);
 
                     return (
                       <button
                         key={asset.id}
                         type="button"
-                        title={asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label}
-                        onClick={() =>
-                          setSelected(isSelected ? null : asset.ref)
+                        disabled={isThere || isLocked}
+                        aria-pressed={isSelected}
+                        title={
+                          [
+                            asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label,
+                            isThere ? t('media.refAlreadyAdded') : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' — ')
                         }
+                        onClick={() => toggle(asset.ref)}
                         className={`
                           relative aspect-square rounded-lg overflow-hidden
-                          bg-glass cursor-pointer
-                          transition-all duration-150
+                          bg-glass transition-all duration-150
+                          ${isThere ? 'cursor-default' : isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}
                           ${
                             isSelected
                               ? 'border-2 border-primary ring-2 ring-primary/30'
-                              : 'border border-border-subtle hover:border-primary/50'
+                              : isLocked
+                                ? 'border border-border-subtle opacity-40'
+                                : 'border border-border-subtle hover:border-primary/50'
                           }
                         `}
                       >
@@ -335,7 +367,18 @@ export default function AssetPickerModal({
             {/* -------------------------------------------------------------- */}
             {/* Footer                                                          */}
             {/* -------------------------------------------------------------- */}
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-glass-border">
+            <div className="flex items-center gap-2 px-6 py-4 border-t border-glass-border">
+              {/* 计数靠左：多选的时候不知道勾了几张 / 还能勾几张会心里没底。 */}
+              <div className="mr-auto flex items-center gap-2 font-mono text-[0.6875rem] text-text-muted">
+                {selected.length > 0 && (
+                  <span className="text-foreground">
+                    {t('assetPicker.selectedCount', { count: selected.length })}
+                  </span>
+                )}
+                {capacity !== undefined && (
+                  <span>{t('assetPicker.roomLeft', { count: room })}</span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={onClose}
@@ -351,10 +394,10 @@ export default function AssetPickerModal({
               <button
                 type="button"
                 onClick={handleSelect}
-                disabled={!selected}
+                disabled={selected.length === 0}
                 className={[
                   "inline-flex items-center gap-[7px] px-4 py-2 rounded-full text-xs font-medium transition-all",
-                  selected
+                  selected.length > 0
                     ? "bg-primary text-on-accent shadow-[var(--glow-primary)] hover:bg-primary-hover hover:-translate-y-px"
                     : "bg-elevated text-text-muted cursor-not-allowed",
                 ].join(" ")}

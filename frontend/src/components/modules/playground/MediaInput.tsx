@@ -5,7 +5,7 @@ import { ImagePlus, Film, X, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { usePlaygroundStore } from './usePlaygroundStore';
-import { MODE_CONFIG } from './mediaModes';
+import { MODE_CONFIG, mergeReferences } from './mediaModes';
 import AssetPickerModal from './AssetPickerModal';
 
 // ---------------------------------------------------------------------------
@@ -166,22 +166,20 @@ export default function MediaInput() {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    // Respect max file limit
-    const available = activeConfig.maxFiles - inputMedia.length;
-    const toUpload = fileArray.slice(0, available);
+    // 单参考模式永远是「传一张、替掉旧的」；多参考模式按剩余空位切。
+    // （旧写法用 maxFiles - 已有 当 available，单参考模式已有一张时算出来是 0
+    //   —— 于是「替换文件」一张也传不上去。）
+    const room = activeConfig.multiple
+      ? activeConfig.maxFiles - inputMedia.length
+      : 1;
+    if (room <= 0) return;
 
     setUploading(true);
     try {
       const results = await Promise.all(
-        toUpload.map((file) => playgroundApi.uploadMedia(file))
+        fileArray.slice(0, room).map((file) => playgroundApi.uploadMedia(file))
       );
-      const newPaths = results.map((r) => r.path);
-
-      if (activeConfig.multiple) {
-        setInputMedia([...inputMedia, ...newPaths]);
-      } else {
-        setInputMedia(newPaths);
-      }
+      setInputMedia(mergeReferences(inputMedia, results.map((r) => r.path), activeConfig));
     } catch (err) {
       console.error('[MediaInput] upload failed:', err);
     } finally {
@@ -238,8 +236,8 @@ export default function MediaInput() {
     fileInputRef.current?.click();
   };
 
-  const handleAssetSelect = (path: string) => {
-    setInputMedia([...inputMedia, path]);
+  const handleAssetSelect = (paths: string[]) => {
+    setInputMedia(mergeReferences(inputMedia, paths, activeConfig));
   };
 
   // Determine accept type for AssetPickerModal
@@ -249,6 +247,11 @@ export default function MediaInput() {
       : activeConfig.icon === 'video'
         ? 'video'
         : 'image';
+
+  // 弹窗里的容量：多参考模式看还剩几个空位；单参考模式永远只能收一张（后选替换）。
+  const pickerCapacity = activeConfig.multiple
+    ? activeConfig.maxFiles - inputMedia.length
+    : 1;
 
   // Don't render for t2v mode (no input media needed)
   if (!config) return null;
@@ -336,6 +339,8 @@ export default function MediaInput() {
           onClose={() => setShowAssetPicker(false)}
           onSelect={handleAssetSelect}
           accept={acceptType}
+          existing={inputMedia}
+          capacity={pickerCapacity}
         />
       </div>
     );
@@ -457,6 +462,8 @@ export default function MediaInput() {
         onClose={() => setShowAssetPicker(false)}
         onSelect={handleAssetSelect}
         accept={acceptType}
+        existing={inputMedia}
+        capacity={pickerCapacity}
       />
     </div>
   );

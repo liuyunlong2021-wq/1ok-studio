@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { assetPickerItems, type AssetSource } from "@/lib/assetLibrary";
 
-/** 造一条资产：给 url 就"有图"，不给就"没图"。 */
+/** 造一条资产：给 url 就"有图"，不给就"没图"。（只填取图用得上的字段） */
 const character = (id: string, name: string, url?: string) => ({
     id,
     name,
     description: "",
-    full_body_asset: url ? { selected_id: "v", variants: [{ id: "v", url }] } : undefined,
+    full_body_asset: url ? { selected_id: "v", variants: [{ id: "v", url, created_at: 0 }] } : undefined,
 });
 const scene = (id: string, name: string, url?: string) => ({
     id,
     name,
     description: "",
-    image_asset: url ? { selected_id: "v", variants: [{ id: "v", url }] } : undefined,
+    image_asset: url ? { selected_id: "v", variants: [{ id: "v", url, created_at: 0 }] } : undefined,
 });
 
 const source = (

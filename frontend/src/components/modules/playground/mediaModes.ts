@@ -59,3 +59,31 @@ export const MODE_CONFIG: Partial<Record<PlaygroundMode, ModeConfig>> = {
   },
   r2a: { labelKey: 'compose.mediaReferenceAudio', accept: 'audio/*', hintKey: 'r2a', multiple: true, maxFiles: 3, icon: 'audio' },
 };
+
+/**
+ * 把一批新引用收进输入区，返回新的引用数组。
+ *
+ * 规则（本地文件上传、从资产库选取、截帧三处共用同一份）：
+ * - 已在里面的不重复加（同一张图加两次没有意义，只会白占配额）；
+ * - 单参考模式（i2i / i2v / v2v，multiple=false）**替换**唯一那张，后选的胜出；
+ * - 多参考模式**追加到末尾**，超上限的丢掉（调用方负责先拦，别让用户白选）；
+ * - 什么都收不下时原样返回（**同一个数组引用**，调用方据此判断"没变化就别 setState"）。
+ *
+ * 变量名里的「引用」= inputMedia：交给后端的媒体引用（相对 output/）。
+ */
+export function mergeReferences(
+  current: string[],
+  incoming: string[],
+  config: Pick<ModeConfig, 'multiple' | 'maxFiles'>,
+): string[] {
+  const fresh = incoming.filter((p) => p && !current.includes(p));
+  if (fresh.length === 0) return current;
+
+  // 单参考模式：不追加，只替换 —— 追加会多出一张界面看不见、但照样送进生成的图。
+  if (!config.multiple) return [fresh[fresh.length - 1]];
+
+  const room = config.maxFiles - current.length;
+  if (room <= 0) return current;
+  return [...current, ...fresh.slice(0, room)];
+}
+

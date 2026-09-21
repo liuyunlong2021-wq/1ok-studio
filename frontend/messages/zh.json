@@ -1745,6 +1745,8 @@
       "emptyHint": "项目 / 系列里生成的角色、场景、道具图会出现在这里；“保存到资产库”的图也在内",
       "globalGroup": "全局 / 共享",
       "loadFailed": "资产库加载失败",
+      "selectedCount": "已选 {count} 张",
+      "roomLeft": "还能加 {count} 张",
       "cancel": "取消",
       "select": "选择"
     },
