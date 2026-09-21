@@ -201,6 +201,7 @@ pub fn run() {
                     "preferences" => Some("window.location.hash = '#/settings';".to_string()),
                     "new_project" => Some("window.location.hash='#/new-project';".to_string()),
                     "open_project" => Some("window.location.hash = '#/';".to_string()),
+                    "reload" => Some("window.location.reload();".to_string()),
                     "zoom_in" => Some("(function(){var s=parseFloat(getComputedStyle(document.documentElement).fontSize);document.documentElement.style.fontSize=(s+1)+'px';})()".to_string()),
                     "zoom_out" => Some("(function(){var s=parseFloat(getComputedStyle(document.documentElement).fontSize);document.documentElement.style.fontSize=Math.max(10,s-1)+'px';})()".to_string()),
                     "zoom_reset" => Some("document.documentElement.style.fontSize='81.25%';".to_string()),

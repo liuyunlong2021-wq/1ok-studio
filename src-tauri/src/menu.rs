@@ -61,6 +61,10 @@ pub fn build_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Err
         "View",
         true,
         &[
+            // 刷新：dev 下窗口比首次编译先到（chunk 还没生成）时会卡在 Next 的
+            // ChunkLoadError 浮层上，而浮层不会自愈、菜单里没有刷新入口就彻底打不开。
+            &MenuItem::with_id(app, "reload", "Reload", true, Some("CmdOrCtrl+R"))?,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "zoom_in", "Zoom In", true, Some("CmdOrCtrl+="))?,
             &MenuItem::with_id(app, "zoom_out", "Zoom Out", true, Some("CmdOrCtrl+-"))?,
             &MenuItem::with_id(app, "zoom_reset", "Actual Size", true, Some("CmdOrCtrl+0"))?,
