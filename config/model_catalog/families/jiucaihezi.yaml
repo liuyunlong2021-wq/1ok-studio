@@ -294,3 +294,31 @@ models:
     duration: *minimax_h3_duration
     params: *minimax_h3_params
     inputs: *minimax_h3_inputs
+  # RH 渠道的 MiniMax H3 应用：网关上 8 个应用**共用一个模型名 `rh-aiapp`**，
+  # 用 `extra_fields.webappId`（写编号）选应用 —— 所以目录里只能按应用分开取 id，
+  # 到了请求那一步才换成 rh-aiapp + 编号（见 models/jiucaihezi.py 的 _RH_WEBAPP_IDS）。
+  # 对外合同：jiucaihezi-app/docs/wiki/运维/韭菜盒子RH渠道MiniMaxH3视频API对外接入-2026-09-21.md
+  - id: rh_minimax_h3_ref_9
+    display_name: "文武双修 · 韭菜盒子"
+    description: "RH 渠道 MiniMax H3 多参应用：最多 9 张参考图，1-15 秒，via 韭菜盒子"
+    status: active
+    release_stage: stable
+    # 这个应用只做「多张参考图生视频」：不收参考音频，也不做文生视频。
+    capabilities: [r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1003
+      recommended: false
+      badges: [韭菜盒子, MiniMax]
+    duration: {type: slider, min: 1, max: 15, step: 1, default: 5}
+    params:
+      # RH 应用原生就这 8 个比例，画幅由 ratio 单独决定 —— 没有 resolution 这一层，
+      # 所以不声明；UI 两处渲染都有 `modelParams.resolution &&` 守卫。
+      ratio: {options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"], default: "9:16"}
+      negativePrompt: false
+      promptExtend: false
+    inputs:
+      reference_images: {max: 9, reference_type: image}

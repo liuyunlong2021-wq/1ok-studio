@@ -95,6 +95,33 @@ export default function VideoGenerator() {
         return () => clearInterval(interval);
     }, [tasks, currentProject?.id]);
 
+    // 动作步骤里选的模型要**写回项目设置**。
+    //
+    // 不写回的后果：下面那个「Sync model from project settings」的 effect 会在设置
+    // 对象变化时把 params.model 改回存量值（本项目存的是 海seedance2.5），而模型格子
+    // 里点「文武双修」只改了本地 state —— 表现就是刚点完模型，时长控件（按当前模型
+    // 渲染）自己变回「30s 固定」、滑杆消失，生成还会按 30 秒发出去。
+    const persistSelectedModel = (generationMode: string, model: string) => {
+        if (!currentProject || !model) return;
+        const isR2v = generationMode === 'r2v';
+        // 位置参数顺序见 lib/api.ts::updateModelSettings；后端对空值 = 不改那一项。
+        api.updateModelSettings(
+            currentProject.id,
+            undefined, undefined, isR2v ? undefined : model, undefined, undefined, undefined, undefined, undefined,
+            isR2v ? model : undefined,
+        )
+            .then((updated) => updateProject(currentProject.id, updated))
+            .catch((error) => console.error("persist selected model failed", error));
+    };
+
+    // 只对「用户真的换了模型」这一个动作做持久化：其他参数仍纯本地。
+    const handleParamsChange = (patch: Partial<typeof params>) => {
+        if (patch.model && patch.model !== params.model) {
+            persistSelectedModel(patch.generationMode ?? params.generationMode, patch.model);
+        }
+        setParams((p) => ({ ...p, ...patch }));
+    };
+
     const handleTaskCreated = (updatedProject: any) => {
         if (updatedProject.video_tasks) {
             setTasks(updatedProject.video_tasks);
@@ -172,7 +199,7 @@ export default function VideoGenerator() {
                         extractedFrame={extractedFrame}
                         onExtractedFrameClear={() => setExtractedFrame(null)}
                         params={params}
-                        onParamsChange={(newParams) => setParams(p => ({ ...p, ...newParams }))}
+                        onParamsChange={handleParamsChange}
                     />
                 </div>
 
@@ -183,7 +210,7 @@ export default function VideoGenerator() {
                         onRemix={handleRemix}
                         onExtractFrame={(_task, file, name) => setExtractedFrame({ file, name })}
                         params={params}
-                        setParams={setParams}
+                        setParams={handleParamsChange}
                     />
                 </div>
             </div>

@@ -646,3 +646,114 @@ def test_generate_audio_truncates_input_at_contract_limit(tmp_path):
         generate_audio("字" * 5000, str(tmp_path / "out.mp3"))
 
     assert len(post.call_args.kwargs["json"]["input"]) == 3000
+
+
+# ---------------------------------------------------------------------------
+# RH 渠道 MiniMax H3 应用（文武双修）：rh-aiapp + extra_fields.webappId
+# 合同：jiucaihezi-app/docs/wiki/运维/韭菜盒子RH渠道MiniMaxH3视频API对外接入-2026-09-21.md
+# ---------------------------------------------------------------------------
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_rh_aiapp_app_swaps_model_name_and_carries_webapp_id(post, get, _sleep, _download_content):
+    """RH 渠道 8 个应用共用一个网关模型名，应用由 extra_fields.webappId 指定。
+
+    两处都要写：平台只读 extra_fields 里那份，只发顶层会得到
+    `500 No webapp ID for model: rh-aiapp`。
+    画质固定 0.9、不接受参考音频 —— payload 里不该出现 resolution / audios。
+    """
+    post.return_value = _response({"task_id": "task-rh"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt",
+        "/tmp/output.mp4",
+        model_name="rh_minimax_h3_ref_9",
+        duration=9,
+        ratio="9:16",
+        ref_image_urls=["https://cdn.example/a.png"],
+        reference_audio_urls=["https://cdn.example/bgm.mp3"],
+    )
+
+    assert post.call_args.kwargs["json"] == {
+        "model": "rh-aiapp",
+        "prompt": "prompt",
+        "ratio": "9:16",
+        "duration": 9,
+        "extra_fields": {"webappId": "2101840271142117377"},
+        "webappId": "2101840271142117377",
+        "images": ["https://cdn.example/a.png"],
+    }
+    _download_content.assert_called_once_with("task-rh", "/tmp/output.mp4")
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_rh_aiapp_app_defaults_duration_to_five(post, get, _sleep, _download_content):
+    """时长不传时按合同的 5 秒，不是各应用自带的 9/4/2/3 秒。"""
+    post.return_value = _response({"task_id": "task-rh-default"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate("prompt", "/tmp/output.mp4", model_name="rh_minimax_h3_ref_9")
+
+    assert post.call_args.kwargs["json"]["duration"] == 5
+
+
+# ---------------------------------------------------------------------------
+# 已完成任务的取回：/content 失败要退到查询响应里的 url
+# ---------------------------------------------------------------------------
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(post, get, _sleep, tmp_path):
+    """RH 渠道的 /content 实测恒 502，成片只在查询响应的 url 上。
+
+    任务已经生成完（钱已经花了），取不回来才是失败 —— 所以 content 接口失败之后必须
+    退到 url，而不是直接把任务判死。
+    """
+    post.return_value = _response({"task_id": "task-rh"})
+    poll = _response({
+        "id": "task-rh",
+        "status": "completed",
+        "url": "https://cos.example/final.mp4",
+    })
+    blocked = _response({})
+    blocked.status_code = 502
+    blocked.text = "<html>502</html>"
+    blocked.raise_for_status.side_effect = requests.exceptions.HTTPError("502")
+    fetched = _response({})
+    fetched.content = b"rh-video-bytes"
+    # content 接口重试 3 次都失败，第 4 次才是从 url 拉
+    get.side_effect = [poll, blocked, blocked, blocked, fetched]
+    output_path = tmp_path / "rh.mp4"
+
+    JiucaiheziVideoModel({}).generate("prompt", str(output_path), model_name="rh_minimax_h3_ref_9")
+
+    assert output_path.read_bytes() == b"rh-video-bytes"
+    assert get.call_args_list[-1].args[0] == "https://cos.example/final.mp4"
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_video_reports_clearly_when_both_content_and_url_fail(post, get, _sleep, tmp_path):
+    """两处都拉不到时才报「取不回来」—— 那是让用户决定要不要重生成的那句话。"""
+    post.return_value = _response({"task_id": "task-dead"})
+    poll = _response({"id": "task-dead", "status": "completed", "url": "https://cos.example/gone.mp4"})
+    blocked = _response({})
+    blocked.status_code = 502
+    blocked.text = "<html>502</html>"
+    blocked.raise_for_status.side_effect = requests.exceptions.HTTPError("502")
+    get.side_effect = [poll] + [blocked] * 4
+
+    with pytest.raises(RuntimeError, match="产物取不回来"):
+        JiucaiheziVideoModel({}).generate("prompt", str(tmp_path / "x.mp4"), model_name="rh_minimax_h3_ref_9")

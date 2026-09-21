@@ -112,6 +112,17 @@ def _align_ratio_with_resolution(ratio: str, resolution: str) -> str:
     return "16:9" if suffix == "横" else "9:16"
 
 
+# RH 渠道的 MiniMax H3 应用在网关上**共用一个模型名**，靠 `extra_fields.webappId`
+# 选应用（写编号）。所以目录里每个应用是一个独立 id，到发请求这一步才换成
+# rh-aiapp + 编号。合同：
+# jiucaihezi-app/docs/wiki/运维/韭菜盒子RH渠道MiniMaxH3视频API对外接入-2026-09-21.md
+_RH_AIAPP_GATEWAY_MODEL = "rh-aiapp"
+_RH_WEBAPP_IDS = {
+    # 应用名「文武双修」，参考图上限 9 张
+    "rh_minimax_h3_ref_9": "2101840271142117377",
+}
+
+
 def _headers() -> Dict[str, str]:
     key = os.getenv("JIUCAIHEZI_API_KEY")
     if not key:
@@ -207,11 +218,24 @@ def poll_video_task(
             continue
         status = str(result.get("status") or "").lower()
         if status in ("completed", "succeeded"):
-            # Always fetch the artifact from the content endpoint; the poll
-            # response's url field is not authoritative.
+            # 先用 content 接口（老通道的 url 字段不总是权威）；失败再退到查询响应里的
+            # url —— RH 渠道（rh-aiapp）实测 /content 恒 502（Cloudflare 错误页），而成
+            # 片就在 url 上（腾讯云 COS，可直连）。合同两处都认，取不回来才算失败。
             try:
                 return download_video_content(task_id, output_path)
             except Exception as exc:  # noqa: BLE001 — 换句人能看懂的话再抛
+                url = str(result.get("url") or "").strip()
+                if url:
+                    try:
+                        _download(url, output_path)
+                        logger.info(
+                            "Jiucaihezi content endpoint failed for task %s (%s); saved it from the poll url instead.",
+                            task_id,
+                            exc,
+                        )
+                        return output_path
+                    except Exception as url_exc:  # noqa: BLE001
+                        exc = url_exc
                 # 实测：任务号能查很久，但产物只在有限窗口内可取 —— 过期之后再拉
                 # 就是 502/400。这两种情况对用户来说完全不一样（「还要等」vs「已经取
                 # 不回了」），报清楚才知道该不该重新生成。
@@ -474,15 +498,30 @@ class JiucaiheziVideoModel(VideoGenModel):
         # 带 横/竖 的值就改掉它的 ratio。
         if is_minimax_h3_model(model_name):
             ratio = _align_ratio_with_resolution(ratio, resolution)
-        payload = {"model": model_name, "prompt": prompt, "ratio": ratio}
-        if is_minimax_h3_model(model_name):
-            payload["duration"] = int(kwargs.get("duration") or 5)
-            payload["resolution"] = resolution or "768p横"
-            audio_refs = list(kwargs.get("reference_audio_urls") or [])
-            if kwargs.get("audio_url"):
-                audio_refs.insert(0, kwargs["audio_url"])
-            if audio_refs:
-                payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
+        webapp_id = _RH_WEBAPP_IDS.get(model_name)
+        if webapp_id:
+            # RH 应用：可调项只有时长与画幅（画质固定 0.9、不作为字段），也不收参考
+            # 音频 —— 所以**不发** resolution 与 audios，两个都会是多余字段。
+            payload = {
+                "model": _RH_AIAPP_GATEWAY_MODEL,
+                "prompt": prompt,
+                "ratio": ratio,
+                "duration": int(kwargs.get("duration") or 5),
+                # 平台只从 extra_fields 取编号；顶层那份是合同要求的同值兼容写法
+                # （只发顶层会得到 500 No webapp ID for model: rh-aiapp）。
+                "extra_fields": {"webappId": webapp_id},
+                "webappId": webapp_id,
+            }
+        else:
+            payload = {"model": model_name, "prompt": prompt, "ratio": ratio}
+            if is_minimax_h3_model(model_name):
+                payload["duration"] = int(kwargs.get("duration") or 5)
+                payload["resolution"] = resolution or "768p横"
+                audio_refs = list(kwargs.get("reference_audio_urls") or [])
+                if kwargs.get("audio_url"):
+                    audio_refs.insert(0, kwargs["audio_url"])
+                if audio_refs:
+                    payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
         if images:
             # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。

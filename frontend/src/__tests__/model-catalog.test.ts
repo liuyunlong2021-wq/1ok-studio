@@ -86,6 +86,7 @@ describe('model catalog selectors', () => {
             'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
+            'rh_minimax_h3_ref_9',
             '海seedance2.5',
         ]);
         // 默认必须是 海seedance2.5（列表顺序是按 ui.order 排的，不是默认值）

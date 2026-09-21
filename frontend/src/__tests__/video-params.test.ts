@@ -57,6 +57,7 @@ describe('视频模型参数契约', () => {
             'dola-seedance2.5',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
+            'rh_minimax_h3_ref_9',
             '海seedance2.5',
         ]);
     });
@@ -99,6 +100,18 @@ describe('视频模型参数契约', () => {
         expect(h3.params).toEqual(zm.params);
         expect(h3.params.audio).toBe(true);
         expect(h3.duration.type).toBe('slider');
+    });
+
+    it('RH 渠道应用（文武双修）只有 8 个比例、9 张参考图，不接受音频', () => {
+        const model = catalogModel('rh_minimax_h3_ref_9');
+        expect(model.duration).toEqual({ type: 'slider', min: 1, max: 15, step: 1, default: 5 });
+        expect(model.params.ratio.options).toHaveLength(8);
+        expect(model.params.ratio.default).toBe('9:16');
+        // 画幅由 ratio 单独决定：宁可不声明 resolution，也不编一个网关不认的档位出来。
+        expect(model.params.resolution).toBeUndefined();
+        // 这个应用只收参考图，不收参考音频。
+        expect(model.params.audio).toBeUndefined();
+        expect(model.inputs.reference_images.max).toBe(9);
     });
 });
 
