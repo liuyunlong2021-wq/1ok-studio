@@ -1334,7 +1334,17 @@
     "frameExtractFailed": "Frame extraction failed.",
     "frameExtractTainted": "Blocked by browser security — the canvas was treated as cross-origin.",
     "frameExtractUploadFailed": "Uploading the extracted frame failed; the reference was not added.",
-    "refImagesFull": "Reference images are full (limit {limit}) — remove one first."
+    "refImagesFull": "Reference images are full (limit {limit}) — remove one first.",
+    "autoBind": "Auto-bind from selected shots",
+    "autoBindHint": "Fills the reference slots with the characters / scenes / props recorded on the selected shots, in first-appearance order. The prompt is left untouched.",
+    "autoBindDone": "Auto-bound {count} reference images",
+    "autoBindPartial": "Bound {count} — some could not be bound",
+    "autoBindNotBindable": "Not bound: ",
+    "autoBindOverLimit": "Over the limit: {total} images (max {limit}) — remove slots or drop some shots",
+    "autoBindNothing": "No bindable assets in these shots",
+    "autoBindNothingBody": "The selected shots record no characters / scenes / props.",
+    "autoBindNoChange": "References are already up to date",
+    "autoBindNoChangeBody": "Every asset in these shots already has a slot."
   },
   "storyboardR2V": {
     "genShots": "✨ Generate shots",

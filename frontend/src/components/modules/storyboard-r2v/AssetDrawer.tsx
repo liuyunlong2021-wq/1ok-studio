@@ -90,13 +90,15 @@ export default function AssetDrawer({ isOpen, onClose, characters, scenes, props
                                                 <span className="text-[0.6875rem] font-medium text-text-secondary uppercase tracking-wide">{t("characters")}</span>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                {characters.map((c: any, i: number) => {
+                                                {characters.map((c: any) => {
                                                     const thumb = getAssetThumbnail(c, "character");
                                                     return (
                                                         <button
                                                             key={c.id}
                                                             onClick={() => {
-                                                                onSelectAsset(`character${i + 1}`, c.name);
+                                                                // 类型不带序号：槽位号由 lib/assetTag.ts 按提示词里已有的标签分配，
+                                                                // 用列表下标当槽位会与已有标签撞号 / 跳号。
+                                                                onSelectAsset("character", c.name);
                                                                 onClose();
                                                             }}
                                                             className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-glass-border bg-glass hover:border-foreground/30 hover:bg-hover-bg transition-all duration-200 group"

@@ -1334,7 +1334,17 @@
     "frameExtractFailed": "截帧失败。",
     "frameExtractTainted": "截帧被浏览器安全策略拦了（画布被判跨域）。",
     "frameExtractUploadFailed": "截下来的帧上传失败，参考图没加上。",
-    "refImagesFull": "参考图已满（上限 {limit} 张），先删一张再截。"
+    "refImagesFull": "参考图已满（上限 {limit} 张），先删一张再截。",
+    "autoBind": "从选中镜头自动绑定",
+    "autoBindHint": "按镜头首次出现顺序，把选中镜头里的角色 / 场景 / 道具填进参考图，只填槽位、不动提示词",
+    "autoBindDone": "已自动绑定 {count} 张参考图",
+    "autoBindPartial": "已绑定 {count} 张，有几个没绑上",
+    "autoBindNotBindable": "未绑定：",
+    "autoBindOverLimit": "已超出上限：现在 {total} 张（上限 {limit} 张），请删掉几个槽位或减少镜头",
+    "autoBindNothing": "这段镜头没有可绑定的资产",
+    "autoBindNothingBody": "选中的镜头里没记录角色 / 场景 / 道具。",
+    "autoBindNoChange": "参考图已经是最新",
+    "autoBindNoChangeBody": "这段镜头的资产都已经在槽位里了。"
   },
   "storyboardR2V": {
     "shots": "镜头",

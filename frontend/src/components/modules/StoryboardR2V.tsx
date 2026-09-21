@@ -19,6 +19,7 @@ import StoryboardGenerateDialog from "./storyboard-r2v/StoryboardGenerateDialog"
 import { toast } from "@/store/toastStore";
 import { Wand2 } from "lucide-react";
 import AssetDrawer from "./storyboard-r2v/AssetDrawer";
+import { buildAssetTag } from "@/lib/assetTag";
 import { type VideoConfig, DEFAULT_VIDEO_CONFIG } from "./storyboard-r2v/VideoConfigModal";
 import {
     migrateShotNode,
@@ -1344,11 +1345,14 @@ export default function StoryboardR2V() {
     }, [shots, persistWorkbench]);
 
     // Insert asset tag from drawer into target shot
-    const insertAssetFromDrawer = useCallback((type: string, name: string) => {
+    const insertAssetFromDrawer = useCallback((_type: string, name: string) => {
         const shotIndex = drawerState.targetShotIndex;
         if (shotIndex === null || shotIndex === undefined) return;
 
-        const tag = `[${type}:${name}]`;
+        // 槽位分配统一走 lib/assetTag.ts。之前这里拼的是 `[${type}:${name}]`
+        //（即 [scene:县衙]），而解析正则只认 [character\d+:名字] —— 从抽屉选场景/
+        // 道具等于没反应，图也不会被绑上。
+        const tag = buildAssetTag(shots[shotIndex].prompt, name);
         const textarea = textareaRefs.current.get(shotIndex) ?? null;
         if (textarea) {
             const start = textarea.selectionStart;
@@ -1908,11 +1912,6 @@ export default function StoryboardR2V() {
                             onDuplicate={() => duplicateShot(index)}
                             onSetTabMode={(mode) => setTabMode(index, mode)}
                             onOpenDrawer={() => setDrawerState({ isOpen: true, targetShotIndex: index })}
-                            onInsertAsset={(type, name) => {
-                                // Direct chip insert (same as chip bar logic, delegated to chip bar)
-                                const tag = `[${type}:${name}]`;
-                                updatePrompt(index, shots[index].prompt + " " + tag);
-                            }}
                             onCancelVideo={
                                 shot.videoTaskId && currentProject
                                     ? async () => {

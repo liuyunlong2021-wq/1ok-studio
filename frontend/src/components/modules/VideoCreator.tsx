@@ -21,6 +21,8 @@ import { api, API_URL, VideoTask } from "@/lib/api";
 import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
+import { deriveSegmentReferences } from "@/lib/segmentReferences";
+import { toast } from "@/store/toastStore";
 import PromptBuilder, { PromptSegment, PromptBuilderRef } from "./PromptBuilder";
 import type { VideoParams } from "@/store/projectStore";
 
@@ -636,6 +638,48 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     };
     const handleClearCastSlot = (slotIndex: number) => setReferenceAssets((items) => items.filter((_, index) => index !== slotIndex));
 
+    /**
+     * 从选中的连续镜头推导参考图，**只填槽位**（不碰提示词——用户可能已经手改过）。
+     *
+     * 保留并追加：手动上传的图、手动加的资产都留着，只补还没有的（按 URL 去重）。
+     * 超 9 张不截断：计数会标红，用户自己删镜头或删槽位。
+     */
+    const handleAutoBindReferences = () => {
+        setMotionError("");
+        if (!currentProject || !selectedFrameIds.length) return;
+
+        const { references, misses } = deriveSegmentReferences(
+            selectedFrameIds,
+            (currentProject.frames || []) as any,
+            { characters: currentProject.characters, scenes: currentProject.scenes, props: currentProject.props },
+        );
+
+        const have = new Set(referenceAssets.map((item) => item.url));
+        const added = references.filter((item) => !have.has(item.url));
+        if (added.length) setReferenceAssets((items) => [...items, ...added.filter((item) => !items.some((i) => i.url === item.url))]);
+
+        const noImage = misses.filter((item) => item.reason === "no-image");
+        const missing = misses.filter((item) => item.reason === "missing-asset");
+        const notBindable = [...noImage, ...missing].map((item) => `${item.name}（${item.type}·第${item.shot}镜）`);
+
+        if (!references.length && !notBindable.length) {
+            toast.warning(tc("autoBindNothing"), { body: tc("autoBindNothingBody") });
+            return;
+        }
+        if (!added.length) {
+            toast.info(tc("autoBindNoChange"), { body: tc("autoBindNoChangeBody") });
+            return;
+        }
+
+        const total = referenceAssets.length + added.length;
+        const over = total > referenceImageLimit ? tc("autoBindOverLimit", { total, limit: referenceImageLimit }) : "";
+        if (notBindable.length) {
+            toast.warning(tc("autoBindPartial", { count: added.length }), { body: `${tc("autoBindNotBindable")}${notBindable.join("、")}${over}` });
+        } else {
+            toast.success(tc("autoBindDone", { count: added.length }), { body: over });
+        }
+    };
+
     return (
         <div className="h-full flex flex-col relative min-h-0">
             {/* Scrollable Content Area */}
@@ -972,9 +1016,23 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                             </div>
 
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between gap-3">
                                     <label className="text-sm font-medium text-text-secondary">参考图（角色 / 场景 / 道具）</label>
-                                    <span className="text-xs text-text-muted">{referenceAssets.length} / {referenceImageLimit}</span>
+                                    <span className="flex items-center gap-2 text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={handleAutoBindReferences}
+                                            disabled={!selectedFrameIds.length}
+                                            title={tc("autoBindHint")}
+                                            className="flex items-center gap-1 rounded border border-glass-border px-2 py-0.5 font-medium text-text-secondary transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            <Wand2 size={10} />
+                                            {tc("autoBind")}
+                                        </button>
+                                        <span className={referenceAssets.length > referenceImageLimit ? "font-semibold text-red-400" : "text-text-muted"}>
+                                            {referenceAssets.length} / {referenceImageLimit}
+                                        </span>
+                                    </span>
                                 </div>
                                 {r2vUsesImages ? (
                                     /* Image-based R2V: slot count follows the gateway contract. */

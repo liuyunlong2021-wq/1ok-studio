@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import AssetChipBar from "./AssetChipBar";
+import { buildAssetTag } from "@/lib/assetTag";
 import PromptExpandModal from "./PromptExpandModal";
 import PolishPanel from "./PolishPanel";
 import FieldTagChip, { AddFieldButton, type FieldType } from "./FieldTagChip";
@@ -123,7 +124,6 @@ interface ShotCardProps {
     onDuplicate: () => void;
     onSetTabMode: (mode: "t2i_i2v" | "direct_r2v") => void;
     onOpenDrawer: () => void;
-    onInsertAsset: (type: string, name: string) => void;
     /** Duration editor config derived from model catalog */
     durationEditorConfig?: { min: number; max: number; step: number };
     /** Optional: Cancel CTA shown inside the pending-state affordance
@@ -174,7 +174,6 @@ export default function ShotCard({
     onDuplicate,
     onSetTabMode,
     onOpenDrawer,
-    onInsertAsset: _onInsertAsset,
     durationEditorConfig,
     onCancelVideo,
     expanded,
@@ -495,37 +494,12 @@ export default function ShotCard({
 
     const handleInsertAssetFromChip = (_type: string, name: string) => {
         const currentPrompt = shot.prompt;
-        // Each unique character gets one fixed slot number throughout this
-        // prompt: slot N → reference_image_urls[N-1] in HappyHorse R2V, so
-        // referencing the same actor twice must reuse the same slot —
-        // otherwise the model would expect two separate reference images.
-        // Examples:
+        // 槽位分配统一走 lib/assetTag.ts：每个名字在本提示词里固定一个 N
+        //（N → reference_image_urls[N-1]），同名复用、新名取最大槽位 + 1。
         //   first @小兔子 → [character1:小兔子]
         //   then @小狗 → [character2:小狗]
-        //   then @小兔子 again → [character1:小兔子]   (reuse, NOT [character3:…])
-        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const existingTagRe = new RegExp(`\\[character(\\d+):${escapedName}\\]`);
-        const existingMatch = currentPrompt.match(existingTagRe);
-
-        let slot: number;
-        if (existingMatch) {
-            slot = parseInt(existingMatch[1], 10);
-        } else {
-            // Map of (slot → name) already in the prompt; first-seen wins
-            // per slot so accidental dup tags don't inflate the count.
-            const usedSlotByName = new Map<number, string>();
-            const slotRe = /\[character(\d+):([^\]]+)\]/g;
-            let m;
-            while ((m = slotRe.exec(currentPrompt)) !== null) {
-                const slotN = parseInt(m[1], 10);
-                if (!usedSlotByName.has(slotN)) {
-                    usedSlotByName.set(slotN, m[2]);
-                }
-            }
-            const usedSlots = Array.from(usedSlotByName.keys());
-            slot = usedSlots.length > 0 ? Math.max(...usedSlots) + 1 : 1;
-        }
-        const tag = `[character${slot}:${name}]`;
+        //   then @小兔子 again → [character1:小兔子]   (复用，不是 [character3:…])
+        const tag = buildAssetTag(currentPrompt, name);
 
         const textarea = textareaRef.current;
         if (textarea) {
