@@ -512,6 +512,12 @@ class ScriptProcessor:
         名字**。同一个角色在第 2 集被重新起名（刘备 → 刘玄德）之后就只能靠事后
         匹配去猜，一开始就把名册给它便宜得多。不传 = 老行为。
         """
+        # 空正文没有任何可提取的东西。以前照样把空串发给模型：白花一次调用，
+        # 失败时还在界面上报「剧本解析失败」—— 用户会以为"我什么都没干它就失败了"。
+        if not (text or "").strip():
+            logger.warning(f"Parsing novel skipped: empty text (title={title})")
+            raise ValueError("剧本为空，无法提取角色/场景/道具。请先粘贴或导入正文。")
+
         logger.info(f"Parsing novel: {title}...")
         
         if not self.is_configured:

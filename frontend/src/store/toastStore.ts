@@ -78,8 +78,16 @@ export const toast = {
         useToastStore.getState().push({ kind: "info", title, autoCloseMs: 5000, ...opts }),
     success: (title: string, opts?: Partial<Toast>) =>
         useToastStore.getState().push({ kind: "success", title, autoCloseMs: 6000, ...opts }),
+    /**
+     * 错误不再「永久驻留」。
+     *
+     * 原来是 autoCloseMs: 0（只能手动关），代价是：**一天前的失败会一直挂在
+     * 屏幕上**，用户回来看到它，以为"我什么都没干它就报错了"（2026-09-22 实际
+     * 踩到：窗口开了 23 小时，报错还是昨天那次 520）。
+     * 给 30 秒：够看清楚、点「复制错误详情」，又不会跨小时糊在界面上。
+     */
     error: (title: string, opts?: Partial<Toast>) =>
-        useToastStore.getState().push({ kind: "error", title, autoCloseMs: 0, ...opts }),
+        useToastStore.getState().push({ kind: "error", title, autoCloseMs: 30000, ...opts }),
     warning: (title: string, opts?: Partial<Toast>) =>
         useToastStore.getState().push({ kind: "warning", title, autoCloseMs: 6000, ...opts }),
     /** Returns an id you can later update() to "success"/"error" + dismiss. */
