@@ -349,13 +349,13 @@
       "category": "style_lab",
       "name": "High-Precision 3D Semi-Realistic Anime",
       "name_zh": "高精度3D半写实动漫",
-      "subtitle_zh": "BJD 娃体 · 瓷化皮肤 · 高模渲染",
-      "description": "高精度 3D 半写实动漫渲染，精致 BJD 娃体质感：瓷化皮肤、单体发丝、层叠亮面眼、饱和块面时装。与「高质感3D动画」的分工：那一条是圆润的家庭向卡通比例；与「厚涂3D剧集动画」的分工：那一条是暗调手绘笔触，本预设是干净棚拍光与高模精度",
+      "subtitle_zh": "半写实3D渲染 · 精细材质 · 柔和棚拍光",
+      "description": "以精细三维建模和半写实动漫渲染统一呈现角色、场景与道具。表面洁净但保留材质细节，使用柔和主光、轻轮廓光和渐变高光，色彩鲜明而不过曝。与「高质感3D动画」的圆润家庭向比例、与「厚涂3D剧集动画」的暗调手绘笔触区分，本预设强调高精度建模、清晰材质和干净棚拍光，不规定角色长相或服饰。",
       "best_for": ["3D国漫", "乙女恋爱", "偶像养成", "时装潮流", "都市奇幻"],
       "avoid_for": ["手绘动画", "写实真人", "复古胶片", "暗黑写实"],
-      "positive_prompt": "high-precision 3D semi-realistic anime render, BJD ball-jointed-doll aesthetic, porcelain-smooth skin with subsurface scattering and soft blush, refined anime facial proportions rendered with photoreal detail, individually modeled hair strands with silky sheen and flyaway wisps, layered glossy eyes with sharp catchlights, fabrics showing visible weave stitching and metal hardware, saturated color-blocked streetwear styling, soft even studio lighting with clean gradient falloff, subtle rim light, seamless neutral backdrop, crisp readable silhouette, high-poly surface with no noise, poised doll-like stillness",
-      "negative_prompt": "2d drawing, hand-drawn line art, cel shading, flat color fills, painterly brush strokes, western cartoon, photorealistic human with skin pores and blemishes, waxy plastic face, uncanny over-smoothed features, low-poly faceting, motion blur, cluttered background, muddy desaturated palette, horror doll, creepy mannequin, low quality, blurry, watermark, logo, text, captions, deformed hands, extra fingers",
-      "sample_prompt": "A young traveler in a color-blocked orange-and-violet streetwear vest stands on a clean studio-lit train platform, holding a polished brass compass, silver-white layered hair and porcelain-smooth skin, soft even key light with a subtle rim, calm doll-like stillness",
+      "positive_prompt": "high-precision semi-realistic 3D anime visual language, refined balance of anime stylization and physically based 3D rendering, clean high-poly modeling, smooth surfaces with subtle material texture, crisp detailed edges, polished yet tactile materials, soft broad studio key light, gentle fill and restrained rim light, smooth tonal gradients, luminous highlights without clipping, vivid controlled color blocking with nuanced shadows, cinematic depth and clear subject-background separation, thoughtfully detailed environments and production design, controlled depth of field, polished feature-animation frame, consistent visual treatment across characters, environments, and props",
+      "negative_prompt": "2d hand-drawn line art, cel shading, flat color fills, painterly brush strokes, western cartoon, photorealistic live-action skin pores, coarse low-poly geometry, harsh plastic gloss, clipped highlights, flat lighting, muddy desaturated colors, noisy rough surfaces, excessive bloom, motion blur, cluttered composition, creepy horror-doll appearance, low quality, blurry, watermark, logo, text, captions",
+      "sample_prompt": "A quiet train platform at dusk, a lone traveler holding a polished brass compass, glass panels and brushed metal catching soft studio-like key light and a restrained rim light, vivid but controlled color accents, crisp material detail, cinematic depth, polished semi-realistic 3D anime frame",
       "thumbnail": "/assets/styles/style_lab__hires_3d_bjd_semireal__bjd_closeup_turnaround__landscape.png"
     },
     {

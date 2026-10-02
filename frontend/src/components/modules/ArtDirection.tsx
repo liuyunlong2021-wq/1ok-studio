@@ -658,7 +658,7 @@ export default function ArtDirection() {
             {/* Override confirmation dialog */}
             {pendingOverrideStyle && (
                 <div
-                    className="fixed inset-0 z-[110] bg-overlay backdrop-blur-sm grid place-items-center p-4"
+                    className="absolute inset-0 z-[110] bg-overlay backdrop-blur-sm grid place-items-center p-4"
                     onClick={cancelOverrideConfirm}
                 >
                     <div
@@ -789,7 +789,7 @@ function AIRecommendationModal({ style, isSelected, editing, positivePrompt, neg
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[100] bg-overlay backdrop-blur-sm grid place-items-center p-6"
+            className="absolute inset-0 z-[100] bg-overlay backdrop-blur-sm grid place-items-center p-4"
             onClick={onClose}
         >
             <motion.div
@@ -797,7 +797,7 @@ function AIRecommendationModal({ style, isSelected, editing, positivePrompt, neg
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2 }}
-                className="w-[70vw] max-w-[1100px] min-w-[700px] max-h-[90vh] rounded-2xl border border-glass-border bg-elevated shadow-[0_24px_64px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col"
+                className="w-full max-w-[1100px] min-w-0 max-h-full rounded-2xl border border-glass-border bg-elevated shadow-[0_24px_64px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -1022,7 +1022,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[100] bg-overlay backdrop-blur-sm grid place-items-center p-6"
+            className="absolute inset-0 z-[100] bg-overlay backdrop-blur-sm grid place-items-center p-4"
             onClick={onClose}
         >
             <motion.div
@@ -1030,7 +1030,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2 }}
-                className="w-[70vw] max-w-[1100px] min-w-[700px] max-h-[90vh] rounded-2xl border border-glass-border bg-elevated shadow-[0_24px_64px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col"
+                className="w-full max-w-[1100px] min-w-0 max-h-full rounded-2xl border border-glass-border bg-elevated shadow-[0_24px_64px_-12px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -1048,9 +1048,9 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                 </header>
 
                 {/* Body: left image + right details */}
-                <div className="flex-1 min-h-0 grid grid-cols-[1fr_1fr] overflow-hidden">
+                <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[1fr_1fr] overflow-hidden">
                     {/* Left: full image display (no crop) */}
-                    <div className="bg-black/40 flex items-center justify-center p-4 overflow-hidden">
+                    <div className="h-44 md:h-auto bg-black/40 flex items-center justify-center p-4 overflow-hidden">
                         {preset.thumbnail ? (
                             <img
                                 src={publicAsset(preset.thumbnail)}
@@ -1065,7 +1065,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                     </div>
 
                     {/* Right: details (scrollable) */}
-                    <div className="p-6 space-y-5 overflow-y-auto">
+                    <div className="min-h-0 min-w-0 p-6 space-y-5 overflow-y-auto">
                         {/* Description */}
                         {preset.description && (
                             <p className="text-[0.8125rem] text-text-secondary leading-relaxed">{preset.description}</p>
