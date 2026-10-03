@@ -129,7 +129,7 @@ def test_local_media_upload_rejects_missing_url_without_a_fallback(post, tmp_pat
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._image_request")
 def test_grok_text_to_image_uses_openai_image_channel(post, download):
     """Grok 图片走韭菜盒子 OpenAI 兼容图片通道，不是历史 /v1/videos 异步方案。"""
     post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
@@ -149,12 +149,27 @@ def test_grok_text_to_image_uses_openai_image_channel(post, download):
         "n": 1,
         "response_format": "url",
     }
-    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png")
+    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png", direct=True)
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._image_request")
+def test_qwen_catalog_id_preserves_gateway_model_name(post, download):
+    post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
+
+    JiucaiheziImageModel({}).generate(
+        "prompt", "/tmp/output.png", model_name="jiucaihezi/jc-qwen-image-2.1", size="1024x1024"
+    )
+
+    assert post.call_args.kwargs["json"]["model"] == "jc-qwen-image-2.1"
+    assert post.call_args.kwargs["json"]["response_format"] == "b64_json"
+    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png", direct=True)
+
+
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download")
+@patch("src.models.jiucaihezi._image_request")
 def test_image_quality_reaches_gateway_payload(post, download):
     """菠萝的质量档要进 JSON payload；没传 quality 的模型不带这个键。"""
     post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
@@ -180,7 +195,7 @@ def test_image_quality_reaches_gateway_payload(post, download):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._image_request")
 def test_empty_data_reports_the_reason_not_a_keyerror(post, tmp_path):
     """HTTP 200 但 data 为空时要说人话，不是把 `KeyError: 'b64_json'` 扔给用户。
 
@@ -199,7 +214,7 @@ def test_empty_data_reports_the_reason_not_a_keyerror(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._image_request")
 def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
     """data 为空、但网关在 body 里写了原因时，要把那句话带出来。"""
     post.return_value = _response({"data": [], "error": {"message": "upstream returned no image"}})
@@ -213,7 +228,7 @@ def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._image_request")
 def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
     post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
 

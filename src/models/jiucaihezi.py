@@ -44,7 +44,7 @@ def _log_image_request(endpoint: str, payload: Dict[str, Any]) -> None:
     n 这几个字段正是历史踩坑点（模型名带中文、size 格式、质量档）。
     """
     logger.info(
-        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s n=%s format=%s prompt_chars=%s",
+        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s n=%s format=%s prompt_chars=%s transport=direct",
         endpoint,
         payload.get("model"),
         payload.get("size"),
@@ -130,8 +130,19 @@ def _headers() -> Dict[str, str]:
     return {"Authorization": f"Bearer {key}"}
 
 
-def _download(url: str, output_path: str) -> None:
-    response = requests.get(url, timeout=300)
+def _image_request(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
+    """Use a per-request direct session for image submissions and media transfers.
+
+    requests otherwise discovers macOS system proxies even without proxy env vars.
+    Keep TLS verification enabled and avoid automatic retries of billed submissions.
+    """
+    with requests.Session() as session:
+        session.trust_env = False
+        return session.request(method, url, **kwargs)
+
+
+def _download(url: str, output_path: str, *, direct: bool = False) -> None:
+    response = _image_request(url, timeout=300) if direct else requests.get(url, timeout=300)
     _raise_for_status_with_body(response, url)
     with open(output_path, "wb") as output:
         output.write(response.content)
@@ -428,7 +439,7 @@ class JiucaiheziImageModel(ImageGenModel):
             handles = []
             for ref in refs:
                 if ref.startswith(("http://", "https://")):
-                    downloaded = requests.get(ref, timeout=180)
+                    downloaded = _image_request(ref, timeout=180)
                     _raise_for_status_with_body(downloaded, ref)
                     mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
                     files.append(("image", (os.path.basename(ref) or "reference", downloaded.content, mime)))
@@ -446,7 +457,7 @@ class JiucaiheziImageModel(ImageGenModel):
             endpoint = "/v1/images/edits"
             _log_image_request(endpoint, data)
             try:
-                response = requests.post(f"{_base_url()}{endpoint}", headers=_headers(), data=data, files=files, timeout=180)
+                response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers=_headers(), data=data, files=files, timeout=180)
             finally:
                 for handle in handles:
                     handle.close()
@@ -456,7 +467,7 @@ class JiucaiheziImageModel(ImageGenModel):
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"
             _log_image_request(endpoint, payload)
-            response = requests.post(f"{_base_url()}{endpoint}", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
+            response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
         _raise_for_status_with_body(response, endpoint)
         try:
             payload = response.json()
@@ -467,7 +478,7 @@ class JiucaiheziImageModel(ImageGenModel):
         url = item.get("url")
         b64 = item.get("b64_json")
         if url:
-            _download(url, output_path)
+            _download(url, output_path, direct=True)
         elif b64:
             with open(output_path, "wb") as output:
                 output.write(base64.b64decode(b64))
