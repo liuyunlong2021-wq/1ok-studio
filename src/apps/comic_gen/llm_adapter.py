@@ -15,6 +15,7 @@ key 就能把整条文本链路打回 401 Incorrect API key。现在默认通道
 DashScope 必须被显式选中才启用。
 """
 import os
+import re
 import time
 import logging
 from typing import Dict, List, Optional, Any
@@ -26,39 +27,76 @@ logger = logging.getLogger(__name__)
 # 韭菜盒子链路里"另一个模型也依旧救得回来"的兜底选项。
 JIUCAIHEZI_FALLBACK_MODEL = "gpt-5.6-sol"
 
-# 网关源站超过 Cloudflare 的 120 秒代理读超时后回 524。这多半是源站瞬时过载，
-# Cloudflare 自己的建议就是稍等重试，所以对同一个模型再试一次。退避时间刻意
-# 不照抄它建议的 120 秒——后台任务干等两分钟不如快速失败让用户重试。
-TRANSIENT_TOKENS = ("524", "timeout", "timed out", "connection")
+# 文本请求最多追加一次尝试；SDK 的自动重试关闭，避免叠加重试。
+TRANSIENT_STATUS_CODES = {500, 502, 503, 504, 520, 521, 522, 523, 524}
+TRANSIENT_TOKENS = ("timeout", "timed out", "connection")
 TRANSIENT_RETRY_BACKOFF_SECONDS = 5.0
 
 # 单次 chat 调用的超时秒数。长文生成（如 Motion 提示词要写几千字）经常跑过 60 秒，
 # 超时会一路冒泡成 502，把「还在生成」误判成失败。
 #
-# 韭菜盒子在 Cloudflare 后面，边缘的 Proxy Read Timeout **默认 125 秒**
-# （官方文档；实测 524 正好在 125.2 秒回来）。所以客户端超时比它长时，
-# 超过 125 秒的请求会先被边缘抓成 524 —— 这不是坏事，524 会经
-# _readable_gateway_error() 翻成人话再展示。
-# 想真正放开长任务，得先把长耗时接口挪到不经 CF 的灰云子域，或开 Enterprise 调
-# zone 的 proxy_read_timeout —— 单改这里的数字没用。
+# 客户端超时不能改变网关自身的等待上限；网关返回的错误另行分类和提示。
 LLM_TIMEOUT_SECONDS = 180.0
 JIUCAIHEZI_TIMEOUT_SECONDS = 180.0
 
 
+def _gateway_error_status(exc: Exception) -> Optional[int]:
+    cause = exc
+    for _ in range(6):
+        status = getattr(cause, "status_code", None)
+        if isinstance(status, int):
+            return status
+        cause = cause.__cause__
+        if cause is None:
+            break
+    # 兼容调用方提供的旧式 RuntimeError，不从任意请求编号中匹配数字。
+    match = re.search(r"(?:error code:|api error:)\s*(\d{3})\b", str(exc), re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
 def _is_transient_gateway_error(exc: Exception) -> bool:
+    status = _gateway_error_status(exc)
+    if status is not None:
+        return status in TRANSIENT_STATUS_CODES
     message = str(exc).lower()
     return any(token in message for token in TRANSIENT_TOKENS)
 
 
 def _readable_gateway_error(exc: Exception) -> str:
     """把 Cloudflare 那一整块 JSON 压成一句能直接展示给用户的话。"""
-    message = str(exc)
-    if "524" in message:
-        return (
-            "Jiucaihezi 网关超时（524）：源站没有在 Cloudflare 的 125 秒代理读超时"
-            "（Proxy Read Timeout）内返回。这通常是网关侧瞬时过载，等 1-2 分钟后重试；"
-            "若持续出现，可在项目设置里换一个更快的文本模型，或把剧本拆短后再生成。"
-        )
+    status = _gateway_error_status(exc)
+    if status not in TRANSIENT_STATUS_CODES and not _is_transient_gateway_error(exc):
+        return str(exc)
+    descriptions = {
+        502: "网关未能从上游取得完整的文本响应",
+        503: "文本服务暂时不可用",
+        504: "网关等待上游文本响应超时",
+        524: "网关等待源站文本响应超时",
+    }
+    description = descriptions.get(status, "文本服务暂时异常" if status else "文本请求连接中断或超时")
+    message = f"文本生成失败：{description}"
+    if status:
+        message += f"（HTTP {status}）"
+    message += "。自动重试后仍未成功，请稍后重试；持续失败时，请检查网关日志。"
+
+    # SDK 原始异常保留响应头和错误正文；只展示排查编号，全文留在日志中。
+    request_id = ray_id = None
+    cause = exc
+    for _ in range(6):
+        response = getattr(cause, "response", None)
+        headers = getattr(response, "headers", {})
+        body = getattr(cause, "body", None)
+        request_id = request_id or getattr(cause, "request_id", None) or headers.get("x-request-id")
+        ray_id = ray_id or headers.get("cf-ray")
+        if isinstance(body, dict):
+            ray_id = ray_id or body.get("ray_id")
+        cause = cause.__cause__
+        if cause is None:
+            break
+    for label, identifier in (("请求编号", request_id), ("Cloudflare Ray ID", ray_id)):
+        if identifier:
+            identifier = re.sub(r"[^\w.-]", "", str(identifier))[:128]
+            message += f" [{label}: {identifier}]"
     return message
 
 
@@ -202,39 +240,22 @@ class LLMAdapter:
         messages: List[Dict[str, str]],
         response_format: Optional[Dict[str, str]],
     ) -> str:
-        """韭菜盒子通道：瞬时故障换兜底模型，已在兜底模型上则原地退避重试一次。"""
+        """网关临时故障退避后最多再尝试一次，并统一最终失败提示。"""
         client = self._get_jiucaihezi_client()
         try:
             return self._chat_once(client, model, messages, response_format, "Jiucaihezi")
         except RuntimeError as exc:
             if not _is_transient_gateway_error(exc):
                 raise
-            if model != JIUCAIHEZI_FALLBACK_MODEL:
-                logger.warning(
-                    "%s failed temporarily; falling back to %s",
-                    model,
-                    JIUCAIHEZI_FALLBACK_MODEL,
-                )
-                return self._chat_once(
-                    client,
-                    JIUCAIHEZI_FALLBACK_MODEL,
-                    messages,
-                    response_format,
-                    "Jiucaihezi",
-                )
-            # 已经在兜底模型上：换模型这条退路不存在，但"网关瞬时过载"仍然
-            # 值得按 Cloudflare 的建议重试一次。旧代码在这里直接 raise，
-            # 于是一次重试都没发生，用户只看到一整块 Cloudflare JSON。
+            retry_model = JIUCAIHEZI_FALLBACK_MODEL
             logger.warning(
-                "%s transient failure (%s); retrying once in %.0fs",
-                model,
-                exc,
-                TRANSIENT_RETRY_BACKOFF_SECONDS,
+                "Text request transient failure: model=%s status=%s; retrying once with %s in %.0fs",
+                model, _gateway_error_status(exc), retry_model, TRANSIENT_RETRY_BACKOFF_SECONDS,
             )
             time.sleep(TRANSIENT_RETRY_BACKOFF_SECONDS)
             try:
                 return self._chat_once(
-                    client, model, messages, response_format, "Jiucaihezi"
+                    client, retry_model, messages, response_format, "Jiucaihezi"
                 )
             except RuntimeError as retry_exc:
                 raise RuntimeError(_readable_gateway_error(retry_exc)) from None
