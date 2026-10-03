@@ -2,6 +2,7 @@ import base64
 import logging
 import mimetypes
 import os
+import threading
 import time
 from typing import Any, Dict, Optional, Sequence, Tuple
 
@@ -13,6 +14,11 @@ from ..utils.model_catalog import is_minimax_h3_model, jiucaihezi_upstream_model
 
 
 logger = logging.getLogger(__name__)
+
+# The local Qwen service runs one image job at a time. Wait here before opening
+# a synchronous gateway request; upstream queue time also consumes its timeout.
+_QWEN_IMAGE_LOCK = threading.Lock()
+
 
 
 def _raise_for_status_with_body(response: requests.Response, what: str) -> None:
@@ -139,6 +145,49 @@ def _image_request(url: str, *, method: str = "GET", **kwargs) -> requests.Respo
     with requests.Session() as session:
         session.trust_env = False
         return session.request(method, url, **kwargs)
+
+
+def _qwen_reference_data_url(ref: str) -> str:
+    """Inline a reference using the Qwen JSON contract (20 MiB per image)."""
+    if ref.startswith("data:"):
+        header, separator, encoded = ref.partition(",")
+        if not separator or not header.startswith("data:image/") or not header.endswith(";base64"):
+            raise ValueError("参考图必须是图片 base64 data URL")
+        if len(encoded) > 4 * ((MAX_TEMP_UPLOAD_BYTES + 2) // 3):
+            raise ValueError("Qwen 单张参考图不能超过 20 MB")
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except ValueError as exc:
+            raise ValueError("参考图 base64 数据无效") from exc
+        mime = header[5:-7]
+    elif ref.startswith(("http://", "https://")):
+        downloaded = _image_request(ref, timeout=180, stream=True)
+        try:
+            _raise_for_status_with_body(downloaded, "下载参考图")
+            mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
+            chunks, total = [], 0
+            for chunk in downloaded.iter_content(chunk_size=64 * 1024):
+                total += len(chunk)
+                if total > MAX_TEMP_UPLOAD_BYTES:
+                    raise ValueError("Qwen 单张参考图不能超过 20 MB")
+                chunks.append(chunk)
+            content = b"".join(chunks)
+        finally:
+            downloaded.close()
+    else:
+        path = ref if os.path.isfile(ref) else os.path.join("output", ref)
+        if not os.path.isfile(path):
+            raise ValueError("参考图文件不存在，请重新选择参考图")
+        with open(path, "rb") as image:
+            content = image.read(MAX_TEMP_UPLOAD_BYTES + 1)
+        mime = mimetypes.guess_type(path)[0] or "image/png"
+    if not content:
+        raise ValueError("参考图文件为空")
+    if len(content) > MAX_TEMP_UPLOAD_BYTES:
+        raise ValueError("Qwen 单张参考图不能超过 20 MB")
+    if not mime.startswith("image/"):
+        raise ValueError("参考图必须是图片文件")
+    return f"data:{mime};base64,{base64.b64encode(content).decode('ascii')}"
 
 
 def _download(url: str, output_path: str, *, direct: bool = False) -> None:
@@ -424,6 +473,15 @@ def _public_media_url(ref: str, media_type: str = "media") -> str:
 
 class JiucaiheziImageModel(ImageGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
+        model = jiucaihezi_upstream_model_id(kwargs.get("model_name") or "gpt-image-2.5-1k")
+        if model == "jc-qwen-image-2.1":
+            waiting = time.monotonic()
+            with _QWEN_IMAGE_LOCK:
+                logger.info("Qwen image local queue wait=%.2fs", time.monotonic() - waiting)
+                return self._generate(prompt, output_path, **kwargs)
+        return self._generate(prompt, output_path, **kwargs)
+
+    def _generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
         refs = kwargs.get("ref_image_paths") or ([] if not kwargs.get("ref_image_path") else [kwargs["ref_image_path"]])
         model = kwargs.get("model_name") or "gpt-image-2.5-1k"
@@ -434,7 +492,7 @@ class JiucaiheziImageModel(ImageGenModel):
         # quality 只有声明了该档位的模型（如 gpt-image-2.5-菠萝）才会传进来；
         # 别的模型这里是 None，JSON 里不带这个键。
         quality = kwargs.get("quality")
-        if refs:
+        if refs and model != "jc-qwen-image-2.1":
             files = []
             handles = []
             for ref in refs:
@@ -463,11 +521,22 @@ class JiucaiheziImageModel(ImageGenModel):
                     handle.close()
         else:
             payload = {"model": model, "prompt": prompt, "size": size, "n": kwargs.get("n", 1), "response_format": response_format}
+            if refs:
+                if len(refs) > 10:
+                    raise ValueError("Qwen 最多支持 10 张参考图")
+                # Both routes are documented, but JSON avoids the gateway's
+                # multipart -> file placeholder -> data URL conversion.
+                payload["images"] = [_qwen_reference_data_url(ref) for ref in refs]
             if quality:
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"
             _log_image_request(endpoint, payload)
             response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
+        logger.info(
+            "Jiucaihezi image response <- %s | model=%s refs=%d status=%s elapsed=%.2fs request_id=%s",
+            endpoint, model, len(refs), response.status_code, time.time() - started,
+            response.headers.get("x-oneapi-request-id", ""),
+        )
         _raise_for_status_with_body(response, endpoint)
         try:
             payload = response.json()

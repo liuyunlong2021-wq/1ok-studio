@@ -4,7 +4,9 @@ import base64
 import json
 import os
 import tempfile
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -13,7 +15,7 @@ import requests
 from src.apps.playground.models import GenerateRequest
 from src.apps.playground.service import PlaygroundService
 from src.apps.playground.storage import PlaygroundStorage
-from src.models.jiucaihezi import JiucaiheziImageModel, _image_request
+from src.models.jiucaihezi import JiucaiheziImageModel, MAX_TEMP_UPLOAD_BYTES, _image_request
 
 
 class ImageTransportChecks(unittest.TestCase):
@@ -44,6 +46,7 @@ class ImageTransportChecks(unittest.TestCase):
         response = requests.Response()
         response.status_code = status
         response._content = content
+        response._content_consumed = True
         response.headers["Content-Type"] = content_type
         return response
 
@@ -75,7 +78,7 @@ class ImageTransportChecks(unittest.TestCase):
         self.assertEqual(self.output.read_bytes(), b"generated-image")
         self.assert_direct()
 
-    def test_reference_edit_bypasses_proxy_and_preserves_multipart(self):
+    def test_qwen_reference_edit_uses_documented_json_with_exact_size(self):
         reference = Path(self.directory.name) / "reference.png"
         reference.write_bytes(b"reference")
         JiucaiheziImageModel({}).generate(
@@ -83,12 +86,111 @@ class ImageTransportChecks(unittest.TestCase):
             size="1920x1088", ref_image_paths=[str(reference)],
         )
         request, _ = self.calls[0]
-        self.assertTrue(request.url.endswith("/v1/images/edits"))
-        self.assertIn("multipart/form-data", request.headers["Content-Type"])
-        self.assertIn(b'name="size"\r\n\r\n1920x1088', request.body)
-        self.assertIn(b'name="image"; filename="reference.png"', request.body)
+        self.assertTrue(request.url.endswith("/v1/images/generations"))
+        self.assertEqual(request.headers["Content-Type"], "application/json")
+        payload = json.loads(request.body)
+        self.assertEqual(payload, {
+            "model": "jc-qwen-image-2.1", "prompt": "prompt", "size": "1920x1088",
+            "n": 1, "response_format": "b64_json",
+            "images": ["data:image/png;base64," + base64.b64encode(b"reference").decode()],
+        })
         self.assertEqual(self.output.read_bytes(), b"generated-image")
         self.assert_direct()
+
+    def test_qwen_multi_reference_order_and_data_urls_are_preserved(self):
+        reference = Path(self.directory.name) / "first.png"
+        reference.write_bytes(b"first")
+        second = "data:image/jpeg;base64," + base64.b64encode(b"second").decode()
+        JiucaiheziImageModel({}).generate(
+            "prompt", str(self.output), model_name="jc-qwen-image-2.1",
+            size="1088x1920", ref_image_paths=[str(reference), second],
+        )
+        payload = json.loads(self.calls[0][0].body)
+        self.assertEqual(payload["size"], "1088x1920")
+        self.assertEqual(payload["images"], [
+            "data:image/png;base64," + base64.b64encode(b"first").decode(), second,
+        ])
+
+    def test_qwen_reference_validation_fails_before_billed_submission(self):
+        reference = Path(self.directory.name) / "reference.png"
+        reference.write_bytes(b"")
+        invalid_inputs = [([str(reference)], "为空"), ([str(reference) + ".missing"], "不存在"),
+                          ([str(reference)] * 11, "10 张"), (["data:image/png;base64,%%%"], "无效")]
+        for refs, message in invalid_inputs:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                JiucaiheziImageModel({}).generate(
+                    "prompt", str(self.output), model_name="jc-qwen-image-2.1", ref_image_paths=refs,
+                )
+        with open(reference, "wb") as file:
+            file.truncate(MAX_TEMP_UPLOAD_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "20 MB"):
+            JiucaiheziImageModel({}).generate(
+                "prompt", str(self.output), model_name="jc-qwen-image-2.1", ref_image_paths=[str(reference)],
+            )
+        self.assertEqual(self.calls, [])
+
+    def test_qwen_remote_reference_is_inlined_without_upload_or_auth_leak(self):
+        def respond(request):
+            if request.method == "GET":
+                self.assertNotIn("Authorization", request.headers)
+                return self.response(b"reference", content_type="image/png")
+            return self.respond_inline(request)
+        self.handler = respond
+        JiucaiheziImageModel({}).generate(
+            "prompt", str(self.output), model_name="jc-qwen-image-2.1",
+            ref_image_paths=["https://cdn.example/reference.png"],
+        )
+        self.assertEqual([req.method for req, _ in self.calls], ["GET", "POST"])
+        payload = json.loads(self.calls[-1][0].body)
+        self.assertEqual(base64.b64decode(payload["images"][0].split(",", 1)[1]), b"reference")
+        self.assert_direct()
+
+    def test_qwen_gateway_failure_is_not_retried_and_releases_queue(self):
+        reference = Path(self.directory.name) / "reference.png"
+        reference.write_bytes(b"reference")
+        def failed(request):
+            response = self.response(b'{"error":{"code":"do_request_failed"}}', 500)
+            response.headers["x-oneapi-request-id"] = "request-id"
+            return response
+        self.handler = failed
+        with self.assertRaisesRegex(requests.HTTPError, "do_request_failed"):
+            JiucaiheziImageModel({}).generate(
+                "prompt", str(self.output), model_name="jc-qwen-image-2.1", ref_image_paths=[str(reference)],
+            )
+        self.assertEqual(len(self.calls), 1)
+        self.handler = self.respond_inline
+        JiucaiheziImageModel({}).generate("prompt", str(self.output), model_name="jc-qwen-image-2.1")
+        self.assertEqual(len(self.calls), 2)
+
+    def test_qwen_requests_from_different_instances_are_serialized(self):
+        first_started, second_waiting, release_first = threading.Event(), threading.Event(), threading.Event()
+        lock = threading.Lock()
+        class ObservedLock:
+            def __enter__(self):
+                if lock.locked():
+                    second_waiting.set()
+                lock.acquire()
+            def __exit__(self, *args):
+                lock.release()
+        def respond(request):
+            if len(self.calls) == 1:
+                first_started.set()
+                if not release_first.wait(5):
+                    raise AssertionError("first request was not released")
+            return self.respond_inline(request)
+        self.handler = respond
+        with patch("src.models.jiucaihezi._QWEN_IMAGE_LOCK", ObservedLock()), ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(JiucaiheziImageModel({}).generate, "first", str(self.output), model_name="jc-qwen-image-2.1")
+            try:
+                self.assertTrue(first_started.wait(3))
+                second = pool.submit(JiucaiheziImageModel({}).generate, "second", str(self.output) + ".second", model_name="jiucaihezi/jc-qwen-image-2.1")
+                self.assertTrue(second_waiting.wait(3))
+                self.assertEqual(len(self.calls), 1)
+            finally:
+                release_first.set()
+            first.result(timeout=5)
+            second.result(timeout=5)
+        self.assertEqual(len(self.calls), 2)
 
     def test_remote_reference_and_result_download_also_bypass_proxy(self):
         def respond(request):
