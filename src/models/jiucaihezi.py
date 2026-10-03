@@ -9,7 +9,7 @@ import requests
 
 from .base import VideoGenModel
 from .image import ImageGenModel
-from ..utils.model_catalog import is_minimax_h3_model
+from ..utils.model_catalog import is_minimax_h3_model, jiucaihezi_upstream_model_id
 
 
 logger = logging.getLogger(__name__)
@@ -416,7 +416,9 @@ class JiucaiheziImageModel(ImageGenModel):
         started = time.time()
         refs = kwargs.get("ref_image_paths") or ([] if not kwargs.get("ref_image_path") else [kwargs["ref_image_path"]])
         model = kwargs.get("model_name") or "gpt-image-2.5-1k"
-        model = model.split("/", 1)[-1].split("#", 1)[0]
+        model = jiucaihezi_upstream_model_id(model)
+        # 本机 Qwen 的 frps 返回地址是 Docker 内网地址，桌面端不可达；按接入合同直接回 b64。
+        response_format = "b64_json" if model == "jc-qwen-image-2.1" else "url"
         size = (kwargs.get("size") or "1024*1024").replace("*", "x")
         # quality 只有声明了该档位的模型（如 gpt-image-2.5-菠萝）才会传进来；
         # 别的模型这里是 None，JSON 里不带这个键。
@@ -438,7 +440,7 @@ class JiucaiheziImageModel(ImageGenModel):
                     files.append(("image", (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
             if not files:
                 raise ValueError("No valid reference images found for image editing")
-            data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": "url"}
+            data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": response_format}
             if quality:
                 data["quality"] = str(quality)
             endpoint = "/v1/images/edits"
@@ -449,7 +451,7 @@ class JiucaiheziImageModel(ImageGenModel):
                 for handle in handles:
                     handle.close()
         else:
-            payload = {"model": model, "prompt": prompt, "size": size, "n": kwargs.get("n", 1), "response_format": "url"}
+            payload = {"model": model, "prompt": prompt, "size": size, "n": kwargs.get("n", 1), "response_format": response_format}
             if quality:
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"

@@ -412,6 +412,8 @@ export default function ParameterBar() {
   // 像素表在前端 imageSizePresets.ts；没声明的（gemini / grok）继续走旧单下拉。
   const sizeResolutions = modelParams?.size?.resolutions ?? [];
   const usesSizePresets = sizeResolutions.length > 0;
+  const backendSizePresets = modelParams?.size?.presets;
+  const usesBackendSizePresets = !!backendSizePresets;
   const ratioOptions = modelParams?.ratio?.options ?? FALLBACK_RATIOS;
   const ratioDefault = modelParams?.ratio?.default ?? ratioOptions[0];
   const resolutionOptions = modelParams?.resolution?.options ?? FALLBACK_RESOLUTIONS;
@@ -437,7 +439,7 @@ export default function ParameterBar() {
   useEffect(() => {
     const patches: Record<string, any> = {};
 
-    if (hasSize) {
+    if (hasSize && !usesBackendSizePresets) {
       const cur = parameters.size as string | undefined;
       if (usesSizePresets) {
         // 走预设表的模型：值必须落在该模型声明的分辨率档里，
@@ -450,11 +452,11 @@ export default function ParameterBar() {
         patches.size = sizeDefault;
       }
     }
-    if (hasRatio) {
+    if (hasRatio && !usesBackendSizePresets) {
       const cur = parameters.aspect_ratio as string | undefined;
       if (cur && !ratioOptions.includes(cur)) patches.aspect_ratio = ratioDefault;
     }
-    if (hasResolution) {
+    if (hasResolution && !usesBackendSizePresets) {
       const cur = parameters.resolution as string | undefined;
       const next = cur && resolutionOptions.includes(cur) ? cur : resolutionDefault;
       if (next !== cur) patches.resolution = next;
@@ -489,6 +491,36 @@ export default function ParameterBar() {
     if (Object.keys(patches).length > 0) setParameters({ ...parameters, ...patches });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelId]);
+
+  // 旧历史/模板只有 size：反查目录恢复选择；新选择始终由后端换算像素。
+  // 同模型重试、加载模板也要同步，不能只在切模型时处理。
+  useEffect(() => {
+    if (!backendSizePresets || isVideoMode || isAudioMode) return;
+    const legacySize = String(parameters.size ?? '').replace(/[×*]/g, 'x');
+    const normalizedSize = modelParams?.size?.aliases?.[legacySize] ?? legacySize;
+    let legacyResolution: string | undefined;
+    let legacyRatio: string | undefined;
+    for (const [resolution, ratios] of Object.entries(backendSizePresets)) {
+      const ratio = Object.entries(ratios).find(([, size]) => size === normalizedSize)?.[0];
+      if (ratio) {
+        legacyResolution = resolution;
+        legacyRatio = ratio;
+        break;
+      }
+    }
+    const resolution = resolutionOptions.includes(parameters.resolution)
+      ? parameters.resolution : legacyResolution ?? resolutionDefault;
+    const aspectRatio = ratioOptions.includes(parameters.aspect_ratio)
+      ? parameters.aspect_ratio : legacyRatio ?? ratioDefault;
+    if (parameters.resolution !== resolution || parameters.aspect_ratio !== aspectRatio || parameters.size !== undefined || (!hasQuality && parameters.quality !== undefined)) {
+      const nextParameters: Record<string, any> = { ...parameters, resolution, aspect_ratio: aspectRatio };
+      delete nextParameters.size;
+      if (!hasQuality) delete nextParameters.quality;
+      setParameters(nextParameters);
+    }
+    // The model catalog is static; parameter changes also cover same-model history reloads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelId, parameters]);
 
   const updateParam = (key: string, value: any) => {
     setParameters({ ...parameters, [key]: value });
@@ -540,7 +572,22 @@ export default function ParameterBar() {
           <>
             {/* Size (image-specific, replaces resolution) */}
             {hasSize &&
-              (usesSizePresets ? (
+              (usesBackendSizePresets ? (
+                <>
+                  <ParamDropdown
+                    label={t('parameters.imageSize')}
+                    value={(parameters.resolution as string) ?? resolutionDefault}
+                    options={resolutionOptions}
+                    onChange={(v) => updateParams({ resolution: v, size: undefined })}
+                  />
+                  <ParamDropdown
+                    label={t('parameters.aspectRatio')}
+                    value={(parameters.aspect_ratio as string) ?? ratioDefault}
+                    options={ratioOptions}
+                    onChange={(v) => updateParams({ aspect_ratio: v, size: undefined })}
+                  />
+                </>
+              ) : usesSizePresets ? (
                 <SizePresetPicker
                   key={modelId}
                   resolutions={sizeResolutions}

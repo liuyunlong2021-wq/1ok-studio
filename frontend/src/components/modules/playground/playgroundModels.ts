@@ -22,7 +22,13 @@ export interface PlaygroundModelOption {
   params: {
     resolution?: { options: string[]; default: string };
     ratio?: { options: string[]; default: string };
-    size?: { options: string[]; default: string; resolutions?: Resolution[] };
+    size?: {
+      options: string[];
+      default: string;
+      resolutions?: Resolution[];
+      presets?: Record<string, Record<string, string>>;
+      aliases?: Record<string, string>;
+    };
     quality?: { options: string[]; default: string };
     seed?: boolean;
     negativePrompt?: boolean;
@@ -177,14 +183,15 @@ function normalizeParams(
   // size (image models use size instead of resolution)
   const size = raw.size;
   if (size && typeof size === 'object' && 'options' in (size as object)) {
-    const s = size as { options?: string[]; default?: string; resolutions?: Resolution[] };
-    if (s.options) {
+    const s = size as PlaygroundModelOption['params']['size'];
+    if (s?.options) {
       result.size = {
         options: s.options,
         default: s.default ?? s.options[0] ?? '',
         // 声明了 resolutions 的模型走「分辨率 + 画面比例」双下拉，
         // 像素尺寸表在前端 imageSizePresets.ts，目录里不重复枚举。
         ...(s.resolutions?.length ? { resolutions: s.resolutions } : {}),
+        ...(s.presets ? { presets: s.presets, aliases: s.aliases } : {}),
       };
     }
   }

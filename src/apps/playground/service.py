@@ -20,6 +20,7 @@ from .models import (
 from .storage import PlaygroundStorage
 from ...utils import get_logger
 from ...utils.media_refs import to_media_ref
+from ...utils.model_catalog import load_generated_model_catalog
 
 logger = get_logger(__name__)
 
@@ -29,6 +30,29 @@ logger = get_logger(__name__)
 IMAGE_OUTPUT_DIR = os.path.join("output", "playground", "images")
 VIDEO_OUTPUT_DIR = os.path.join("output", "playground", "videos")
 AUDIO_OUTPUT_DIR = os.path.join("output", "playground", "audio")
+
+
+def resolve_image_parameters(model_id: str, parameters: dict) -> dict:
+    """Resolve catalog size tiers/ratios in the backend, including legacy history."""
+    model_params = load_generated_model_catalog().get("models", {}).get(model_id, {}).get("params", {})
+    size_config = model_params.get("size", {})
+    presets = size_config.get("presets")
+    if not presets:
+        return dict(parameters)
+
+    legacy_size = str(parameters.get("size") or "").replace("*", "x").replace("×", "x")
+    legacy_size = size_config.get("aliases", {}).get(legacy_size, legacy_size)
+    legacy_selection = next(
+        ((tier, ratio) for tier, ratios in presets.items() for ratio, size in ratios.items() if size == legacy_size),
+        (model_params["resolution"]["default"], model_params["ratio"]["default"]),
+    )
+    tier = parameters.get("resolution") or legacy_selection[0]
+    ratio = parameters.get("aspect_ratio") or legacy_selection[1]
+    if not isinstance(tier, str) or tier not in presets:
+        raise ValueError(f"图片尺寸档位不支持 {tier}，请选择 {' / '.join(presets)}")
+    if not isinstance(ratio, str) or ratio not in presets[tier]:
+        raise ValueError(f"图片比例不支持 {ratio}，请选择 {' / '.join(presets[tier])}")
+    return {**parameters, "resolution": tier, "aspect_ratio": ratio, "size": presets[tier][ratio]}
 
 
 class PlaygroundService:
@@ -55,7 +79,11 @@ class PlaygroundService:
             prompt=request.prompt,
             negative_prompt=request.negative_prompt,
             input_media=request.input_media or [],
-            parameters=request.parameters or {},
+            parameters=(
+                resolve_image_parameters(request.model_id, request.parameters or {})
+                if request.mode in (PlaygroundMode.T2I, PlaygroundMode.I2I)
+                else request.parameters or {}
+            ),
             batch_size=request.batch_size or 1,
             outputs=[],
             status="pending",
@@ -241,6 +269,7 @@ class PlaygroundService:
     def _generate_image_jiucaihezi(self, gen: PlaygroundGeneration, out_path: str) -> None:
         from ...models.jiucaihezi import JiucaiheziImageModel
 
+        gen.parameters = resolve_image_parameters(gen.model_id, gen.parameters)
         if self._jiucaihezi_image_model is None:
             self._jiucaihezi_image_model = JiucaiheziImageModel({})
         kwargs = {

@@ -983,6 +983,17 @@ def is_minimax_h3_model(model_id: Optional[str]) -> bool:
     return bare.startswith("minimax_h3")
 
 
+def jiucaihezi_upstream_model_id(model_id: Optional[str]) -> str:
+    """Remove catalog scope while preserving the exact gateway model ID.
+
+    The Jiucaihezi API contract requires the ``jc-`` prefix for its local
+    ComfyUI models; stripping it routes to a different, unavailable model.
+    """
+    if not model_id:
+        return ""
+    return str(model_id).split("/")[-1].split("#")[0]
+
+
 # ---------------------------------------------------------------------------
 # Phase 2: Canonical mode helper API
 # ---------------------------------------------------------------------------

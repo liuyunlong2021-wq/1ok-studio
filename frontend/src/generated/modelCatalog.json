@@ -7,6 +7,7 @@
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
+      "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
       "jiucaihezi/gpt-image-2-1k": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
       "jiucaihezi/gpt-image-2-菠萝": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image",
@@ -60,6 +61,7 @@
         "dola-seedance2.5",
         "gemini-3.8-flash",
         "gpt-5.6-sol",
+        "jc-qwen-image-2.1",
         "jiucaihezi/gemini-3-pro-image-preview",
         "jiucaihezi/gpt-image-2-1k",
         "jiucaihezi/gpt-image-2-菠萝",
@@ -413,6 +415,64 @@
       ],
       "modes": [
         "jiucaihezi/gpt-5.6-sol#text"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "i2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jc-qwen-image-2.1": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-qwen-image-2.1",
+      "legacy_model_ids": [
+        "jc-qwen-image-2.1"
+      ],
+      "modes": [
+        "jiucaihezi/jc-qwen-image-2.1#image"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -1411,6 +1471,140 @@
         "order": 996,
         "recommended": true,
         "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jc-qwen-image-2.1": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jc-qwen-image-2.1",
+      "inputs": {
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K"
+          ]
+        },
+        "seed": false,
+        "size": {
+          "aliases": {
+            "1080x1920": "1088x1920",
+            "1920x1080": "1920x1088"
+          },
+          "default": "1088x1920",
+          "options": [
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "1024x680",
+            "680x1024",
+            "1448x1448",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1768x1176",
+            "1176x1768"
+          ],
+          "presets": {
+            "1K": {
+              "16:9": "1024x576",
+              "1:1": "1024x1024",
+              "2:3": "680x1024",
+              "3:2": "1024x680",
+              "3:4": "768x1024",
+              "4:3": "1024x768",
+              "9:16": "576x1024"
+            },
+            "2K": {
+              "16:9": "1920x1088",
+              "1:1": "1448x1448",
+              "2:3": "1176x1768",
+              "3:2": "1768x1176",
+              "3:4": "1248x1664",
+              "4:3": "1664x1248",
+              "9:16": "1088x1920"
+            }
+          }
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子",
+          "Qwen"
+        ],
+        "order": 1003,
+        "recommended": false,
+        "selection_group": "image",
         "visible_in": [
           "project_settings",
           "series_settings",
@@ -2757,6 +2951,148 @@
         "order": 996,
         "recommended": true,
         "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jc-qwen-image-2.1#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-qwen-image-2.1#image",
+      "inputs": {
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jc-qwen-image-2.1",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/jc-qwen-image-2.1",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K"
+          ]
+        },
+        "seed": false,
+        "size": {
+          "aliases": {
+            "1080x1920": "1088x1920",
+            "1920x1080": "1920x1088"
+          },
+          "default": "1088x1920",
+          "options": [
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "1024x680",
+            "680x1024",
+            "1448x1448",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1768x1176",
+            "1176x1768"
+          ],
+          "presets": {
+            "1K": {
+              "16:9": "1024x576",
+              "1:1": "1024x1024",
+              "2:3": "680x1024",
+              "3:2": "1024x680",
+              "3:4": "768x1024",
+              "4:3": "1024x768",
+              "9:16": "576x1024"
+            },
+            "2K": {
+              "16:9": "1920x1088",
+              "1:1": "1448x1448",
+              "2:3": "1176x1768",
+              "3:2": "1768x1176",
+              "3:4": "1248x1664",
+              "4:3": "1664x1248",
+              "9:16": "1088x1920"
+            }
+          }
+        },
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子",
+          "Qwen"
+        ],
+        "order": 1003,
+        "recommended": false,
+        "selection_group": "image",
         "visible_in": [
           "project_settings",
           "series_settings",
