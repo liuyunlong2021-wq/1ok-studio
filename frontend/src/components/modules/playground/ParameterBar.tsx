@@ -522,6 +522,25 @@ export default function ParameterBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelId, parameters]);
 
+  // Local H3 keeps a fixed quality: migrate old pixel/verbose enum selections
+  // to a plain ratio and discard stale size controls before submitting.
+  useEffect(() => {
+    if (!['jc-minimax-h3', 'jc-minimax-h3-ref2v'].includes(modelId)) return;
+    const legacySize = String(parameters.resolution ?? parameters.size ?? '').replace(/[×*]/g, 'x');
+    const legacyRatio = modelParams?.ratio?.legacy_resolutions?.[legacySize];
+    const savedRatio = String(parameters.aspect_ratio ?? parameters.ratio ?? ratioDefault).split(' (')[0];
+    const ratio = legacyRatio ?? (ratioOptions.includes(savedRatio) ? savedRatio : ratioDefault);
+    const obsoleteKeys = ['resolution', 'size', 'ratio', 'quality'];
+    if (parameters.aspect_ratio !== ratio || obsoleteKeys.some((key) => parameters[key] !== undefined)) {
+      const nextParameters: Record<string, any> = {
+        ...usePlaygroundStore.getState().parameters, aspect_ratio: ratio,
+      };
+      obsoleteKeys.forEach((key) => delete nextParameters[key]);
+      setParameters(nextParameters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelId, parameters]);
+
   const updateParam = (key: string, value: any) => {
     setParameters({ ...parameters, [key]: value });
   };

@@ -20,7 +20,7 @@ from .models import (
 from .storage import PlaygroundStorage
 from ...utils import get_logger
 from ...utils.media_refs import to_media_ref
-from ...utils.model_catalog import load_generated_model_catalog
+from ...utils.model_catalog import load_generated_model_catalog, resolve_local_h3_video_parameters
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,7 @@ class PlaygroundService:
             parameters=(
                 resolve_image_parameters(request.model_id, request.parameters or {})
                 if request.mode in (PlaygroundMode.T2I, PlaygroundMode.I2I)
-                else request.parameters or {}
+                else resolve_local_h3_video_parameters(request.model_id, request.parameters or {})
             ),
             batch_size=request.batch_size or 1,
             outputs=[],

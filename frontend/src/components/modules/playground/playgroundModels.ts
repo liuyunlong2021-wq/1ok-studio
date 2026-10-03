@@ -22,7 +22,7 @@ export interface PlaygroundModelOption {
     | null;
   params: {
     resolution?: { options: string[]; default: string };
-    ratio?: { options: string[]; default: string };
+    ratio?: { options: string[]; default: string; pixel_sizes?: Record<string, string>; legacy_resolutions?: Record<string, string> };
     size?: {
       options: string[];
       default: string;
@@ -172,11 +172,13 @@ function normalizeParams(
   // ratio — catalog uses both "ratio" and "aspectRatio"
   const ratio = raw.ratio ?? raw.aspectRatio;
   if (ratio && typeof ratio === 'object' && 'options' in (ratio as object)) {
-    const r = ratio as { options?: string[]; default?: string };
+    const r = ratio as { options?: string[]; default?: string; pixel_sizes?: Record<string, string>; legacy_resolutions?: Record<string, string> };
     if (r.options) {
       result.ratio = {
         options: r.options,
         default: r.default ?? r.options[0] ?? '',
+        pixel_sizes: r.pixel_sizes,
+        legacy_resolutions: r.legacy_resolutions,
       };
     }
   }

@@ -270,9 +270,12 @@ models:
       badges: [本地, MiniMax]
     duration: {type: slider, min: 1, max: 28, step: 1, default: 5}
     params:
-      resolution:
-        options: ["1344x768", "1024x1024", "1024x576", "576x1024", "1024x768", "768x1024", "960x640", "640x960", "1440x1440", "1920x1088", "1088x1920", "1664x1248", "1248x1664", "1760x1184", "1184x1760"]
-        default: "1344x768"
+      # 固定 1K 档位；面板只提交比例，后端换算实际像素。
+      ratio:
+        options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"]
+        default: "16:9"
+        pixel_sizes: {"16:9": "1024x576", "9:16": "576x1024", "1:1": "1024x1024", "4:3": "1024x768", "3:4": "768x1024", "3:2": "960x640", "2:3": "640x960"}
+        legacy_resolutions: {"1344x768": "16:9", "1024x576": "16:9", "576x1024": "9:16", "1024x1024": "1:1", "1024x768": "4:3", "768x1024": "3:4", "960x640": "3:2", "640x960": "2:3", "1920x1088": "16:9", "1088x1920": "9:16", "1440x1440": "1:1", "1664x1248": "4:3", "1248x1664": "3:4", "1760x1184": "3:2", "1184x1760": "2:3"}
       negativePrompt: false
       promptExtend: false
       audio: false
@@ -294,7 +297,7 @@ models:
       badges: [本地, MiniMax]
     duration: {type: slider, min: 1, max: 28, step: 1, default: 3}
     params:
-      ratio: {options: ["16:9 (Widescreen)", "9:16 (Portrait Widescreen)", "1:1 (Square)", "4:3 (Standard)", "3:4 (Portrait Standard)", "3:2 (Photo)", "2:3 (Portrait Photo)", "21:9 (Ultrawide)"], default: "16:9 (Widescreen)"}
+      ratio: {options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"], default: "16:9"}
       negativePrompt: false
       promptExtend: false
       audio: false

@@ -10,7 +10,13 @@ import requests
 
 from .base import VideoGenModel
 from .image import ImageGenModel
-from ..utils.model_catalog import is_minimax_h3_model, jiucaihezi_upstream_model_id
+from ..utils.model_catalog import (
+    is_jc_minimax_h3_model,
+    is_jc_minimax_h3_ref2v_model,
+    jiucaihezi_upstream_model_id,
+    is_minimax_h3_model,
+    resolve_local_h3_video_parameters,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -126,6 +132,18 @@ _RH_AIAPP_GATEWAY_MODEL = "rh-aiapp"
 _RH_WEBAPP_IDS = {
     # 应用名「文武双修」，参考图上限 9 张
     "rh_minimax_h3_ref_9": "2101840271142117377",
+}
+
+
+_REF2V_ASPECT_RATIOS = {
+    "16:9": "16:9 (Widescreen)",
+    "9:16": "9:16 (Portrait Widescreen)",
+    "1:1": "1:1 (Square)",
+    "4:3": "4:3 (Standard)",
+    "3:4": "3:4 (Portrait Standard)",
+    "3:2": "3:2 (Photo)",
+    "2:3": "2:3 (Portrait Photo)",
+    "21:9": "21:9 (Ultrawide)",
 }
 
 
@@ -567,6 +585,7 @@ class JiucaiheziVideoModel(VideoGenModel):
         if model_name == "dola-seedance2.5-r2v":
             # 存量数据里存过的旧写法，网关没有这个名字（见目录里的 legacy 别名）。
             model_name = "dola-seedance2.5"
+        upstream_model_name = jiucaihezi_upstream_model_id(model_name)
         images = list(kwargs.get("ref_image_urls") or [])
         if kwargs.get("img_url"):
             images.insert(0, kwargs["img_url"])
@@ -580,6 +599,9 @@ class JiucaiheziVideoModel(VideoGenModel):
         # 带 横/竖 的值就改掉它的 ratio。
         if is_minimax_h3_model(model_name):
             ratio = _align_ratio_with_resolution(ratio, resolution)
+        elif is_jc_minimax_h3_ref2v_model(model_name):
+            local_params = resolve_local_h3_video_parameters(model_name, kwargs)
+            ratio = _REF2V_ASPECT_RATIOS[local_params["aspect_ratio"]]
         webapp_id = _RH_WEBAPP_IDS.get(model_name)
         if webapp_id:
             # RH 应用：可调项只有时长与画幅（画质固定 0.9、不作为字段），也不收参考
@@ -594,8 +616,23 @@ class JiucaiheziVideoModel(VideoGenModel):
                 "extra_fields": {"webappId": webapp_id},
                 "webappId": webapp_id,
             }
+        elif is_jc_minimax_h3_model(model_name):
+            local_params = resolve_local_h3_video_parameters(model_name, kwargs)
+            payload = {"model": upstream_model_name, "prompt": prompt, "duration": int(kwargs.get("duration") or 5), "size": local_params["size"]}
+            if images:
+                payload["first_frame"] = images[0]
+            if len(images) > 1:
+                payload["last_frame"] = images[1]
+        elif is_jc_minimax_h3_ref2v_model(model_name):
+            payload = {
+                "model": upstream_model_name,
+                "prompt": prompt,
+                "duration": int(kwargs.get("duration") or 3),
+                "aspect_ratio": ratio,
+                "images": images[:6],
+            }
         else:
-            payload = {"model": model_name, "prompt": prompt, "ratio": ratio}
+            payload = {"model": upstream_model_name, "prompt": prompt, "ratio": ratio}
             if is_minimax_h3_model(model_name):
                 payload["duration"] = int(kwargs.get("duration") or 5)
                 payload["resolution"] = resolution or "768p横"
@@ -604,7 +641,7 @@ class JiucaiheziVideoModel(VideoGenModel):
                     audio_refs.insert(0, kwargs["audio_url"])
                 if audio_refs:
                     payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
-        if images:
+        if images and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
             # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]

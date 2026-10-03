@@ -983,6 +983,40 @@ def is_minimax_h3_model(model_id: Optional[str]) -> bool:
     return bare.startswith("minimax_h3")
 
 
+def is_jc_minimax_h3_model(model_id: Optional[str]) -> bool:
+    if not model_id:
+        return False
+    return str(model_id).split("/")[-1].split("#")[0] == "jc-minimax-h3"
+
+
+def is_jc_minimax_h3_ref2v_model(model_id: Optional[str]) -> bool:
+    if not model_id:
+        return False
+    return str(model_id).split("/")[-1].split("#")[0] == "jc-minimax-h3-ref2v"
+
+
+def resolve_local_h3_video_parameters(model_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    """Local H3 uses ratio-only controls; pixels/Ref2V wire labels stay server-side."""
+    bare = str(model_id).split("/")[-1].split("#")[0]
+    if bare not in {"jc-minimax-h3", "jc-minimax-h3-ref2v"}:
+        return dict(parameters)
+    config = load_generated_model_catalog()["models"][bare]["params"]["ratio"]
+    selected_ratio = parameters.get("aspect_ratio") or parameters.get("ratio")
+    legacy_size = str(parameters.get("resolution") or (parameters.get("size") if not selected_ratio else "") or "").replace("*", "x").replace("×", "x")
+    legacy_ratio = config.get("legacy_resolutions", {}).get(legacy_size)
+    selection = legacy_ratio or selected_ratio or config["default"]
+    # Saved Ref2V histories may contain the old descriptive upstream enum.
+    ratio = str(selection).split(" (", 1)[0]
+    if ratio not in config["options"]:
+        raise ValueError(f"本地 MiniMax 不支持比例 {ratio}，请选择 {' / '.join(config['options'])}")
+    resolved = {**parameters, "aspect_ratio": ratio}
+    for key in ("resolution", "ratio", "size", "quality"):
+        resolved.pop(key, None)
+    if config.get("pixel_sizes"):
+        resolved["size"] = config["pixel_sizes"][ratio]
+    return resolved
+
+
 def jiucaihezi_upstream_model_id(model_id: Optional[str]) -> str:
     """Remove catalog scope while preserving the exact gateway model ID.
 
