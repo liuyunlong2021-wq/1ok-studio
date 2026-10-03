@@ -311,6 +311,10 @@ export function getModelDisplayInfo(
   return { displayName: model.display_name, family: model.family };
 }
 
+export function getModelMaxReferenceImages(modelId: string): number | undefined {
+  return catalog.models[modelId]?.inputs?.reference_images?.max;
+}
+
 /**
  * Return the normalized params for a model, or null if the model is unknown.
  */

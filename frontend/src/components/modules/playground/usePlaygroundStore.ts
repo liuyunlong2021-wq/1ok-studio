@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { MODE_CONFIG } from './mediaModes';
-import { getDefaultModelForMode } from './playgroundModels';
+import { getMediaInputConfig } from './mediaModes';
+import { getDefaultModelForMode, getModelMaxReferenceImages } from './playgroundModels';
 
 // ---------------------------------------------------------------------------
 // Featured (best-of-batch) persistence — client-side localStorage only.
@@ -313,14 +313,14 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
   setInputMedia: (inputMedia) => set({ inputMedia }),
 
   useResultAsReference: (mediaPath, mediaType, targetMode) => {
-    const { modelPreferences, mode: currentMode, inputMedia } = get();
+    const { modelPreferences, mode: currentMode, inputMedia, modelId } = get();
 
     if (inputMedia.includes(mediaPath)) {
       return 'duplicate';
     }
 
     // 当前模式直接收得下：追加（多张）或替换（单张），不动模式。
-    const config = MODE_CONFIG[currentMode];
+    const config = getMediaInputConfig(currentMode, getModelMaxReferenceImages(modelId));
     if (config && config.icon === mediaType && !targetMode) {
       if (config.multiple && inputMedia.length < config.maxFiles) {
         set({ inputMedia: [...inputMedia, mediaPath] });

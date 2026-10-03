@@ -5,8 +5,9 @@ import { ImagePlus, Film, X, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { usePlaygroundStore } from './usePlaygroundStore';
-import { MODE_CONFIG, mergeReferences } from './mediaModes';
+import { MODE_CONFIG, getMediaInputConfig, mergeReferences } from './mediaModes';
 import AssetPickerModal from './AssetPickerModal';
+import { getModelMaxReferenceImages } from './playgroundModels';
 
 // ---------------------------------------------------------------------------
 // Mode config（每种模式对输入素材的约束，与引用加入逻辑共用 mediaModes.ts）
@@ -50,7 +51,7 @@ function resolveMediaSrc(path: string): string {
 // ---------------------------------------------------------------------------
 // Single-reference preview — Line B media-preview-row (thumb + name + meta).
 //
-// Used for maxFiles=1 modes (i2i / i2v first-frame / v2v source video). Mirrors
+// Used for single-reference configurations (i2v first-frame / v2v source video). Mirrors
 // the mockup's `.media-preview-row`: a larger thumbnail on the left, file name +
 // "W × H · FORMAT" meta on the right. Dimensions are read from the loaded media
 // (onLoad / onLoadedMetadata); format is derived from the extension. File size is
@@ -139,7 +140,8 @@ export default function MediaInput() {
 
   const isSeedance = modelId.startsWith('seedance');
 
-  let config = MODE_CONFIG[mode];
+  const modelReferenceLimit = getModelMaxReferenceImages(modelId);
+  let config = getMediaInputConfig(mode, modelReferenceLimit);
 
   // Override r2v config when Seedance is selected
   if (config && mode === 'r2v' && isSeedance) {
@@ -355,8 +357,8 @@ export default function MediaInput() {
   // -------------------------------------------------------------------------
   // Render: has media state
   //
-  // Multi-reference modes (r2v / t2i, maxFiles>1) → thumbnail tile grid.
-  // Single-reference modes (i2i / i2v / v2v, maxFiles=1) → media-preview-row
+  // Multiple references → thumbnail tile grid.
+  // Single reference → media-preview-row
   // (larger thumb + file name + dimensions·format), per the mockup.
   // -------------------------------------------------------------------------
 
@@ -410,7 +412,7 @@ export default function MediaInput() {
               </div>
             ))}
 
-            {/* Add more button for r2v */}
+            {/* Add another reference */}
             {canAddMore && (
               <button
                 type="button"
@@ -429,7 +431,7 @@ export default function MediaInput() {
             )}
           </div>
 
-          {/* File count for r2v */}
+          {/* Reference count */}
           <div className="font-mono text-[0.6875rem] text-text-muted">
             {t('media.fileCount', { current: inputMedia.length, max: activeConfig.maxFiles })}
           </div>
@@ -447,10 +449,10 @@ export default function MediaInput() {
         <button
           type="button"
           onClick={handleReplace}
-          disabled={uploading}
+          disabled={uploading || (activeConfig.multiple && !canAddMore)}
           className={ACTION_BTN_CLASS}
         >
-          {uploading ? t('media.uploading') : t('media.replaceFile')}
+          {uploading ? t('media.uploading') : t(activeConfig.multiple ? 'media.localUpload' : 'media.replaceFile')}
         </button>
         <button
           type="button"
