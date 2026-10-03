@@ -118,7 +118,7 @@ class LLMAdapter:
             if not key:
                 raise RuntimeError("JIUCAIHEZI_API_KEY not configured")
             try:
-                from openai import OpenAI
+                from openai import OpenAI, DefaultHttpxClient
             except ImportError:
                 raise RuntimeError("openai package not installed. Run: pip install openai>=1.0.0")
             base_url = get_provider_base_url("JIUCAIHEZI")
@@ -129,6 +129,12 @@ class LLMAdapter:
                 base_url=base_url,
                 timeout=JIUCAIHEZI_TIMEOUT_SECONDS,
                 max_retries=0,
+                # HTTPX also discovers macOS system proxies through getproxies().
+                # A desktop proxy can silently route this gateway overseas and
+                # close long requests before any response headers arrive.
+                http_client=DefaultHttpxClient(
+                    trust_env=False, timeout=JIUCAIHEZI_TIMEOUT_SECONDS,
+                ),
             )
         return self._jiucaihezi_client
 
@@ -284,7 +290,33 @@ class LLMAdapter:
         if response_format:
             kwargs["response_format"] = response_format
 
+        started = time.monotonic()
         try:
+            if provider_label == "Jiucaihezi":
+                # Receive chunks while generation is running; waiting for the
+                # whole response can exceed the gateway's idle read timeout.
+                stream = client.chat.completions.create(**kwargs, stream=True)
+                parts = []
+                finish_reason = None
+                try:
+                    for chunk in stream:
+                        if not chunk.choices:
+                            continue
+                        choice = chunk.choices[0]
+                        if choice.delta.content:
+                            parts.append(choice.delta.content)
+                        if choice.finish_reason:
+                            finish_reason = choice.finish_reason
+                finally:
+                    stream.close()
+                if finish_reason != "stop":
+                    raise RuntimeError(
+                        f"文本流未完整结束（finish_reason={finish_reason or 'missing'}），请重试；未采用不完整正文"
+                    )
+                content = "".join(parts)
+                if not content.strip():
+                    raise RuntimeError("模型返回了空正文，请重试")
+                return content
             response = client.chat.completions.create(**kwargs)
             return response.choices[0].message.content
         except Exception as e:
@@ -292,4 +324,22 @@ class LLMAdapter:
                 "openai": "OpenAI",
                 "dashscope": "DashScope",
             }.get(self.provider, "韭菜盒子")
-            raise RuntimeError(f"{label} API error: {e}") from e
+            causes = []
+            cause = e.__cause__
+            while cause is not None and len(causes) < 5:
+                causes.append(f"{type(cause).__name__}: {cause}")
+                cause = cause.__cause__
+            detail = str(e)
+            if causes:
+                detail += " | " + " -> ".join(causes)
+            # Do not include credentials even if an upstream error echoes one.
+            for env_key in ("JIUCAIHEZI_API_KEY", "OPENAI_API_KEY", "DASHSCOPE_API_KEY"):
+                secret = os.getenv(env_key)
+                if secret:
+                    detail = detail.replace(secret, "[redacted]")
+            logger.error(
+                "Text request failed: provider=%s model=%s elapsed=%.2fs status=%s request_id=%s detail=%s",
+                label, model, time.monotonic() - started,
+                getattr(e, "status_code", None), getattr(e, "request_id", None), detail,
+            )
+            raise RuntimeError(f"{label} API error [model={model}]: {detail}") from e

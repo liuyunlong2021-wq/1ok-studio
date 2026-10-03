@@ -29,6 +29,15 @@ export interface AiScope {
   text: string;
 }
 
+function readableRequestError(reason: unknown): string {
+  if (reason && typeof reason === 'object' && 'response' in reason) {
+    const response = (reason as { response?: { data?: { detail?: unknown; message?: unknown } } }).response;
+    const detail = response?.data?.detail ?? response?.data?.message;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+  }
+  return reason instanceof Error ? reason.message : '生成失败，请重试';
+}
+
 export default function AiPanel({ editor, projectId, onPreview, scope, onScopeChange }: {
   editor: Editor | null;
   projectId?: string;
@@ -87,7 +96,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         sourceText: text,
       });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '生成失败，请重试');
+      setError(readableRequestError(reason));
     } finally {
       setBusy(false);
     }
