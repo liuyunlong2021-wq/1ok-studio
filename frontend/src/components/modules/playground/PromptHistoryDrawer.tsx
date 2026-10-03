@@ -1,5 +1,7 @@
 'use client';
 
+import { getModelDisplayInfo } from './playgroundModels';
+
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { createPortal } from 'react-dom';
@@ -201,7 +203,7 @@ export default function PromptHistoryDrawer() {
                   </span>
                   {entry.model_id && (
                     <span className="font-mono text-[0.5625rem] bg-glass text-text-muted rounded px-[6px] py-[2px]">
-                      {entry.model_id}
+                      {getModelDisplayInfo(entry.model_id)?.displayName ?? entry.model_id}
                     </span>
                   )}
                   <span className="font-mono text-[0.5625rem] text-text-muted ml-auto">

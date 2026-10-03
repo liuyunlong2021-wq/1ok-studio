@@ -1,4 +1,5 @@
 import rawCatalog from '@/generated/modelCatalog.json';
+import { DEFAULT_MODEL_SETTINGS } from '@/lib/modelCatalog';
 import type { Resolution } from '@/lib/imageSizePresets';
 import type { PlaygroundMode } from './usePlaygroundStore';
 
@@ -282,10 +283,16 @@ export function getModelsForMode(mode: PlaygroundMode): PlaygroundModelOption[] 
 }
 
 /**
- * Return the default (recommended or first) model ID for a mode.
+ * Use the catalog default when compatible, then the recommended/first model.
  */
 export function getDefaultModelForMode(mode: PlaygroundMode): string {
   const models = getModelsForMode(mode);
+  const configured = mode === 't2i' ? DEFAULT_MODEL_SETTINGS.t2i_model
+    : mode === 'i2i' ? DEFAULT_MODEL_SETTINGS.i2i_model
+    : mode === 't2v' || mode === 'i2v' ? DEFAULT_MODEL_SETTINGS.i2v_model
+    : mode === 'r2v' ? DEFAULT_MODEL_SETTINGS.r2v_model
+    : undefined;
+  if (configured && models.some((model) => model.id === configured)) return configured;
   const recommended = models.find((m) => m.recommended);
   return recommended?.id ?? models[0]?.id ?? '';
 }

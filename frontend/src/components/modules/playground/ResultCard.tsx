@@ -1,5 +1,7 @@
 'use client';
 
+import { getModelDisplayInfo } from './playgroundModels';
+
 import { useState, useCallback } from 'react';
 import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -116,7 +118,7 @@ function FailedCard({ generation, onRetry, onDelete }: { generation: PlaygroundG
         <p className="text-[0.6875rem] text-text-secondary line-clamp-2 mb-1.5">{prompt}</p>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[0.5625rem] bg-glass text-text-muted rounded px-[6px] py-[2px]">
-            {model_id || mode}
+            {(getModelDisplayInfo(model_id)?.displayName ?? model_id) || mode}
           </span>
           <span className="font-mono text-[0.5625rem] text-text-muted">
             {formatTime(created_at)}
@@ -334,7 +336,7 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
         <p className="text-[0.6875rem] text-text-secondary line-clamp-2 mb-1.5">{prompt}</p>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="font-mono text-[0.5625rem] bg-glass text-text-muted rounded px-[6px] py-[2px]">
-            {model_id || mode}
+            {(getModelDisplayInfo(model_id)?.displayName ?? model_id) || mode}
           </span>
           {/* Size or resolution tag */}
           {generation.parameters.size && (
@@ -407,7 +409,7 @@ export default function ResultCard({ generation, outputIndex = 0, onGenerateVide
           <p className="text-[0.6875rem] text-text-secondary line-clamp-2 mb-1.5">{prompt}</p>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[0.5625rem] bg-glass text-text-muted rounded px-[6px] py-[2px]">
-              {model_id || mode}
+              {(getModelDisplayInfo(model_id)?.displayName ?? model_id) || mode}
             </span>
             <span className="font-mono text-[0.5625rem] text-text-muted">
               {formatTime(created_at)}

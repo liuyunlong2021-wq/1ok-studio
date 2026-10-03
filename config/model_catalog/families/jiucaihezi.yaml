@@ -6,7 +6,7 @@ supported_backends: [jiucaihezi]
 default_backend: jiucaihezi
 credential_sources:
   jiucaihezi: [JIUCAIHEZI_API_KEY]
-supported_modalities: [text, t2i, i2i, i2v]
+supported_modalities: [text, t2i, i2i, t2v, i2v, r2v]
 docs:
   official_snapshot_ids: [jiucaihezi]
   context_hub_doc_ids: [jiucaihezi]
@@ -114,8 +114,8 @@ models:
       seed: false
       promptExtend: false
       watermark: false
-  # 2 系列（无 .5）：网关上是与 2.5 并存的独立通道。默认出图模型就是这里的
-  # gpt-image-2-1k（见 catalog.meta.yaml 的 defaults.model_settings）。
+  # 2 系列（无 .5）：网关上是与 2.5 并存的独立通道。旧默认出图模型是
+  # gpt-image-2-1k；当前默认值由 catalog.meta.yaml 声明。
   - id: jiucaihezi/gpt-image-2-1k
     display_name: "GPT Image 2 1K · 韭菜盒子"
     description: "GPT Image 2，固定 1K，via 韭菜盒子"
@@ -124,7 +124,7 @@ models:
     capabilities: [t2i, i2i]
     docs: {context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1002, recommended: true, badges: [韭菜盒子]}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1002, recommended: false, badges: [韭菜盒子]}
     params: *gpt_image_params_1k
     inputs:
       reference_images: {max: 16, reference_type: image}
@@ -229,14 +229,14 @@ models:
     inputs:
       reference_images: {max: 9, reference_type: image}
   - id: jc-qwen-image-2.1
-    display_name: "Qwen Image 2.1 · 韭菜盒子"
+    display_name: "Qwen Image 2.1 · 本地"
     description: "文生图与最多 10 张参考图编辑，via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/images], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1003, recommended: false, badges: [韭菜盒子, Qwen]}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1003, recommended: true, badges: [本地, Qwen]}
     params:
       size:
         options: ["1024x1024", "1024x576", "576x1024", "1024x768", "768x1024", "1024x680", "680x1024", "1448x1448", "1920x1088", "1088x1920", "1664x1248", "1248x1664", "1768x1176", "1176x1768"]
@@ -254,6 +254,52 @@ models:
       watermark: false
     inputs:
       reference_images: {max: 10, reference_type: image}
+  - id: jc-minimax-h3
+    display_name: "MiniMax H3 · 本地"
+    description: "文生、首帧图生与首尾帧视频，1–28 秒，via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v]
+    docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: i2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1004
+      recommended: true
+      badges: [本地, MiniMax]
+    duration: {type: slider, min: 1, max: 28, step: 1, default: 5}
+    params:
+      resolution:
+        options: ["1344x768", "1024x1024", "1024x576", "576x1024", "1024x768", "768x1024", "960x640", "640x960", "1440x1440", "1920x1088", "1088x1920", "1664x1248", "1248x1664", "1760x1184", "1184x1760"]
+        default: "1344x768"
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 2, reference_type: image}
+  - id: jc-minimax-h3-ref2v
+    display_name: "MiniMax H3 Ref2V · 本地"
+    description: "1–6 张参考图生成视频，1–28 秒，via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1005
+      recommended: true
+      badges: [本地, MiniMax]
+    duration: {type: slider, min: 1, max: 28, step: 1, default: 3}
+    params:
+      ratio: {options: ["16:9 (Widescreen)", "9:16 (Portrait Widescreen)", "1:1 (Square)", "4:3 (Standard)", "3:4 (Portrait Standard)", "3:2 (Photo)", "2:3 (Portrait Photo)", "21:9 (Ultrawide)"], default: "16:9 (Widescreen)"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 6, reference_type: image}
   - id: dola-seedance2.5
     display_name: "Seedance 2.5 dola · 韭菜盒子"
     description: "文生 / 图生 / 参考生 / 编辑全能（dola 通道），via 韭菜盒子"

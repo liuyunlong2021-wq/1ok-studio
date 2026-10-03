@@ -7,6 +7,8 @@
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
+      "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
+      "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
       "jiucaihezi/gpt-image-2-1k": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
@@ -22,19 +24,19 @@
   },
   "defaults": {
     "canonical_model_settings": {
-      "i2i_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
-      "i2v_model": "jiucaihezi/海seedance2.5#r2v",
-      "image_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
-      "r2v_model": "jiucaihezi/海seedance2.5#r2v",
-      "t2i_model": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
+      "i2i_model": "jiucaihezi/jc-qwen-image-2.1#image",
+      "i2v_model": "jiucaihezi/jc-minimax-h3#i2v",
+      "image_model": "jiucaihezi/jc-qwen-image-2.1#image",
+      "r2v_model": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
+      "t2i_model": "jiucaihezi/jc-qwen-image-2.1#image",
       "text_model": "jiucaihezi/gpt-5.6-sol#text"
     },
     "model_settings": {
-      "i2i_model": "jiucaihezi/gpt-image-2-1k",
-      "i2v_model": "海seedance2.5",
-      "image_model": "jiucaihezi/gpt-image-2-1k",
-      "r2v_model": "海seedance2.5",
-      "t2i_model": "jiucaihezi/gpt-image-2-1k",
+      "i2i_model": "jc-qwen-image-2.1",
+      "i2v_model": "jc-minimax-h3",
+      "image_model": "jc-qwen-image-2.1",
+      "r2v_model": "jc-minimax-h3-ref2v",
+      "t2i_model": "jc-qwen-image-2.1",
       "text_model": "gpt-5.6-sol"
     }
   },
@@ -61,6 +63,8 @@
         "dola-seedance2.5",
         "gemini-3.8-flash",
         "gpt-5.6-sol",
+        "jc-minimax-h3",
+        "jc-minimax-h3-ref2v",
         "jc-qwen-image-2.1",
         "jiucaihezi/gemini-3-pro-image-preview",
         "jiucaihezi/gpt-image-2-1k",
@@ -84,7 +88,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -144,7 +150,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -202,7 +210,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -260,7 +270,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -318,7 +330,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -376,7 +390,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -434,7 +450,129 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jc-minimax-h3": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生、首帧图生与首尾帧视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3",
+      "legacy_model_ids": [
+        "jc-minimax-h3"
+      ],
+      "modes": [
+        "jiucaihezi/jc-minimax-h3#i2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-ref2v": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–6 张参考图生成视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 Ref2V · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-ref2v",
+      "legacy_model_ids": [
+        "jc-minimax-h3-ref2v"
+      ],
+      "modes": [
+        "jiucaihezi/jc-minimax-h3-ref2v#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -457,7 +595,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
-      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 本地",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -492,7 +630,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -550,7 +690,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -608,7 +750,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -666,7 +810,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -724,7 +870,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -782,7 +930,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -840,7 +990,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -898,7 +1050,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -956,7 +1110,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -1014,7 +1170,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -1072,7 +1230,9 @@
         "text",
         "t2i",
         "i2i",
-        "i2v"
+        "t2v",
+        "i2v",
+        "r2v"
       ],
       "transport": {
         "audio_input_mode": {
@@ -1478,6 +1638,194 @@
         ]
       }
     },
+    "jc-minimax-h3": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生、首帧图生与首尾帧视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 28,
+        "min": 1,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jc-minimax-h3",
+      "inputs": {
+        "reference_images": {
+          "max": 2,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "1344x768",
+          "options": [
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1004,
+        "recommended": true,
+        "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jc-minimax-h3-ref2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–6 张参考图生成视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 Ref2V · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 3,
+        "max": 28,
+        "min": 1,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jc-minimax-h3-ref2v",
+      "inputs": {
+        "reference_images": {
+          "max": 6,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9 (Widescreen)",
+          "options": [
+            "16:9 (Widescreen)",
+            "9:16 (Portrait Widescreen)",
+            "1:1 (Square)",
+            "4:3 (Standard)",
+            "3:4 (Portrait Standard)",
+            "3:2 (Photo)",
+            "2:3 (Portrait Photo)",
+            "21:9 (Ultrawide)"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1005,
+        "recommended": true,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "jc-qwen-image-2.1": {
       "backend_env_key": null,
       "capabilities": [
@@ -1491,7 +1839,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
-      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 本地",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1599,11 +1947,11 @@
       },
       "ui": {
         "badges": [
-          "韭菜盒子",
+          "本地",
           "Qwen"
         ],
         "order": 1003,
-        "recommended": false,
+        "recommended": true,
         "selection_group": "image",
         "visible_in": [
           "project_settings",
@@ -1770,7 +2118,7 @@
           "韭菜盒子"
         ],
         "order": 1002,
-        "recommended": true,
+        "recommended": false,
         "selection_group": "image",
         "visible_in": [
           "project_settings",
@@ -2958,6 +3306,210 @@
         ]
       }
     },
+    "jiucaihezi/jc-minimax-h3#i2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "文生、首帧图生与首尾帧视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 28,
+        "min": 1,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3#i2v",
+      "inputs": {
+        "reference_images": {
+          "max": 2,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jc-minimax-h3",
+      "mode": "i2v",
+      "model_line_id": "jiucaihezi/jc-minimax-h3",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "1344x768",
+          "options": [
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1004,
+        "recommended": true,
+        "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-ref2v#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–6 张参考图生成视频，1–28 秒，via 韭菜盒子",
+      "display_name": "MiniMax H3 Ref2V · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 3,
+        "max": 28,
+        "min": 1,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 6,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jc-minimax-h3-ref2v",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/jc-minimax-h3-ref2v",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9 (Widescreen)",
+          "options": [
+            "16:9 (Widescreen)",
+            "9:16 (Portrait Widescreen)",
+            "1:1 (Square)",
+            "4:3 (Standard)",
+            "3:4 (Portrait Standard)",
+            "3:2 (Photo)",
+            "2:3 (Portrait Photo)",
+            "21:9 (Ultrawide)"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1005,
+        "recommended": true,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/jc-qwen-image-2.1#image": {
       "backend_env_key": null,
       "capabilities": [
@@ -2971,7 +3523,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "文生图与最多 10 张参考图编辑，via 韭菜盒子",
-      "display_name": "Qwen Image 2.1 · 韭菜盒子",
+      "display_name": "Qwen Image 2.1 · 本地",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3087,11 +3639,11 @@
       },
       "ui": {
         "badges": [
-          "韭菜盒子",
+          "本地",
           "Qwen"
         ],
         "order": 1003,
-        "recommended": false,
+        "recommended": true,
         "selection_group": "image",
         "visible_in": [
           "project_settings",
@@ -3274,7 +3826,7 @@
           "韭菜盒子"
         ],
         "order": 1002,
-        "recommended": true,
+        "recommended": false,
         "selection_group": "image",
         "visible_in": [
           "project_settings",

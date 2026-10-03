@@ -97,6 +97,7 @@ interface ModelCatalog {
             i2i_model: string;
             image_model: string;
             i2v_model: string;
+            r2v_model?: string;
             text_model: string;
         };
         canonical_model_settings?: {
@@ -224,8 +225,9 @@ const SORTED_MODEL_ENTRIES = [...CATALOG_MODELS].sort((left, right) => {
 // 想恢复完整目录：把下面这行改成 `const ALLOWED_MODEL_FAMILIES: string[] | null = null;`
 const ALLOWED_MODEL_FAMILIES: string[] | null = ['jiucaihezi'];
 
-/** R2V 默认模型。显式指定，别让默认值随目录排序漂移。 */
-const PREFERRED_R2V_MODEL_ID = '海seedance2.5';
+/** R2V 默认模型由目录声明，与项目/全局默认值保持一致。 */
+const PREFERRED_R2V_MODEL_ID = MODEL_CATALOG.defaults.model_settings.r2v_model
+    ?? MODEL_CATALOG.defaults.model_settings.i2v_model;
 
 function onlyAllowedModels(models: CatalogModel[]): CatalogModel[] {
     const allowed = ALLOWED_MODEL_FAMILIES;
@@ -319,8 +321,7 @@ function getConfiguredDefaultId(group: SelectionGroup): string {
 
 function getFallbackVisibleModelId(group: SelectionGroup, surface: VisibilitySurface): string {
     const visibleModels = getVisibleModels(group, surface);
-    // 本安装只接韭菜盒子网关，R2V 默认就用用户实际在跑的那个模型，
-    // 而不是目录默认值（happyhorse-1.1-r2v 已被白名单滤掉，会让默认值漂移）。
+    // 使用目录声明的可见默认模型。
     const configuredDefaultId =
         group === 'r2v' && visibleModels.some((model) => model.id === PREFERRED_R2V_MODEL_ID)
             ? PREFERRED_R2V_MODEL_ID
@@ -494,7 +495,7 @@ for (const model of SORTED_MODEL_ENTRIES) {
 export const VIDEO_R2V_MODELS: I2VModelConfig[] = onlyAllowedModels(
     SORTED_MODEL_ENTRIES.filter((model) => model.ui.selection_group === 'r2v' && isVisibleModel(model, 'video_sidebar'))
 ).map(toI2VModel);
-// 默认取 PREFERRED_R2V_MODEL_ID（不是列表首个 —— 列表按 ui.order 排，会漂到 minimax）。
+// 默认值取目录声明，避免随列表排序变化。
 export const DEFAULT_R2V_MODEL_ID =
     VIDEO_R2V_MODELS.find((model) => model.id === PREFERRED_R2V_MODEL_ID)?.id
     ?? VIDEO_R2V_MODELS[0]?.id

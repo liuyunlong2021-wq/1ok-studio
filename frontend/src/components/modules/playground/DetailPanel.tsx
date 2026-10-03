@@ -1,5 +1,7 @@
 'use client';
 
+import { getModelDisplayInfo } from './playgroundModels';
+
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -334,7 +336,7 @@ export default function DetailPanel({
               </span>
             </div>
             <h2 className="font-display atelier-display text-xl font-semibold tracking-tight text-foreground leading-tight">
-              {generation.model_id}
+              {getModelDisplayInfo(generation.model_id)?.displayName ?? generation.model_id}
             </h2>
             <p className="font-mono text-[0.625rem] text-text-muted mt-1.5">
               {formatTimestamp(generation.created_at)}

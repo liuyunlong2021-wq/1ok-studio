@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { MODE_CONFIG } from './mediaModes';
+import { getDefaultModelForMode } from './playgroundModels';
 
 // ---------------------------------------------------------------------------
 // Featured (best-of-batch) persistence — client-side localStorage only.
@@ -201,7 +202,7 @@ interface PlaygroundState {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MODE: PlaygroundMode = 't2i';
-const DEFAULT_MODEL_ID = '';
+const DEFAULT_MODEL_ID = getDefaultModelForMode(DEFAULT_MODE);
 const DEFAULT_PROMPT = '';
 const DEFAULT_BATCH_SIZE = 1;
 
@@ -293,7 +294,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
     const preferredModel = modelPreferences[mode];
     set({
       mode,
-      ...(preferredModel !== undefined ? { modelId: preferredModel } : {}),
+      modelId: preferredModel ?? getDefaultModelForMode(mode),
     });
   },
 
@@ -340,7 +341,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
     set({
       mode,
       inputMedia: [mediaPath],
-      ...(preferredModel !== undefined ? { modelId: preferredModel } : {}),
+      modelId: preferredModel ?? getDefaultModelForMode(mode),
     });
     return 'switched';
   },
