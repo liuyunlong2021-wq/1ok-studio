@@ -76,7 +76,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     scriptEditorApi.listScriptSkills().then((items) => {
       if (cancelled) return;
       setSkills(items);
-      const id = remembered === null ? items.find((item) => item.id === 'builtin-short')?.id || items[0]?.id || '' : items.some((item) => item.id === remembered) ? remembered : '';
+      const id = remembered && items.some((item) => item.id === remembered) ? remembered : '';
       skillIdRef.current = id;
       setSkillId(id);
       if (remembered && !id) {
@@ -132,13 +132,13 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   const scopeLength = scope ? scope.text.replace(/\s/g, '').length : 0;
 
   const send = async () => {
-    if (!editor || !projectId || !selectedSkill || busy) return;
+    if (!editor || !projectId || (!selectedSkill && !instruction.trim()) || busy) return;
     const text = scope ? scope.text : scriptTextOf(editor);
     if (!text.trim()) return;
     setBusy(true);
     setError('');
     try {
-      const result = await scriptEditorApi.standardizeScript(projectId, text, selectedSkill.content, selectedSkill.id, instruction);
+      const result = await scriptEditorApi.standardizeScript(projectId, text, selectedSkill?.content ?? '', selectedSkill?.id, instruction);
       onPreview({
         text: result.standardized_text,
         range: scope ? { from: scope.from, to: scope.to } : null,
@@ -153,7 +153,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
 
   return (
     <div className="flex h-full flex-col p-4">
-      <div><h2 className="text-sm font-semibold text-foreground">AI 修改剧本</h2><p className="mt-1 text-xs text-text-muted">加载 Skill，输入要求，结果将在左侧预览。</p></div>
+      <div><h2 className="text-sm font-semibold text-foreground">AI 修改剧本</h2><p className="mt-1 text-xs text-text-muted">输入修改要求，Skill 可选，结果将在左侧预览。</p></div>
       <div className="mt-5 space-y-2">
         <div className="flex items-center justify-between">
           <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
@@ -163,7 +163,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
           </div>
         </div>
         <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(projectId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
-          <option value="">{loadingSkills ? '加载中…' : '请选择 Skill'}</option>
+          <option value="">{loadingSkills ? '加载中…' : '不使用 Skill · 按本次要求修改'}</option>
           {skills.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_builtin ? ' · 内置' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
@@ -195,7 +195,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         ) : null}
         {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
       </div>
-      <button type="button" onClick={send} disabled={busy || !editor || !projectId || !selectedSkill} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
+      <button type="button" onClick={send} disabled={busy || !editor || !projectId || (!selectedSkill && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{busy ? '生成中…' : '发送'}
       </button>
       {showManager && <ScriptSkillManager activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}

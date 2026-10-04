@@ -895,7 +895,7 @@ def delete_script_skill(skill_id: str):
 
 @app.post("/projects/{script_id}/standardize_script")
 async def standardize_script(script_id: str, request: StandardizeScriptRequest):
-    """Convert free-form script text to screenplay text using a user-provided Skill."""
+    """Revise script text using the instruction and an optional Skill."""
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Script not found")
@@ -908,7 +908,9 @@ async def standardize_script(script_id: str, request: StandardizeScriptRequest):
         selected = next((item for item in _read_script_skills() if item["id"] == request.skill_id), None)
         if not selected: raise HTTPException(status_code=404, detail="Skill 不存在")
         skill = selected["content"]
-    skill = skill or "将输入内容转换为标准中文短剧剧本，保留剧情事实，不添加新情节。"
+    if not skill and not request.instruction.strip():
+        raise HTTPException(status_code=400, detail="不使用 Skill 时，请填写本次修改要求")
+    skill = skill or "你是剧本编辑。仅按本次修改要求处理输入内容。未涉及的剧情、台词、动作、镜头编号、时间码和排版保持原样，不擅自标准化、拆镜、缩写或增加内容。返回修改后的完整输入内容。"
     prompt = f"{skill}\n\n本次修改要求：{request.instruction.strip() or '按 Skill 规则处理，保持原意。'}\n\n请只输出修改后的剧本文本，不要解释，不要 Markdown 代码块。\n\n待修改内容：\n{request.text}"
     try:
         result = await asyncio.get_event_loop().run_in_executor(

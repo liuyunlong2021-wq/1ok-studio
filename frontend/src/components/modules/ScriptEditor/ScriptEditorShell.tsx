@@ -61,50 +61,52 @@ export default function ScriptEditorShell({
   const { editor, isReady } = useEditorSetup({ content: initialContent ?? projectText });
   useDerivation(editor);
   const loadedProjectRef = useRef<string | null>(null);
-  const hydratedTextRef = useRef<string | null>(null);
+  const projectTextRef = useRef(projectText);
+  projectTextRef.current = projectText;
   const loadedDocumentRef = useRef<string | null>(null);
   const isDirty = useEditorStore((s) => s.isDirty);
   useEffect(() => {
     const store = useEditorStore.getState();
-    store.setProjectId(projectId ?? null);
+    store.setProjectId(effectiveProjectId ?? null);
     store.setDirty(false);
     store.setLastSavedAt(null);
-  }, [projectId]);
+  }, [effectiveProjectId]);
   useEffect(() => {
     if (!editor || !effectiveProjectId) return;
     let cancelled = false;
+    let editedSinceLoad = false;
+    const markEdited = () => { editedSinceLoad = true; };
+    editor.on('update', markEdited);
     loadedDocumentRef.current = null;
 
     scriptEditorApi.loadDocument(effectiveProjectId)
       .then((document) => {
-        if (cancelled || useEditorStore.getState().isDirty || !document.content?.length) return;
+        if (cancelled || editor.isDestroyed || editedSinceLoad || useEditorStore.getState().isDirty || !document.content?.length) return;
         loadedDocumentRef.current = effectiveProjectId;
         loadedProjectRef.current = effectiveProjectId;
-        hydratedTextRef.current = projectText;
-        editor.commands.setContent(document);
+        editor.commands.setContent(document, { emitUpdate: false });
         useEditorStore.getState().setDirty(false);
         useEditorStore.getState().updateDerivation({ wordCount: scriptTextOf(editor).length });
       })
-      .catch((error) => console.error('[ScriptEditor] Failed to load saved document:', error));
+      .catch((error) => console.error('[ScriptEditor] Failed to load saved document:', error))
+      .finally(() => { editor.off('update', markEdited); });
 
-    return () => { cancelled = true; };
-  }, [editor, effectiveProjectId, projectText]);
+    return () => { cancelled = true; editor.off('update', markEdited); };
+  }, [editor, effectiveProjectId]);
   useEffect(() => {
     if (!editor || !hydrationProject?.id) return;
     if (loadedDocumentRef.current === hydrationProject.id) return;
-    const projectData = hydrationProject as typeof hydrationProject & { original_text?: string };
-    const text = projectData.originalText || projectData.original_text || '';
-    const projectChanged = loadedProjectRef.current !== hydrationProject.id;
-    const textChanged = hydratedTextRef.current !== text;
-    if (!projectChanged && (!textChanged || isDirty)) return;
+    // The mounted editor owns the current document. Save acknowledgements must
+    // never replace it: replacing the document resets selection and scroll.
+    if (loadedProjectRef.current === hydrationProject.id) return;
+    const text = projectTextRef.current;
     loadedProjectRef.current = hydrationProject.id;
-    hydratedTextRef.current = text;
     if (!text.trim()) {
-      editor.commands.clearContent();
+      editor.commands.clearContent(false);
       useEditorStore.getState().setDirty(false);
       return;
     }
-    editor.commands.setContent(textToEditorDocument(text));
+    editor.commands.setContent(textToEditorDocument(text), { emitUpdate: false });
     useEditorStore.getState().setDirty(false);
     useEditorStore.getState().updateDerivation({ wordCount: text.length });
   }, [editor, hydrationProject, isDirty]);
