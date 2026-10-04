@@ -336,6 +336,14 @@ def report_client_error(report: ClientErrorReport):
     )
     return {"status": "logged"}
 
+def _project_response_payload(script, payload=None):
+    """All project responses expose the same resolved asset layers as GET."""
+    payload = dict(payload) if payload is not None else script.model_dump()
+    for key, items in pipeline.resolve_episode_assets_with_source(script).items():
+        payload[key] = [{**asset.model_dump(), "source": source} for asset, source in items]
+    return payload
+
+
 def signed_response(data):
     """Serialize a response body to JSON, bypassing Pydantic re-validation.
 
@@ -348,7 +356,14 @@ def signed_response(data):
         return JSONResponse(content=None)
     
     # Convert Pydantic models to dict
-    if hasattr(data, "model_dump"):
+    if isinstance(data, Script):
+        processed_data = _project_response_payload(data)
+    elif isinstance(data, dict) and "frames" in data and all(key in data for key in ("characters", "scenes", "props")):
+        # Some generation responses add metadata (e.g. _task_id) to a
+        # dumped Script. Preserve those fields while resolving its assets.
+        script = pipeline.get_script(data.get("id"))
+        processed_data = _project_response_payload(script, data) if script else data
+    elif hasattr(data, "model_dump"):
         processed_data = data.model_dump()
     elif isinstance(data, list):
         processed_data = [item.model_dump() if hasattr(item, "model_dump") else item for item in data]
@@ -1826,15 +1841,7 @@ def get_project(script_id: str):
     if not script:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    payload = script.model_dump()
-
-    # 分层合并只走 pipeline 那一个实现：本函数原先自己手写了两层
-    # （Episode + Series）合并，漏掉 Global 层，导致全局模板库的资产
-    # 永远不出现在项目里，且与 pipeline 内部四处调用点的行为不一致。
-    for key, items in pipeline.resolve_episode_assets_with_source(script).items():
-        payload[key] = [{**asset.model_dump(), "source": source} for asset, source in items]
-
-    return signed_response(payload)
+    return signed_response(script)
 
 
 @app.delete("/series/{series_id}/assets/{asset_type}/{asset_id}")
