@@ -235,7 +235,8 @@ def preview_engineering_sync(script, assets):
         else:
             changed = True
             frame = StoryboardFrame(id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{script.id}/{plan['revision']}/{shot['number']}")),
-                                    scene_id=scene_ids[0] if len(scene_ids) == 1 else "", character_ids=char_ids, prop_ids=prop_ids, **fields)
+                                    scene_id=scene_ids[0] if len(scene_ids) == 1 else "", character_ids=char_ids, prop_ids=prop_ids,
+                                    updated_at=0.0, **fields)
         proposed.append(frame)
         changes.append({"kind": "updated" if old and changed else "unchanged" if old else "added", "number": shot["number"], "frame_id": frame.id,
                         "before_duration": old.duration if old else None, "duration": frame.duration, "before": old.source_text or old.action_description if old else "",
@@ -253,11 +254,17 @@ def apply_engineering_sync(script, assets, token):
     preview, frames = preview_engineering_sync(script, assets)
     if preview["token"] != token:
         raise ValueError("台本、资产或分镜已变化，请重新预览后同步")
+    # Preview must be deterministic; assign real timestamps only after validation.
+    now = time.time()
+    changed_ids = {item["frame_id"] for item in preview["changes"] if item["kind"] in ("added", "updated")}
+    for frame in frames:
+        if frame.id in changed_ids:
+            frame.updated_at = now
     changed = any(item["kind"] != "unchanged" for item in preview["changes"])
     if script.frames and changed:
         script.storyboard_archives.append({"created_at": time.time(), "source_revision": script.storyboard_source_revision,
                                            "frames": [frame.model_dump() for frame in script.frames]})
     script.frames = frames
     script.storyboard_source_revision = preview["revision"]
-    script.updated_at = time.time()
+    script.updated_at = now
     return script
