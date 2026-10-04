@@ -3,6 +3,11 @@ import { DEFAULT_I2V_MODEL_ID } from "@/lib/modelCatalog";
 import { isTauri } from "@/lib/transport";
 import type { AudioJobStatus, AudioPlan, AudioTake } from "@/store/projectStore";
 
+export type EngineeringSyncPreview = {
+    token: string; revision: string; count: number; duration: number; warnings: string[];
+    changes: { kind: 'added' | 'updated' | 'removed' | 'unchanged'; number: number | null; frame_id: string; before_duration: number | null; duration: number | null; before: string; after: string; media_kept: boolean }[];
+};
+
 export type AssetContract = {
     id: string;
     asset_type: "character" | "scene" | "prop";
@@ -774,6 +779,31 @@ export const api = {
     getStoryboardPromptSource: async (scriptId: string): Promise<{ id: string | null; name: string; source: string }> => {
         const res = await axios.get(`${API_URL}/projects/${scriptId}/storyboard/prompt-source`);
         return res.data;
+    },
+
+    getEngineeringStatus: async (scriptId: string) => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/engineering/status`);
+        return res.data as { confirmed: boolean; current: boolean; count: number; duration: number; synced: boolean; revision: string | null };
+    },
+    confirmEngineeringScript: async (scriptId: string, text: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/engineering/confirm`, { text });
+        return { ...res.data, originalText: res.data.original_text };
+    },
+    previewEngineeringSync: async (scriptId: string) => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/engineering/sync-preview`);
+        return res.data as EngineeringSyncPreview;
+    },
+    applyEngineeringSync: async (scriptId: string, token: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/engineering/sync`, { token });
+        return { ...res.data, originalText: res.data.original_text };
+    },
+    reviewEngineeringFrame: async (scriptId: string, frameId: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/engineering/frames/${frameId}/reviewed`);
+        return { ...res.data, originalText: res.data.original_text };
+    },
+    getEngineeringArchives: async (scriptId: string) => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/engineering/archives`);
+        return res.data as { created_at: number; frames: any[] }[];
     },
 
     updatePromptConfig: async (scriptId: string, config: { storyboard_polish?: string; video_polish?: string; r2v_polish?: string; r2v_minimax?: string; entity_extraction?: string; style_analysis?: string; storyboard_extraction?: string; character_prompt?: string; scene_prompt?: string; prop_prompt?: string; audio_plan?: string; voice_prompt?: string; skill_bindings?: Record<string, string> }) => {

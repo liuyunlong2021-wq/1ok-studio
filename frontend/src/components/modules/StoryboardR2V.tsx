@@ -6,8 +6,8 @@ import { Plus, Loader2, Sparkles, PanelBottomOpen, PanelBottomClose } from "luci
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
-import { api, crudApi, type VideoTask, type RefineSSEEvent } from "@/lib/api";
-import { getAssetUrl } from "@/lib/utils";
+import { api, crudApi, type VideoTask, type EngineeringSyncPreview as SyncPreview } from "@/lib/api";
+import { getAssetUrl, extractErrorDetail } from "@/lib/utils";
 import { selectedVariantUrl } from "@/lib/characterImage";
 import { debugLog } from "@/lib/debugLog";
 import type { BatchSummary } from "./storyboard-r2v/shot-panel/CandidatesSection";
@@ -15,7 +15,8 @@ import { getR2vRouteModelId, isR2vImageBased, VIDEO_I2V_MODELS, VIDEO_R2V_MODELS
 import ShotCard, { type ShotNode } from "./storyboard-r2v/ShotCard";
 import { buildAssembledPrompt } from "./storyboard-r2v/buildAssembledPrompt";
 import DialogueAudioRow from "./storyboard-r2v/DialogueAudioRow";
-import StoryboardGenerateDialog from "./storyboard-r2v/StoryboardGenerateDialog";
+import EngineeringSyncPreview from "./EngineeringSyncPreview";
+import EngineeringArchives from "./EngineeringArchives";
 import { toast } from "@/store/toastStore";
 import { Wand2 } from "lucide-react";
 import AssetDrawer from "./storyboard-r2v/AssetDrawer";
@@ -360,6 +361,7 @@ export default function StoryboardR2V() {
 
     // Add a new shot after the given index
     const addShot = useCallback(async (afterIndex: number) => {
+        if (currentProject?.storyboard_source_revision) { toast.warning("镜头设计与顺序请在工程台本修改，确认后预览同步"); return; }
         const synthId = `shot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         // PR-3e · pick default tabMode from project preference (inherited from
         // series). "i2v" (画面优先) → t2i_i2v; "r2v" (节奏优先, default) → direct_r2v.
@@ -406,11 +408,10 @@ export default function StoryboardR2V() {
         }
     }, [currentProject, updateProject]);
 
-    // PR-3 followup · LLM storyboard generation. State + handler live at
-    // the StoryboardR2V level (not in a sub-component) because the toast
-    // lifecycle survives the dialog closing and we need the parent to
-    // setShots() when the new frames come back.
-    const [genDialogOpen, setGenDialogOpen] = useState(false);
+    // Both storyboard entry points preview the same confirmed screenplay.
+    const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
+    const [showArchives, setShowArchives] = useState(false);
+    useEffect(() => { setSyncPreview(null); setShowArchives(false); }, [currentProject?.id]);
     const [generating, setGenerating] = useState(false);
     const [bannerState, setBannerState] = useState<BannerState>(
         () => (currentProject?.frames?.length ?? 0) > 0 ? "summary" : "idle"
@@ -488,60 +489,14 @@ export default function StoryboardR2V() {
 
     const handleSmartGenerate = useCallback(async () => {
         if (!currentProject?.id) return;
-        const projectId = currentProject.id;
-        const scriptText = (currentProject as any).originalText || (currentProject as any).original_text || "";
-        if (!scriptText.trim()) {
-            toast.warning(t("genToastNoScript"));
-            return;
-        }
         setGenerating(true);
-        setBannerState("phase1");
-        setShots([]);
-        try {
-            // Phase 1: generate coarse frames
-            const updated = await api.analyzeToStoryboard(projectId, scriptText);
-            const newFrameCount = Array.isArray(updated?.frames) ? updated.frames.length : 0;
-            updateProject(projectId, updated);
-            if (Array.isArray(updated?.frames)) {
-                const defaultMode = currentProject.default_generation_mode === "i2v" ? "t2i_i2v" : "direct_r2v";
-                const videoTasks: any[] = (updated as any).video_tasks ?? [];
-                setShots(updated.frames.map((frame: any) => frameToShotNode(frame, videoTasks, defaultMode)));
-            }
-
-            // Phase 2: batch refine (SSE)
-            if (newFrameCount > 0) {
-                setBannerState("phase2");
-                setRefineProgress({ current: 0, total: newFrameCount });
-                await api.refineBatchFrames(projectId, (event: RefineSSEEvent) => {
-                    if (event.type === "frame_refine_start") {
-                        setRefineProgress({ current: (event.frame_index ?? 0) + 1, total: event.total ?? newFrameCount });
-                    }
-                });
-                const refreshed = await api.getProject(projectId);
-                if (refreshed?.frames) {
-                    updateProject(projectId, { frames: refreshed.frames });
-                    const defaultMode = currentProject.default_generation_mode === "i2v" ? "t2i_i2v" : "direct_r2v";
-                    const videoTasks: any[] = (refreshed as any).video_tasks ?? [];
-                    setShots(refreshed.frames.map((frame: any) => frameToShotNode(frame, videoTasks, defaultMode)));
-                }
-            }
-            setBannerState("summary");
-            toast.success(t("genToastDone", { count: newFrameCount }));
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail || err?.message || t("genToastErrUnknown");
-            toast.error(`${t("genToastErr")}: ${String(detail).slice(0, 200)}`);
-        } finally {
-            setGenerating(false);
-            setRefineProgress(null);
-            // Determine final banner state based on actual current shots
-            setShots(currentShots => {
-                setBannerState(currentShots.length > 0 ? "summary" : "idle");
-                return currentShots;
-            });
-        }
-    }, [currentProject, updateProject, t]);
+        try { setSyncPreview(await api.previewEngineeringSync(currentProject.id)); }
+        catch (error) { toast.error(extractErrorDetail(error, '请先回剧本确认工程台本')); }
+        finally { setGenerating(false); }
+    }, [currentProject?.id]);
 
     const handleRefineFrame = useCallback(async (frameId: string) => {
+        if (currentProject?.storyboard_source_revision) { toast.warning("镜头设计与顺序请在工程台本修改，确认后预览同步"); return; }
         if (!currentProject?.id) return;
         try {
             await api.refineSingleFrame(currentProject.id, frameId);
@@ -561,6 +516,7 @@ export default function StoryboardR2V() {
 
     // Delete a shot
     const deleteShot = useCallback(async (index: number) => {
+        if (currentProject?.storyboard_source_revision) { toast.warning("镜头设计与顺序请在工程台本修改，确认后预览同步"); return; }
         const target = shots[index];
         if (!target) return;
         setShots(prev => prev.filter((_, i) => i !== index));
@@ -584,6 +540,7 @@ export default function StoryboardR2V() {
 
     // Move shot up/down
     const moveShot = useCallback(async (index: number, direction: "up" | "down") => {
+        if (currentProject?.storyboard_source_revision) { toast.warning("镜头设计与顺序请在工程台本修改，确认后预览同步"); return; }
         const targetIndex = direction === "up" ? index - 1 : index + 1;
         if (targetIndex < 0 || targetIndex >= shots.length) return;
         const updated = [...shots];
@@ -606,6 +563,7 @@ export default function StoryboardR2V() {
 
     // Duplicate a shot
     const duplicateShot = useCallback(async (index: number) => {
+        if (currentProject?.storyboard_source_revision) { toast.warning("镜头设计与顺序请在工程台本修改，确认后预览同步"); return; }
         const source = shots[index];
         if (!source) return;
         const synthId = `shot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -677,6 +635,7 @@ export default function StoryboardR2V() {
     // Structured field updates — local immediate + debounce 3s auto-save
     const fieldPendingRef = useRef<Map<string, { timer: number; fields: Record<string, any> }>>(new Map());
     const handleUpdateField = useCallback((index: number, field: string, value: string | number | null) => {
+        if (currentProject?.storyboard_source_revision && ["duration", "shotSize", "cameraAngle", "cameraMovement"].includes(field)) { toast.warning("景别、机位、运镜和节奏请在工程台本修改后同步"); return; }
         setShots(prev => prev.map((s, i) => {
             if (i !== index) return s;
             if (field === "duration") return { ...s, duration: typeof value === "number" ? value : null };
@@ -725,7 +684,7 @@ export default function StoryboardR2V() {
                 .catch((err) => debugLog.warn("Studio", "persistField failed", err));
         }, 3000);
         map.set(shotId, { timer, fields: merged });
-    }, [shots, currentProject?.id, updateProject]);
+    }, [shots, currentProject, updateProject]);
 
     // Duration editor config — derived from active R2V model's catalog entry
     const durationEditorCfg = useMemo(() => {
@@ -1534,6 +1493,7 @@ export default function StoryboardR2V() {
             persistWorkbench(shot.id, { workbench_generate_count: next.count });
         }
         setShotCounts(prev => ({ ...prev, [shot.id]: next.count }));
+        if (currentProject?.storyboard_source_revision) next = { ...next, duration: shot.duration ?? next.duration };
         // Sync duration back to structured field (single source of truth)
         if (next.duration !== (shot.duration ?? videoConfig.duration)) {
             const idx = shots.findIndex(s => s.id === shot.id);
@@ -1580,7 +1540,7 @@ export default function StoryboardR2V() {
             }
             return updated;
         });
-    }, [persistWorkbench, shotCounts]);
+    }, [persistWorkbench, shotCounts, currentProject?.storyboard_source_revision, shots, handleUpdateField, videoConfig.duration]);
 
     // Annotate handlers wire CandidateThumb's star/label CTAs to the
     // backend PATCH endpoint. We refresh the project after each call
@@ -1782,16 +1742,17 @@ export default function StoryboardR2V() {
                         />
                         <button
                             type="button"
-                            onClick={() => setGenDialogOpen(true)}
+                            onClick={handleSmartGenerate}
                             disabled={generating}
                             className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 font-sans text-[0.8125rem] font-semibold text-on-accent shadow-[var(--btn-pri-glow),inset_0_1.5px_0_rgba(255,255,255,0.14)] transition-all duration-fast ease-out-quart hover:bg-primary-hover disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/55"
                         >
                             {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                            <span>{generating ? t("genInFlight") : t("genShots")}</span>
+                            <span>{generating ? '读取台本…' : '预览同步分镜'}</span>
                         </button>
                     </>
                 )}
             />
+            <div className="shrink-0 border-b border-border-subtle px-6 py-2 text-xs text-text-muted flex justify-between gap-2"><span>镜头设计与节奏在剧本阶段确认，再从此处预览同步。</span>{!!currentProject?.storyboard_archives?.length && <button type="button" className="text-primary" onClick={() => setShowArchives(true)}>查看旧分镜归档</button>}</div>
             {/* Top Toolbar — mock-aligned: count on the left, expand/collapse pills on the right */}
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 shrink-0 sm:px-6">
                 <div className="flex items-center gap-3">
@@ -1857,7 +1818,7 @@ export default function StoryboardR2V() {
                             <div className="mt-5 flex items-center justify-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setGenDialogOpen(true)}
+                                    onClick={handleSmartGenerate}
                                     disabled={generating}
                                     className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-md bg-primary text-white border border-primary/65 shadow-[inset_0_1.5px_0_rgba(255,255,255,0.14)] hover:bg-primary-hover disabled:opacity-40 transition-colors text-[0.8125rem] font-semibold"
                                 >
@@ -2185,6 +2146,7 @@ export default function StoryboardR2V() {
                                     modelList={modelList}
                                     title={isI2vTab ? "I2V Params" : "R2V Params"}
                                     params={paramsState}
+                                    durationLocked={!!currentProject?.storyboard_source_revision}
                                     onChange={(next) => handleShotParamsChange(shot, next)}
                                     inFlightCount={shotInFlight}
                                     errorMessage={shotErrors[shot.id] ?? null}
@@ -2263,18 +2225,9 @@ export default function StoryboardR2V() {
                 resolveUrl={resolveAssetUrl}
             />
         ) : null}
-        {/* LLM-generate frames dialog */}
-        <StoryboardGenerateDialog
-            isOpen={genDialogOpen}
-            onClose={() => setGenDialogOpen(false)}
-            project={currentProject as any}
-            existingShotCount={shots.length}
-            onConfirm={handleSmartGenerate}
-            onJumpToScript={() => {
-                setGenDialogOpen(false);
-                window.dispatchEvent(new CustomEvent("navigateStep", { detail: "script" }));
-            }}
-        />
+        {syncPreview && currentProject && <EngineeringSyncPreview key={syncPreview.token} projectId={currentProject.id} preview={syncPreview} onClose={() => setSyncPreview(null)} onApplied={() => { setSyncPreview(null); setBannerState("summary"); }} />}
+        {showArchives && currentProject && <EngineeringArchives projectId={currentProject.id} onClose={() => setShowArchives(false)} />}
+
         </div>
     );
 }

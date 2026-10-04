@@ -59,6 +59,7 @@ interface ParamsSectionProps {
     /** Section title shown in the SectionShell header. */
     title: string;
     params: ParamsState;
+    durationLocked?: boolean;
     onChange: (next: ParamsState) => void;
     /** Active in-flight count for this shot — shown as a small badge
      *  on the SectionShell title bar so users see ongoing tasks even
@@ -81,6 +82,7 @@ export default function ParamsSection({
     modelList,
     title,
     params,
+    durationLocked = false,
     onChange,
     inFlightCount = 0,
     errorMessage,
@@ -129,6 +131,7 @@ export default function ParamsSection({
         // switch is a frequent papercut.
         const dc = next.duration;
         const safeDuration = (() => {
+            if (durationLocked) return params.duration;
             if (dc.type === "fixed") return dc.value;
             if (dc.type === "slider") {
                 if (params.duration >= dc.min && params.duration <= dc.max) return params.duration;
@@ -156,7 +159,7 @@ export default function ParamsSection({
             watermark: np.watermark ? (typeof params.watermark === "boolean" ? params.watermark : false) : undefined,
             // negativePrompt intentionally preserved
         });
-    }, [modelList, params, onChange]);
+    }, [modelList, params, onChange, durationLocked]);
 
     const hasAdvanced =
         !!modelParams.negativePrompt ||
@@ -234,11 +237,11 @@ export default function ParamsSection({
 
                 {/* Duration */}
                 <ParamRow label="Duration">
-                    <DurationControl
+                    {durationLocked ? <span className="text-xs text-text-secondary">{params.duration} 秒 · 来自确认工程台本</span> : <DurationControl
                         cfg={durationCfg}
                         value={params.duration}
                         onChange={(v) => set("duration", v)}
-                    />
+                    />}
                 </ParamRow>
 
                 {/* Count row removed in PR-3c — moved into ShotCard's

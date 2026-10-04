@@ -30,6 +30,7 @@ import { scriptEditorApi } from '@/lib/scriptEditorApi';
 import { scriptTextOf } from './documentText';
 import { applyAiScope } from './extensions';
 import { toast } from '@/store/toastStore';
+import EngineeringConfirmation from './components/EngineeringConfirmation';
 
 export interface ScriptEditorShellProps {
   mode?: 'full' | 'embedded' | 'focus';
@@ -226,6 +227,8 @@ export default function ScriptEditorShell({
           </div>
         </div>
       )}
+
+      <EngineeringConfirmation editor={editor} projectId={effectiveProjectId ?? null} previewing={!!aiPreview} />
 
       {/* Main content area: Three-column layout */}
       <div className="flex flex-1 overflow-hidden">

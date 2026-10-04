@@ -299,6 +299,9 @@ export interface Project {
     id: string;
     title: string;
     originalText: string;
+    engineering_script?: { revision: string; confirmed_at: number; duration: number; shots: { number: number }[] } | null;
+    storyboard_source_revision?: string | null;
+    storyboard_archives?: { created_at: number; frames: any[] }[];
     characters: Character[];
     scenes: Scene[];
     props: Prop[];

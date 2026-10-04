@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,19 +9,20 @@ import {
     Plus, ArrowUp, ArrowDown, Zap, Upload, Film
 } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
-import { api, crudApi } from "@/lib/api";
+import { api, crudApi, type EngineeringSyncPreview as SyncPreview } from "@/lib/api";
 import { getAssetUrlWithTimestamp, extractErrorDetail } from "@/lib/utils";
 import { selectedVariantUrl } from "@/lib/characterImage";
 import StepHeader from "@/components/shared/StepHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 
 import StoryboardFrameEditor from "./StoryboardFrameEditor";
+import EngineeringSyncPreview from "./EngineeringSyncPreview";
+import EngineeringArchives from "./EngineeringArchives";
 
 export default function StoryboardComposer() {
     const t = useTranslations("storyboard");
     const tStep = useTranslations("stepHeader");
     const currentProject = useProjectStore((state) => state.currentProject);
-    const currentSeries = useProjectStore((state) => state.currentSeries);
     const selectedFrameId = useProjectStore((state) => state.selectedFrameId);
     const setSelectedFrameId = useProjectStore((state) => state.setSelectedFrameId);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -40,57 +41,40 @@ export default function StoryboardComposer() {
     const [insertIndex, setInsertIndex] = useState<number | null>(null);
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
     const [showScriptOverlay, setShowScriptOverlay] = useState(false);
-    const [promptSource, setPromptSource] = useState<{ name: string; source: string } | null>(null);
-    const [promptSourceError, setPromptSourceError] = useState('');
+    const [engineeringStatus, setEngineeringStatus] = useState<Awaited<ReturnType<typeof api.getEngineeringStatus>> | null>(null);
+    const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
+    const [engineeringError, setEngineeringError] = useState('');
+    const [showArchives, setShowArchives] = useState(false);
+    const engineeringOwned = !!currentProject?.storyboard_source_revision;
+    const timecode = (value: number) => `${Math.floor(value / 60).toString().padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 
     useEffect(() => {
         let cancelled = false;
-        setPromptSource(null);
-        setPromptSourceError('');
-        if (currentProject?.id) {
-            api.getStoryboardPromptSource(currentProject.id)
-                .then((source) => { if (!cancelled) setPromptSource(source); })
-                .catch((error) => { if (!cancelled) setPromptSourceError(extractErrorDetail(error, '生成规则读取失败')); });
-        }
+        setEngineeringStatus(null); setEngineeringError('');
+        setSyncPreview(null); setShowArchives(false);
+        if (currentProject?.id) api.getEngineeringStatus(currentProject.id)
+            .then(status => { if (!cancelled) setEngineeringStatus(status); })
+            .catch(error => { if (!cancelled) setEngineeringError(extractErrorDetail(error, '台本状态读取失败')); });
         return () => { cancelled = true; };
-    }, [currentProject?.id, currentProject?.prompt_config, currentSeries?.prompt_config]);
+    }, [currentProject?.id, currentProject?.originalText, currentProject?.engineering_script?.revision, currentProject?.storyboard_source_revision]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadTargetFrameId, setUploadTargetFrameId] = useState<string | null>(null);
 
 
 
-    // NEW: Analyze script text to generate storyboard frames
     const handleAnalyzeToStoryboard = async () => {
         if (!currentProject) return;
+        setIsAnalyzing(true); setEngineeringError('');
+        try { setSyncPreview(await api.previewEngineeringSync(currentProject.id)); }
+        catch (error) { setEngineeringError(extractErrorDetail(error, '工程台本读取失败')); }
+        finally { setIsAnalyzing(false); }
+    };
 
-        const text = currentProject.originalText;
-        if (!text || !text.trim()) {
-            alert(t("enterScriptFirst"));
-            return;
-        }
-
-        if (currentProject.frames?.length > 0) {
-            if (!confirm(t("overwriteConfirm"))) return;
-        }
-
-        setIsAnalyzing(true);
-        try {
-            const updatedProject = await api.analyzeToStoryboard(currentProject.id, text);
-            const frameCount = updatedProject.frames?.length || 0;
-            if (frameCount > 0) {
-                updateProject(currentProject.id, updatedProject);
-                alert(t("framesGenerated", { count: frameCount }));
-            } else {
-                alert(t("aiInvalidOutput"));
-            }
-        } catch (error: any) {
-            console.error("Analyze to storyboard failed:", error);
-            const detail = extractErrorDetail(error, "");
-            alert(t("genFailedDetail", { detail }));
-        } finally {
-            setIsAnalyzing(false);
-        }
+    const handleReviewed = async (frameId: string) => {
+        if (!currentProject) return;
+        try { updateProject(currentProject.id, await api.reviewEngineeringFrame(currentProject.id, frameId)); }
+        catch (error) { setEngineeringError(extractErrorDetail(error, '复核状态保存失败')); }
     };
 
     const handleImageClick = (frameId: string, e: React.MouseEvent) => {
@@ -368,22 +352,26 @@ export default function StoryboardComposer() {
                             loading={isAnalyzing}
                             onClick={handleAnalyzeToStoryboard}
                             disabled={isAnalyzing}
-                            title={t("generateFromScript")}
+                            title="逐镜读取已确认台本，预览后同步"
                         >
-                            {isAnalyzing ? t("generatingFrames") : t("generateStoryboard")}
+                            {isAnalyzing ? "读取台本…" : engineeringOwned ? "预览同步分镜" : "从工程台本生成分镜"}
                         </WorkflowActionButton>
                     </div>
                 )}
             />
             <div className="shrink-0 border-b border-border-subtle px-8 py-2 text-xs text-text-muted">
-                {promptSourceError ? <span className="text-red-400">{promptSourceError}</span> : promptSource ? <>下次生成规则：<span className="text-text-secondary">{promptSource.name}</span> · {promptSource.source}</> : '正在读取生成规则…'}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{engineeringStatus?.current ? `确认台本：${engineeringStatus.count}镜 · ${engineeringStatus.duration}秒 · ${engineeringStatus.synced ? '已同步' : '待预览同步'}` : engineeringStatus?.confirmed ? '剧本已修改，请回剧本确认节奏后同步' : '先在剧本阶段生成带时间码的工程台本，并点击「确认工程台本」'}{engineeringOwned ? ' · 镜头增删、顺序和节奏在剧本阶段调整' : ''}</span>
+                    {!!currentProject?.storyboard_archives?.length && <button type="button" onClick={() => setShowArchives(true)} className="text-primary">查看旧分镜归档（{currentProject.storyboard_archives.length}）</button>}
+                </div>
+                {engineeringError && <p role="alert" className="mt-1 whitespace-pre-wrap text-red-400">{engineeringError}</p>}
             </div>
 
             {/* Frame List — full width */}
             <div className="flex-1 overflow-y-auto p-8">
                 <div className="max-w-4xl mx-auto space-y-6">
                         {/* Add Frame Button (Top) */}
-                        <div className="flex justify-center">
+                        {!engineeringOwned && <div className="flex justify-center">
                             <button
                                 onClick={() => { setInsertIndex(0); setIsCreateDialogOpen(true); }}
                                 className="flex items-center gap-2 px-4 py-2 bg-glass hover:bg-hover-bg text-text-secondary hover:text-foreground rounded-lg transition-colors border border-dashed border-glass-border hover:border-glass-border"
@@ -391,10 +379,10 @@ export default function StoryboardComposer() {
                                 <Plus size={16} />
                                 <span className="text-sm font-medium">{t("insertFrameAtStart")}</span>
                             </button>
-                        </div>
+                        </div>}
 
                         {currentProject?.frames?.map((frame: any, index: number) => (
-                            <>
+                            <Fragment key={frame.id}>
                                 <motion.div
                                     key={frame.id}
                                     layoutId={frame.id}
@@ -406,7 +394,7 @@ export default function StoryboardComposer() {
                                 >
                                     {/* Frame Number */}
                                     <div className="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-elevated border border-glass-border flex items-center justify-center text-xs font-bold text-text-secondary shadow-lg z-10">
-                                        {index + 1}
+                                        {frame.source_shot_number ?? index + 1}
                                     </div>
 
                                     {/* Image Preview */}
@@ -484,6 +472,8 @@ export default function StoryboardComposer() {
                                         <div className="flex items-start justify-between">
                                             <div className="space-y-1">
                                                 <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                                                    {frame.source_start != null && frame.source_end != null && <span className="font-mono text-text-muted">{timecode(frame.source_start)}–{timecode(frame.source_end)}</span>}
+                                                    {frame.review_required && <button type="button" onClick={e => { e.stopPropagation(); void handleReviewed(frame.id); }} title="检查此镜已有素材是否符合新台本，完成后点击" className="rounded border border-amber-500/40 px-2 py-1 text-amber-500">素材待复核 · 标记已复核</button>}
                                                     <span className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-primary">景别：{frame.shot_size || '未设置'}</span>
                                                     <span className="rounded border border-border-subtle px-2 py-1 text-text-secondary">机位：{frame.camera_angle || '未设置'}</span>
                                                     <span className="rounded border border-border-subtle px-2 py-1 text-text-secondary">运镜：{frame.camera_movement || '未设置'}</span>
@@ -492,9 +482,9 @@ export default function StoryboardComposer() {
                                                 <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
                                                     {frame.action_description}
                                                 </p>
-                                                {frame.visual_description && <details className="mt-2 text-xs text-text-muted">
+                                                {(frame.source_text || frame.visual_description) && <details className="mt-2 text-xs text-text-muted">
                                                     <summary className="cursor-pointer text-primary">完整镜头设计与表演过程</summary>
-                                                    <p className="mt-2 whitespace-pre-wrap leading-relaxed text-text-secondary">{frame.visual_description}</p>
+                                                    <p className="mt-2 whitespace-pre-wrap leading-relaxed text-text-secondary">{frame.source_text || frame.visual_description}</p>
                                                 </details>}
                                             </div>
                                         </div>
@@ -508,7 +498,7 @@ export default function StoryboardComposer() {
 
                                         {/* Frame Actions */}
                                         <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-border-subtle">
-                                            <div className="flex items-center gap-1 mr-auto">
+                                            {!engineeringOwned && <div className="flex items-center gap-1 mr-auto">
                                                 <button
                                                     onClick={(e) => handleMoveFrame(index, 'up', e)}
                                                     disabled={index === 0}
@@ -525,15 +515,15 @@ export default function StoryboardComposer() {
                                                 >
                                                     <ArrowDown size={14} />
                                                 </button>
-                                            </div>
+                                            </div>}
 
-                                            <button
+                                            {!engineeringOwned && <button
                                                 onClick={(e) => handleCopyFrame(frame.id, e)}
                                                 className="btn-tip p-2 hover:bg-hover-bg text-text-secondary hover:text-foreground rounded-lg transition-colors"
                                                 data-tip={t("duplicateFrame")}
                                             >
                                                 <Copy size={14} />
-                                            </button>
+                                            </button>}
                                             <button
                                                 onClick={(e) => handleUploadFrameImage(frame.id, e)}
                                                 className="btn-tip p-2 hover:bg-primary/15 text-text-secondary hover:text-primary rounded-lg transition-colors"
@@ -557,19 +547,19 @@ export default function StoryboardComposer() {
                                                     </button>
                                                 ) : null;
                                             })()}
-                                            <button
+                                            {!engineeringOwned && <button
                                                 onClick={(e) => handleDeleteFrame(frame.id, e)}
                                                 className="btn-tip p-2 hover:bg-red-500/20 text-text-secondary hover:text-red-400 rounded-lg transition-colors"
                                                 data-tip="Delete"
                                             >
                                                 <Trash2 size={14} />
-                                            </button>
+                                            </button>}
                                         </div>
                                     </div>
                                 </motion.div>
 
                                 {/* Add Button Between Frames */}
-                                < div className="flex justify-center opacity-0 hover:opacity-100 transition-opacity -my-3 z-10 relative" >
+                                {!engineeringOwned && <div className="flex justify-center opacity-0 hover:opacity-100 transition-opacity -my-3 z-10 relative" >
                                     <button
                                         onClick={() => { setInsertIndex(index + 1); setIsCreateDialogOpen(true); }}
                                         className="p-1 bg-elevated border border-glass-border rounded-full text-text-secondary hover:text-foreground hover:border-primary hover:bg-primary/20 transition-all transform hover:scale-110"
@@ -577,11 +567,14 @@ export default function StoryboardComposer() {
                                     >
                                         <Plus size={16} />
                                     </button>
-                                </div>
-                            </>
+                                </div>}
+                            </Fragment>
                         ))}
                 </div>
             </div>
+
+            {syncPreview && currentProject && <EngineeringSyncPreview key={syncPreview.token} projectId={currentProject.id} preview={syncPreview} onClose={() => setSyncPreview(null)} onApplied={() => { setSyncPreview(null); setSelectedFrameId(null); }} />}
+            {showArchives && currentProject && <EngineeringArchives projectId={currentProject.id} onClose={() => setShowArchives(false)} />}
 
             {/* Script Overlay */}
             <AnimatePresence>
