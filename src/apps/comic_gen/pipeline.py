@@ -1757,7 +1757,7 @@ class ComicGenPipeline:
         if not frame:
             raise ValueError(f"Frame {frame_id} not found")
 
-        if frame.source_shot_number is not None:
+        if script.engineering_script or frame.source_shot_number is not None:
             raise ValueError("镜头设计由工程台本决定，请回剧本修改后同步；生图提示词可单独润色")
 
         frame_idx = script.frames.index(frame)

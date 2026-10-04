@@ -156,7 +156,7 @@ def engineering_status(script):
 
 
 def require_synced_engineering(script):
-    if script.storyboard_source_revision:
+    if script.engineering_script or script.storyboard_source_revision:
         status = engineering_status(script)
         if not status["current"] or not status["synced"]:
             raise ValueError("工程台本已修改，请先在剧本页确认，再到分镜页预览同步")
