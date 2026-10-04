@@ -12,7 +12,7 @@ export interface SnapshotResponse {
 }
 
 export interface StandardizeResponse { standardized_text: string; model: string }
-export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion' }
+export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; created_at?: number; updated_at?: number }
 type ScriptDocument = Record<string, unknown>;
 type ImportResponse = { content?: { content?: Array<{ type?: string }> } };
 
@@ -29,10 +29,11 @@ export const scriptEditorApi = {
     await axios.put(`${API_URL}/projects/${projectId}/text`, { text });
   },
 
-  listScriptSkills: async (kind: 'script' | 'motion' = 'script'): Promise<ScriptSkill[]> => (await axios.get(`${API_URL}/script-skills`, { params: { kind } })).data,
+  listScriptSkills: async (kind: 'script' | 'motion' = 'script', includeHidden = false): Promise<ScriptSkill[]> => (await axios.get(`${API_URL}/script-skills`, { params: { kind, include_hidden: includeHidden } })).data,
   createScriptSkill: async (name: string, content: string, kind: 'script' | 'motion' = 'script'): Promise<ScriptSkill> => (await axios.post(`${API_URL}/script-skills`, { name, content, kind })).data,
   updateScriptSkill: async (id: string, name: string, content: string, kind?: 'script' | 'motion'): Promise<ScriptSkill> => (await axios.put(`${API_URL}/script-skills/${id}`, { name, content, kind })).data,
   deleteScriptSkill: async (id: string): Promise<void> => { await axios.delete(`${API_URL}/script-skills/${id}`); },
+  restoreScriptSkill: async (id: string): Promise<void> => { await axios.post(`${API_URL}/script-skills/${id}/restore`); },
   standardizeScript: async (projectId: string, text: string, skill: string, skillId?: string, instruction?: string): Promise<StandardizeResponse> => {
     const res = await axios.post(`${API_URL}/projects/${projectId}/standardize_script`, { text, skill, skill_id: skillId || '', instruction: instruction || '' });
     return res.data;

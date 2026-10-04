@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Send, Upload } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Send, Settings2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
 import { scriptTextOf } from '../documentText';
+import ScriptSkillManager from '../dialogs/ScriptSkillManager';
+
+function selectionKey(projectId: string) { return `script-ai-skill:${projectId}`; }
+
+function rememberSkill(projectId: string | undefined, id: string) {
+  if (!projectId) return;
+  try { localStorage.setItem(selectionKey(projectId), id); } catch { /* Storage may be unavailable. */ }
+}
 
 export interface AiPreview {
   /** AI 产出的新正文。 */
@@ -48,16 +56,57 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
 }) {
   const [skills, setSkills] = useState<ScriptSkill[]>([]);
   const [skillId, setSkillId] = useState('');
+  const skillIdRef = useRef('');
   const [instruction, setInstruction] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loadingSkills, setLoadingSkills] = useState(true);
+  const [showManager, setShowManager] = useState(false);
+  const [importFile, setImportFile] = useState<File>();
 
   useEffect(() => {
+    let cancelled = false;
+    let remembered: string | null = null;
+    try { remembered = projectId ? localStorage.getItem(selectionKey(projectId)) : null; } catch { /* Use the default on first load. */ }
+    setLoadingSkills(true);
+    setSkills([]);
+    skillIdRef.current = '';
+    setSkillId('');
+    setError('');
     scriptEditorApi.listScriptSkills().then((items) => {
+      if (cancelled) return;
       setSkills(items);
-      setSkillId((current) => current || items.find((item) => item.id === 'builtin-short')?.id || items[0]?.id || '');
-    }).catch(() => setError('Skill 加载失败'));
-  }, []);
+      const id = remembered === null ? items.find((item) => item.id === 'builtin-short')?.id || items[0]?.id || '' : items.some((item) => item.id === remembered) ? remembered : '';
+      skillIdRef.current = id;
+      setSkillId(id);
+      if (remembered && !id) {
+        rememberSkill(projectId, '');
+        setError('之前选择的 Skill 已删除或隐藏，请重新选择。');
+      }
+    }).catch(() => { if (!cancelled) setError('Skill 加载失败'); }).finally(() => { if (!cancelled) setLoadingSkills(false); });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const applySkills = useCallback((items: ScriptSkill[], selectedId?: string) => {
+    setSkills(items);
+    const previousId = skillIdRef.current;
+    const candidateId = selectedId ?? previousId;
+    const id = items.some((item) => item.id === candidateId) ? candidateId : '';
+    skillIdRef.current = id;
+    setSkillId(id);
+    rememberSkill(projectId, id);
+    if (previousId && !id) setError('当前 Skill 已删除或隐藏，请重新选择。');
+    else setError('');
+  }, [projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => { void scriptEditorApi.listScriptSkills().then((items) => { if (!cancelled) applySkills(items); }).catch(() => { if (!cancelled) setError('Skill 刷新失败'); }); };
+    window.addEventListener('script-skills-changed', refresh);
+    return () => { cancelled = true; window.removeEventListener('script-skills-changed', refresh); };
+  }, [applySkills]);
+
+  useEffect(() => { setShowManager(false); setImportFile(undefined); }, [projectId]);
 
   // 作用范围 = 用户最后一次**框选**的内容。
   // 光标（from === to）刻意不算：否则点一下面板、点一下正文，作用范围就会在
@@ -102,31 +151,19 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     }
   };
 
-  const upload = (file?: File) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const created = await scriptEditorApi.createScriptSkill(file.name.replace(/\.(md|markdown|txt)$/i, ''), String(reader.result || ''));
-        setSkills((items) => [...items, created]);
-        setSkillId(created.id);
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'Skill 上传失败');
-      }
-    };
-    reader.readAsText(file);
-  };
-
   return (
     <div className="flex h-full flex-col p-4">
       <div><h2 className="text-sm font-semibold text-foreground">AI 修改剧本</h2><p className="mt-1 text-xs text-text-muted">加载 Skill，输入要求，结果将在左侧预览。</p></div>
       <div className="mt-5 space-y-2">
         <div className="flex items-center justify-between">
           <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
-          <label className="cursor-pointer text-xs text-primary"><Upload size={13} className="mr-1 inline" />上传<input type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => upload(event.target.files?.[0])} /></label>
+          <div className="flex items-center gap-3">
+            <label className={`text-xs text-primary ${loadingSkills ? 'opacity-40' : 'cursor-pointer'}`}><Upload size={13} className="mr-1 inline" />上传<input type="file" accept=".md,.markdown,.txt" disabled={loadingSkills} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImportFile(file); setShowManager(true); } event.target.value = ''; }} /></label>
+            <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
+          </div>
         </div>
-        <select id="script-ai-skill" value={skillId} onChange={(event) => setSkillId(event.target.value)} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
-          {!skills.length && <option value="">加载中…</option>}
+        <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(projectId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
+          <option value="">{loadingSkills ? '加载中…' : '请选择 Skill'}</option>
           {skills.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_builtin ? ' · 内置' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
@@ -161,6 +198,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
       <button type="button" onClick={send} disabled={busy || !editor || !projectId || !selectedSkill} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{busy ? '生成中…' : '发送'}
       </button>
+      {showManager && <ScriptSkillManager activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}
     </div>
   );
 }
