@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 import shutil
+import threading
 import uuid
 import logging
 import traceback
@@ -183,6 +184,7 @@ os.makedirs("output/assets", exist_ok=True)
 
 SKILLS_FILE = os.path.join("output", "script_skills.json")
 DELETED_BUILTINS_FILE = os.path.join("output", "script_skills_deleted.json")
+_SCRIPT_SKILLS_LOCK = threading.RLock()
 BUILTIN_SHORT_SCRIPT_SKILL = """你是中文短剧剧本格式整理器。把输入内容规范为下面的行格式，只整理格式，不续写、不润色、不新增剧情事实。
 
 # 行格式
@@ -215,30 +217,42 @@ BUILTIN_SCRIPT_SKILLS = [
     {"id": "builtin-anime", "name": "动漫剧本标准化", "content": "将输入内容转换为动漫剧本格式，强化可视化动作和角色对白，保留原剧情。", "scope": "system", "is_builtin": True, "kind": "script"},
 ]
 
-def _read_script_skills(kind=None):
+def _read_deleted_script_skills():
     try:
         with open(DELETED_BUILTINS_FILE, "r", encoding="utf-8") as f:
-            deleted = set(json.load(f))
+            return set(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError):
-        deleted = set()
+        return set()
+
+def _read_script_skills(kind=None, include_hidden=False):
+    deleted = _read_deleted_script_skills()
     try:
         with open(SKILLS_FILE, "r", encoding="utf-8") as f:
             saved = json.load(f)
-            items = [item for item in BUILTIN_SCRIPT_SKILLS if item["id"] not in deleted] + [item for item in saved if not item.get("is_builtin")]
+            items = [dict(item) for item in BUILTIN_SCRIPT_SKILLS if include_hidden or item["id"] not in deleted] + [item for item in saved if not item.get("is_builtin")]
     except (FileNotFoundError, json.JSONDecodeError):
-        items = [item for item in BUILTIN_SCRIPT_SKILLS if item["id"] not in deleted]
+        items = [dict(item) for item in BUILTIN_SCRIPT_SKILLS if include_hidden or item["id"] not in deleted]
     for item in items:
         item.setdefault("kind", "script")
+        item["hidden"] = item.get("is_builtin", False) and item["id"] in deleted
     return [item for item in items if item["kind"] == kind] if kind else items
 
+def _write_script_skill_json(path, data):
+    temporary = f"{path}.{uuid.uuid4().hex}.tmp"
+    try:
+        with open(temporary, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
 def _write_script_skills(items):
-    with open(SKILLS_FILE, "w", encoding="utf-8") as f:
-        json.dump(items, f, ensure_ascii=False, indent=2)
+    _write_script_skill_json(SKILLS_FILE, [item for item in items if not item.get("is_builtin")])
 
 def _set_deleted_builtin(skill_id, deleted):
     if skill_id in {item["id"] for item in BUILTIN_SCRIPT_SKILLS}:
-        with open(DELETED_BUILTINS_FILE, "w", encoding="utf-8") as f:
-            json.dump(sorted(deleted), f, ensure_ascii=False, indent=2)
+        _write_script_skill_json(DELETED_BUILTINS_FILE, sorted(deleted))
 
 # Mount static files with multiple aliases to handle plural/singular inconsistencies
 # Legacy paths in projects.json often use 'outputs/videos' or 'outputs/assets'
@@ -580,31 +594,61 @@ class ScriptSkillRequest(BaseModel):
     kind: Optional[str] = None
 
 @app.get("/script-skills")
-def list_script_skills(kind: Optional[str] = None):
+def list_script_skills(kind: Optional[str] = None, include_hidden: bool = False):
     if kind not in (None, "script", "motion"):
         raise HTTPException(status_code=400, detail="Skill kind must be script or motion")
-    return _read_script_skills(kind)
+    with _SCRIPT_SKILLS_LOCK:
+        return _read_script_skills(kind, include_hidden)
+
+def _validate_script_skill(request, items, skill_id=None):
+    if not request.name.strip() or not request.content.strip():
+        raise HTTPException(status_code=400, detail="Skill 名称和内容不能为空")
+    if request.kind and request.kind not in ("script", "motion"):
+        raise HTTPException(status_code=400, detail="Skill kind must be script or motion")
+    current = next((item for item in items if item["id"] == skill_id), None)
+    # 旧库允许重名；保留原名编辑仍可保存，改名和新建必须使用唯一名称。
+    if current and current["name"].strip() == request.name.strip() and (not request.kind or request.kind == current.get("kind", "script")):
+        return
+    kind = request.kind or (current.get("kind", "script") if current else "script")
+    collision = next((item for item in items if item["id"] != skill_id and item.get("kind", "script") == kind and item["name"].strip().casefold() == request.name.strip().casefold()), None)
+    if collision:
+        raise HTTPException(status_code=409, detail="已有同名 Skill，请更新已有条目或使用新名称")
 
 @app.post("/script-skills")
 def create_script_skill(request: ScriptSkillRequest):
-    if not request.name.strip() or not request.content.strip():
-        raise HTTPException(status_code=400, detail="Skill 名称和内容不能为空")
-    kind = request.kind or "script"
-    if kind not in ("script", "motion"):
-        raise HTTPException(status_code=400, detail="Skill kind must be script or motion")
-    item = {"id": f"skill-{uuid.uuid4().hex}", "name": request.name.strip(), "content": request.content, "scope": "user", "is_builtin": False, "kind": kind, "created_at": time.time(), "updated_at": time.time()}
-    items = _read_script_skills(); items.append(item); _write_script_skills(items); return item
+    with _SCRIPT_SKILLS_LOCK:
+        items = _read_script_skills(include_hidden=True)
+        _validate_script_skill(request, items)
+        item = {"id": f"skill-{uuid.uuid4().hex}", "name": request.name.strip(), "content": request.content, "scope": "user", "is_builtin": False, "kind": request.kind or "script", "created_at": time.time(), "updated_at": time.time()}
+        items.append(item)
+        _write_script_skills(items)
+        return item
 
 @app.put("/script-skills/{skill_id}")
 def update_script_skill(skill_id: str, request: ScriptSkillRequest):
-    items = _read_script_skills(); found = next((item for item in items if item["id"] == skill_id), None)
-    if not found: raise HTTPException(status_code=404, detail="Skill 不存在")
-    if request.kind and request.kind not in ("script", "motion"):
-        raise HTTPException(status_code=400, detail="Skill kind must be script or motion")
-    found.update(name=request.name.strip(), content=request.content, updated_at=time.time())
-    if request.kind:
-        found["kind"] = request.kind
-    _write_script_skills(items); return found
+    with _SCRIPT_SKILLS_LOCK:
+        items = _read_script_skills(include_hidden=True)
+        found = next((item for item in items if item["id"] == skill_id), None)
+        if not found:
+            raise HTTPException(status_code=404, detail="Skill 不存在")
+        if found.get("is_builtin"):
+            raise HTTPException(status_code=400, detail="内置 Skill 只读，请复制为自定义后编辑")
+        _validate_script_skill(request, items, skill_id)
+        found.update(name=request.name.strip(), content=request.content, updated_at=time.time())
+        if request.kind:
+            found["kind"] = request.kind
+        _write_script_skills(items)
+        return found
+
+@app.post("/script-skills/{skill_id}/restore")
+def restore_script_skill(skill_id: str):
+    with _SCRIPT_SKILLS_LOCK:
+        if not any(item["id"] == skill_id for item in BUILTIN_SCRIPT_SKILLS):
+            raise HTTPException(status_code=404, detail="内置 Skill 不存在")
+        deleted = _read_deleted_script_skills()
+        deleted.discard(skill_id)
+        _set_deleted_builtin(skill_id, deleted)
+        return {"ok": True}
 
 
 class MotionPromptReference(BaseModel):
@@ -803,15 +847,18 @@ def get_motion_prompt_job(script_id: str, job_id: str):
 
 @app.delete("/script-skills/{skill_id}")
 def delete_script_skill(skill_id: str):
-    items = _read_script_skills(); found = next((item for item in items if item["id"] == skill_id), None)
-    if not found: raise HTTPException(status_code=404, detail="Skill 不存在")
-    if found.get("is_builtin") is True:
-        try:
-            with open(DELETED_BUILTINS_FILE, "r", encoding="utf-8") as f: deleted = set(json.load(f))
-        except (FileNotFoundError, json.JSONDecodeError): deleted = set()
-        deleted.add(skill_id); _set_deleted_builtin(skill_id, deleted)
+    with _SCRIPT_SKILLS_LOCK:
+        items = _read_script_skills(include_hidden=True)
+        found = next((item for item in items if item["id"] == skill_id), None)
+        if not found:
+            raise HTTPException(status_code=404, detail="Skill 不存在")
+        if found.get("is_builtin"):
+            deleted = _read_deleted_script_skills()
+            deleted.add(skill_id)
+            _set_deleted_builtin(skill_id, deleted)
+        else:
+            _write_script_skills([item for item in items if item["id"] != skill_id])
         return {"ok": True}
-    _write_script_skills([item for item in items if item["id"] != skill_id]); return {"ok": True}
 
 @app.post("/projects/{script_id}/standardize_script")
 async def standardize_script(script_id: str, request: StandardizeScriptRequest):
