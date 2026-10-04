@@ -21,6 +21,7 @@ export default function StoryboardComposer() {
     const t = useTranslations("storyboard");
     const tStep = useTranslations("stepHeader");
     const currentProject = useProjectStore((state) => state.currentProject);
+    const currentSeries = useProjectStore((state) => state.currentSeries);
     const selectedFrameId = useProjectStore((state) => state.selectedFrameId);
     const setSelectedFrameId = useProjectStore((state) => state.setSelectedFrameId);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -39,6 +40,20 @@ export default function StoryboardComposer() {
     const [insertIndex, setInsertIndex] = useState<number | null>(null);
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
     const [showScriptOverlay, setShowScriptOverlay] = useState(false);
+    const [promptSource, setPromptSource] = useState<{ name: string; source: string } | null>(null);
+    const [promptSourceError, setPromptSourceError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+        setPromptSource(null);
+        setPromptSourceError('');
+        if (currentProject?.id) {
+            api.getStoryboardPromptSource(currentProject.id)
+                .then((source) => { if (!cancelled) setPromptSource(source); })
+                .catch((error) => { if (!cancelled) setPromptSourceError(extractErrorDetail(error, '生成规则读取失败')); });
+        }
+        return () => { cancelled = true; };
+    }, [currentProject?.id, currentProject?.prompt_config, currentSeries?.prompt_config]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadTargetFrameId, setUploadTargetFrameId] = useState<string | null>(null);
@@ -72,11 +87,7 @@ export default function StoryboardComposer() {
         } catch (error: any) {
             console.error("Analyze to storyboard failed:", error);
             const detail = extractErrorDetail(error, "");
-            if (detail.includes("JSON") || detail.includes("格式")) {
-                alert(t("aiFormatRetry"));
-            } else {
-                alert(t("genFailedDetail", { detail }));
-            }
+            alert(t("genFailedDetail", { detail }));
         } finally {
             setIsAnalyzing(false);
         }
@@ -306,7 +317,7 @@ export default function StoryboardComposer() {
                 // No custom prompt - build from action_description and dialogue
                 const parts = [
                     globalStylePrompt,
-                    frame.action_description,
+                    frame.visual_description || frame.action_description,
                     frame.dialogue ? `Dialogue context: "${frame.dialogue}"` : ""
                 ].filter(Boolean);
                 finalPrompt = parts.join(" . ");
@@ -364,6 +375,9 @@ export default function StoryboardComposer() {
                     </div>
                 )}
             />
+            <div className="shrink-0 border-b border-border-subtle px-8 py-2 text-xs text-text-muted">
+                {promptSourceError ? <span className="text-red-400">{promptSourceError}</span> : promptSource ? <>下次生成规则：<span className="text-text-secondary">{promptSource.name}</span> · {promptSource.source}</> : '正在读取生成规则…'}
+            </div>
 
             {/* Frame List — full width */}
             <div className="flex-1 overflow-y-auto p-8">
@@ -469,23 +483,25 @@ export default function StoryboardComposer() {
                                     <div className="flex-1 flex flex-col gap-3">
                                         <div className="flex items-start justify-between">
                                             <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-[0.625rem] font-semibold text-text-secondary uppercase tracking-[0.18em]">{t("actionLabel")}</span>
-                                                    {frame.camera_movement && (
-                                                        <span className="font-mono text-[0.59375rem] uppercase tracking-[0.12em] px-1.5 py-0.5 bg-primary/15 text-primary rounded border border-primary/40">
-                                                            {frame.camera_movement}
-                                                        </span>
-                                                    )}
+                                                <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                                                    <span className="rounded border border-primary/30 bg-primary/10 px-2 py-1 text-primary">景别：{frame.shot_size || '未设置'}</span>
+                                                    <span className="rounded border border-border-subtle px-2 py-1 text-text-secondary">机位：{frame.camera_angle || '未设置'}</span>
+                                                    <span className="rounded border border-border-subtle px-2 py-1 text-text-secondary">运镜：{frame.camera_movement || '未设置'}</span>
+                                                    <span className="rounded border border-border-subtle px-2 py-1 text-text-secondary">时长：{frame.duration ? `${frame.duration}秒` : '未设置'}</span>
                                                 </div>
                                                 <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">
                                                     {frame.action_description}
                                                 </p>
+                                                {frame.visual_description && <details className="mt-2 text-xs text-text-muted">
+                                                    <summary className="cursor-pointer text-primary">完整镜头设计与表演过程</summary>
+                                                    <p className="mt-2 whitespace-pre-wrap leading-relaxed text-text-secondary">{frame.visual_description}</p>
+                                                </details>}
                                             </div>
                                         </div>
 
                                         {frame.dialogue && (
                                             <div className="mt-auto pt-3 border-t border-border-subtle">
-                                                <span className="font-mono text-[0.625rem] font-semibold text-text-secondary uppercase tracking-[0.18em] block mb-1">{t("dialogueLabel")}</span>
+                                                <span className="font-mono text-[0.625rem] font-semibold text-text-secondary uppercase tracking-[0.18em] block mb-1">{t("dialogueLabel")}{frame.speaker ? ` · ${frame.speaker}` : ''}</span>
                                                 <p className="text-sm text-text-secondary italic">"{frame.dialogue}"</p>
                                             </div>
                                         )}

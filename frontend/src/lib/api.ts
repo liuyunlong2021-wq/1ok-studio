@@ -411,6 +411,7 @@ export const api = {
         skill_id?: string;
         model?: string;
         ratio?: string;
+        duration?: number;
         prompt_preset?: "r2v" | "r2v_minimax";
     }) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/motion/generate_prompt`, data);
@@ -422,6 +423,7 @@ export const api = {
         frame_ids: string[];
         references: { name: string; asset_type: string }[];
         ratio?: string;
+        duration?: number;
     }) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/motion/assemble_prompt`, data);
         return res.data as { prompt: string; model: string; skill_name: string };
@@ -766,6 +768,11 @@ export const api = {
 
     getPromptConfig: async (scriptId: string) => {
         const res = await axios.get(`${API_URL}/projects/${scriptId}/prompt_config`);
+        return res.data;
+    },
+
+    getStoryboardPromptSource: async (scriptId: string): Promise<{ id: string | null; name: string; source: string }> => {
+        const res = await axios.get(`${API_URL}/projects/${scriptId}/storyboard/prompt-source`);
         return res.data;
     },
 

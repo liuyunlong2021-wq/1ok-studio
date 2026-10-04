@@ -321,6 +321,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 prompt_preset: selectedPromptPreset,
+                duration: forces30sAnd720p(params.model) ? 30 : params.duration,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
             // 后端已改成后台任务（一次生成可能 2 分钟，上游会 524），这里轮询拿结果。
@@ -356,6 +357,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
+                duration: forces30sAnd720p(params.model) ? 30 : params.duration,
             });
             setSegments([{ type: "text", value: result.prompt, id: `motion-${Date.now()}` }]);
         } catch (error: any) {

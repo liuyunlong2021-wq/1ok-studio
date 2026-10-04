@@ -24,13 +24,13 @@ export default function StoryboardFrameEditor({ frame: initialFrame, onClose }: 
         return currentProject.frames.find((f: any) => f.id === initialFrame.id) || initialFrame;
     }, [currentProject?.frames, initialFrame.id, initialFrame]);
 
-    const [prompt, setPrompt] = useState(frame.image_prompt || frame.action_description || "");
+    const [prompt, setPrompt] = useState(frame.image_prompt || frame.visual_description || frame.action_description || "");
     const [isGenerating, setIsGenerating] = useState(false);
 
     // Sync prompt when frame changes
     useEffect(() => {
-        setPrompt(frame.image_prompt || frame.action_description || "");
-    }, [frame.id, frame.image_prompt, frame.action_description]);
+        setPrompt(frame.image_prompt || frame.visual_description || frame.action_description || "");
+    }, [frame.id, frame.image_prompt, frame.visual_description, frame.action_description]);
 
     const handleGenerate = async (batchSize: number) => {
         if (!currentProject) return;
@@ -116,7 +116,7 @@ export default function StoryboardFrameEditor({ frame: initialFrame, onClose }: 
                             onDelete={handleDeleteVariant}
                             onGenerate={handleGenerate}
                             isGenerating={isGenerating}
-                            aspectRatio="16:9"
+                            aspectRatio={currentProject?.model_settings?.storyboard_aspect_ratio || '9:16'}
                             className="h-full"
                         />
                     </div>
@@ -127,6 +127,9 @@ export default function StoryboardFrameEditor({ frame: initialFrame, onClose }: 
                             <h3 className="font-bold text-sm uppercase tracking-wider text-text-secondary mb-2">
                                 {ts("sceneContext")}
                             </h3>
+                            <p className="text-xs text-text-secondary mb-2">
+                                景别：{frame.shot_size || '未设置'} · 机位：{frame.camera_angle || '未设置'} · 运镜：{frame.camera_movement || '未设置'} · {frame.duration ? `${frame.duration}秒` : '时长未设置'}
+                            </p>
                             <p className="text-xs text-text-secondary mb-2">
                                 <span className="font-bold text-text-muted">{ts("action")}:</span> {frame.action_description}
                             </p>
