@@ -41,7 +41,7 @@ import traceback
 import sys
 import webbrowser
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
-from .skill_packages import SkillPackageError
+from .skill_packages import SkillPackageError, DEFAULT_STORYBOARD_SKILL_ID
 from .models import (
     ArtDirection,
     PromptConfig,
@@ -678,6 +678,7 @@ class GenerateMotionPromptRequest(BaseModel):
     model: str = ""
     ratio: str = "16:9"
     prompt_preset: str = "r2v"
+    duration: int = Field(30, ge=1, le=120)
 
 
 # ─── Motion 提示词生成：提交任务 + 轮询 ────────────────────────────────────────
@@ -710,10 +711,14 @@ def _motion_prompt_shot_block(script, frame_ids: List[str]) -> str:
     frame_lines = []
     for index, frame in enumerate(frames, 1):
         details = [
+            f"景别：{frame.shot_size}" if frame.shot_size else "",
+            f"机位：{frame.camera_angle}" if frame.camera_angle else "",
+            f"时长：{frame.duration}秒" if frame.duration else "",
+            f"构图：{frame.composition}" if frame.composition else "",
             frame.visual_description or frame.action_description or frame.image_prompt or "",
             f"角色表演：{frame.character_acting}" if frame.character_acting else "",
-            f"运镜：{frame.camera_movement or frame.camera_angle}" if (frame.camera_movement or frame.camera_angle) else "",
-            f"对白：{frame.dialogue}" if frame.dialogue else "",
+            f"运镜：{frame.camera_movement}" if frame.camera_movement else "",
+            f"对白（{frame.speaker or '未标注说话人'}）：{frame.dialogue}" if frame.dialogue else "",
         ]
         frame_lines.append(f"镜头{index}：" + "；".join(value for value in details if value))
     return "\n".join(frame_lines)
@@ -730,9 +735,10 @@ def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateM
     else:
         refs = "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。"
     return f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
-固定输出时长：30秒
+固定输出时长：{request.duration}秒
 画幅：{request.ratio}
 要求：保留镜头先后顺序；明确参考图编号与镜头内容的对应；总长度不超过12000字；只输出最终提示词，不要解释，不要 Markdown 代码块。
+镜头时长是源台本预算。输出时长无法容纳全部对白和动作时明确指出容量冲突，不靠删台词、异常语速或暗中延长输出时长解决。
 
 [参考图]
 {refs}
@@ -802,7 +808,7 @@ def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     _motion_frame_positions_or_400(script, request.frame_ids)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
-    blocks = []
+    blocks = [f"画幅：{request.ratio}；输出时长：{request.duration}秒"]
     if request.references:
         blocks.append(_motion_prompt_reference_block(request.references))
         blocks.append(MOTION_PROMPT_REFERENCE_LOCK)
@@ -812,7 +818,7 @@ def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
 
 @app.post("/projects/{script_id}/motion/generate_prompt")
 def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest, background_tasks: BackgroundTasks):
-    """Queue one editable 30-second Motion prompt from consecutive storyboard frames.
+    """Queue one editable Motion prompt from consecutive storyboard frames.
 
     Returns a job_id immediately; the caller polls `GET .../generate_prompt/{job_id}`.
     """
@@ -2555,6 +2561,14 @@ class AnalyzeToStoryboardRequest(BaseModel):
     text: str
 
 
+@app.get("/projects/{script_id}/storyboard/prompt-source")
+def storyboard_prompt_source(script_id: str):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return pipeline.get_storyboard_prompt_source(script)
+
+
 @app.post("/projects/{script_id}/storyboard/analyze")
 def analyze_to_storyboard(script_id: str, request: AnalyzeToStoryboardRequest):
     """
@@ -3455,7 +3469,7 @@ def get_prompt_defaults():
         "r2v_minimax": "",
         "entity_extraction": DEFAULT_ENTITY_EXTRACTION_PROMPT,
         "style_analysis": DEFAULT_STYLE_ANALYSIS_PROMPT,
-        "storyboard_extraction": DEFAULT_STORYBOARD_EXTRACTION_PROMPT,
+        "storyboard_extraction": pipeline.skill_packages.compile(DEFAULT_STORYBOARD_SKILL_ID),
         "character_prompt": DEFAULT_CHARACTER_ASSET_PROMPT,
         "scene_prompt": DEFAULT_SCENE_ASSET_PROMPT,
         "prop_prompt": DEFAULT_PROP_ASSET_PROMPT,

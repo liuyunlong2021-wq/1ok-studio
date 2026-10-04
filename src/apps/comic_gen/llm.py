@@ -9,6 +9,8 @@ from difflib import SequenceMatcher
 from typing import List, Dict, Any, Optional
 
 from .models import Script, Character, Scene, Prop, StoryboardFrame, GenerationStatus
+from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
+from .storyboard_contract import validate_storyboard_frames, StoryboardContractError
 
 
 def _strip_markdown_json(content: str) -> str:
@@ -317,78 +319,8 @@ CRITICAL STYLE GUIDELINES:
 }"""
 
 
-DEFAULT_STORYBOARD_EXTRACTION_PROMPT = """# 角色
-你是一名电影级的分镜师。你的任务是将剧本文本拆解为一系列连续的分镜帧。
-
-# 核心规则
-1. **视觉节拍拆解**: 一行包含多个动作时，拆为多帧。每帧仅含一个主要动作。
-2. **角色可见性**: character_ref_names 只列画面中可见的角色。
-3. **实体约束**: 场景名、角色名、道具名严格匹配已提取实体。
-4. **语言**: 简体中文。
-5. **景别枚举**: 必须从以下选项中选择: 大特写 | 特写 | 近景 | 中景 | 全景 | 远景 | 大远景
-6. **角度枚举**: 必须从以下选项中选择: 平视 | 俯视 | 仰视 | 鸟瞰 | 蚁视 | 过肩 | 荷兰角 | 主观视角
-7. **时长**: 基于动作复杂度估算整数秒（范围 3-10 秒）。简单静态 3-4s，标准动作 5-6s，复杂/情绪镜头 7-10s。
-8. **对白**: 如果帧中有角色说话，dialogue 和 speaker 必须填写。一帧只能有一个说话人——多人对话必须拆为多帧。
-
-# 剧本格式说明
-- **场次标题行**: `场X-X 地点名称 - 时间`
-- **动作、画面或人物状态**: 以 `△` 开头
-- **人物行（可选）**: `人物：角色名1，角色名2`
-- **对话**: `角色名（情绪）：对话内容`，或 `角色名（VO）：` 表示画外音
-
-# 已提取的实体
-{entities_str}
-
-# 输出格式
-返回 JSON 对象 {"frames": [...]}。不要包含 Markdown 标记。
-
-每帧字段:
-{
-    "scene_ref_name": "场景名",
-    "character_ref_names": ["角色名"],
-    "prop_ref_names": ["道具名"],
-    "action_summary": "一句话概括这帧发生什么（含角色动作 + 物理事件 + 神态表情）",
-    "shot_size": "中景",
-    "camera_angle": "平视",
-    "camera_movement": "静止",
-    "dialogue": "台词内容（无对白则为 null）",
-    "speaker": "说话人（无对白则为 null）",
-    "duration": 5
-}
-
-# 示例
-{
-    "frames": [
-        {
-            "scene_ref_name": "卧室",
-            "character_ref_names": ["叶墨"],
-            "prop_ref_names": ["手机"],
-            "action_summary": "手机在床头柜上震动，叶墨烦躁翻身，眉头紧锁，被子滑落",
-            "shot_size": "中景",
-            "camera_angle": "俯视",
-            "camera_movement": "静止",
-            "dialogue": "妈，这才几点啊！",
-            "speaker": "叶墨",
-            "duration": 4
-        },
-        {
-            "scene_ref_name": "卧室",
-            "character_ref_names": ["叶墨"],
-            "prop_ref_names": ["手机"],
-            "action_summary": "叶墨看到来电显示，猛地坐起，表情惊恐",
-            "shot_size": "特写",
-            "camera_angle": "平视",
-            "camera_movement": "快速推镜",
-            "dialogue": "已经来了？",
-            "speaker": "叶墨",
-            "duration": 3
-        }
-    ]
-}
-
-# 剧本内容
-{text}
-"""
+# The bundled Skill is the single source for the default extraction rules.
+DEFAULT_STORYBOARD_EXTRACTION_PROMPT = SkillPackageStore().compile(DEFAULT_STORYBOARD_SKILL_ID)
 
 DEFAULT_CHARACTER_ASSET_PROMPT = """你是角色资产生图提示词专家。根据资产名称和描述，输出一段可直接用于图片生成的中文提示词。只描述角色外观、服装、姿态和可视化细节，不要解释，不要加标题。\n资产名称：{name}\n资产描述：{description}"""
 DEFAULT_SCENE_ASSET_PROMPT = """你是场景资产生图提示词专家。根据资产名称和描述，输出一段可直接用于图片生成的中文提示词。只描述空间结构、材质、光线和氛围，不要解释，不要加标题。\n资产名称：{name}\n资产描述：{description}"""
@@ -1228,9 +1160,8 @@ class ScriptProcessor:
         logger.info(f"Analyzing text to storyboard: {text[:100]}...")
         
         if not self.is_configured:
-            logger.warning("文本模型未配置（设置 → 模型），返回 mock 分镜。")
-            return self._mock_storyboard_frames(text)
-        
+            raise RuntimeError("文本模型未配置：请在设置中填写 API Key，分镜尚未修改。")
+
         # Build entities context
         characters_list = entities_json.get("characters", [])
         scenes_list = entities_json.get("scenes", [])
@@ -1249,51 +1180,35 @@ class ScriptProcessor:
         )
         system_prompt = template.replace("{entities_str}", entities_str).replace("{text}", text)
 
-        try:
-            content = self.llm.chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": "请开始生成分镜帧列表，确保覆盖剧本中的所有内容。"}
-                ],
-                model=model or None,
-            ).strip()
-            logger.debug(f"Storyboard Analysis Raw Response: {content[:500]}...")
-
-            frames = self._parse_storyboard_json(content)
-            if frames is not None:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "请生成分镜帧列表，覆盖全部原台词和动作。每镜包含景别、机位、运镜、正整数时长及带时间码的完整描述。"},
+        ]
+        for attempt in range(2):
+            try:
+                options = {"response_format": {"type": "json_object"}} if attempt else {}
+                content = self.llm.chat(messages=messages, model=model or None, **options).strip()
+                frames = self._parse_storyboard_json(content)
+                if frames is None:
+                    raise StoryboardContractError("输出必须是合法的非空 frames JSON 对象")
+                validate_storyboard_frames(frames, entities_json, text)
                 return frames
+            except StoryboardContractError as error:
+                if attempt:
+                    raise RuntimeError(f"分镜质量校验未通过：{error}。已有分镜保留，请核对规则后重试。") from error
+                logger.warning("Storyboard contract failed, requesting one correction: %s", error)
+                messages.append({"role": "user", "content": f"刚才的结果未通过校验：{error}。请重新输出完整的合法 JSON，修正该问题并保留全部原文内容。"})
+            except Exception as error:
+                logger.error("Error in storyboard analysis: %s", error, exc_info=True)
+                raise RuntimeError(f"分镜分析过程出错: {error}") from error
 
-            # First parse failed — retry once with response_format constraint
-            logger.warning("Storyboard JSON parse failed, retrying with response_format=json_object...")
-            retry_content = self.llm.chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": "请开始生成分镜帧列表，确保覆盖剧本中的所有内容。请务必输出合法的JSON格式。"}
-                ],
-                response_format={'type': 'json_object'},
-            ).strip()
-            logger.debug(f"Storyboard Analysis Retry Response: {retry_content[:500]}...")
-            frames = self._parse_storyboard_json(retry_content)
-            if frames is not None:
-                return frames
-
-            raise RuntimeError(
-                "AI 模型输出的 JSON 格式不合规，自动重试后仍然失败。请重新点击生成按钮再试一次。"
-            )
-
-        except RuntimeError:
-            raise  # Re-raise our own descriptive errors
-        except Exception as e:
-            logger.error(f"Error in storyboard analysis: {e}", exc_info=True)
-            raise RuntimeError(f"分镜分析过程出错: {str(e)}")
-    
     def _parse_storyboard_json(self, content: str):
         """Try to parse storyboard JSON from LLM output. Returns frames list or None on failure."""
         content = _strip_markdown_json(content)
 
         try:
             result = json.loads(content.strip())
-            frames = result.get("frames", [])
+            frames = result.get("frames", []) if isinstance(result, dict) else None
             if not frames:
                 logger.warning("Parsed JSON successfully but 'frames' array is empty")
                 return None

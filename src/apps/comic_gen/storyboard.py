@@ -137,7 +137,7 @@ class StoryboardGenerator:
         asset_ref_paths = list(set(asset_ref_paths))
         
         if not prompt:
-            prompt = f"Storyboard Frame: {frame.action_description}. "
+            prompt = f"Storyboard Frame: {frame.visual_description or frame.action_description}. "
             if char_text:
                 prompt += f"Characters: {char_text}. "
             if scene:
@@ -152,6 +152,9 @@ class StoryboardGenerator:
             if char_text and char_text not in prompt:
                 prompt = f"{prompt} Characters: {char_text}."
         
+        from .storyboard_contract import storyboard_image_prompt
+        prompt = storyboard_image_prompt(frame, prompt)
+
         # Store the optimized prompt
         frame.image_prompt = prompt
         

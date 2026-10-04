@@ -33,7 +33,8 @@ from .storyboard import StoryboardGenerator
 from .video import VideoGenerator
 from .audio import AudioGenerator
 from .export import ExportManager
-from .skill_packages import SkillPackageStore
+from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
+from .storyboard_contract import validate_storyboard_frames
 from ...utils import get_logger
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
@@ -1770,49 +1771,15 @@ class ComicGenPipeline:
         if not raw_frames:
             raise RuntimeError("AI 分镜分析未返回任何帧数据，请重试。")
 
-        # Convert raw frame dicts to StoryboardFrame objects
+        # Validate the complete result before replacing any saved frames.
+        bindings = validate_storyboard_frames(raw_frames, entities_json, text)
         new_frames = []
-        for idx, frame_data in enumerate(raw_frames):
-            # Resolve scene ID by name（别名也算命中）
-            scene_ref_name = (frame_data.get("scene_ref_name") or "").strip().lower()
-            scene_id = None
-            for scene in all_scenes:
-                if any(
-                    scene_ref_name == key or scene_ref_name in key
-                    for key in self._asset_name_keys(scene)
-                ):
-                    scene_id = scene.id
-                    break
-            if not scene_id and all_scenes:
-                scene_id = all_scenes[0].id  # Fallback to first scene
-            elif not scene_id:
-                scene_id = str(uuid.uuid4())  # Generate a placeholder ID
-
-            # Resolve character IDs by names (case-insensitive, bidirectional contains)
-            char_ref_names = frame_data.get("character_ref_names", [])
-            character_ids = []
-            for char_name in char_ref_names:
-                cn = char_name.strip().lower()
-                for char in all_characters:
-                    if any(key == cn or cn in key or key in cn for key in self._asset_name_keys(char)):
-                        character_ids.append(char.id)
-                        break
-
-            # Resolve prop IDs by names (case-insensitive, bidirectional contains)
-            prop_ref_names = frame_data.get("prop_ref_names", [])
-            prop_ids = []
-            for prop_name in prop_ref_names:
-                pn = prop_name.strip().lower()
-                for prop in all_props:
-                    if any(key == pn or pn in key or key in pn for key in self._asset_name_keys(prop)):
-                        prop_ids.append(prop.id)
-                        break
-            
+        for frame_data, refs in zip(raw_frames, bindings):
             frame = StoryboardFrame(
                 id=str(uuid.uuid4()),
-                scene_id=scene_id,
-                character_ids=character_ids,
-                prop_ids=prop_ids,
+                scene_id=refs["scene_id"],
+                character_ids=refs["character_ids"],
+                prop_ids=refs["prop_ids"],
                 action_description=frame_data.get("action_summary", frame_data.get("action_description", "")),
                 visual_atmosphere=frame_data.get("visual_atmosphere"),
                 visual_description=frame_data.get("visual_description"),
@@ -6010,6 +5977,19 @@ class ComicGenPipeline:
                 resolved = series_value
         return resolved
 
+    def get_storyboard_prompt_source(self, episode: Script) -> Dict[str, Any]:
+        series = self.get_series(episode.series_id) if episode.series_id else None
+        for owner, source in ((episode, "本集"), (series, "系列")):
+            if owner:
+                package_id = (owner.prompt_config.skill_bindings or {}).get("storyboard_extraction")
+                if package_id:
+                    metadata = self.skill_packages.describe(package_id)
+                    return {"id": package_id, "name": metadata["name"], "source": source + " Skill"}
+        for owner, source in ((episode, "本集"), (series, "系列")):
+            if owner and owner.prompt_config.storyboard_extraction.strip():
+                return {"id": None, "name": "自定义分镜规则", "source": source + "提示词"}
+        return {"id": DEFAULT_STORYBOARD_SKILL_ID, "name": "工程台本分镜", "source": "内置 Skill"}
+
     def get_effective_prompt(self, prompt_type: str, episode: Script, series: Optional[Series] = None) -> str:
         """Resolve Skill Package/text/default, then attach the stage's output contract."""
         valid_prompt_types = (
@@ -6048,11 +6028,16 @@ class ComicGenPipeline:
         # 就分不出是谁给的，所以先把「有没有被覆盖」记下来 —— 音频那两个硬契约
         # 只在被覆盖时才补（内置默认里已经逐条写了，不加会重复）。
         overridden = bool(resolved)
+        if not resolved and prompt_type == "storyboard_extraction":
+            resolved = self.skill_packages.compile(DEFAULT_STORYBOARD_SKILL_ID)
         resolved = resolved or defaults.get(prompt_type, "")
         if overridden and prompt_type == "audio_plan":
             resolved += AUDIO_PLAN_OUTPUT_CONTRACT
         elif overridden and prompt_type == "voice_prompt":
             resolved += VOICE_PROMPT_OUTPUT_CONTRACT
+        if prompt_type == "storyboard_extraction":
+            ratio = episode.model_settings.storyboard_aspect_ratio
+            resolved += f"\n\n# 本项目画幅\n{ratio}，按这个画幅编排镜头与构图。"
         if prompt_type in {"storyboard_extraction", "storyboard_polish", "video_polish", "r2v_polish", "r2v_minimax", "character_prompt", "scene_prompt", "prop_prompt"}:
             art = episode.art_direction or (series.art_direction if series else None)
             style = ""

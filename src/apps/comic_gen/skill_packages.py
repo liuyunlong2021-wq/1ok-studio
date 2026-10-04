@@ -30,6 +30,7 @@ REFERENCE_RE = re.compile(
 # lookup works in both. They are read-only: the repo is the single source of
 # truth, so an app upgrade refreshes them instead of leaving stale copies in
 # the user data dir.
+DEFAULT_STORYBOARD_SKILL_ID = "builtin:storyboard-inline-camera"
 BUILTIN_PREFIX = "builtin:"
 BUILTIN_ID_RE = re.compile(r"^builtin:[a-z0-9][a-z0-9-]*$")
 BUILTIN_ROOT = Path(__file__).resolve().parents[3] / "skills"
