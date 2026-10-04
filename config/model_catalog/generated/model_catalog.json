@@ -125,7 +125,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -306,7 +306,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 灵动",
+      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -367,7 +367,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 灵动",
+      "display_name": "Sd 2.5 480P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -428,7 +428,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 灵动",
+      "display_name": "Sd 2.5 720P · 0.75 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1449,7 +1449,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 灵动",
+      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1577,7 +1577,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1636,7 +1636,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1009,
@@ -1784,7 +1783,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 灵动",
+      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1851,7 +1850,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1006,
@@ -1879,7 +1877,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 灵动",
+      "display_name": "Sd 2.5 480P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1946,7 +1944,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1010,
@@ -1974,7 +1971,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 灵动",
+      "display_name": "Sd 2.5 720P · 0.75 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -2041,7 +2038,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1007,
@@ -3495,7 +3491,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 灵动",
+      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3562,7 +3558,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1008,
@@ -3682,7 +3677,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3750,7 +3745,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1009,
@@ -3914,7 +3908,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 灵动",
+      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3990,7 +3984,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1006,
@@ -4018,7 +4011,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 灵动",
+      "display_name": "Sd 2.5 480P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4094,7 +4087,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1010,
@@ -4122,7 +4114,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 灵动",
+      "display_name": "Sd 2.5 720P · 0.75 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4198,7 +4190,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1007,
@@ -5780,7 +5771,7 @@
       },
       "default_backend": "jiucaihezi",
       "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 灵动",
+      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -5856,7 +5847,6 @@
       },
       "ui": {
         "badges": [
-          "灵动",
           "满血Seedance2.5"
         ],
         "order": 1008,
