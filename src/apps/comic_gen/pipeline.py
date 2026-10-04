@@ -34,7 +34,7 @@ from .video import VideoGenerator
 from .audio import AudioGenerator
 from .export import ExportManager
 from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
-from .storyboard_contract import validate_storyboard_frames
+from .storyboard_contract import validate_storyboard_frames, storyboard_duration
 from ...utils import get_logger
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
@@ -2458,6 +2458,10 @@ class ComicGenPipeline:
             positions = [frame_positions[item] for item in source_frame_ids]
             if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
                 raise ValueError("Selected storyboard frames must be consecutive and ordered")
+            if generation_mode == "r2v":
+                duration = storyboard_duration([script.frames[index] for index in positions])
+        elif generation_mode == "r2v":
+            raise ValueError("请先选择连续镜头，视频时长按镜头时长相加")
 
         # Seedance 2.5（网关模型名就是「海seedance2.5」/「dola-seedance2.5」，两条
         # 通道同规格）：固定 30 秒 / 720p，参考图最多 9 张。按 `seedance2.5` 子串判定，
@@ -2471,7 +2475,9 @@ class ComicGenPipeline:
                 raise ValueError("Seedance 2.5 reference mode requires 1-9 reference images")
             if generation_mode == "r2v" and not source_frame_ids:
                 raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
-            duration = 30
+            if generation_mode == "r2v" and duration != 30:
+                raise ValueError(f"所选镜头共{duration}秒，此 Seedance 通道仅支持30秒，请调整镜头选择或更换模型")
+            duration = 30 if generation_mode != "r2v" else duration
             resolution = "720p"
         if isinstance(model, str) and is_minimax_h3_model(model):
             prompt = (prompt or "").strip()

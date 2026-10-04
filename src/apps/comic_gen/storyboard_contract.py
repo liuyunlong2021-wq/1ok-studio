@@ -12,6 +12,18 @@ TIME_RANGE = re.compile(r"【(\d+:\d+(?:\.\d+)?)-(\d+:\d+(?:\.\d+)?)】")
 SOURCE_LINE = re.compile(r"^([^：:（）()\[\]【】△#]{1,30}?)(?:[（(].*?[）)])?\s*[：:]\s*(.*)$")
 
 
+def storyboard_duration(frames):
+    """Sum saved shot budgets; never invent a duration for legacy empty fields."""
+    if not frames:
+        raise ValueError("请先选择镜头")
+    total = 0
+    for frame in frames:
+        if type(frame.duration) is not int or frame.duration <= 0:
+            raise ValueError("所选镜头缺少有效时长，请先在分镜中补齐")
+        total += frame.duration
+    return total
+
+
 def _name(value):
     return value.strip().casefold()
 

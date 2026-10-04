@@ -678,7 +678,7 @@ class GenerateMotionPromptRequest(BaseModel):
     model: str = ""
     ratio: str = "16:9"
     prompt_preset: str = "r2v"
-    duration: int = Field(30, ge=1, le=120)
+    duration: Optional[int] = Field(None, ge=1)  # Legacy clients may send it; saved shots determine the total.
 
 
 # ─── Motion 提示词生成：提交任务 + 轮询 ────────────────────────────────────────
@@ -735,10 +735,10 @@ def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateM
     else:
         refs = "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。"
     return f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
-固定输出时长：{request.duration}秒
+输出总时长：{_motion_total_duration_or_400(script, frame_ids)}秒（所选镜头时长相加）
 画幅：{request.ratio}
 要求：保留镜头先后顺序；明确参考图编号与镜头内容的对应；总长度不超过12000字；只输出最终提示词，不要解释，不要 Markdown 代码块。
-镜头时长是源台本预算。输出时长无法容纳全部对白和动作时明确指出容量冲突，不靠删台词、异常语速或暗中延长输出时长解决。
+按每镜已有时长编排，从00:00开始连续累计；原文中的全集时间码仅供定位，重排为本片段的相对时间。保留全部对白和动作，不改变各镜时长。
 
 [参考图]
 {refs}
@@ -796,6 +796,15 @@ def _motion_frame_positions_or_400(script, frame_ids: List[str]) -> List[int]:
     return positions
 
 
+def _motion_total_duration_or_400(script, frame_ids: List[str]) -> int:
+    from .storyboard_contract import storyboard_duration
+    positions = _motion_frame_positions_or_400(script, frame_ids)
+    try:
+        return storyboard_duration([script.frames[index] for index in positions])
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
 @app.post("/projects/{script_id}/motion/assemble_prompt")
 def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest):
     """本地拼装提示词：不走 AI，直接把参考图和镜头按序号拼成可提交的提示词。
@@ -805,10 +814,10 @@ def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Script not found")
-    _motion_frame_positions_or_400(script, request.frame_ids)
+    duration = _motion_total_duration_or_400(script, request.frame_ids)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
-    blocks = [f"画幅：{request.ratio}；输出时长：{request.duration}秒"]
+    blocks = [f"画幅：{request.ratio}；输出总时长：{duration}秒（所选镜头时长相加）。从00:00按每镜时长连续累计，原文时间码仅供定位。"]
     if request.references:
         blocks.append(_motion_prompt_reference_block(request.references))
         blocks.append(MOTION_PROMPT_REFERENCE_LOCK)
@@ -825,7 +834,7 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest,
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Script not found")
-    _motion_frame_positions_or_400(script, request.frame_ids)
+    _motion_total_duration_or_400(script, request.frame_ids)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
     selected_skill = next((item for item in _read_script_skills("motion") if item["id"] == request.skill_id), None) if request.skill_id else None
