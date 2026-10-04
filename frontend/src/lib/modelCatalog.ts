@@ -73,6 +73,7 @@ interface CatalogModel {
     family: string;
     status: ModelStatus;
     capabilities: string[];
+    runtime?: Record<string, Record<string, unknown>>;
     duration?: DurationConfig | null;
     params?: ModelParamSupport;
     inputs?: {
@@ -250,7 +251,11 @@ function getVisibleModels(group: SelectionGroup, surface: VisibilitySurface): Ca
     // 会落到允许家族的同组模型上，而不是继续调用没配密钥的别家网关。
     // Strict match: model declared its primary selection_group as `group`.
     const direct = SORTED_MODEL_ENTRIES.filter(
-        (model) => model.ui.selection_group === group && isVisibleModel(model, surface)
+        (model) => isVisibleModel(model, surface) && (
+            model.ui.selection_group === group
+            || (group === 'i2v' && model.capabilities.includes('i2v')
+                && model.runtime?.jiucaihezi?.video_contract === 'lingdong_seedance25')
+        )
     );
     // Capability fallback: when the strict bucket is empty for t2i/i2i (the
     // current catalog ships only `image`-group models that can do both),
@@ -508,6 +513,7 @@ export const DEFAULT_R2V_MODEL_ID =
 export function getR2vRouteModelId(selectedI2vModelId: string): string {
     const selectedModel = MODEL_CATALOG.models[selectedI2vModelId];
     if (!selectedModel) return R2V_ROUTE_MODEL_ID;
+    if (selectedModel.runtime?.jiucaihezi?.video_contract === 'lingdong_seedance25') return selectedI2vModelId;
     return R2V_ROUTE_MAP[selectedModel.family] ?? R2V_ROUTE_MODEL_ID;
 }
 

@@ -1,8 +1,12 @@
 {
   "compat": {
     "legacy_model_ids": {
+      "SD-2.5-特价": "jiucaihezi/SD-2.5-特价#r2v",
       "claude-fable-5-1": "jiucaihezi/claude-fable-5-1#text",
       "claude-sonnet-5": "jiucaihezi/claude-sonnet-5#text",
+      "cvk-2.5-1080": "jiucaihezi/cvk-2.5-1080#r2v",
+      "cvk-2.5-480": "jiucaihezi/cvk-2.5-480#r2v",
+      "cvk-2.5-720": "jiucaihezi/cvk-2.5-720#r2v",
       "deepseek-flash": "jiucaihezi/deepseek-flash#text",
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
@@ -19,6 +23,7 @@
       "minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "minimax_h3_zm_u24": "jiucaihezi/minimax_h3_zm_u24#r2v",
       "rh_minimax_h3_ref_9": "jiucaihezi/rh_minimax_h3_ref_9#r2v",
+      "sd2.5-a": "jiucaihezi/sd2.5-a#r2v",
       "海seedance2.5": "jiucaihezi/海seedance2.5#r2v"
     }
   },
@@ -57,8 +62,12 @@
       },
       "family": "jiucaihezi",
       "models": [
+        "SD-2.5-特价",
         "claude-fable-5-1",
         "claude-sonnet-5",
+        "cvk-2.5-1080",
+        "cvk-2.5-480",
+        "cvk-2.5-720",
         "deepseek-flash",
         "dola-seedance2.5",
         "gemini-3.8-flash",
@@ -75,6 +84,7 @@
         "minimax_h3_image_audio_to_video_v2_15s",
         "minimax_h3_zm_u24",
         "rh_minimax_h3_ref_9",
+        "sd2.5-a",
         "海seedance2.5"
       ],
       "provider": "jiucaihezi",
@@ -106,6 +116,67 @@
     }
   },
   "model_lines": {
+    "jiucaihezi/SD-2.5-特价": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
+      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/SD-2.5-特价",
+      "legacy_model_ids": [
+        "SD-2.5-特价"
+      ],
+      "modes": [
+        "jiucaihezi/SD-2.5-特价#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
     "jiucaihezi/claude-fable-5-1": {
       "backend_env_key": null,
       "credential_sources": {
@@ -200,6 +271,189 @@
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/cvk-2.5-1080": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 1080P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-1080",
+      "legacy_model_ids": [
+        "cvk-2.5-1080"
+      ],
+      "modes": [
+        "jiucaihezi/cvk-2.5-1080#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/cvk-2.5-480": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 480P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-480",
+      "legacy_model_ids": [
+        "cvk-2.5-480"
+      ],
+      "modes": [
+        "jiucaihezi/cvk-2.5-480#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/cvk-2.5-720": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-720",
+      "legacy_model_ids": [
+        "cvk-2.5-720"
+      ],
+      "modes": [
+        "jiucaihezi/cvk-2.5-720#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
         }
       },
       "status": "active",
@@ -1186,6 +1440,67 @@
         }
       }
     },
+    "jiucaihezi/sd2.5-a": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5-a 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/sd2.5-a",
+      "legacy_model_ids": [
+        "sd2.5-a"
+      ],
+      "modes": [
+        "jiucaihezi/sd2.5-a#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
     "jiucaihezi/海seedance2.5": {
       "backend_env_key": null,
       "credential_sources": {
@@ -1248,6 +1563,93 @@
     }
   },
   "models": {
+    "SD-2.5-特价": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
+      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "SD-2.5-特价",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1009,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "claude-fable-5-1": {
       "backend_env_key": null,
       "capabilities": [
@@ -1364,6 +1766,291 @@
         "visible_in": [
           "project_settings",
           "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "cvk-2.5-1080": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 1080P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "cvk-2.5-1080",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "1080p",
+          "options": [
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "cvk-2.5-480": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 480P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "cvk-2.5-480",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1010,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "cvk-2.5-720": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "cvk-2.5-720",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1007,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
           "global_settings"
         ]
       }
@@ -2794,6 +3481,101 @@
         ]
       }
     },
+    "sd2.5-a": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5-a 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "sd2.5-a",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1008,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "海seedance2.5": {
       "backend_env_key": null,
       "capabilities": [
@@ -2886,6 +3668,102 @@
     }
   },
   "modes": {
+    "jiucaihezi/SD-2.5-特价#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
+      "display_name": "Sd 2.5 特价 30 秒 · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/SD-2.5-特价#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "SD-2.5-特价",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/SD-2.5-特价",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1009,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/claude-fable-5-1#text": {
       "backend_env_key": null,
       "capabilities": [
@@ -3018,6 +3896,318 @@
         "visible_in": [
           "project_settings",
           "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/cvk-2.5-1080#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 1080P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-1080#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "cvk-2.5-1080",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/cvk-2.5-1080",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "1080p",
+          "options": [
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/cvk-2.5-480#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 480P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-480#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "cvk-2.5-480",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/cvk-2.5-480",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1010,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/cvk-2.5-720#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/cvk-2.5-720#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "cvk-2.5-720",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/cvk-2.5-720",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1007,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
           "global_settings"
         ]
       }
@@ -4566,6 +5756,110 @@
           "MiniMax"
         ],
         "order": 1003,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/sd2.5-a#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
+      "display_name": "Sd 2.5-a 720P · 灵动",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/sd2.5-a#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "sd2.5-a",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/sd2.5-a",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "灵动",
+          "满血Seedance2.5"
+        ],
+        "order": 1008,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [

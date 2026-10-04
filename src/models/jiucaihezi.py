@@ -16,6 +16,7 @@ from ..utils.model_catalog import (
     jiucaihezi_upstream_model_id,
     is_minimax_h3_model,
     resolve_local_h3_video_parameters,
+    load_generated_model_catalog,
 )
 
 
@@ -578,6 +579,37 @@ class JiucaiheziImageModel(ImageGenModel):
         return output_path, time.time() - started
 
 
+def _lingdong_video_payload(model_name: str, prompt: str, images: list, kwargs: dict):
+    spec = load_generated_model_catalog()["models"].get(model_name, {})
+    if spec.get("runtime", {}).get("jiucaihezi", {}).get("video_contract") != "lingdong_seedance25":
+        return None
+    if kwargs.get("reference_video_urls") or kwargs.get("reference_audio_urls") or kwargs.get("audio_url"):
+        raise ValueError("灵动 Seedance 2.5 暂不支持视频或音频参考素材")
+    if not prompt.strip():
+        raise ValueError("视频提示词不能为空")
+    if model_name == "SD-2.5-特价" and len(prompt) > 12000:
+        raise ValueError("灵动特价模型提示词最多 12000 字")
+    timing = spec["duration"]
+    duration = int(kwargs["duration"] if kwargs.get("duration") is not None else timing.get("default", timing.get("value")))
+    if timing["type"] == "fixed":
+        if duration != timing["value"]:
+            raise ValueError("灵动特价模型固定 30 秒，请调整镜头选择或更换模型")
+    elif not timing["min"] <= duration <= timing["max"]:
+        raise ValueError("灵动 Seedance 2.5 时长必须为 4–30 秒")
+    limit = spec["inputs"]["reference_images"]["max"]
+    if len(images) > limit:
+        raise ValueError(f"此灵动模型最多支持 {limit} 张参考图")
+    params = spec["params"]
+    ratio = kwargs.get("aspect_ratio") or kwargs.get("ratio") or params["ratio"]["default"]
+    if ratio not in params["ratio"]["options"]:
+        raise ValueError(f"此灵动模型不支持画幅 {ratio}")
+    payload = {"model": model_name, "prompt": prompt, "ratio": ratio, "duration": duration}
+    if "resolution" in params:
+        # Resolution is fixed by the chosen model, not by a previous model's UI state.
+        payload["resolution"] = params["resolution"]["default"]
+    return payload
+
+
 class JiucaiheziVideoModel(VideoGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
@@ -591,7 +623,9 @@ class JiucaiheziVideoModel(VideoGenModel):
             images.insert(0, kwargs["img_url"])
         if kwargs.get("img_path"):
             images.insert(0, kwargs["img_path"])
-        images = [_public_media_url(ref, "image") for ref in dict.fromkeys(images)]
+        images = list(dict.fromkeys(images))
+        lingdong_payload = _lingdong_video_payload(model_name, prompt, images, kwargs)
+        images = [_public_media_url(ref, "image") for ref in images]
         resolution = str(kwargs.get("resolution") or "")
         ratio = kwargs.get("aspect_ratio") or kwargs.get("ratio") or "16:9"
         # 横/竖 是 MiniMax H3 独有的 resolution 约定，只有它的 resolution 会发给上游。
@@ -603,7 +637,11 @@ class JiucaiheziVideoModel(VideoGenModel):
             local_params = resolve_local_h3_video_parameters(model_name, kwargs)
             ratio = _REF2V_ASPECT_RATIOS[local_params["aspect_ratio"]]
         webapp_id = _RH_WEBAPP_IDS.get(model_name)
-        if webapp_id:
+        if lingdong_payload is not None:
+            payload = lingdong_payload
+            if images:
+                payload["images"] = images
+        elif webapp_id:
             # RH 应用：可调项只有时长与画幅（画质固定 0.9、不作为字段），也不收参考
             # 音频 —— 所以**不发** resolution 与 audios，两个都会是多余字段。
             payload = {
@@ -641,7 +679,7 @@ class JiucaiheziVideoModel(VideoGenModel):
                     audio_refs.insert(0, kwargs["audio_url"])
                 if audio_refs:
                     payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
-        if images and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
+        if images and lingdong_payload is None and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
             # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]

@@ -397,3 +397,94 @@ models:
       promptExtend: false
     inputs:
       reference_images: {max: 9, reference_type: image}
+
+  # 灵动（满血）Seedance 2.5：公开 /v1/videos 合同，参考素材仅图片。
+  - id: "cvk-2.5-480"
+    display_name: "Sd 2.5 480P · 灵动"
+    description: "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v, r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
+    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1010, recommended: false, badges: [灵动, 满血Seedance2.5]}
+    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
+    params:
+      resolution: {options: [480p], default: 480p}
+      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 30, reference_type: image}
+  - id: "SD-2.5-特价"
+    display_name: "Sd 2.5 特价 30 秒 · 灵动"
+    description: "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v, r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
+    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1009, recommended: false, badges: [灵动, 满血Seedance2.5]}
+    duration: {type: fixed, value: 30}
+    params:
+      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 9, reference_type: image}
+  - id: "sd2.5-a"
+    display_name: "Sd 2.5-a 720P · 灵动"
+    description: "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v, r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
+    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1008, recommended: false, badges: [灵动, 满血Seedance2.5]}
+    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
+    params:
+      resolution: {options: [720p], default: 720p}
+      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 30, reference_type: image}
+  - id: "cvk-2.5-720"
+    display_name: "Sd 2.5 720P · 灵动"
+    description: "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v, r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
+    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1007, recommended: false, badges: [灵动, 满血Seedance2.5]}
+    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
+    params:
+      resolution: {options: [720p], default: 720p}
+      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 30, reference_type: image}
+  - id: "cvk-2.5-1080"
+    display_name: "Sd 2.5 1080P · 灵动"
+    description: "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图"
+    status: active
+    release_stage: stable
+    capabilities: [t2v, i2v, r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
+    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1006, recommended: false, badges: [灵动, 满血Seedance2.5]}
+    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
+    params:
+      resolution: {options: [1080p], default: 1080p}
+      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images: {max: 30, reference_type: image}
