@@ -9,12 +9,14 @@ import VideoSidebar from "./VideoSidebar";
 import { api, VideoTask } from "@/lib/api";
 import { resolveModelId } from "@/lib/modelCatalog";
 import StepHeader from "@/components/shared/StepHeader";
+import type { ShotTiming } from "@/lib/shotDuration";
 
 export default function VideoGenerator() {
     const tStep = useTranslations("stepHeader");
     const currentProject = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
     const [tasks, setTasks] = useState<VideoTask[]>([]);
+    const [shotTiming, setShotTiming] = useState<ShotTiming>({ count: 0, duration: null, missingCount: 0 });
 
     // Shared state for Remix functionality
     const [remixData, setRemixData] = useState<Partial<VideoTask> | null>(null);
@@ -200,6 +202,7 @@ export default function VideoGenerator() {
                         onExtractedFrameClear={() => setExtractedFrame(null)}
                         params={params}
                         onParamsChange={handleParamsChange}
+                        onShotTimingChange={setShotTiming}
                     />
                 </div>
 
@@ -211,6 +214,7 @@ export default function VideoGenerator() {
                         onExtractFrame={(_task, file, name) => setExtractedFrame({ file, name })}
                         params={params}
                         setParams={handleParamsChange}
+                        shotTiming={shotTiming}
                     />
                 </div>
             </div>

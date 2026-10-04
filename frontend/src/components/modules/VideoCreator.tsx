@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -18,7 +18,8 @@ import {
 
 import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, VideoTask } from "@/lib/api";
-import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, isR2vImageBased } from "@/lib/modelCatalog";
+import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, VIDEO_R2V_MODELS, isR2vImageBased } from "@/lib/modelCatalog";
+import { selectedShotTiming, type ShotTiming } from "@/lib/shotDuration";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
 import { deriveSegmentReferences } from "@/lib/segmentReferences";
@@ -43,6 +44,7 @@ interface VideoCreatorProps {
     onExtractedFrameClear?: () => void;
     params: VideoParams;
     onParamsChange: (params: Partial<VideoParams>) => void;
+    onShotTimingChange: (timing: ShotTiming) => void;
 }
 
 // Motion 提示词生成已改成后端后台任务：3 秒轮询一次，最多等 10 分钟
@@ -50,10 +52,10 @@ interface VideoCreatorProps {
 const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
 const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
-// Seedance 2.5 家族（海 / dola 两条通道）在网关上固定 30 秒 / 720p。
-const forces30sAnd720p = (modelId?: string | null) => (modelId || "").includes("seedance2.5");
+// This gateway's Seedance channels require 720p; duration is validated against the catalog.
+const requires720p = (modelId?: string | null) => (modelId || "").includes("seedance2.5");
 
-export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange }: VideoCreatorProps) {
+export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange, onShotTimingChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
     const currentProject = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -120,6 +122,26 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     const [isUploadingReference, setIsUploadingReference] = useState(false);
     const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">(I2V_MODE_AVAILABLE ? "i2v" : "r2v"); // Local mode state
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
+    const shotTiming = useMemo(() => selectedShotTiming(currentProject?.frames || [], selectedFrameIds), [currentProject?.frames, selectedFrameIds]);
+    const outputDuration = generationMode === 'r2v' ? shotTiming.duration : params.duration;
+    const durationConfig = VIDEO_R2V_MODELS.find(model => model.id === params.model)?.duration;
+    let durationError = '';
+    if (generationMode === 'r2v' && shotTiming.count) {
+        if (shotTiming.missingCount) durationError = `${shotTiming.missingCount} 个镜头缺少有效时长，请先在分镜中补齐`;
+        else if (outputDuration && durationConfig) {
+            if (durationConfig.type === 'slider' && (outputDuration < durationConfig.min || outputDuration > durationConfig.max))
+                durationError = `所选镜头共 ${outputDuration} 秒，当前模型支持 ${durationConfig.min}–${durationConfig.max} 秒，请缩小镜头范围或更换模型`;
+            else if (durationConfig.type === 'fixed' && outputDuration !== durationConfig.value)
+                durationError = `所选镜头共 ${outputDuration} 秒，当前模型仅支持 ${durationConfig.value} 秒，请调整镜头选择或更换模型`;
+            else if (durationConfig.type === 'buttons' && !durationConfig.options.includes(outputDuration))
+                durationError = `所选镜头共 ${outputDuration} 秒，当前模型支持 ${durationConfig.options.join('、')} 秒，请调整镜头选择或更换模型`;
+        }
+    }
+    useEffect(() => { onShotTimingChange(shotTiming); }, [shotTiming, onShotTimingChange]);
+    useEffect(() => {
+        setSelectedFrameIds([]);
+        setFrameSelectionAnchor(null);
+    }, [currentProject?.id]);
 
     // Sync from parent params
     useEffect(() => {
@@ -312,6 +334,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
 
     const generateMotionPrompt = async () => {
         if (!currentProject || !selectedFrameIds.length) return;
+        if (shotTiming.duration === null) { setMotionError('请先补齐所选镜头时长'); return; }
         const scriptId = currentProject.id;
         setIsGeneratingPrompt(true);
         setMotionError("");
@@ -321,7 +344,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 prompt_preset: selectedPromptPreset,
-                duration: forces30sAnd720p(params.model) ? 30 : params.duration,
+                duration: shotTiming.duration,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
             // 后端已改成后台任务（一次生成可能 2 分钟，上游会 524），这里轮询拿结果。
@@ -351,13 +374,14 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     /** 本地拼装：不调 AI，直接按序号拼「参考图N + 镜头N」，秒出且不会失败。 */
     const assembleMotionPrompt = async () => {
         if (!currentProject || !selectedFrameIds.length) return;
+        if (shotTiming.duration === null) { setMotionError('请先补齐所选镜头时长'); return; }
         setMotionError("");
         try {
             const result = await api.assembleMotionPrompt(currentProject.id, {
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
-                duration: forces30sAnd720p(params.model) ? 30 : params.duration,
+                duration: shotTiming.duration,
             });
             setSegments([{ type: "text", value: result.prompt, id: `motion-${Date.now()}` }]);
         } catch (error: any) {
@@ -366,6 +390,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     };
 
     const handleSubmit = async () => {
+        if (durationError || !outputDuration) { setMotionError(durationError || '请先选择镜头并补齐时长'); return; }
         // Validation based on mode
         if (generationMode === 'i2v') {
             if (selectedImages.length === 0 || !prompt || !currentProject) return;
@@ -418,7 +443,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                         prompt: finalPrompt,
                         status: "pending",
                         video_url: undefined,
-                        duration: params.duration,
+                        duration: outputDuration,
                         seed: params.seed,
                         resolution: params.resolution,
                         generate_audio: params.generateAudio,
@@ -491,7 +516,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                     currentProject.id,
                     finalImageUrl, // Can be empty string
                     finalPrompt,
-                    generationMode === 'r2v' && forces30sAnd720p(actualModel) ? 30 : params.duration,
+                    outputDuration,
                     params.seed,
                     params.resolution,
                     params.generateAudio,
@@ -552,7 +577,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [selectedImages, prompt, currentProject, params, referenceAssets, selectedFrameIds]);
+    }, [selectedImages, prompt, currentProject, params, referenceAssets, selectedFrameIds, generationMode, outputDuration, durationError]);
 
     // Available assets for drag/drop or selection
     const availableAssets = currentProject ? [
@@ -721,8 +746,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                     onParamsChange({
                                         generationMode: "r2v",
                                         model: referenceImageModel,
-                                        duration: forces30sAnd720p(referenceImageModel) ? 30 : params.duration,
-                                        resolution: forces30sAnd720p(referenceImageModel) ? "720p" : params.resolution,
+                                        resolution: requires720p(referenceImageModel) ? "720p" : params.resolution,
                                     });
                                 }}
                                 className={`px-5 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all font-medium ${generationMode === "r2v"
@@ -944,7 +968,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                     <label className="text-sm font-medium text-text-secondary">连续镜头</label>
                                     <span className="flex items-center gap-2 text-xs text-text-muted">
                                         {selectedFrameIds.length
-                                            ? `已选 ${selectedFrameIds.length} 个镜头 · 输出固定 30 秒`
+                                            ? `已选 ${selectedFrameIds.length} 个镜头 · ${shotTiming.duration === null ? '时长待补齐' : `合计 ${shotTiming.duration} 秒`}`
                                             : "点击起点，再点击终点"}
                                         {selectedFrameIds.length > 0 && (
                                             <button
@@ -961,6 +985,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                         )}
                                     </span>
                                 </div>
+                                {durationError && <p className="text-xs text-amber-500" role="alert">{durationError}</p>}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto custom-scrollbar pr-2">
                                     {currentProject?.frames && currentProject.frames.length > 0 ? (
                                         currentProject.frames.map((frame: any, index: number) => (
@@ -989,7 +1014,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                                     </div>
                                                     {/* Frame description */}
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-xs text-text-secondary mb-1">镜头 {String(index + 1).padStart(2, "0")}</p>
+                                                        <p className="text-xs text-text-secondary mb-1">镜头 {String(index + 1).padStart(2, "0")} · {frame.duration > 0 ? `${frame.duration}秒` : '时长未设置'}</p>
                                                         <p className="text-xs text-text-secondary line-clamp-2">
                                                             {frame.action_description || frame.image_prompt || 'No description'}
                                                         </p>
@@ -1379,7 +1404,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 <div className="max-w-4xl mx-auto w-full">
                     <button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || !prompt || (generationMode === 'i2v'
+                        disabled={isSubmitting || !prompt || !!durationError || !outputDuration || (generationMode === 'i2v'
                             ? selectedImages.length === 0
                             : (!selectedFrameIds.length || !referenceAssets.length || prompt.length > promptLimit))}
                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] ${submitSuccess

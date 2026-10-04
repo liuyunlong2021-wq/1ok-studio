@@ -16,6 +16,7 @@ import {
     isR2vImageBased,
 } from "@/lib/modelCatalog";
 import GroupedModelGrid from "@/components/common/GroupedModelGrid";
+import type { ShotTiming } from "@/lib/shotDuration";
 
 interface VideoSidebarProps {
     tasks: VideoTask[];
@@ -23,9 +24,10 @@ interface VideoSidebarProps {
     params: VideoParams;
     setParams: (params: VideoParams) => void;
     onExtractFrame?: (task: VideoTask, file: File, name: string) => void;
+    shotTiming?: ShotTiming;
 }
 
-export default function VideoSidebar({ tasks, onRemix, params, setParams, onExtractFrame }: VideoSidebarProps) {
+export default function VideoSidebar({ tasks, onRemix, params, setParams, onExtractFrame, shotTiming }: VideoSidebarProps) {
     const tm = useTranslations("motion");
     const [activeTab, setActiveTab] = useState<"settings" | "queue">("settings");
     const [isUploadingAudio, setIsUploadingAudio] = useState(false);
@@ -46,7 +48,7 @@ export default function VideoSidebar({ tasks, onRemix, params, setParams, onExtr
         // When model changes, clamp duration and reset model-specific params
         if (key === "model") {
             const newModelConfig = selectableModels.find(m => m.id === value);
-            if (newModelConfig?.duration) {
+            if (params.generationMode !== 'r2v' && newModelConfig?.duration) {
                 const dc = newModelConfig.duration;
                 if (dc.type === 'fixed') {
                     newParams.duration = dc.value;
@@ -186,6 +188,14 @@ export default function VideoSidebar({ tasks, onRemix, params, setParams, onExtr
                                 {/* Duration - Dynamic per model */}
                                 {(() => {
                                     const durationConfig: DurationConfig = currentModelConfig?.duration ?? { type: 'buttons', options: [5, 10], default: 5 };
+
+                                    if (params.generationMode === 'r2v') {
+                                        return <div>
+                                            <label className="block text-xs text-text-secondary mb-2">生成时长 · 按镜头自动汇总</label>
+                                            <p className="text-primary font-medium">{shotTiming?.duration != null ? `${shotTiming.duration} 秒` : shotTiming?.missingCount ? '镜头时长待补齐' : '请选择连续镜头'}</p>
+                                            <p className="text-[0.625rem] text-text-muted mt-1">{durationConfig.type === 'slider' ? `模型支持 ${durationConfig.min}–${durationConfig.max} 秒` : durationConfig.type === 'fixed' ? `模型仅支持 ${durationConfig.value} 秒` : `模型支持 ${durationConfig.options.join('、')} 秒`}</p>
+                                        </div>;
+                                    }
 
                                     if (durationConfig.type === 'fixed') {
                                         return (
