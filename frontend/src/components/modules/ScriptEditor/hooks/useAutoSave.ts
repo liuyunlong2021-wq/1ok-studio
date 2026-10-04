@@ -5,7 +5,7 @@ import { scriptEditorApi } from '@/lib/scriptEditorApi';
 import { useEditorStore } from '@/store/editorStore';
 import { useProjectStore } from '@/store/projectStore';
 import { toast } from '@/store/toastStore';
-import { scriptTextOf } from '../documentText';
+import { scriptTextOf, normalizeScriptText } from '../documentText';
 
 const AUTOSAVE_INTERVAL_MS = 30_000; // 30 seconds
 
@@ -37,12 +37,11 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
       if (isSavingRef.current) return;
 
       const content = editor.getJSON();
+      const text = scriptTextOf(editor);
       isSavingRef.current = true;
 
-      let text: string;
       try {
         await scriptEditorApi.saveDocument(projectId, content, createSnapshot);
-        text = scriptTextOf(editor);
         await scriptEditorApi.updateScriptText(projectId, text);
       } catch (err) {
         console.error('[useAutoSave] Save failed:', err);
@@ -57,7 +56,7 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
       // 用户再点一次就是重复写，还会以为上一次白存了。
       try {
         useProjectStore.getState().updateProject(projectId, { originalText: text });
-        setDirty(false);
+        if (!editor.isDestroyed && scriptTextOf(editor) === text) setDirty(false);
         setLastSavedAt(new Date());
       } catch (err) {
         console.error('[useAutoSave] Local state sync after save failed:', err);
@@ -87,7 +86,7 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
       .saveDocument(pid, doc.toJSON() as object, false)
       .catch((error) => console.error('[useAutoSave] Flush document failed:', error));
     void scriptEditorApi
-      .updateScriptText(pid, doc.textBetween(0, doc.content.size, '\n'))
+      .updateScriptText(pid, normalizeScriptText(doc.textBetween(0, doc.content.size, '\n')))
       .catch((error) => console.error('[useAutoSave] Flush text failed:', error));
   }, []);
 

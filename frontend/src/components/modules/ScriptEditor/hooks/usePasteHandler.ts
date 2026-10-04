@@ -34,6 +34,9 @@ interface HeuristicRule {
 }
 
 const HEURISTIC_RULES: HeuristicRule[] = [
+  { id: 'engineering_scene', pattern: /^场(?:景)?\s*\d+[-－]\d+/, suggest: 'SceneHeading' },
+  { id: 'engineering_shot', pattern: /^镜头\s*[\d一二三四五六七八九十百零〇两]+[【\[]/, suggest: 'Action' },
+  { id: 'engineering_spec_or_beat', pattern: /^【(?:\d{1,3}:\d{2}|(?:单人|双人|多人)?(?:大特写|手部特写|中近景|大全景|大远景|遠景|远景|特写|近景|中景|全景))/, suggest: 'Action' },
   {
     id: 'scene_heading_western',
     // Match: INT/EXT at start (supports Japanese/CJK descriptions after prefix)
@@ -80,7 +83,7 @@ const HEURISTIC_RULES: HeuristicRule[] = [
   {
     id: 'character_dialogue',
     // Match: Name：Dialogue or Name:Dialogue (fullwidth/halfwidth colon)
-    pattern: /^([^\s:：]{1,20})[：:]\s*(.+)$/,
+    pattern: /^([^\s:：【】\[\]]{1,20})[：:]\s*(.+)$/,
     suggest: 'CharacterCue + Dialogue',
     extract: (match) => ({
       characterName: match[1],
@@ -188,7 +191,7 @@ export function buildFormattedContent(text: string, suggestions: PasteSuggestion
         if (suggestion.characterName) {
           nodes.push({
             type: 'characterCue',
-            content: [{ type: 'text', text: suggestion.characterName }],
+            content: [{ type: 'text', text: `${suggestion.characterName}：` }],
           });
         }
         if (suggestion.dialogueText) {
