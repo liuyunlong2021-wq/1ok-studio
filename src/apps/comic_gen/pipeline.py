@@ -34,7 +34,7 @@ from .video import VideoGenerator
 from .audio import AudioGenerator
 from .export import ExportManager
 from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
-from .storyboard_contract import validate_storyboard_frames, storyboard_duration
+from .storyboard_contract import storyboard_duration
 from ...utils import get_logger
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
 from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
@@ -744,6 +744,13 @@ class ComicGenPipeline:
         new_script.default_generation_mode = existing_script.default_generation_mode
         new_script.bgm_url = existing_script.bgm_url
         new_script.mix_settings = existing_script.mix_settings
+        # Entity extraction must not re-split or discard a confirmed timeline.
+        if existing_script.engineering_script:
+            new_script.engineering_script = existing_script.engineering_script
+            new_script.storyboard_source_revision = existing_script.storyboard_source_revision
+            new_script.storyboard_archives = existing_script.storyboard_archives
+            new_script.frames = existing_script.frames
+            new_script.video_tasks = existing_script.video_tasks
         
         # Replace the script in memory
         self.scripts[script_id] = new_script
@@ -1723,81 +1730,17 @@ class ComicGenPipeline:
     # === STORYBOARD DRAMATIZATION v2 ===
 
     def analyze_text_to_frames(self, script_id: str, text: str) -> Script:
-        """
-        Analyzes script text and generates storyboard frames using LLM.
-        Replaces existing frames with newly generated ones.
-        """
-        script = self.scripts.get(script_id)
+        """Initialize cards from the confirmed screenplay; existing cards need preview sync."""
+        from .engineering_script import preview_engineering_sync, apply_engineering_sync, screenplay_revision
+        script = self.get_script(script_id)
         if not script:
             raise ValueError("Script not found")
-        
-        logger.info(f"Analyzing text to frames for project {script_id}")
-
-        # Resolve assets (merge Series + Episode if applicable)
-        resolved = self.resolve_episode_assets(script)
-        all_characters = resolved["characters"]
-        all_scenes = resolved["scenes"]
-        all_props = resolved["props"]
-
-        # Build entities JSON from resolved characters, scenes, props
-        # aliases 一并给出去：模型看到「刘备（别名：刘玄德）」之后，剧本里写哪个都认得。
-        entities_json = {
-            "characters": [
-                {"id": c.id, "name": c.name, "description": c.description, "aliases": list(c.aliases or [])}
-                for c in all_characters
-            ],
-            "scenes": [
-                {"id": s.id, "name": s.name, "description": s.description, "aliases": list(s.aliases or [])}
-                for s in all_scenes
-            ],
-            "props": [
-                {"id": p.id, "name": p.name, "description": p.description, "aliases": list(p.aliases or [])}
-                for p in all_props
-            ],
-        }
-
-        # Resolve effective storyboard-extraction prompt (Episode → Series → built-in default).
-        series = self.get_series(script.series_id) if getattr(script, "series_id", None) else None
-        storyboard_extraction_prompt = self.get_effective_prompt("storyboard_extraction", script, series)
-
-        # Call LLM to analyze text (may raise RuntimeError on parse failure)
-        raw_frames = self.script_processor.analyze_to_storyboard(
-            text,
-            entities_json,
-            custom_extraction_prompt=storyboard_extraction_prompt,
-            model=self.get_effective_polish_model(script),
-        )
-
-        if not raw_frames:
-            raise RuntimeError("AI 分镜分析未返回任何帧数据，请重试。")
-
-        # Validate the complete result before replacing any saved frames.
-        bindings = validate_storyboard_frames(raw_frames, entities_json, text)
-        new_frames = []
-        for frame_data, refs in zip(raw_frames, bindings):
-            frame = StoryboardFrame(
-                id=str(uuid.uuid4()),
-                scene_id=refs["scene_id"],
-                character_ids=refs["character_ids"],
-                prop_ids=refs["prop_ids"],
-                action_description=frame_data.get("action_summary", frame_data.get("action_description", "")),
-                visual_atmosphere=frame_data.get("visual_atmosphere"),
-                visual_description=frame_data.get("visual_description"),
-                shot_size=frame_data.get("shot_size"),
-                camera_angle=frame_data.get("camera_angle", "平视"),
-                camera_movement=frame_data.get("camera_movement"),
-                dialogue=frame_data.get("dialogue"),
-                speaker=frame_data.get("speaker"),
-                duration=frame_data.get("duration"),
-                status=GenerationStatus.PENDING
-            )
-            new_frames.append(frame)
-        
-        # Replace existing frames with new ones
-        script.frames = new_frames
-        script.updated_at = time.time()
-        
-        logger.info(f"Generated {len(new_frames)} frames from text analysis")
+        if screenplay_revision(text) != screenplay_revision(script.original_text):
+            raise ValueError("正文版本已变化，请先保存并确认工程台本")
+        if script.frames:
+            raise ValueError("已有分镜，请先预览工程台本的差异，再确认同步")
+        preview, _ = preview_engineering_sync(script, self.resolve_episode_assets(script))
+        apply_engineering_sync(script, self.resolve_episode_assets(script), preview["token"])
         self._save_data()
         return script
 
@@ -1813,6 +1756,9 @@ class ComicGenPipeline:
         frame = next((f for f in script.frames if f.id == frame_id), None)
         if not frame:
             raise ValueError(f"Frame {frame_id} not found")
+
+        if frame.source_shot_number is not None:
+            raise ValueError("镜头设计由工程台本决定，请回剧本修改后同步；生图提示词可单独润色")
 
         frame_idx = script.frames.index(frame)
         resolved = self.resolve_episode_assets(script)
@@ -2047,6 +1993,11 @@ class ComicGenPipeline:
         if not frame:
             raise ValueError(f"Frame {frame_id} not found")
         
+        if frame.source_shot_number is not None:
+            protected = {"action_description", "dialogue", "camera_angle", "duration", "shot_size"}
+            if any(kwargs.get(key) is not None and kwargs[key] != getattr(frame, key) for key in protected) or kwargs.get("camera_movement_description") not in (None, frame.camera_movement):
+                raise ValueError("景别、时长、画面、台词和运镜由工程台本决定，请回剧本修改后同步")
+
         # Update only provided fields
         if kwargs.get('image_prompt') is not None:
             frame.image_prompt = kwargs['image_prompt']
@@ -2085,6 +2036,8 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+        if script.storyboard_source_revision:
+            raise ValueError("镜头增删与顺序请在工程台本中调整，确认后预览同步")
         
         new_frame = StoryboardFrame(
             id=f"frame_{uuid.uuid4().hex[:8]}",
@@ -2106,6 +2059,8 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+        if script.storyboard_source_revision:
+            raise ValueError("镜头增删与顺序请在工程台本中调整，确认后预览同步")
             
         original_frame = next((f for f in script.frames if f.id == frame_id), None)
         if not original_frame:
@@ -2139,6 +2094,8 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+        if script.storyboard_source_revision:
+            raise ValueError("镜头增删与顺序请在工程台本中调整，确认后预览同步")
         
         script.frames = [f for f in script.frames if f.id != frame_id]
         self._save_data()
@@ -2148,6 +2105,8 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+        if script.storyboard_source_revision:
+            raise ValueError("镜头增删与顺序请在工程台本中调整，确认后预览同步")
         
         frame_map = {f.id: f for f in script.frames}
         new_frames = []
@@ -2336,6 +2295,8 @@ class ComicGenPipeline:
         if not frame:
             raise ValueError(f"Frame {frame_id} not found")
             
+        from .engineering_script import require_synced_engineering
+        require_synced_engineering(script)
         frame.status = GenerationStatus.PROCESSING
         if composition_data:
             frame.composition_data = composition_data
@@ -2452,13 +2413,15 @@ class ComicGenPipeline:
 
         source_frame_ids = source_frame_ids or ([] if not frame_id else [frame_id])
         if source_frame_ids:
+            from .engineering_script import require_synced_engineering
+            require_synced_engineering(script)
             frame_positions = {item.id: index for index, item in enumerate(script.frames)}
             if any(item not in frame_positions for item in source_frame_ids):
                 raise ValueError("Selected storyboard frame does not exist")
             positions = [frame_positions[item] for item in source_frame_ids]
             if len(set(positions)) != len(positions) or positions != list(range(min(positions), max(positions) + 1)):
                 raise ValueError("Selected storyboard frames must be consecutive and ordered")
-            if generation_mode == "r2v":
+            if generation_mode == "r2v" or script.storyboard_source_revision:
                 duration = storyboard_duration([script.frames[index] for index in positions])
         elif generation_mode == "r2v":
             raise ValueError("请先选择连续镜头，视频时长按镜头时长相加")
@@ -2475,7 +2438,7 @@ class ComicGenPipeline:
                 raise ValueError("Seedance 2.5 reference mode requires 1-9 reference images")
             if generation_mode == "r2v" and not source_frame_ids:
                 raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
-            if generation_mode == "r2v" and duration != 30:
+            if (generation_mode == "r2v" or (source_frame_ids and script.storyboard_source_revision)) and duration != 30:
                 raise ValueError(f"所选镜头共{duration}秒，此 Seedance 通道仅支持30秒，请调整镜头选择或更换模型")
             duration = 30 if generation_mode != "r2v" else duration
             resolution = "720p"

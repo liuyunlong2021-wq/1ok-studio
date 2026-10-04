@@ -41,7 +41,8 @@ import traceback
 import sys
 import webbrowser
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
-from .skill_packages import SkillPackageError, DEFAULT_STORYBOARD_SKILL_ID
+from .skill_packages import SkillPackageError, SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
+from .engineering_script import parse_engineering_script, engineering_status, preview_engineering_sync, apply_engineering_sync, require_synced_engineering
 from .models import (
     ArtDirection,
     PromptConfig,
@@ -212,6 +213,7 @@ BUILTIN_SHORT_SCRIPT_SKILL = """你是中文短剧剧本格式整理器。把输
 # 忠实性检查
 输出前确认没有改变说话人、台词含义、动作先后、人物态度、因果关系或场次顺序；没有把推测写成事实；输入中的有效内容没有遗漏。"""
 BUILTIN_SCRIPT_SKILLS = [
+    {"id": "builtin-engineering", "name": "工程台本 · 节奏与镜头设计", "content": SkillPackageStore().compile("builtin:engineering-screenplay"), "scope": "system", "is_builtin": True, "kind": "script"},
     {"id": "builtin-short", "name": "中文短剧标准化", "content": BUILTIN_SHORT_SCRIPT_SKILL, "scope": "system", "is_builtin": True, "kind": "script"},
     {"id": "builtin-film", "name": "影视剧本标准化", "content": "将输入内容转换为规范影视剧本，明确场景标题、动作、角色、对白和转场，保留原意。", "scope": "system", "is_builtin": True, "kind": "script"},
     {"id": "builtin-anime", "name": "动漫剧本标准化", "content": "将输入内容转换为动漫剧本格式，强化可视化动作和角色对白，保留原剧情。", "scope": "system", "is_builtin": True, "kind": "script"},
@@ -800,6 +802,7 @@ def _motion_total_duration_or_400(script, frame_ids: List[str]) -> int:
     from .storyboard_contract import storyboard_duration
     positions = _motion_frame_positions_or_400(script, frame_ids)
     try:
+        require_synced_engineering(script)
         return storyboard_duration([script.frames[index] for index in positions])
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -2570,6 +2573,86 @@ class AnalyzeToStoryboardRequest(BaseModel):
     text: str
 
 
+@app.get("/projects/{script_id}/engineering/status")
+def get_engineering_status(script_id: str):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return engineering_status(script)
+
+
+@app.post("/projects/{script_id}/engineering/confirm")
+def confirm_engineering_script(script_id: str, request: AnalyzeToStoryboardRequest):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        plan = parse_engineering_script(request.text)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    with pipeline._save_lock:
+        plan["confirmed_at"] = time.time()
+        script.original_text = request.text
+        script.engineering_script = plan
+        script.updated_at = time.time()
+        pipeline._save_data()
+        return signed_response(script)
+
+
+@app.get("/projects/{script_id}/engineering/sync-preview")
+def get_engineering_sync_preview(script_id: str):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        with pipeline._save_lock:
+            preview, _ = preview_engineering_sync(script, pipeline.resolve_episode_assets(script))
+            return preview
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+class ApplyEngineeringSyncRequest(BaseModel):
+    token: str
+
+
+@app.post("/projects/{script_id}/engineering/sync")
+def sync_engineering_script(script_id: str, request: ApplyEngineeringSyncRequest):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        with pipeline._save_lock:
+            apply_engineering_sync(script, pipeline.resolve_episode_assets(script), request.token)
+            pipeline._save_data()
+            return signed_response(script)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/engineering/frames/{frame_id}/reviewed")
+def review_engineering_frame(script_id: str, frame_id: str):
+    script = pipeline.get_script(script_id)
+    frame = next((frame for frame in script.frames if frame.id == frame_id), None) if script else None
+    if not frame:
+        raise HTTPException(status_code=404, detail="镜头不存在")
+    try:
+        require_synced_engineering(script)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    frame.review_required = False
+    pipeline._save_data()
+    return signed_response(script)
+
+
+@app.get("/projects/{script_id}/engineering/archives")
+def engineering_archives(script_id: str):
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return signed_response(script.storyboard_archives)
+
+
 @app.get("/projects/{script_id}/storyboard/prompt-source")
 def storyboard_prompt_source(script_id: str):
     script = pipeline.get_script(script_id)
@@ -2580,10 +2663,7 @@ def storyboard_prompt_source(script_id: str):
 
 @app.post("/projects/{script_id}/storyboard/analyze")
 def analyze_to_storyboard(script_id: str, request: AnalyzeToStoryboardRequest):
-    """
-    Analyzes script text and generates storyboard frames using AI (Prompt B).
-    Replaces existing frames with newly generated ones.
-    """
+    """Compatibility endpoint: initialize cards by reading a confirmed screenplay."""
     try:
         updated_script = pipeline.analyze_text_to_frames(script_id, request.text)
         return signed_response(updated_script)

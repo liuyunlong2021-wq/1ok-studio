@@ -430,6 +430,12 @@ class Prop(BaseModel):
 
 class StoryboardFrame(BaseModel):
     id: str = Field(..., description="Unique identifier for the frame")
+    source_shot_number: Optional[int] = None
+    source_start: Optional[int] = None
+    source_end: Optional[int] = None
+    source_text: Optional[str] = None
+    source_revision: Optional[str] = None
+    review_required: bool = False
     scene_id: str = Field(..., description="Reference to the Scene ID")
     character_ids: List[str] = Field(default_factory=list, description="List of Character IDs present in the frame")
     prop_ids: List[str] = Field(default_factory=list, description="List of Prop IDs present in the frame")
@@ -638,6 +644,9 @@ class Script(BaseModel):
     id: str = Field(..., description="Unique identifier for the script project")
     title: str = Field(..., description="Title of the comic/video")
     original_text: str = Field(..., description="The original novel text")
+    engineering_script: Optional[Dict[str, Any]] = None
+    storyboard_source_revision: Optional[str] = None
+    storyboard_archives: List[Dict[str, Any]] = Field(default_factory=list)
     
     characters: List[Character] = Field(default_factory=list)
     scenes: List[Scene] = Field(default_factory=list)
