@@ -946,10 +946,11 @@ export function StylePresetCard({ style, isSelected, onSelect }: any) {
     );
 }
 
-export function StylePresetCardV2({ style, isSelected, onClick }: {
+export function StylePresetCardV2({ style, isSelected, onClick, square = false }: {
     style: StylePreset;
     isSelected: boolean;
     onClick: () => void;
+    square?: boolean;
 }) {
     return (
         <motion.div
@@ -962,12 +963,12 @@ export function StylePresetCardV2({ style, isSelected, onClick }: {
             }`}
         >
             {/* Thumbnail */}
-            <div className="relative aspect-[4/3] bg-elevated overflow-hidden">
+            <div className={`relative ${square ? "aspect-square" : "aspect-[4/3]"} bg-elevated overflow-hidden`}>
                 {style.thumbnail ? (
                     <img
                         src={publicAsset(style.thumbnail)}
                         alt={style.name_zh}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className={`w-full h-full ${square ? "object-contain" : "object-cover transition-transform duration-300 group-hover:scale-105"}`}
                         style={{ objectPosition: style.object_position || "center" }}
                     />
                 ) : (
@@ -984,8 +985,8 @@ export function StylePresetCardV2({ style, isSelected, onClick }: {
 
             {/* Info strip */}
             <div className="px-3 py-2.5">
-                <h4 className="text-[0.75rem] font-semibold text-foreground leading-tight truncate">
-                    {style.name_zh}
+                <h4 className={`text-[0.75rem] font-semibold text-foreground leading-tight ${square ? "break-words" : "truncate"}`}>
+                    {style.name_zh || style.name}
                 </h4>
                 {style.subtitle_zh && (
                     <p className="text-[0.625rem] text-text-muted mt-0.5 truncate">
