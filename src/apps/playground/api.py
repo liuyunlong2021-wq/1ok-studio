@@ -13,6 +13,7 @@ from .models import (
     PlaygroundTemplate,
     SaveToLibraryRequest,
     UpdateTemplateRequest,
+    OutputVisibilityRequest,
 )
 from .service import PlaygroundService
 from .storage import PlaygroundStorage
@@ -48,6 +49,18 @@ router.add_api_route("/generate", generate, methods=["POST"])
 # ---------------------------------------------------------------------------
 
 
+def set_output_visibility(request: OutputVisibilityRequest):
+    try:
+        return _storage.set_output_visibility(request.items, request.hidden)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="无法保存移除状态，请重试") from exc
+
+
+router.add_api_route("/outputs/visibility", set_output_visibility, methods=["PATCH"])
+
+
 def list_history(limit: int = 50, offset: int = 0):
     """Return paginated generation history, newest first."""
     return _storage.list_history(limit=limit, offset=offset)
@@ -75,7 +88,7 @@ def get_generation_status(generation_id: str):
 
 
 def delete_generation(generation_id: str):
-    """Delete a generation record and its outputs."""
+    """Delete a generation record; local media files are retained."""
     if not _storage.delete_generation(generation_id):
         raise HTTPException(status_code=404, detail="Generation not found")
     return {"ok": True}

@@ -19,6 +19,7 @@ class PlaygroundOutput(BaseModel):
     media_path: str = Field(..., description="Generated file path relative to output/")
     media_type: str = Field(..., description="Output media type: image, video, or audio")
     thumbnail_path: Optional[str] = Field(None, description="Thumbnail file path relative to output/")
+    hidden: bool = Field(False, description="Hidden from playground; the media file is retained")
     saved_to_library: bool = Field(False, description="Whether this output has been saved to the project library")
 
 
@@ -82,3 +83,13 @@ class UpdateTemplateRequest(BaseModel):
     default_mode: Optional[PlaygroundMode] = Field(None, description="Default generation mode")
     default_model_id: Optional[str] = Field(None, description="Default model identifier")
     default_parameters: Optional[dict] = Field(None, description="Default generation parameters")
+
+
+class OutputVisibilityTarget(BaseModel):
+    generation_id: str
+    output_id: str
+
+
+class OutputVisibilityRequest(BaseModel):
+    items: List[OutputVisibilityTarget] = Field(..., min_length=1, max_length=10000)
+    hidden: bool

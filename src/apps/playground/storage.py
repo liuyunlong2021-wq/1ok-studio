@@ -3,6 +3,7 @@
 import json
 import os
 import threading
+import tempfile
 from typing import List, Optional
 
 from .models import PlaygroundGeneration, PlaygroundTemplate
@@ -49,19 +50,50 @@ class PlaygroundStorage:
     def _save_templates(self) -> None:
         self._save_file(self.TEMPLATES_PATH, self._templates)
 
-    def _save_file(self, path: str, items: list) -> None:
+    def _save_file(self, path: str, items: list, *, strict: bool = False) -> None:
         with self._lock:
+            temporary = None
             try:
-                os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-                with open(path, "w", encoding="utf-8") as f:
-                    json.dump(
-                        [item.model_dump() for item in items],
-                        f,
-                        indent=2,
-                        ensure_ascii=False,
-                    )
+                directory = os.path.dirname(path) or "."
+                os.makedirs(directory, exist_ok=True)
+                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory, delete=False) as f:
+                    temporary = f.name
+                    json.dump([item.model_dump() for item in items], f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(temporary, path)
             except Exception as e:
                 logger.error("Failed to save %s: %s", path, e)
+                if strict:
+                    raise
+            finally:
+                if temporary and os.path.exists(temporary):
+                    os.unlink(temporary)
+
+    def set_output_visibility(self, items, hidden: bool) -> List[PlaygroundGeneration]:
+        """Persist display state only. Validate the whole batch before changing it."""
+        with self._lock:
+            targets = {}
+            generations = {}
+            for item in items:
+                gen = self.get_generation(item.generation_id)
+                output = next((o for o in gen.outputs if o.id == item.output_id), None) if gen else None
+                if output is None:
+                    raise ValueError("Generation or output not found")
+                if gen.status != "completed":
+                    raise ValueError("Only completed outputs can be removed or restored")
+                targets[(gen.id, output.id)] = output
+                generations[gen.id] = gen
+            previous = [(output, output.hidden) for output in targets.values()]
+            for output in targets.values():
+                output.hidden = hidden
+            try:
+                self._save_file(self.HISTORY_PATH, self._history, strict=True)
+            except Exception:
+                for output, old_hidden in previous:
+                    output.hidden = old_hidden
+                raise
+            return list(generations.values())
 
     # ------------------------------------------------------------------
     # History CRUD
