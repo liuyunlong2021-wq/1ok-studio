@@ -1,0 +1,1 @@
+"""Project-independent prompt documents."""

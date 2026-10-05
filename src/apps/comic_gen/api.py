@@ -5601,3 +5601,8 @@ def confirm_shot_block(project_id: str, shot_id: str, req: ConfirmShotBlockReque
     )
 
     return confirmed
+
+
+# Independent prompt editor: shares the gateway, never project storage.
+from ..prompt_editor.api import router as prompt_editor_router
+app.include_router(prompt_editor_router)
