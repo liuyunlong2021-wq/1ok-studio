@@ -62,6 +62,7 @@ export default function AssetPickerModal({
   const [items, setItems] = useState<AssetPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>(
     accept === 'all' ? 'all' : accept
   );
@@ -72,7 +73,7 @@ export default function AssetPickerModal({
   // Load the asset library
   // -------------------------------------------------------------------------
   //
-  // 列的是**资产库**里的角色 / 场景 / 道具图（系列池 + 独立项目 + 全局池），
+  // 列的是**资产库**里的角色 / 场景 / 道具图（系列池 + 单集 / 独立项目 + 全局池），
   // 与按钮「从资产库选取」说的是同一件事。以前拉的是 playground history
   // （生成结果 + 上传素材全列一遍，还混进音频、渲染成碎图），来源与文案对不上。
 
@@ -112,8 +113,9 @@ export default function AssetPickerModal({
     if (activeTab !== 'all') {
       pool = pool.filter((a) => a.type === activeTab);
     }
-    return pool;
-  }, [items, accept, activeTab]);
+    const search = query.trim().toLowerCase();
+    return pool.filter((item) => `${item.label} ${item.sourceName}`.toLowerCase().includes(search));
+  }, [items, accept, activeTab, query]);
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -190,7 +192,7 @@ export default function AssetPickerModal({
         >
           <motion.div
             className="
-              w-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]
+              w-[900px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]
               bg-elevated border border-glass-border
               rounded-2xl shadow-2xl
               flex flex-col overflow-hidden
@@ -222,6 +224,7 @@ export default function AssetPickerModal({
               </button>
             </div>
 
+            <div className="shrink-0 px-6 py-3"><input aria-label="搜索资产" placeholder="搜索资产名称、项目或版本" value={query} onChange={(event) => setQuery(event.target.value)} className="w-full rounded-lg border border-border-subtle bg-input-bg px-3 py-2 text-sm" /><p className="mt-2 text-xs text-text-muted">共 {filteredAssets.length} 个可选素材 · 系列 / 单集 / 全局资产的全部图片版本</p></div>
             {/* Filter tabs */}
             {visibleTabs.length > 1 && (
               <div className="flex items-center gap-1.5 px-6 pt-4 pb-2 shrink-0">
@@ -281,7 +284,7 @@ export default function AssetPickerModal({
               )}
 
               {!loading && !failed && filteredAssets.length > 0 && (
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                   {filteredAssets.map((asset) => {
                     const isThere = alreadyIn.has(asset.ref);
                     // 已在里面 + 允许移除 → 点一下移出去；单参考模式那张不给点（想换就点别人）。
@@ -306,7 +309,7 @@ export default function AssetPickerModal({
                           .join(' — ')}
                         onClick={() => onToggle(asset.ref, asset)}
                         className={`
-                          relative aspect-square rounded-lg overflow-hidden
+                          relative rounded-lg overflow-hidden text-left
                           bg-glass transition-all duration-150
                           ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}
                           ${
@@ -322,7 +325,7 @@ export default function AssetPickerModal({
                         {asset.type === 'video' ? (
                           <video
                             src={asset.url}
-                            className="w-full h-full object-cover"
+                            className="aspect-square w-full object-contain bg-elevated"
                             muted
                             preload="metadata"
                           />
@@ -330,7 +333,7 @@ export default function AssetPickerModal({
                           <img
                             src={asset.url}
                             alt={asset.label}
-                            className="w-full h-full object-cover"
+                            className="aspect-square w-full object-contain bg-elevated"
                             loading="lazy"
                           />
                         )}
@@ -350,10 +353,11 @@ export default function AssetPickerModal({
                         )}
 
                         {/* File name */}
-                        <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1 bg-gradient-to-t from-black/70 to-transparent">
-                          <span className="text-[0.625rem] text-foreground/80 truncate block">
+                        <div className="px-2 py-2">
+                          <span className="text-[0.6875rem] text-foreground break-words block">
                             {asset.label}
                           </span>
+                          <span className="mt-1 block text-[0.625rem] text-text-muted break-words">{asset.sourceName}</span>
                         </div>
                       </button>
                     );
@@ -367,7 +371,7 @@ export default function AssetPickerModal({
             {/*                                                               */}
             {/* 没有「提交」：点瓦片就已经生效了，这里只是关掉。                  */}
             {/* -------------------------------------------------------------- */}
-            <div className="flex items-center gap-3 px-6 py-4 border-t border-glass-border">
+            <div className="flex shrink-0 items-center gap-3 px-6 py-4 border-t border-glass-border">
               <span className="mr-auto text-[0.6875rem] text-text-muted">
                 {canRemoveExisting ? t('assetPicker.hintMulti') : t('assetPicker.hintSingle')}
               </span>

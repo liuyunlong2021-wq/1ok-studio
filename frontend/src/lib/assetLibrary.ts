@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
+import { assetImageVersions } from "@/lib/characterImage";
 import { getAssetUrl } from "@/lib/utils";
 import type { Character, Prop, Project, Scene, Series } from "@/store/projectStore";
 
@@ -7,7 +7,7 @@ export type AssetKind = "characters" | "scenes" | "props";
 
 const KINDS: AssetKind[] = ["characters", "scenes", "props"];
 
-/** 资产库里的一「源」：一个系列池 / 一个独立项目 / 全局共享池。 */
+/** 资产库里的一「源」：一个系列池 / 一个项目 / 单集 / 全局共享池。 */
 export interface AssetSource {
   id: string; // `series-X` / `project-X` / `global`（列表 key）
   rawId: string; // 裸 series/project id（调 API 用）
@@ -21,12 +21,12 @@ export interface AssetSource {
 type AssetGroup = { characters?: Character[]; scenes?: Scene[]; props?: Prop[] };
 
 /**
- * 资产库的全部来源：系列池 + 独立项目 + 全局共享池。
+ * 资产库的全部来源：系列池 + 单集 / 独立项目 + 全局共享池。
  *
  * 资产库页（AssetLibraryPage）和创作台的「从资产库选取」弹窗共用这一份 ——
  * 两边各写一套「哪些算资产库」迟早会漂，用户就会在两个地方看到两批资产。
  *
- * 系列里的集不单列：它们的资产就活在系列池里，单列会一图两卡。
+ * 单集也可能保存独立资产或覆盖版本，必须一起读取。选择器按媒体文件去重。
  * `globalLabel` 是全局池的显示名（i18n 文案由调用方给）。
  */
 export async function loadAssetSources(globalLabel: string): Promise<AssetSource[]> {
@@ -46,15 +46,16 @@ export async function loadAssetSources(globalLabel: string): Promise<AssetSource
   };
 
   for (const s of seriesList as Series[]) add(`series-${s.id}`, s.id, s.title, "series", s);
-  for (const p of (projects as Project[]).filter((p) => !p.series_id)) {
-    add(`project-${p.id}`, p.id, p.title, "project", p);
+  for (const p of projects as Project[]) {
+    const parent = (seriesList as Series[]).find((series) => series.id === p.series_id);
+    add(`project-${p.id}`, p.id, parent ? `${parent.title} · ${p.title}` : p.title, "project", p);
   }
   add("global", "global", globalLabel, "global", (globalPool ?? {}) as AssetGroup);
 
   return sources;
 }
 
-/** 选择器里的一条：一个**有图**的资产。 */
+/** 选择器里的一条：一个资产的媒体版本。 */
 export interface AssetPickerItem {
   id: string;
   /** 交给后端的媒体引用（相对 output/），与 `input_media` 同一套写法。 */
@@ -79,26 +80,21 @@ export function assetPickerItems(sources: AssetSource[]): AssetPickerItem[] {
   for (const source of sources) {
     for (const kind of KINDS) {
       for (const asset of source[kind]) {
-        // 取图只走 lib/characterImage（各 UI 只准有一套取图逻辑）。
-        const ref =
-          kind === "characters"
-            ? characterImageUrl(asset as Character)
-            : scenePropImageUrl(asset as Scene | Prop);
-        if (!ref) continue;
-
-        const id = `${kind}:${asset.id}`;
-        if (seen.has(id)) continue;
-        seen.add(id);
-
-        items.push({
-          id,
-          ref,
-          url: getAssetUrl(ref),
-          type: /\.(mp4|mov|webm|avi|mkv)$/i.test(ref) ? "video" : "image",
-          label: asset.name,
-          sourceName: source.name,
-          description: [asset.description, (asset as unknown as { image_prompt?: string }).image_prompt].filter(Boolean).join("\n"),
-        });
+        for (const { ref, label } of assetImageVersions(asset)) {
+          // Compare resolved media addresses, not asset IDs: episode overrides
+          // can share an ID while keeping different image versions.
+          const url = getAssetUrl(ref);
+          if (!url || seen.has(url)) continue;
+          seen.add(url);
+          items.push({
+            id: `${source.id}:${kind}:${asset.id}:${ref}`,
+            ref, url,
+            type: /\.(mp4|mov|webm|avi|mkv)(?:[?#]|$)/i.test(ref) ? "video" : "image",
+            label: `${asset.name} · ${label}`,
+            sourceName: source.name,
+            description: [asset.description, (asset as unknown as { image_prompt?: string }).image_prompt].filter(Boolean).join("\n"),
+          });
+        }
       }
     }
   }

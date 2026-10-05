@@ -68,3 +68,31 @@ export function scenePropImageUrl(asset?: {
     undefined
   );
 }
+
+/** All saved image versions for reference pickers; display helpers stay primary-only. */
+export function assetImageVersions(asset: Character | {
+  image_asset?: ImageAsset; reference_sheet?: AssetUnit;
+  image_url?: string; reference_image_url?: string;
+}): Array<{ ref: string; label: string }> {
+  const result: Array<{ ref: string; label: string }> = [];
+  const seen = new Set<string>();
+  const add = (ref: string | undefined, label: string) => {
+    if (!ref || seen.has(ref)) return;
+    seen.add(ref); result.push({ ref, label });
+  };
+  const container = (value: ImageAsset | AssetUnit | undefined, label: string) => {
+    const variants = value && ("image_variants" in value ? value.image_variants : value.variants);
+    variants?.forEach((variant, index) => add(variant.url, `${label} · 版本 ${index + 1}`));
+  };
+  container(asset.reference_sheet, '参考图');
+  if ('full_body_asset' in asset) container(asset.full_body_asset, '全身图');
+  if ('headshot_asset' in asset) container(asset.headshot_asset, '头像');
+  if ('three_view_asset' in asset) container(asset.three_view_asset, '三视图');
+  if ('image_asset' in asset) container(asset.image_asset, '资产图');
+  add(asset.image_url, '主图');
+  if ('full_body_image_url' in asset) add(asset.full_body_image_url, '全身图');
+  if ('headshot_image_url' in asset) add(asset.headshot_image_url, '头像');
+  if ('three_view_image_url' in asset) add(asset.three_view_image_url, '三视图');
+  if ('reference_image_url' in asset) add(asset.reference_image_url, '参考图');
+  return result;
+}
