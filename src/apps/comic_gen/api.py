@@ -250,7 +250,13 @@ def _read_script_skills(kind=None, include_hidden=False):
             if metadata["id"] == "builtin:engineering-screenplay":
                 continue  # Existing engineering ID is the compatibility alias.
             package = store.get(metadata["id"])
-            items.append({"id": metadata["id"], "name": metadata["name"], "content": store.compile(metadata["id"]), "files": package["contents"], "entry": metadata["entry"], "scope": "system" if metadata["builtin"] else "user", "is_builtin": metadata["builtin"], "kind": metadata.get("kind") or "script", "hidden": metadata.get("hidden", False), "updated_at": metadata.get("updated_at"), "has_backup": metadata.get("has_backup")})
+            validation_error = ""
+            try:
+                content = store.compile(metadata["id"])
+            except SkillPackageError as exc:
+                content = package["contents"][metadata["entry"]]
+                validation_error = str(exc)
+            items.append({"id": metadata["id"], "name": metadata["name"], "content": content, "validation_error": validation_error, "files": package["contents"], "entry": metadata["entry"], "scope": "system" if metadata["builtin"] else "user", "is_builtin": metadata["builtin"], "kind": metadata.get("kind") or "script", "hidden": metadata.get("hidden", False), "updated_at": metadata.get("updated_at"), "has_backup": metadata.get("has_backup")})
     return [item for item in items if (include_hidden or not item.get("hidden")) and (kind is None or item.get("kind", "script") == kind)]
 
 def _write_script_skill_json(path, data):

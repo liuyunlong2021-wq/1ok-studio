@@ -12,7 +12,7 @@ export interface SnapshotResponse {
 }
 
 export interface StandardizeResponse { standardized_text: string; model: string }
-export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; files?: Record<string, string>; entry?: string; has_backup?: boolean; created_at?: number; updated_at?: number }
+export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; validation_error?: string; files?: Record<string, string>; entry?: string; has_backup?: boolean; created_at?: number; updated_at?: number }
 type ScriptDocument = Record<string, unknown>;
 type ImportResponse = { content?: { content?: Array<{ type?: string }> } };
 

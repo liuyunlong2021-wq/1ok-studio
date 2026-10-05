@@ -182,7 +182,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   };
 
   const useExisting = (item: ScriptSkill) => {
-    if (busy || item.hidden) return;
+    if (busy || item.hidden || item.validation_error) return;
     // Importing identical content needs no write; selecting it resolves the upload draft.
     if (!sameContent && !canLeave()) return;
     onChange(items.filter((entry) => !entry.hidden), item.id);
@@ -230,7 +230,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
             <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-auto">
               {loading && <p className="p-2 text-xs text-text-muted">加载中…</p>}
               {visible.map((item) => <button key={item.id} type="button" disabled={busy} onClick={() => { if (canLeave()) loadItem(item); }} className={`w-full rounded-lg p-3 text-left text-xs ${item.id === selectedId ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-hover-bg'} ${item.hidden ? 'opacity-60' : ''}`}>
-                <div className="break-words font-medium">{item.name}</div><div className="mt-1 text-[0.625rem] text-text-muted">{item.is_builtin ? '内置' : '自定义'}{item.hidden ? ' · 已隐藏' : ''}{item.id === activeId && !item.hidden ? ' · 使用中' : ''}</div>
+                <div className="break-words font-medium">{item.name}</div><div className="mt-1 text-[0.625rem] text-text-muted">{item.is_builtin ? '内置' : '自定义'}{item.hidden ? ' · 已隐藏' : ''}{item.validation_error ? ' · 需修复' : ''}{item.id === activeId && !item.hidden ? ' · 使用中' : ''}</div>
                 {item.updated_at && <div className="mt-1 text-[0.625rem] text-text-muted">{new Date(item.updated_at * 1000).toLocaleString('zh-CN')}</div>}
               </button>)}
               {!loading && !visible.length && <p className="p-2 text-xs text-text-muted">没有匹配的 Skill</p>}
@@ -242,6 +242,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
             <label className="flex min-h-0 flex-1 flex-col text-xs text-text-secondary">{files ? '规则文件' : '完整内容'}{files && <select className="mt-1 rounded border bg-surface p-2" value={activeFile} onChange={(event) => setActiveFile(event.target.value)}>{Object.keys(files).map((path) => <option key={path} value={path}>{path}{path === entry ? ' · 主规则' : ''}</option>)}</select>}<textarea value={activeFile === entry ? content : files?.[activeFile] ?? ''} disabled={busy || loading} onChange={(event) => { if (activeFile === entry) setContent(event.target.value); else setFiles((previous) => ({ ...previous, [activeFile]: event.target.value })); }} spellCheck={false} className="mt-1 min-h-[100px] flex-1 resize-none rounded-lg border border-border-subtle bg-input-bg p-3 font-mono text-xs leading-relaxed text-foreground" /></label>
             {sameContent && <div className="rounded-lg bg-primary/10 p-3 text-xs">相同内容已存在：{sameContent.name}<div className="mt-2 flex flex-wrap gap-2">{!sameContent.hidden && <button type="button" className={BUTTON} onClick={() => useExisting(sameContent)}>选用已有 Skill</button>}<button type="button" className={BUTTON} onClick={copy}>另存一份</button></div></div>}
             {nameConflict && !sameContent && <div className="rounded-lg border border-border-subtle p-3 text-xs">已有同名 Skill，请选择更新或另存。<div className="mt-2 flex flex-wrap gap-2">{uploadDraft && matchingName.filter((item) => !item.is_builtin).map((item, index) => <button type="button" key={item.id} disabled={busy} className={BUTTON} onClick={() => save(item)}>更新已有{matchingName.length > 1 ? `（${index + 1}）` : ''}</button>)}<button type="button" className={BUTTON} onClick={copy}>另存一份</button></div></div>}
+            {selected?.validation_error && <p role="alert" className="text-xs text-red-400">需修复：{selected.validation_error}。可编辑主规则或附属文件后保存。</p>}
             {notice && <p role="status" className="text-xs text-primary">{notice}</p>}
             {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +258,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
         <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-border-subtle p-4">
           {busy && <Loader2 size={15} className="animate-spin" />}
           <button type="button" disabled={busy || loading || !dirty} className={BUTTON} onClick={() => { if (canLeave()) loadItem(selected ?? items.find((item) => item.id === activeId) ?? items[0]); }}>取消修改</button>
-          {selected && !selected.hidden && <button type="button" disabled={busy || loading || dirty} className={BUTTON} onClick={() => useExisting(selected)}>使用此 Skill</button>}
+          {selected && !selected.hidden && <button type="button" disabled={busy || loading || dirty || !!selected.validation_error} className={BUTTON} onClick={() => useExisting(selected)}>使用此 Skill</button>}
           <button type="button" disabled={busy || loading || !dirty || !name.trim() || !content.trim() || nameConflict || !!sameContent} onClick={() => save()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-accent disabled:opacity-40">保存</button>
           <button type="button" disabled={busy} onClick={close} className={BUTTON}>关闭</button>
         </footer>

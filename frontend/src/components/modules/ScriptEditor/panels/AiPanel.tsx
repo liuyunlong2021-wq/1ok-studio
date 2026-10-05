@@ -156,6 +156,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     if (scope && (scope.to > editor.state.doc.content.size || editor.state.doc.textBetween(scope.from, scope.to, '\n') !== scope.text)) {
       onScopeChange(null); setError('选区已变化，请重新框选或改为全文'); return;
     }
+    if (selectedSkill?.validation_error) { setError(`Skill 需要修复：${selectedSkill.validation_error}`); return; }
     const text = scope ? scope.text : purpose === 'prompt' ? editor.getText({ blockSeparator: '\n' }) : scriptTextOf(editor);
     if (!text.trim() && (purpose === 'script' || !instruction.trim())) { setError('请填写本次要求或输入正文'); return; }
     if (purpose === 'prompt' && (text.length > 200000 || instruction.length > 20000 || (selectedSkill?.content.length ?? 0) > 200000 || text.length + instruction.length + (selectedSkill?.content.length ?? 0) > 250000)) {
@@ -198,7 +199,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         </div>
         <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
           <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
-          {skills.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_builtin ? ' · 内置' : ''}</option>)}
+          {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.name}{item.is_builtin ? ' · 内置' : ''}{item.validation_error ? ' · 需修复' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
       </div>
@@ -229,7 +230,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         ) : null}
         {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
       </div>
-      <button type="button" onClick={send} disabled={busy || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
+      <button type="button" onClick={send} disabled={busy || !!selectedSkill?.validation_error || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{busy ? '生成中…' : '发送'}
       </button>
       {showManager && <ScriptSkillManager kind={skillKind} activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}
