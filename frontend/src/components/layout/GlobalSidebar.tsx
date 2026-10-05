@@ -1,12 +1,12 @@
 "use client";
 
-import { LayoutGrid, Layers, Wand2, Settings } from "lucide-react";
+import { LayoutGrid, Layers, Wand2, Settings, FilePenLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 import clsx from "clsx";
 import OneOkBranding from "./OneOkBranding";
 import { APP_VERSION } from "@/lib/version";
 
-export type GlobalTab = "workspace" | "library" | "playground" | "settings";
+export type GlobalTab = "workspace" | "library" | "playground" | "prompt-editor" | "settings";
 
 interface GlobalSidebarProps {
   activeTab: GlobalTab;
@@ -24,6 +24,7 @@ interface GlobalSidebarProps {
 export const GLOBAL_NAV_ITEMS: { id: GlobalTab; icon: typeof LayoutGrid; hash: string }[] = [
   { id: "workspace", icon: LayoutGrid, hash: "#/" },
   { id: "library", icon: Layers, hash: "#/library" },
+  { id: "prompt-editor", icon: FilePenLine, hash: "#/prompt-editor" },
   { id: "playground", icon: Wand2, hash: "#/playground" },
   { id: "settings", icon: Settings, hash: "#/settings" },
 ];

@@ -346,6 +346,7 @@
     "offlineBannerText": "网络已断开 — 重新连接后可继续操作"
   },
   "nav": {
+    "prompt-editor": "提示词编辑",
     "workspace": "工作区",
     "library": "资产库",
     "editor": "剧本编辑器",

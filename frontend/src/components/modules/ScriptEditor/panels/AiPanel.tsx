@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Send, Settings2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
+import { promptEditorApi } from '@/lib/promptEditorApi';
 import { scriptTextOf } from '../documentText';
 import ScriptSkillManager from '../dialogs/ScriptSkillManager';
 
@@ -27,6 +28,7 @@ export interface AiPreview {
    * 接受都报「原文已改动，作用范围失效」—— 可正文一个字都没动。
    */
   sourceText: string;
+  sourceDocument?: string;
 }
 
 /** 锁定的作用范围。`null` = 全文。 */
@@ -46,7 +48,8 @@ function readableRequestError(reason: unknown): string {
   return reason instanceof Error ? reason.message : '生成失败，请重试';
 }
 
-export default function AiPanel({ editor, projectId, onPreview, scope, onScopeChange }: {
+export default function AiPanel({ editor, projectId, onPreview, scope, onScopeChange, purpose = 'script' }: {
+  purpose?: 'script' | 'prompt';
   editor: Editor | null;
   projectId?: string;
   onPreview: (preview: AiPreview) => void;
@@ -54,6 +57,12 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   scope: AiScope | null;
   onScopeChange: (scope: AiScope | null) => void;
 }) {
+  const memoryId = purpose === 'prompt' ? 'prompt-editor' : projectId;
+  const skillKind = purpose === 'prompt' ? 'all' : 'script';
+  const contextId = useRef(projectId);
+  contextId.current = projectId;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [skills, setSkills] = useState<ScriptSkill[]>([]);
   const [skillId, setSkillId] = useState('');
   const skillIdRef = useRef('');
@@ -67,25 +76,25 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   useEffect(() => {
     let cancelled = false;
     let remembered: string | null = null;
-    try { remembered = projectId ? localStorage.getItem(selectionKey(projectId)) : null; } catch { /* Use the default on first load. */ }
+    try { remembered = memoryId ? localStorage.getItem(selectionKey(memoryId)) : null; } catch { /* Use the default on first load. */ }
     setLoadingSkills(true);
     setSkills([]);
     skillIdRef.current = '';
     setSkillId('');
     setError('');
-    scriptEditorApi.listScriptSkills().then((items) => {
+    scriptEditorApi.listScriptSkills(skillKind).then((items) => {
       if (cancelled) return;
       setSkills(items);
       const id = remembered && items.some((item) => item.id === remembered) ? remembered : '';
       skillIdRef.current = id;
       setSkillId(id);
       if (remembered && !id) {
-        rememberSkill(projectId, '');
+        rememberSkill(memoryId, '');
         setError('之前选择的 Skill 已删除或隐藏，请重新选择。');
       }
     }).catch(() => { if (!cancelled) setError('Skill 加载失败'); }).finally(() => { if (!cancelled) setLoadingSkills(false); });
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, memoryId, skillKind]);
 
   const applySkills = useCallback((items: ScriptSkill[], selectedId?: string) => {
     setSkills(items);
@@ -94,19 +103,19 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     const id = items.some((item) => item.id === candidateId) ? candidateId : '';
     skillIdRef.current = id;
     setSkillId(id);
-    rememberSkill(projectId, id);
+    rememberSkill(memoryId, id);
     if (previousId && !id) setError('当前 Skill 已删除或隐藏，请重新选择。');
     else setError('');
-  }, [projectId]);
+  }, [memoryId]);
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => { void scriptEditorApi.listScriptSkills().then((items) => { if (!cancelled) applySkills(items); }).catch(() => { if (!cancelled) setError('Skill 刷新失败'); }); };
+    const refresh = () => { void scriptEditorApi.listScriptSkills(skillKind).then((items) => { if (!cancelled) applySkills(items); }).catch(() => { if (!cancelled) setError('Skill 刷新失败'); }); };
     window.addEventListener('script-skills-changed', refresh);
     return () => { cancelled = true; window.removeEventListener('script-skills-changed', refresh); };
-  }, [applySkills]);
+  }, [applySkills, skillKind]);
 
-  useEffect(() => { setShowManager(false); setImportFile(undefined); }, [projectId]);
+  useEffect(() => { setShowManager(false); setImportFile(undefined); setInstruction(''); onScopeChange(null); }, [projectId, onScopeChange]);
 
   // 作用范围 = 用户最后一次**框选**的内容。
   // 光标（from === to）刻意不算：否则点一下面板、点一下正文，作用范围就会在
@@ -131,29 +140,50 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   // 空白不计入字数，否则「已框选 128 字」和看到的字对不上
   const scopeLength = scope ? scope.text.replace(/\s/g, '').length : 0;
 
+  useEffect(() => {
+    if (purpose !== 'prompt' || !editor) return;
+    const invalidate = () => {
+      if (scope && (scope.to > editor.state.doc.content.size || editor.state.doc.textBetween(scope.from, scope.to, '\n') !== scope.text)) onScopeChange(null);
+    };
+    editor.on('update', invalidate);
+    return () => { editor.off('update', invalidate); };
+  }, [editor, scope, onScopeChange, purpose]);
+
   const send = async () => {
     if (!editor || !projectId || (!selectedSkill && !instruction.trim()) || busy) return;
-    const text = scope ? scope.text : scriptTextOf(editor);
-    if (!text.trim()) return;
+    if (scope && (scope.to > editor.state.doc.content.size || editor.state.doc.textBetween(scope.from, scope.to, '\n') !== scope.text)) {
+      onScopeChange(null); setError('选区已变化，请重新框选或改为全文'); return;
+    }
+    const text = scope ? scope.text : purpose === 'prompt' ? editor.getText({ blockSeparator: '\n' }) : scriptTextOf(editor);
+    if (!text.trim() && (purpose === 'script' || !instruction.trim())) { setError('请填写本次要求或输入正文'); return; }
+    if (purpose === 'prompt' && (text.length > 200000 || instruction.length > 20000 || (selectedSkill?.content.length ?? 0) > 200000 || text.length + instruction.length + (selectedSkill?.content.length ?? 0) > 250000)) {
+      setError('本次输入过长，请缩小作用范围或精简要求／Skill；未截断内容'); return;
+    }
+    const requestId = projectId;
+    const sourceDocument = purpose === 'prompt' ? JSON.stringify(editor.getJSON()) : undefined;
     setBusy(true);
     setError('');
     try {
-      const result = await scriptEditorApi.standardizeScript(projectId, text, selectedSkill?.content ?? '', selectedSkill?.id, instruction);
+      const result = purpose === 'prompt'
+        ? { standardized_text: (await promptEditorApi.generate(projectId, { text, instruction, skill: selectedSkill?.content ?? '', skill_id: selectedSkill?.id ?? '' })).text }
+        : await scriptEditorApi.standardizeScript(projectId, text, selectedSkill?.content ?? '', selectedSkill?.id, instruction);
+      if (!mounted.current || contextId.current !== requestId) return;
       onPreview({
         text: result.standardized_text,
         range: scope ? { from: scope.from, to: scope.to } : null,
         sourceText: text,
+        sourceDocument,
       });
     } catch (reason) {
-      setError(readableRequestError(reason));
+      if (mounted.current) setError(readableRequestError(reason));
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   };
 
   return (
     <div className="flex h-full flex-col p-4">
-      <div><h2 className="text-sm font-semibold text-foreground">AI 修改剧本</h2><p className="mt-1 text-xs text-text-muted">输入修改要求，Skill 可选，结果将在左侧预览。</p></div>
+      <div><h2 className="text-sm font-semibold text-foreground">{purpose === 'prompt' ? 'AI 创作与修改' : 'AI 修改剧本'}</h2><p className="mt-1 text-xs text-text-muted">输入修改要求，Skill 可选，结果将在左侧预览。</p></div>
       <div className="mt-5 space-y-2">
         <div className="flex items-center justify-between">
           <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
@@ -162,8 +192,8 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
             <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
           </div>
         </div>
-        <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(projectId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
-          <option value="">{loadingSkills ? '加载中…' : '不使用 Skill · 按本次要求修改'}</option>
+        <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
+          <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
           {skills.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_builtin ? ' · 内置' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
@@ -185,7 +215,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
               </button>
             </>
           ) : (
-            <span className="text-text-muted">作用范围：全文（在左侧正文里框选，可只改选中的段落）</span>
+            <span className="text-text-muted">{purpose === 'prompt' && !editor?.getText().trim() ? '作用范围：从零创作' : '作用范围：全文（在左侧正文里框选，可只改选中的段落）'}</span>
           )}
         </div>
         {scope ? (
@@ -195,10 +225,10 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         ) : null}
         {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
       </div>
-      <button type="button" onClick={send} disabled={busy || !editor || !projectId || (!selectedSkill && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
+      <button type="button" onClick={send} disabled={busy || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{busy ? '生成中…' : '发送'}
       </button>
-      {showManager && <ScriptSkillManager activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}
+      {showManager && <ScriptSkillManager kind={skillKind} activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}
     </div>
   );
 }

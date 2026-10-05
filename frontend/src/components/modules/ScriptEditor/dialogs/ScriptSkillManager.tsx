@@ -31,7 +31,8 @@ function uniqueName(name: string, items: ScriptSkill[]) {
 
 const BUTTON = 'rounded-lg border border-border-subtle px-3 py-2 text-xs text-foreground hover:bg-hover-bg disabled:opacity-40';
 
-export default function ScriptSkillManager({ activeId, initialFile, onChange, onClose }: {
+export default function ScriptSkillManager({ activeId, initialFile, onChange, onClose, kind = 'script' }: {
+  kind?: 'script' | 'all';
   activeId: string;
   initialFile?: File;
   onChange: (items: ScriptSkill[], selectedId?: string) => void;
@@ -81,7 +82,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     let cancelled = false;
     const load = async () => {
       try {
-        const list = await scriptEditorApi.listScriptSkills('script', true);
+        const list = await scriptEditorApi.listScriptSkills(kind, true);
         const text = initialFile ? await initialFile.text() : null;
         if (cancelled) return;
         setItems(list);
@@ -102,7 +103,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     };
     void load();
     return () => { cancelled = true; };
-  }, [initialActiveId, initialFile]);
+  }, [initialActiveId, initialFile, kind]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -112,7 +113,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   }, [dirty]);
 
   const refresh = async (selectedForPanel?: string) => {
-    const list = await scriptEditorApi.listScriptSkills('script', true);
+    const list = await scriptEditorApi.listScriptSkills(kind, true);
     setItems(list);
     onChange(list.filter((item) => !item.hidden), selectedForPanel);
     window.dispatchEvent(new Event('script-skills-changed'));
@@ -132,7 +133,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     void operate(async () => {
       const target = updateTarget ?? selected;
       const saved = target
-        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, 'script')
+        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, target?.kind ?? 'script')
         : await scriptEditorApi.createScriptSkill(name.trim(), content, 'script');
       const list = await refresh(target ? undefined : saved.id);
       loadItem(list.find((item) => item.id === saved.id));

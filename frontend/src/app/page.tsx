@@ -26,6 +26,7 @@ const SeriesDetailPage = dynamic(() => import("@/components/series/SeriesDetailP
 const ImportFileDialog = dynamic(() => import("@/components/series/ImportFileDialog"), { ssr: false });
 const SettingsPage = dynamic(() => import("@/components/settings/SettingsPage"), { ssr: false });
 const AssetLibraryPage = dynamic(() => import("@/components/library/AssetLibraryPage"), { ssr: false });
+const PromptEditorPage = dynamic(() => import("@/components/modules/PromptEditor/PromptEditorPage"), { ssr: false });
 const PlaygroundPage = dynamic(() => import("@/components/modules/playground/PlaygroundPage"), { ssr: false });
 
 // ── Create Series Dialog ──
@@ -461,7 +462,8 @@ export default function Home() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'project' | 'series' | 'series-episode' | 'library' | 'settings' | 'playground' | 'project-editor'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'project' | 'series' | 'series-episode' | 'library' | 'settings' | 'playground' | 'project-editor' | 'prompt-editor'>('home');
+  const [promptEditorOpened, setPromptEditorOpened] = useState(false);
   const [activeTab, setActiveTab] = useState<GlobalTab>("workspace");
   const [wsSearch, setWsSearch] = useState("");
   const online = useOnline();
@@ -637,6 +639,13 @@ export default function Home() {
         setEpisodeId(null);
         return;
       }
+      if (hash === '#/prompt-editor') {
+        setPromptEditorOpened(true);
+        setCurrentView('prompt-editor');
+        setActiveTab('prompt-editor');
+        setProjectId(null); setSeriesId(null); setEpisodeId(null);
+        return;
+      }
       if (hash === '#/playground') {
         setCurrentView('playground');
         setActiveTab('playground');
@@ -702,6 +711,7 @@ export default function Home() {
 
   // Determine content based on activeTab
   const renderContent = () => {
+    if (currentView === 'prompt-editor') return null;
     if (currentView === 'library') {
       return <AssetLibraryPage />;
     }
@@ -1092,6 +1102,7 @@ export default function Home() {
       {/* AppShell with GlobalSidebar + content */}
       <div className="relative z-10 flex-1 overflow-hidden">
         <AppShell activeTab={activeTab} onTabChange={handleTabChange}>
+          {promptEditorOpened && <div className={currentView === 'prompt-editor' ? 'h-full' : 'hidden'}><PromptEditorPage /></div>}
           {renderContent()}
         </AppShell>
       </div>

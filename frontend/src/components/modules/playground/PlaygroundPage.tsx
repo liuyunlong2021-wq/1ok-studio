@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
+import { getPromptMaxLength } from './promptLimits';
 import ModeSelector from './ModeSelector';
 import ModelSelector from './ModelSelector';
 import MediaInput from './MediaInput';
@@ -175,7 +176,7 @@ export default function PlaygroundPage() {
   // ─── Generate handler — enqueue a request; the dispatcher runs it ──────────
 
   const handleGenerate = useCallback(() => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || prompt.length > getPromptMaxLength(modelId)) return;
     // Auto-detect i2i: t2i + reference images -> i2i
     const effectiveMode = (mode === 't2i' && inputMedia.length > 0) ? 'i2i' : mode;
     enqueueRequest({
@@ -238,7 +239,7 @@ export default function PlaygroundPage() {
 
   const resultCount = history.reduce((n, g) => n + g.outputs.filter((o) => !o.hidden).length, 0);
   const showMediaInput = MODES_WITH_MEDIA.includes(mode) || MODES_WITH_OPTIONAL_MEDIA.includes(mode);
-  const canGenerate = prompt.trim().length > 0 && (mode !== 'r2a' || inputMedia.length > 0);
+  const canGenerate = prompt.trim().length > 0 && prompt.length <= getPromptMaxLength(modelId) && (mode !== 'r2a' || inputMedia.length > 0);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

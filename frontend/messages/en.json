@@ -346,6 +346,7 @@
     "offlineBannerText": "You're offline — you can continue once reconnected"
   },
   "nav": {
+    "prompt-editor": "Prompt Editor",
     "workspace": "Workspace",
     "library": "Library",
     "editor": "Script Editor",

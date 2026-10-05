@@ -29,7 +29,7 @@ export const scriptEditorApi = {
     await axios.put(`${API_URL}/projects/${projectId}/text`, { text });
   },
 
-  listScriptSkills: async (kind: 'script' | 'motion' = 'script', includeHidden = false): Promise<ScriptSkill[]> => (await axios.get(`${API_URL}/script-skills`, { params: { kind, include_hidden: includeHidden } })).data,
+  listScriptSkills: async (kind: 'script' | 'motion' | 'all' = 'script', includeHidden = false): Promise<ScriptSkill[]> => (await axios.get(`${API_URL}/script-skills`, { params: { kind: kind === 'all' ? undefined : kind, include_hidden: includeHidden } })).data,
   createScriptSkill: async (name: string, content: string, kind: 'script' | 'motion' = 'script'): Promise<ScriptSkill> => (await axios.post(`${API_URL}/script-skills`, { name, content, kind })).data,
   updateScriptSkill: async (id: string, name: string, content: string, kind?: 'script' | 'motion'): Promise<ScriptSkill> => (await axios.put(`${API_URL}/script-skills/${id}`, { name, content, kind })).data,
   deleteScriptSkill: async (id: string): Promise<void> => { await axios.delete(`${API_URL}/script-skills/${id}`); },

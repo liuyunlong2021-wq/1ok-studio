@@ -6,10 +6,12 @@ import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import { useTranslations } from 'next-intl';
 import { useEditorStore } from '@/store/editorStore';
-import { scriptExtensions } from '../extensions';
+import { scriptExtensions, AiScopeHighlight } from '../extensions';
+import { Fragment, Slice } from '@tiptap/pm/model';
 
 interface UseEditorSetupOptions {
   /** Initial document content (Tiptap JSON or HTML string) */
+  purpose?: 'script' | 'prompt';
   content?: string | Record<string, unknown> | null;
   /** Whether the editor should be immediately editable */
   editable?: boolean;
@@ -28,7 +30,7 @@ interface UseEditorSetupOptions {
  * - Cleans up editor on unmount
  */
 export function useEditorSetup(options: UseEditorSetupOptions = {}) {
-  const { content = '', editable = true } = options;
+  const { content = '', editable = true, purpose = 'script' } = options;
   const t = useTranslations('scriptEditor');
 
   const editor = useEditor({
@@ -36,7 +38,7 @@ export function useEditorSetup(options: UseEditorSetupOptions = {}) {
       StarterKit.configure({
         // Disable defaults that conflict with our custom nodes
         heading: false,
-        paragraph: false,
+        paragraph: purpose === 'prompt' ? undefined : false,
         // The list extensions depend on the paragraph node
         // (listItem content = 'paragraph block*'). Since paragraph is
         // disabled above, they must be disabled too, otherwise the
@@ -64,9 +66,10 @@ export function useEditorSetup(options: UseEditorSetupOptions = {}) {
           depth: 200,
         },
       }),
-      ...scriptExtensions,
+      ...(purpose === 'script' ? scriptExtensions : [AiScopeHighlight]),
       Placeholder.configure({
         placeholder: ({ node }) => {
+          if (purpose === 'prompt') return '输入内容，或在右侧描述你想生成什么…';
           if (node.type.name === 'sceneHeading') {
             return t('placeholders.sceneHeading');
           }
@@ -75,9 +78,22 @@ export function useEditorSetup(options: UseEditorSetupOptions = {}) {
       }),
       CharacterCount,
     ],
+    ...(purpose === 'prompt' ? { enableInputRules: false, enablePasteRules: false } : {}),
+    editorProps: {
+      handlePaste: (view, event) => {
+        if (purpose !== 'prompt') return false;
+        const text = event.clipboardData?.getData('text/plain');
+        if (text === undefined) return false;
+        event.preventDefault();
+        const nodes = text.replace(/\r\n?/g, '\n').split('\n').map((line) => view.state.schema.nodes.paragraph.create(null, line ? view.state.schema.text(line) : undefined));
+        view.dispatch(view.state.tr.replaceSelection(new Slice(Fragment.fromArray(nodes), 1, 1)));
+        return true;
+      },
+    },
     content: content || '',
     editable,
     onUpdate: ({ editor }) => {
+      if (purpose === 'prompt') return;
       const store = useEditorStore.getState();
       store.setDirty(true);
       // Update word count derivation

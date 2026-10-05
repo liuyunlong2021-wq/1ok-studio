@@ -11,8 +11,9 @@ import { analyzeText, buildFormattedContent } from '../hooks/usePasteHandler';
  * 结果 AI 标准化的剧本进来后场次标题、角色名、对白全部丢结构（左侧场景
  * 导航和角色面板因此永远是空的）。改格式不许再各写一套解析。
  */
-export function textToEditorDocument(text: string) {
+export function textToEditorDocument(text: string, purpose: 'script' | 'prompt' = 'script') {
   const normalized = text.replace(/\r\n?/g, '\n');
+  if (purpose === 'prompt') return { type: 'doc', content: normalized.split('\n').map((line) => ({ type: 'paragraph', content: line ? [{ type: 'text', text: line }] : [] })) };
   const nodes = buildFormattedContent(normalized, analyzeText(normalized).suggestions);
   // 空文本也要是个合法 doc，否则 setContent 会清不干净。
   return { type: 'doc', content: nodes.length ? nodes : [{ type: 'action', content: [] }] };
@@ -38,25 +39,26 @@ export function clampPreviewRange(
 
 /** 预览生成时那段原文，跟现在的正文还对得上吗？对不上就不能改 —— 改了就是改错地方。 */
 export function previewSourceChanged(editor: Editor, preview: AiPreview): boolean {
+  if (preview.sourceDocument !== undefined) return JSON.stringify(editor.getJSON()) !== preview.sourceDocument;
   if (!preview.range) return false; // 全文：不存在「对不上」
   const range = clampPreviewRange(editor.state.doc.content.size, preview.range);
   const current = range ? editor.state.doc.textBetween(range.from, range.to, '\n') : '';
   return current !== preview.sourceText;
 }
 
-export function applyAiPreview(editor: Editor, preview: AiPreview) {
-  const document = textToEditorDocument(preview.text);
+export function applyAiPreview(editor: Editor, preview: AiPreview, purpose: 'script' | 'prompt' = 'script') {
+  const document = textToEditorDocument(preview.text, purpose);
   const range = clampPreviewRange(editor.state.doc.content.size, preview.range);
   if (range) editor.commands.insertContentAt(range, document.content);
   else editor.commands.setContent(document);
   editor.commands.focus();
 }
 
-export default function AiResultPreview({ text, onAccept, onDiscard }: { text: string; onAccept: () => void; onDiscard: () => void }) {
+export default function AiResultPreview({ text, onAccept, onDiscard, purpose = 'script' }: { text: string; onAccept: () => void; onDiscard: () => void; purpose?: 'script' | 'prompt' }) {
   return (
     <div className="mx-auto max-w-[720px] px-8 py-10">
       <div className="mb-4 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
-        <div><p className="text-sm font-medium text-foreground">AI 修改预览</p><p className="text-xs text-text-muted">接受前不会写入剧本。</p></div>
+        <div><p className="text-sm font-medium text-foreground">AI 修改预览</p><p className="text-xs text-text-muted">{purpose === 'prompt' ? '接受前不会写入正文。' : '接受前不会写入剧本。'}</p></div>
         <div className="flex gap-2"><button type="button" onClick={onDiscard} className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs text-foreground">放弃</button><button type="button" onClick={onAccept} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-on-accent">接受修改</button></div>
       </div>
       <pre className="min-h-[60vh] whitespace-pre-wrap rounded-xl border border-border-subtle bg-surface p-6 font-sans text-sm leading-7 text-foreground">{text}</pre>
