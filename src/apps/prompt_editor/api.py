@@ -182,6 +182,14 @@ def restore_document(document_id: str, version_id: str, request: DocumentRestore
         return _public(document)
 
 
+@router.post("/{document_id}/validate-images")
+async def validate_images(document_id: str, request: PromptContext):
+    with _LOCK:
+        _find(_read(), document_id)
+    await asyncio.get_running_loop().run_in_executor(None, lambda: vision_content(request.images, ""))
+    return {"ok": True}
+
+
 @router.post("/{document_id}/generate")
 async def generate_text(document_id: str, request: TextGenerate):
     with _LOCK:

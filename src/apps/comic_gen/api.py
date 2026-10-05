@@ -233,7 +233,7 @@ def _read_script_skills(kind=None, include_hidden=False):
             saved = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         saved = []
-    overrides = {item["id"]: item for item in saved if item.get("is_builtin")}
+    overrides = {item["id"]: (item if item.get("modified") else {key: value for key, value in item.items() if key not in ("name", "content")}) for item in saved if item.get("is_builtin")}
     items = [{**item, **overrides.get(item["id"], {})} for item in BUILTIN_SCRIPT_SKILLS]
     store = SkillPackageStore()
     engineering = store.get("builtin:engineering-screenplay")
@@ -262,7 +262,7 @@ def _write_script_skill_json(path, data):
             os.remove(temporary)
 
 def _write_script_skills(items):
-    _write_script_skill_json(SKILLS_FILE, [item for item in items if not item["id"].startswith(("builtin:", "skillpkg_")) and item["id"] != "builtin-engineering"])
+    _write_script_skill_json(SKILLS_FILE, [item for item in items if not item["id"].startswith(("builtin:", "skillpkg_")) and item["id"] != "builtin-engineering" and (not item.get("is_builtin") or item.get("history"))])
 
 def _set_deleted_builtin(skill_id, deleted):
     if skill_id in {item["id"] for item in BUILTIN_SCRIPT_SKILLS}:
@@ -649,6 +649,14 @@ def create_script_skill(request: ScriptSkillRequest):
     with _SCRIPT_SKILLS_LOCK:
         items = _read_script_skills(include_hidden=True)
         _validate_script_skill(request, items)
+        if request.files:
+            store = SkillPackageStore()
+            try:
+                package = store.create(request.files, request.name)
+                store.manage(package["id"], name=request.name.strip(), contents=request.files)
+            except SkillPackageError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            return next(item for item in _read_script_skills(include_hidden=True) if item["id"] == package["id"])
         item = {"id": f"skill-{uuid.uuid4().hex}", "name": request.name.strip(), "content": request.content, "scope": "user", "is_builtin": False, "kind": request.kind or "script", "created_at": time.time(), "updated_at": time.time()}
         items.append(item)
         _write_script_skills(items)
@@ -661,6 +669,7 @@ def update_script_skill(skill_id: str, request: ScriptSkillRequest):
         found = next((item for item in items if item["id"] == skill_id), None)
         if not found:
             raise HTTPException(status_code=404, detail="Skill 不存在")
+        _validate_script_skill(request, items, skill_id)
         if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
             package_id = "builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id
             store = SkillPackageStore()
@@ -671,9 +680,9 @@ def update_script_skill(skill_id: str, request: ScriptSkillRequest):
             except SkillPackageError as exc:
                 raise HTTPException(400, str(exc)) from exc
             return next(item for item in _read_script_skills(include_hidden=True) if item["id"] == skill_id)
-        _validate_script_skill(request, items, skill_id)
         if found.get("is_builtin"):
             found.setdefault("history", []).append({"name": found["name"], "content": found["content"]})
+            found.update(modified=True, has_backup=True)
         found.update(name=request.name.strip(), content=request.content, updated_at=time.time())
         if request.kind:
             found["kind"] = request.kind
@@ -716,9 +725,25 @@ def reset_script_skill(skill_id: str, recover: bool = False):
                 raise HTTPException(400, "没有修改备份")
             target = history[-1] if recover else default
             history.append({"name": found["name"], "content": found["content"]})
-            found.update(name=target["name"], content=target["content"], updated_at=time.time(), has_backup=True)
+            found.update(name=target["name"], content=target["content"], updated_at=time.time(), has_backup=True, modified=recover)
             _write_script_skills(items)
         return {"ok": True}
+
+
+@app.get("/script-skills/{skill_id}/export")
+def export_script_skill(skill_id: str):
+    import io
+    import zipfile
+    from fastapi.responses import Response
+    with _SCRIPT_SKILLS_LOCK:
+        item = next((item for item in _read_script_skills(include_hidden=True) if item["id"] == skill_id), None)
+        if not item:
+            raise HTTPException(404, "Skill 不存在")
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path, text in (item.get("files") or {"SKILL.md": item["content"]}).items():
+                archive.writestr(path, text)
+        return Response(buffer.getvalue(), media_type="application/zip")
 
 
 class MotionPromptReference(BaseModel):

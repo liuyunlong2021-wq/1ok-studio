@@ -34,7 +34,7 @@ def image_data(reference):
                     raise ValueError('单张图片超过 10MB')
         data = bytes(data)
     else:
-        for prefix in ('/files/outputs/', '/files/output/', '/files/', 'files/', 'outputs/', 'output/'):
+        for prefix in ('/files/outputs/', '/files/output/', '/files/', 'files/', '/outputs/', '/output/', 'outputs/', 'output/'):
             if raw.startswith(prefix):
                 raw = raw[len(prefix):]
                 break

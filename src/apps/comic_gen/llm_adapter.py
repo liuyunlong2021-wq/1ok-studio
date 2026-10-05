@@ -348,7 +348,10 @@ class LLMAdapter:
                     raise RuntimeError("模型返回了空正文，请重试")
                 return content
             response = client.chat.completions.create(**kwargs)
-            return response.choices[0].message.content
+            choice = response.choices[0]
+            if choice.finish_reason != "stop" or not choice.message.content:
+                raise RuntimeError("模型响应为空或未完整结束，未采用不完整正文")
+            return choice.message.content
         except Exception as e:
             label = provider_label or {
                 "openai": "OpenAI",

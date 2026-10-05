@@ -181,15 +181,27 @@ router.add_api_route("/templates/{template_id}", delete_template, methods=["DELE
 UPLOAD_DIR = os.path.join("output", "playground", "uploads")
 
 
-async def upload_media(file: UploadFile = File(...)):
+async def upload_media(file: UploadFile = File(...), purpose: str = ""):
     """Upload a media file for use as playground input (reference image, first frame, etc.)."""
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     ext = os.path.splitext(file.filename or "file")[1] or ".bin"
     filename = f"{uuid.uuid4()}{ext}"
     dest = os.path.join(UPLOAD_DIR, filename)
-    contents = await file.read()
+    if purpose == "prompt":
+        from ..prompt_editor.images import MAX_BYTES, image_data
+        contents = await file.read(MAX_BYTES + 1)
+        if len(contents) > MAX_BYTES:
+            raise HTTPException(400, "单张参考图不能超过 10MB")
+    else:
+        contents = await file.read()
     with open(dest, "wb") as f:
         f.write(contents)
+    if purpose == "prompt":
+        try:
+            image_data(dest)
+        except Exception as exc:
+            os.remove(dest)
+            raise HTTPException(400, f"参考图无效：{exc}") from exc
     return {"path": dest}
 
 
