@@ -1838,6 +1838,7 @@ export interface PlaygroundGenerationResponse {
     media_path: string;
     media_type: string;
     thumbnail_path?: string;
+    hidden?: boolean;
     saved_to_library: boolean;
   }>;
   status: string;
@@ -1873,6 +1874,9 @@ export const playgroundApi = {
 
   deleteGeneration: (id: string) =>
     axios.delete(API_URL + "/playground/history/" + id).then(r => r.data),
+
+  setOutputVisibility: (items: Array<{ generation_id: string; output_id: string }>, hidden: boolean) =>
+    axios.patch<PlaygroundGenerationResponse[]>(API_URL + "/playground/outputs/visibility", { items, hidden }).then(r => r.data),
 
   saveToLibrary: (generationId: string, outputId: string, category?: string) =>
     axios.post(API_URL + "/playground/history/" + generationId + "/outputs/" + outputId + "/save-to-library", { category: category || "general" }).then(r => r.data),

@@ -56,6 +56,7 @@ function toGeneration(resp: PlaygroundGenerationResponse): PlaygroundGeneration 
       media_type: o.media_type as 'image' | 'video' | 'audio',
       thumbnail_path: o.thumbnail_path,
       saved_to_library: o.saved_to_library,
+      hidden: o.hidden,
     })),
     status: resp.status as PlaygroundGeneration['status'],
     error: resp.error,
@@ -94,9 +95,20 @@ export default function PlaygroundPage() {
   // ─── Fetch initial data on mount ───────────────────────────────────────────
 
   useEffect(() => {
-    playgroundApi.getHistory().then((items) => {
-      setHistory(items.map(toGeneration));
-    }).catch((err) => {
+    let cancelled = false;
+    (async () => {
+      const items: PlaygroundGenerationResponse[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const page = await playgroundApi.getHistory(100, offset);
+        if (cancelled) return;
+        items.push(...page);
+        if (page.length < 100) break;
+      }
+      const fresh = usePlaygroundStore.getState().history;
+      const combined = new Map(items.map((item) => [item.id, toGeneration(item)]));
+      fresh.forEach((item) => { if (!combined.has(item.id)) combined.set(item.id, item); });
+      setHistory(Array.from(combined.values()));
+    })().catch((err) => {
       console.error('[Playground] Failed to fetch history:', err);
     });
 
@@ -118,6 +130,7 @@ export default function PlaygroundPage() {
     }).catch((err) => {
       console.error('[Playground] Failed to fetch templates:', err);
     });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -223,7 +236,7 @@ export default function PlaygroundPage() {
 
   // ─── Derived values ────────────────────────────────────────────────────────
 
-  const resultCount = history.reduce((n, g) => n + g.outputs.length, 0);
+  const resultCount = history.reduce((n, g) => n + g.outputs.filter((o) => !o.hidden).length, 0);
   const showMediaInput = MODES_WITH_MEDIA.includes(mode) || MODES_WITH_OPTIONAL_MEDIA.includes(mode);
   const canGenerate = prompt.trim().length > 0 && (mode !== 'r2a' || inputMedia.length > 0);
 

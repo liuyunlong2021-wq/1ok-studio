@@ -63,6 +63,7 @@ export interface PlaygroundOutput {
   media_path: string;
   media_type: 'image' | 'video' | 'audio';
   thumbnail_path?: string;
+  hidden?: boolean;
   saved_to_library: boolean;
 }
 

@@ -3,7 +3,7 @@
 import { getModelDisplayInfo } from './playgroundModels';
 
 import { useState, useCallback } from 'react';
-import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen } from 'lucide-react';
+import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen, MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { saveMedia, revealMedia } from '@/lib/mediaActions';
@@ -16,6 +16,8 @@ interface ResultCardProps {
   onGenerateVideo?: (imagePath: string) => void;
   onRetry?: (generation: PlaygroundGeneration) => void;
   onOpenDetail?: (generation: PlaygroundGeneration, outputId?: string) => void;
+  onVisibilityChange?: (generation: PlaygroundGeneration, outputId: string, hidden: boolean) => void;
+  visibilityBusy?: boolean;
   onDelete?: (generation: PlaygroundGeneration) => void;
 }
 
@@ -129,7 +131,7 @@ function FailedCard({ generation, onRetry, onDelete }: { generation: PlaygroundG
   );
 }
 
-function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail }: { generation: PlaygroundGeneration; outputIndex: number; onGenerateVideo?: (path: string) => void; onOpenDetail?: (generation: PlaygroundGeneration, outputId?: string) => void }) {
+function CompletedCard({ generation, outputIndex = 0, onGenerateVideo, onOpenDetail, onVisibilityChange, visibilityBusy }: ResultCardProps) {
   const { prompt, model_id, mode, outputs, created_at } = generation;
   const t = useTranslations('playground');
   const output = outputs[outputIndex];
@@ -176,10 +178,11 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
       if (newSaved) {
         await playgroundApi.saveToLibrary(generation.id, output.id);
       }
-      const updatedOutputs = generation.outputs.map((o) =>
+      const original = usePlaygroundStore.getState().history.find((g) => g.id === generation.id) ?? generation;
+      const updatedOutputs = original.outputs.map((o) =>
         o.id === output.id ? { ...o, saved_to_library: newSaved } : o
       );
-      updateGeneration({ ...generation, outputs: updatedOutputs });
+      updateGeneration({ ...original, outputs: updatedOutputs });
     } catch (err) {
       console.error('[Playground] Save to library failed:', err);
     } finally {
@@ -209,9 +212,23 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
 
   return (
     <div
-      className={`group rounded-[20px] border bg-glass atelier-asset-card overflow-hidden transition cursor-pointer ${saved ? 'border-primary/40 ring-1 ring-primary/30' : 'border-glass-border hover:border-foreground/30'}`}
+      className={`relative group rounded-[20px] border bg-glass atelier-asset-card overflow-hidden transition cursor-pointer ${saved ? 'border-primary/40 ring-1 ring-primary/30' : 'border-glass-border hover:border-foreground/30'}`}
       onClick={() => onOpenDetail?.(generation, output.id)}
     >
+      {onVisibilityChange && output && (
+        <details className="absolute right-2 top-2 z-20" onClick={(e) => e.stopPropagation()}>
+          <summary aria-label="媒体管理" className="list-none cursor-pointer rounded-full bg-surface/95 p-2 shadow">
+            <MoreHorizontal size={16} />
+          </summary>
+          <div className="absolute right-0 mt-1 w-44 rounded-xl border border-border-subtle bg-surface p-1 shadow-lg">
+            <button type="button" disabled={visibilityBusy} className="w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-hover-bg disabled:opacity-50"
+              onClick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); onVisibilityChange(generation, output.id, !output.hidden); }}>
+              {output.hidden ? '恢复到创作台' : '从创作台移除'}
+            </button>
+            <p className="px-3 pb-2 text-[10px] text-text-muted">本地文件继续保留</p>
+          </div>
+        </details>
+      )}
       {/* Media area */}
       <div className="relative overflow-hidden bg-elevated" style={{ aspectRatio: '16/9' }}>
         {mediaUrl ? (
@@ -277,7 +294,7 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
 
         {/* Saved pill top-right */}
         {saved && (
-          <span className="absolute top-2 right-2 z-[2] atelier-badge font-mono text-[0.5625rem] bg-primary/15 text-primary border border-primary/30 rounded px-[6px] py-[2px] uppercase">
+          <span className="absolute top-2 right-12 z-[2] atelier-badge font-mono text-[0.5625rem] bg-primary/15 text-primary border border-primary/30 rounded px-[6px] py-[2px] uppercase">
             {t('card.saved')}
           </span>
         )}
@@ -365,7 +382,7 @@ function CompletedCard({ generation, outputIndex, onGenerateVideo, onOpenDetail 
   );
 }
 
-export default function ResultCard({ generation, outputIndex = 0, onGenerateVideo, onRetry, onOpenDetail, onDelete }: ResultCardProps) {
+export default function ResultCard({ generation, outputIndex = 0, onGenerateVideo, onRetry, onOpenDetail, onDelete, onVisibilityChange, visibilityBusy }: ResultCardProps) {
   const { status, prompt, model_id, mode, created_at } = generation;
   const t = useTranslations('playground');
 
@@ -426,5 +443,5 @@ export default function ResultCard({ generation, outputIndex = 0, onGenerateVide
   }
 
   // ─── COMPLETED STATE ────────────────────────────────────────────────────────
-  return <CompletedCard generation={generation} outputIndex={outputIndex} onGenerateVideo={onGenerateVideo} onOpenDetail={onOpenDetail} />;
+  return <CompletedCard generation={generation} outputIndex={outputIndex} onGenerateVideo={onGenerateVideo} onOpenDetail={onOpenDetail} onVisibilityChange={onVisibilityChange} visibilityBusy={visibilityBusy} />;
 }

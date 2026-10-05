@@ -13,6 +13,8 @@ import type { PlaygroundGeneration } from './usePlaygroundStore';
 interface GalleryViewProps {
   generations: PlaygroundGeneration[];
   onOpenDetail: (gen: PlaygroundGeneration) => void;
+  onVisibilityChange?: (gen: PlaygroundGeneration, outputId: string, hidden: boolean) => void;
+  visibilityBusy?: boolean;
   onRetry?: (gen: PlaygroundGeneration) => void;
 }
 
@@ -41,6 +43,8 @@ export default function GalleryView({
   generations,
   onOpenDetail,
   onRetry,
+  onVisibilityChange,
+  visibilityBusy,
 }: GalleryViewProps) {
   const t = useTranslations('playground');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -106,6 +110,12 @@ export default function GalleryView({
 
   return (
     <div className="flex flex-col h-full">
+      {output && onVisibilityChange && <div className="flex justify-end px-6 py-2">
+        <button type="button" disabled={visibilityBusy} className="rounded-full bg-surface-inset px-3 py-2 text-xs disabled:opacity-50"
+          onClick={() => onVisibilityChange(current, output.id, !output.hidden)}>
+          {output.hidden ? '恢复到创作台' : '从创作台移除'}
+        </button>
+      </div>}
       {/* Main media area */}
       <div
         className="flex-1 min-h-0 overflow-hidden flex items-center justify-center p-6 bg-background"
@@ -114,14 +124,14 @@ export default function GalleryView({
         {current.status === 'completed' && mediaUrl ? (
           isVideo ? (
             <video
-              key={current.id}
+              key={`${current.id}-${output?.id}`}
               src={mediaUrl}
               controls
               className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all duration-200"
             />
           ) : (
             <img
-              key={current.id}
+              key={`${current.id}-${output?.id}`}
               src={mediaUrl}
               alt={current.prompt}
               className="max-w-full max-h-full object-contain rounded-lg cursor-pointer hover:scale-[1.01] hover:ring-2 hover:ring-primary/30 transition-all duration-200"
@@ -198,7 +208,7 @@ export default function GalleryView({
 
             return (
               <button
-                key={gen.id}
+                key={`${gen.id}-${genOutput?.id}`}
                 onClick={() => setSelectedIndex(idx)}
                 className={`w-14 h-14 rounded-md overflow-hidden border-2 cursor-pointer shrink-0 transition-colors ${
                   isSelected

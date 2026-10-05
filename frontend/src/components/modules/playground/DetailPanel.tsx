@@ -36,6 +36,8 @@ interface DetailPanelProps {
   onClose: () => void;
   onNavigate: (generation: PlaygroundGeneration) => void;
   onRetry?: (generation: PlaygroundGeneration) => void;
+  onVisibilityChange?: (generation: PlaygroundGeneration, outputId: string, hidden: boolean) => void;
+  visibilityBusy?: boolean;
   onGenerateVideo?: (imagePath: string) => void;
 }
 
@@ -80,6 +82,8 @@ export default function DetailPanel({
   onNavigate,
   onRetry,
   onGenerateVideo,
+  onVisibilityChange,
+  visibilityBusy,
 }: DetailPanelProps) {
   const t = useTranslations('playground');
   const [copied, setCopied] = useState(false);
@@ -92,12 +96,13 @@ export default function DetailPanel({
   const toggleFeatured = usePlaygroundStore((s) => s.toggleFeatured);
 
   // Always read the latest generation from store (so saved_to_library stays in sync)
-  const generation = history.find((g) => g.id === generationProp.id) ?? generationProp;
-  const saved = generation.outputs[0]?.saved_to_library ?? false;
+  const original = history.find((g) => g.id === generationProp.id) ?? generationProp;
+  const generation = { ...original, outputs: original.outputs.filter((o) => Boolean(o.hidden) === Boolean(generationProp.outputs[0]?.hidden)) };
 
   // Determine media — focus the clicked output of a batch, else the first.
   const output =
     generation.outputs.find((o) => o.id === focusOutputId) ?? generation.outputs[0];
+  const saved = output?.saved_to_library ?? false;
   const featured = output ? featuredByGen[generation.id] === output.id : false;
   const isVideo =
     output?.media_type === 'video' ||
@@ -200,10 +205,11 @@ export default function DetailPanel({
       if (newSaved) {
         await playgroundApi.saveToLibrary(generation.id, output.id);
       }
-      const updatedOutputs = generation.outputs.map((o) =>
+      const latest = usePlaygroundStore.getState().history.find((g) => g.id === original.id) ?? original;
+      const updatedOutputs = latest.outputs.map((o) =>
         o.id === output.id ? { ...o, saved_to_library: newSaved } : o
       );
-      updateGeneration({ ...generation, outputs: updatedOutputs });
+      updateGeneration({ ...latest, outputs: updatedOutputs });
     } catch (err) {
       console.error('[DetailPanel] Save to library failed:', err);
     } finally {
@@ -212,10 +218,15 @@ export default function DetailPanel({
   };
 
   const handleDelete = async () => {
-    if (deleting) return;
+    if (deleting || visibilityBusy) return;
+    if (output && onVisibilityChange) {
+      onVisibilityChange(generation, output.id, !output.hidden);
+      return;
+    }
     setDeleting(true);
     try {
       await playgroundApi.deleteGeneration(generation.id);
+      usePlaygroundStore.getState().removeGeneration(generation.id);
       onClose();
     } catch (err) {
       console.error('[DetailPanel] Delete failed:', err);
@@ -513,11 +524,11 @@ export default function DetailPanel({
             {/* Delete — subdued, red only on hover */}
             <button
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleting || visibilityBusy}
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-[0.8125rem] font-medium text-text-muted hover:text-status-failed-fg hover:bg-status-failed-bg transition disabled:opacity-40"
             >
               <Trash2 className="w-4 h-4" />
-              {deleting ? 'Deleting...' : 'Delete'}
+              {visibilityBusy || deleting ? '保存中…' : output ? (output.hidden ? '恢复到创作台' : '从创作台移除') : '删除失败记录'}
             </button>
           </div>
         </div>
