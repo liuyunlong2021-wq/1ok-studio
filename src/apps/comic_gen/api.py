@@ -656,15 +656,21 @@ def _validate_script_skill(request, items, skill_id=None):
 def create_script_skill(request: ScriptSkillRequest):
     with _SCRIPT_SKILLS_LOCK:
         items = _read_script_skills(include_hidden=True)
-        _validate_script_skill(request, items)
+        if not request.files:
+            equivalent = next((item for item in items if not item.get("hidden") and not item.get("validation_error") and item.get("kind", "script") == (request.kind or "script") and item["content"].replace("\r\n", "\n").strip() == request.content.replace("\r\n", "\n").strip()), None)
+            if equivalent:
+                return {**equivalent, "reused": True}
         if request.files:
             store = SkillPackageStore()
             try:
                 package = store.create(request.files, request.name)
-                store.manage(package["id"], name=request.name.strip(), contents=request.files, kind=request.kind or "script")
+                if not package.get("reused"):
+                    store.manage(package["id"], name=request.name.strip(), contents=request.files, kind=request.kind or "script")
             except SkillPackageError as exc:
                 raise HTTPException(400, str(exc)) from exc
-            return next(item for item in _read_script_skills(include_hidden=True) if item["id"] == package["id"])
+            selected_id = "builtin-engineering" if package["id"] == "builtin:engineering-screenplay" else package["id"]
+            return {**next(item for item in _read_script_skills(include_hidden=True) if item["id"] == selected_id), "reused": package.get("reused", False)}
+        _validate_script_skill(request, items)
         item = {"id": f"skill-{uuid.uuid4().hex}", "name": request.name.strip(), "content": request.content, "scope": "user", "is_builtin": False, "kind": request.kind or "script", "created_at": time.time(), "updated_at": time.time()}
         items.append(item)
         _write_script_skills(items)

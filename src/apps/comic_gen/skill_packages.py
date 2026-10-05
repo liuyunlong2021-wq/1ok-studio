@@ -164,6 +164,10 @@ class SkillPackageStore:
         return files
 
     def create(self, files: Dict[str, str], source_name: str) -> Dict[str, Any]:
+        with _MANAGEMENT_LOCK:
+            return self._create(files, source_name)
+
+    def _create(self, files: Dict[str, str], source_name: str) -> Dict[str, Any]:
         normalized = {self._safe_path(path): content for path, content in files.items()}
         entry = next((path for path in normalized if path.lower() == "skill.md"), None)
         if not entry:
@@ -176,6 +180,10 @@ class SkillPackageStore:
             if any("缺少引用文件" in item for item in validation["errors"]):
                 message += "。这个 Skill 引用了同目录下的其它文件，请改用「上传文件夹」或打包成 .zip 整包上传"
             raise SkillPackageError(message)
+        digest = self._digest(normalized)
+        for metadata in self.list():
+            if metadata["sha256"] == digest and self.get(metadata["id"])["contents"] == normalized:
+                return {**metadata, "reused": True}
         package_id = f"skillpkg_{uuid.uuid4().hex}"
         metadata = {
             "id": package_id,
