@@ -1,5 +1,7 @@
 'use client';
 
+import { selectableSkills } from '@/lib/skillSelection';
+
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Download, Loader2, Search, Upload, X } from 'lucide-react';
@@ -95,8 +97,9 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
           const uploaded = await api.uploadSkillPackage(initialFile);
           const refreshed = await scriptEditorApi.listScriptSkills(kind, true);
           if (cancelled) return;
-          setItems(refreshed); loadItem(refreshed.find((item) => item.id === uploaded.id));
-          onChange(refreshed.filter((item) => !item.hidden), uploaded.id); return;
+          setItems(refreshed); loadItem(refreshed.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)));
+          onChange(refreshed.filter((item) => !item.hidden), (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id));
+          setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 包已上传。'); return;
         }
         text = initialFile ? await initialFile.text() : null;
         if (cancelled) return;
@@ -152,14 +155,14 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
         : await scriptEditorApi.createScriptSkill(name.trim(), content, 'script', files ? { ...files, [entry]: content } : undefined);
       const list = await refresh(target ? undefined : saved.id);
       loadItem(list.find((item) => item.id === saved.id));
-      setNotice('已保存，后续请求使用新版内容。');
+      setNotice(saved.reused ? '相同内容已存在，已复用已有 Skill。' : '已保存，后续请求使用新版内容。');
     });
   };
 
   const upload = async (file?: File, replace = false) => {
     if (!file || !canLeave()) return;
     await operate(async () => {
-      if (file.name.toLowerCase().endsWith('.zip')) { const uploaded = await api.uploadSkillPackage(file); const list = await refresh(uploaded.id); loadItem(list.find((item) => item.id === uploaded.id)); setNotice('完整 Skill 包已上传。'); return; }
+      if (file.name.toLowerCase().endsWith('.zip')) { const uploaded = await api.uploadSkillPackage(file); const list = await refresh((uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id))); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 包已上传。'); return; }
       const text = (await file.text()).replace(/^\uFEFF/, '');
       if (!text.trim()) throw new Error('上传的文件内容为空');
       if (!replace) {
@@ -214,6 +217,11 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     });
   };
 
+  const choices = selectableSkills(items);
+  const skillLabel = (item: ScriptSkill) => {
+    const choice = choices.find((candidate) => candidate.aliases.includes(item.id));
+    return choice ? `${choice.displayName}${choice.aliases.length > 1 ? ` · 同内容副本 ${choice.aliases.indexOf(item.id) + 1}/${choice.aliases.length}` : ''}` : item.name;
+  };
   const visible = items.filter((item) => (filter === 'all' || (filter === 'hidden' ? item.hidden : filter === 'builtin' ? item.is_builtin : !item.is_builtin)) && item.name.toLowerCase().includes(query.toLowerCase()));
 
   return createPortal(
@@ -230,7 +238,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
             <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-auto">
               {loading && <p className="p-2 text-xs text-text-muted">加载中…</p>}
               {visible.map((item) => <button key={item.id} type="button" disabled={busy} onClick={() => { if (canLeave()) loadItem(item); }} className={`w-full rounded-lg p-3 text-left text-xs ${item.id === selectedId ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-hover-bg'} ${item.hidden ? 'opacity-60' : ''}`}>
-                <div className="break-words font-medium">{item.name}</div><div className="mt-1 text-[0.625rem] text-text-muted">{item.is_builtin ? '内置' : '自定义'}{item.hidden ? ' · 已隐藏' : ''}{item.validation_error ? ' · 需修复' : ''}{item.id === activeId && !item.hidden ? ' · 使用中' : ''}</div>
+                <div className="break-words font-medium">{skillLabel(item)}</div><div className="mt-1 text-[0.625rem] text-text-muted">{item.is_builtin ? '内置' : '自定义'}{item.hidden ? ' · 已隐藏' : ''}{item.validation_error ? ' · 需修复' : ''}{item.id === activeId && !item.hidden ? ' · 使用中' : ''}</div>
                 {item.updated_at && <div className="mt-1 text-[0.625rem] text-text-muted">{new Date(item.updated_at * 1000).toLocaleString('zh-CN')}</div>}
               </button>)}
               {!loading && !visible.length && <p className="p-2 text-xs text-text-muted">没有匹配的 Skill</p>}
@@ -263,7 +271,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
           <button type="button" disabled={busy} onClick={close} className={BUTTON}>关闭</button>
         </footer>
         <input ref={fileRef} type="file" accept={kind === 'all' ? '.md,.markdown,.txt,.zip' : '.md,.markdown,.txt'} className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
-        <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked); const list = await refresh(uploaded.id); loadItem(list.find((item) => item.id === uploaded.id)); setNotice('完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
+        <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked); const list = await refresh((uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id))); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
         <input ref={replaceRef} type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => { void upload(event.target.files?.[0], true); event.target.value = ''; }} />
       </div>
     </dialog>, document.body,

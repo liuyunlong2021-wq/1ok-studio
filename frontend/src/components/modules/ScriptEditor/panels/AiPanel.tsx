@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/react';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
 import { promptEditorApi, type PromptContext } from '@/lib/promptEditorApi';
 import { scriptTextOf } from '../documentText';
+import { selectableSkills, type SelectableSkill } from '@/lib/skillSelection';
 import ScriptSkillManager from '../dialogs/ScriptSkillManager';
 
 function selectionKey(projectId: string) { return `script-ai-skill:${projectId}`; }
@@ -65,7 +66,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   contextId.current = projectId;
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const [skills, setSkills] = useState<ScriptSkill[]>([]);
+  const [skills, setSkills] = useState<SelectableSkill[]>([]);
   const [skillId, setSkillId] = useState('');
   const skillIdRef = useRef('');
   const [instruction, setInstruction] = useState('');
@@ -86,8 +87,10 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     setError('');
     scriptEditorApi.listScriptSkills(skillKind).then((items) => {
       if (cancelled) return;
-      setSkills(items);
-      const id = remembered && items.some((item) => item.id === remembered) ? remembered : '';
+      const options = selectableSkills(items);
+      setSkills(options);
+      const id = options.find((item) => remembered && item.aliases.includes(remembered))?.id ?? '';
+      rememberSkill(memoryId, id);
       skillIdRef.current = id;
       setSkillId(id);
       if (remembered && !id) {
@@ -99,10 +102,11 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   }, [projectId, memoryId, skillKind]);
 
   const applySkills = useCallback((items: ScriptSkill[], selectedId?: string) => {
-    setSkills(items);
+    const options = selectableSkills(items);
+    setSkills(options);
     const previousId = skillIdRef.current;
     const candidateId = selectedId ?? previousId;
-    const id = items.some((item) => item.id === candidateId) ? candidateId : '';
+    const id = options.find((item) => item.aliases.includes(candidateId))?.id ?? '';
     skillIdRef.current = id;
     setSkillId(id);
     rememberSkill(memoryId, id);
@@ -199,7 +203,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         </div>
         <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
           <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
-          {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.name}{item.is_builtin ? ' · 内置' : ''}{item.validation_error ? ' · 需修复' : ''}</option>)}
+          {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.displayName}{item.validation_error ? ' · 需修复' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
       </div>

@@ -258,6 +258,7 @@ export interface RefineSSEEvent {
  *  Built-ins live in the repo's `skills/` and ship inside the sidecar, so they
  *  need no per-machine upload. */
 export interface SkillPackageSummary {
+    reused?: boolean;
     id: string;
     name: string;
     entry: string;
