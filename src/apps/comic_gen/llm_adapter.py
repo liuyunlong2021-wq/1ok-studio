@@ -234,6 +234,15 @@ class LLMAdapter:
             model or self._get_default_model(), messages, response_format
         )
 
+    def chat_images(self, messages: List[Dict[str, Any]]) -> str:
+        """Use the configured model for actual image input, without fallback to another model."""
+        model = self._get_default_model()
+        label = {"jiucaihezi": "Jiucaihezi", "openai": "OpenAI", "dashscope": "DashScope"}.get(self.provider, "Jiucaihezi")
+        try:
+            return self._chat_once(self._get_client(), model, messages, None, label)
+        except RuntimeError as exc:
+            raise RuntimeError(f"当前文本模型 {model} 的读图请求失败，请确认模型及通道支持图片输入；未降级为纯文字。{exc}") from exc
+
     def _chat_jiucaihezi(
         self,
         model: str,

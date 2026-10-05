@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ..comic_gen.llm_adapter import LLMAdapter
+from .images import vision_content, MAX_IMAGES
 
 router = APIRouter(prefix="/prompt-documents", tags=["prompt-editor"])
 _PATH = "output/prompt_documents.json"
@@ -29,6 +30,9 @@ def _read():
             data = json.load(file)
         if not isinstance(data, list):
             raise ValueError("Invalid document store")
+        for document in data:
+            document.setdefault("style", None)
+            document.setdefault("images", [])
         return data
     except (OSError, ValueError) as exc:
         raise HTTPException(500, "提示词文档读取失败，未覆盖已有数据") from exc
@@ -63,18 +67,41 @@ def _public(document):
     return {key: value for key, value in document.items() if key != "versions"}
 
 
+def _context(document):
+    return {key: document.get(key, [] if key == "images" else None) for key in ("name", "text", "style", "images")}
+
+
 def _snapshot(document):
-    if not document["versions"] or document["versions"][-1]["text"] != document["text"] or document["versions"][-1]["name"] != document["name"]:
-        document["versions"].append({
-            "id": uuid.uuid4().hex, "name": document["name"], "text": document["text"], "created_at": _now(),
-        })
+    if not document["versions"] or _context(document["versions"][-1]) != _context(document):
+        document["versions"].append({"id": uuid.uuid4().hex, **_context(document), "created_at": _now()})
+
+
+class PromptStyle(BaseModel):
+    id: str = Field(..., max_length=200)
+    name: str = Field(..., max_length=200)
+    description: str = Field("", max_length=20000)
+    positive_prompt: str = Field("", max_length=20000)
+    negative_prompt: str = Field("", max_length=20000)
+    thumbnail: str | None = Field(None, max_length=4000)
+
+
+class PromptImage(BaseModel):
+    ref: str = Field(..., min_length=1, max_length=4000)
+    name: str = Field("参考图片", max_length=200)
+    source: str = Field("upload", max_length=200)
+    description: str = Field("", max_length=10000)
+
+
+class PromptContext(BaseModel):
+    style: PromptStyle | None = None
+    images: list[PromptImage] = Field(default_factory=list, max_length=MAX_IMAGES)
 
 
 class DocumentCreate(BaseModel):
     name: str = Field("未命名提示词", min_length=1, max_length=200)
 
 
-class DocumentSave(BaseModel):
+class DocumentSave(PromptContext):
     name: str = Field(..., min_length=1, max_length=200)
     text: str = Field(..., max_length=200000)
     revision: int = Field(..., ge=0)
@@ -85,7 +112,7 @@ class DocumentRestore(BaseModel):
     revision: int = Field(..., ge=0)
 
 
-class TextGenerate(BaseModel):
+class TextGenerate(PromptContext):
     text: str = Field("", max_length=200000)
     instruction: str = Field("", max_length=20000)
     skill: str = Field("", max_length=200000)
@@ -103,7 +130,7 @@ def create_document(request: DocumentCreate):
     with _LOCK:
         items = _read()
         now = _now()
-        document = {"id": uuid.uuid4().hex, "name": request.name.strip() or "未命名提示词", "text": "", "revision": 0, "created_at": now, "updated_at": now, "versions": []}
+        document = {"id": uuid.uuid4().hex, "name": request.name.strip() or "未命名提示词", "text": "", "revision": 0, "created_at": now, "updated_at": now, "versions": [], "style": None, "images": []}
         items.append(document)
         _write(items)
         return _public(document)
@@ -125,7 +152,7 @@ def save_document(document_id: str, request: DocumentSave):
         # Preserve the saved source before an accepted AI change or manual save.
         if request.snapshot:
             _snapshot(document)
-        document.update(name=request.name.strip() or "未命名提示词", text=request.text, revision=document["revision"] + 1, updated_at=_now())
+        document.update(name=request.name.strip() or "未命名提示词", text=request.text, style=request.style.model_dump() if request.style else None, images=[image.model_dump() for image in request.images], revision=document["revision"] + 1, updated_at=_now())
         if request.snapshot:
             _snapshot(document)
         _write(items)
@@ -149,7 +176,7 @@ def restore_document(document_id: str, version_id: str, request: DocumentRestore
         if version is None:
             raise HTTPException(404, "历史版本不存在")
         _snapshot(document)
-        document.update(name=version["name"], text=version["text"], revision=document["revision"] + 1, updated_at=_now())
+        document.update(name=version["name"], text=version["text"], style=version.get("style"), images=version.get("images", []), revision=document["revision"] + 1, updated_at=_now())
         _snapshot(document)
         _write(items)
         return _public(document)
@@ -171,11 +198,18 @@ async def generate_text(document_id: str, request: TextGenerate):
 没有指定输出格式时，仅返回所需正文。保留必要换行，不输出无关解释。
 Skill 只提供文字规则，不会自动执行脚本、搜索、下载或读取外部文件。需要缺失材料时指出缺失，不得声称已执行工具。
 """
+    context = ""
+    if request.style:
+        context += "\n所选风格（只约束视觉表达）：\n" + json.dumps(request.style.model_dump(), ensure_ascii=False)
+    text = "本次要求：\n" + request.instruction + "\n\n输入正文：\n" + request.text + context
+    if len(text) + len(request.skill) + sum(len(image.description) for image in request.images) > 250000:
+        raise HTTPException(400, "上下文过长，请精简；未截断内容")
+    user_content = await asyncio.get_running_loop().run_in_executor(None, lambda: vision_content(request.images, text)) if request.images else text
     messages = [{"role": "system", "content": policy + "\n以下为本次 Skill 内容快照：\n" + request.skill},
-                {"role": "user", "content": "本次要求：\n" + request.instruction + "\n\n输入正文：\n" + request.text}]
+                {"role": "user", "content": user_content}]
     try:
         adapter = LLMAdapter()
-        result = await asyncio.get_running_loop().run_in_executor(None, lambda: adapter.chat(messages))
+        result = await asyncio.get_running_loop().run_in_executor(None, lambda: adapter.chat_images(messages) if request.images else adapter.chat(messages))
         if not result or not result.strip():
             raise RuntimeError("模型返回空内容，请重试")
         return {"text": result, "document_id": document_id, "skill_id": request.skill_id}
