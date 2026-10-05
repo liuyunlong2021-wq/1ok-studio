@@ -191,12 +191,12 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
 
   const remove = () => {
     if (!selected || !canLeave()) return;
-    if (!window.confirm(selected.is_builtin ? `隐藏“${selected.name}”？可在管理列表中恢复。` : `删除“${selected.name}”？此操作不能撤销，已生成的剧本会保留。`)) return;
+    if (!window.confirm((selected.is_builtin || selected.files) ? `隐藏“${selected.name}”？可在管理列表中恢复。` : `删除“${selected.name}”？此操作不能撤销，已生成的剧本会保留。`)) return;
     void operate(async () => {
       await scriptEditorApi.deleteScriptSkill(selected.id);
       const list = await refresh();
-      loadItem(selected.is_builtin ? list.find((item) => item.id === selected.id) : list[0]);
-      setNotice(selected.is_builtin ? '已隐藏，可点击恢复显示。' : '已删除。');
+      loadItem((selected.is_builtin || selected.files) ? list.find((item) => item.id === selected.id) : list[0]);
+      setNotice((selected.is_builtin || selected.files) ? '已隐藏，可点击恢复显示。' : '已删除。');
     });
   };
 
@@ -221,7 +221,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
       <div className="flex h-full flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle p-5">
           <div><h2 id="script-skill-manager-title" className="font-semibold">Skill 管理</h2><p className="mt-1 text-xs text-text-muted">本机共享 · 修改影响后续请求</p></div>
-          <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button><button type="button" disabled={busy || loading} className={BUTTON} onClick={() => folderRef.current?.click()}>上传文件夹</button><button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
+          <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button>{kind === 'all' && <button type="button" disabled={busy || loading} className={BUTTON} onClick={() => folderRef.current?.click()}>上传文件夹</button>}<button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
         </header>
         <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] max-sm:grid-cols-[140px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-r border-border-subtle p-3">
@@ -248,7 +248,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
               <button type="button" disabled={busy || loading || !content.trim()} onClick={copy} className={BUTTON}><Copy size={13} className="mr-1 inline" />复制</button>
               <button type="button" disabled={busy || loading || !content.trim() || (!!selected?.files && dirty)} onClick={exportFile} className={BUTTON}><Download size={13} className="mr-1 inline" />导出</button>
               {selected && !selected.is_builtin && <button type="button" disabled={busy} onClick={() => replaceRef.current?.click()} className={BUTTON}>重新上传更新</button>}
-              {selected && (selected.hidden ? <button type="button" disabled={busy} className={BUTTON} onClick={() => void operate(async () => { await scriptEditorApi.restoreScriptSkill(selected.id); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复显示。'); })}>恢复显示</button> : <button type="button" disabled={busy} onClick={remove} className={`${BUTTON} text-red-400`}>{selected.is_builtin ? '隐藏' : '删除'}</button>)}
+              {selected && (selected.hidden ? <button type="button" disabled={busy} className={BUTTON} onClick={() => void operate(async () => { await scriptEditorApi.restoreScriptSkill(selected.id); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复显示。'); })}>恢复显示</button> : <button type="button" disabled={busy} onClick={remove} className={`${BUTTON} text-red-400`}>{selected.is_builtin || selected.files ? '隐藏' : '删除'}</button>)}
               {selected?.is_builtin && <button type="button" disabled={busy} className={BUTTON} onClick={() => { if (canLeave() && window.confirm('恢复内置默认？当前修改会保留备份。')) void operate(async () => { await scriptEditorApi.resetScriptSkill(selected.id); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复默认，修改备份已保留。'); }); }}>恢复内置默认</button>}
               {selected?.has_backup && <button type="button" disabled={busy} className={BUTTON} onClick={() => { if (canLeave()) void operate(async () => { await scriptEditorApi.resetScriptSkill(selected.id, true); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复上一份修改备份。'); }); }}>恢复修改备份</button>}
             </div>
@@ -261,7 +261,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
           <button type="button" disabled={busy || loading || !dirty || !name.trim() || !content.trim() || nameConflict || !!sameContent} onClick={() => save()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-accent disabled:opacity-40">保存</button>
           <button type="button" disabled={busy} onClick={close} className={BUTTON}>关闭</button>
         </footer>
-        <input ref={fileRef} type="file" accept=".md,.markdown,.txt,.zip" className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
+        <input ref={fileRef} type="file" accept={kind === 'all' ? '.md,.markdown,.txt,.zip' : '.md,.markdown,.txt'} className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
         <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked); const list = await refresh(uploaded.id); loadItem(list.find((item) => item.id === uploaded.id)); setNotice('完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
         <input ref={replaceRef} type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => { void upload(event.target.files?.[0], true); event.target.value = ''; }} />
       </div>

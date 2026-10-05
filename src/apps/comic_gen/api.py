@@ -241,14 +241,16 @@ def _read_script_skills(kind=None, include_hidden=False):
         item.setdefault("kind", "script")
         item["hidden"] = item["id"] in deleted
         if item["id"] == "builtin-engineering":
-            item.update(name=engineering["metadata"]["name"], content=store.compile("builtin:engineering-screenplay"), files=engineering["contents"], entry=engineering["metadata"]["entry"], has_backup=engineering["metadata"].get("has_backup"), hidden=engineering["metadata"].get("hidden", False))
+            item.update(name=engineering["metadata"]["name"], content=store.compile("builtin:engineering-screenplay"), files=engineering["contents"], entry=engineering["metadata"]["entry"], has_backup=engineering["metadata"].get("has_backup"), hidden=engineering["metadata"].get("hidden", False) or item["id"] in deleted)
     items += [item for item in saved if not item.get("is_builtin")]
-    if kind is None:
+    if kind in (None, "script", "motion"):
         for metadata in store.list(include_hidden=True):
+            if kind and metadata.get("kind") != kind:
+                continue
             if metadata["id"] == "builtin:engineering-screenplay":
                 continue  # Existing engineering ID is the compatibility alias.
             package = store.get(metadata["id"])
-            items.append({"id": metadata["id"], "name": metadata["name"], "content": store.compile(metadata["id"]), "files": package["contents"], "entry": metadata["entry"], "scope": "system" if metadata["builtin"] else "user", "is_builtin": metadata["builtin"], "kind": "script", "hidden": metadata.get("hidden", False), "updated_at": metadata.get("updated_at"), "has_backup": metadata.get("has_backup")})
+            items.append({"id": metadata["id"], "name": metadata["name"], "content": store.compile(metadata["id"]), "files": package["contents"], "entry": metadata["entry"], "scope": "system" if metadata["builtin"] else "user", "is_builtin": metadata["builtin"], "kind": metadata.get("kind") or "script", "hidden": metadata.get("hidden", False), "updated_at": metadata.get("updated_at"), "has_backup": metadata.get("has_backup")})
     return [item for item in items if (include_hidden or not item.get("hidden")) and (kind is None or item.get("kind", "script") == kind)]
 
 def _write_script_skill_json(path, data):
@@ -653,7 +655,7 @@ def create_script_skill(request: ScriptSkillRequest):
             store = SkillPackageStore()
             try:
                 package = store.create(request.files, request.name)
-                store.manage(package["id"], name=request.name.strip(), contents=request.files)
+                store.manage(package["id"], name=request.name.strip(), contents=request.files, kind=request.kind or "script")
             except SkillPackageError as exc:
                 raise HTTPException(400, str(exc)) from exc
             return next(item for item in _read_script_skills(include_hidden=True) if item["id"] == package["id"])
@@ -693,6 +695,10 @@ def update_script_skill(skill_id: str, request: ScriptSkillRequest):
 def restore_script_skill(skill_id: str):
     with _SCRIPT_SKILLS_LOCK:
         if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
+            if skill_id == "builtin-engineering":
+                deleted = _read_deleted_script_skills()
+                deleted.discard(skill_id)
+                _set_deleted_builtin(skill_id, deleted)
             SkillPackageStore().manage("builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id, hidden=False)
             return {"ok": True}
         if not any(item["id"] == skill_id for item in BUILTIN_SCRIPT_SKILLS):

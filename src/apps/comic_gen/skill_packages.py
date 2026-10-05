@@ -330,10 +330,10 @@ class SkillPackageStore:
             package["metadata"]["modified"] = True
             package["metadata"]["files"] = [{"path": path, "size": len(text.encode())} for path, text in package["contents"].items()]
             package["metadata"]["sha256"] = self._digest(package["contents"])
-        package["metadata"].update(hidden=record.get("hidden", False), updated_at=record.get("updated_at"), has_backup=bool(record.get("history")))
+        package["metadata"].update(hidden=record.get("hidden", False), kind=record.get("kind"), updated_at=record.get("updated_at"), has_backup=bool(record.get("history")))
         return package
 
-    def manage(self, package_id, *, name=None, contents=None, hidden=None, reset=False, recover=False):
+    def manage(self, package_id, *, name=None, contents=None, hidden=None, reset=False, recover=False, kind=None):
         with _MANAGEMENT_LOCK:
             package = self.get(package_id)
             entry = package["metadata"]["entry"]
@@ -357,6 +357,8 @@ class SkillPackageStore:
                     record.pop("name", None)
                 else:
                     record.update(target or {"name": name, "contents": contents})
+            if kind is not None:
+                record["kind"] = kind
             if hidden is not None:
                 record["hidden"] = hidden
             record["updated_at"] = time.time()
