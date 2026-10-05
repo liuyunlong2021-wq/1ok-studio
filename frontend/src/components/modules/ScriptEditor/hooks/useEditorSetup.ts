@@ -69,7 +69,7 @@ export function useEditorSetup(options: UseEditorSetupOptions = {}) {
       ...(purpose === 'script' ? scriptExtensions : [AiScopeHighlight]),
       Placeholder.configure({
         placeholder: ({ node }) => {
-          if (purpose === 'prompt') return '输入内容，或在右侧描述你想生成什么…';
+          if (purpose === 'prompt') return '在这里输入内容，或在右侧描述你想生成什么';
           if (node.type.name === 'sceneHeading') {
             return t('placeholders.sceneHeading');
           }

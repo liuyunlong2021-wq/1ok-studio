@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Send, Settings2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
-import { promptEditorApi } from '@/lib/promptEditorApi';
+import { promptEditorApi, type PromptContext } from '@/lib/promptEditorApi';
 import { scriptTextOf } from '../documentText';
 import ScriptSkillManager from '../dialogs/ScriptSkillManager';
 
@@ -29,6 +29,7 @@ export interface AiPreview {
    */
   sourceText: string;
   sourceDocument?: string;
+  sourceContext?: string;
 }
 
 /** 锁定的作用范围。`null` = 全文。 */
@@ -48,8 +49,9 @@ function readableRequestError(reason: unknown): string {
   return reason instanceof Error ? reason.message : '生成失败，请重试';
 }
 
-export default function AiPanel({ editor, projectId, onPreview, scope, onScopeChange, purpose = 'script' }: {
+export default function AiPanel({ editor, projectId, onPreview, scope, onScopeChange, purpose = 'script', promptContext }: {
   purpose?: 'script' | 'prompt';
+  promptContext?: PromptContext;
   editor: Editor | null;
   projectId?: string;
   onPreview: (preview: AiPreview) => void;
@@ -160,12 +162,13 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
       setError('本次输入过长，请缩小作用范围或精简要求／Skill；未截断内容'); return;
     }
     const requestId = projectId;
+    const sourceContext = purpose === 'prompt' ? JSON.stringify(promptContext ?? { style: null, images: [] }) : undefined;
     const sourceDocument = purpose === 'prompt' ? JSON.stringify(editor.getJSON()) : undefined;
     setBusy(true);
     setError('');
     try {
       const result = purpose === 'prompt'
-        ? { standardized_text: (await promptEditorApi.generate(projectId, { text, instruction, skill: selectedSkill?.content ?? '', skill_id: selectedSkill?.id ?? '' })).text }
+        ? { standardized_text: (await promptEditorApi.generate(projectId, { text, instruction, skill: selectedSkill?.content ?? '', skill_id: selectedSkill?.id ?? '', ...promptContext, style: promptContext?.style ?? null, images: promptContext?.images ?? [] })).text }
         : await scriptEditorApi.standardizeScript(projectId, text, selectedSkill?.content ?? '', selectedSkill?.id, instruction);
       if (!mounted.current || contextId.current !== requestId) return;
       onPreview({
@@ -173,6 +176,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         range: scope ? { from: scope.from, to: scope.to } : null,
         sourceText: text,
         sourceDocument,
+        sourceContext,
       });
     } catch (reason) {
       if (mounted.current) setError(readableRequestError(reason));
@@ -188,7 +192,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         <div className="flex items-center justify-between">
           <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
           <div className="flex items-center gap-3">
-            <label className={`text-xs text-primary ${loadingSkills ? 'opacity-40' : 'cursor-pointer'}`}><Upload size={13} className="mr-1 inline" />上传<input type="file" accept=".md,.markdown,.txt" disabled={loadingSkills} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImportFile(file); setShowManager(true); } event.target.value = ''; }} /></label>
+            <label className={`text-xs text-primary ${loadingSkills ? 'opacity-40' : 'cursor-pointer'}`}><Upload size={13} className="mr-1 inline" />上传<input type="file" accept={purpose === 'prompt' ? ' .md,.markdown,.txt,.zip'.trim() : '.md,.markdown,.txt'} disabled={loadingSkills} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImportFile(file); setShowManager(true); } event.target.value = ''; }} /></label>
             <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
           </div>
         </div>

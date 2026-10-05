@@ -65,6 +65,7 @@ export interface AssetPickerItem {
   label: string;
   /** 悬停提示用：这个资产属于哪个系列 / 项目。 */
   sourceName: string;
+  description?: string;
 }
 
 /**
@@ -96,6 +97,7 @@ export function assetPickerItems(sources: AssetSource[]): AssetPickerItem[] {
           type: /\.(mp4|mov|webm|avi|mkv)$/i.test(ref) ? "video" : "image",
           label: asset.name,
           sourceName: source.name,
+          description: [asset.description, (asset as unknown as { image_prompt?: string }).image_prompt].filter(Boolean).join("\n"),
         });
       }
     }

@@ -946,7 +946,7 @@ export function StylePresetCard({ style, isSelected, onSelect }: any) {
     );
 }
 
-function StylePresetCardV2({ style, isSelected, onClick }: {
+export function StylePresetCardV2({ style, isSelected, onClick }: {
     style: StylePreset;
     isSelected: boolean;
     onClick: () => void;
@@ -997,7 +997,7 @@ function StylePresetCardV2({ style, isSelected, onClick }: {
     );
 }
 
-function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negativePrompt, onPositiveChange, onNegativeChange, onStartEditing, onApply, onClose, sameCategoryPresets, onSwitchPreset }: {
+export function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negativePrompt, onPositiveChange, onNegativeChange, onStartEditing, onApply, onClose, sameCategoryPresets, onSwitchPreset, allowEditing = true }: {
     preset: StylePreset;
     isSelected: boolean;
     editing: boolean;
@@ -1010,6 +1010,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
     onClose: () => void;
     sameCategoryPresets: StylePreset[];
     onSwitchPreset: (p: StylePreset) => void;
+    allowEditing?: boolean;
 }) {
     const isCustomized = editing && (
         positivePrompt !== preset.positive_prompt ||
@@ -1091,7 +1092,7 @@ function PresetDetailModal({ preset, isSelected, editing, positivePrompt, negati
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <p className="text-[0.6875rem] uppercase tracking-wider text-text-muted font-medium">提示词</p>
-                                {!editing && (
+                                {!editing && allowEditing && (
                                     <button
                                         onClick={onStartEditing}
                                         className="flex items-center gap-1.5 text-[0.6875rem] text-text-muted hover:text-foreground transition-colors"

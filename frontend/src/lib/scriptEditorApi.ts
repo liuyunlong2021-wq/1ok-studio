@@ -12,7 +12,7 @@ export interface SnapshotResponse {
 }
 
 export interface StandardizeResponse { standardized_text: string; model: string }
-export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; created_at?: number; updated_at?: number }
+export interface ScriptSkill { id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; files?: Record<string, string>; entry?: string; has_backup?: boolean; created_at?: number; updated_at?: number }
 type ScriptDocument = Record<string, unknown>;
 type ImportResponse = { content?: { content?: Array<{ type?: string }> } };
 
@@ -30,8 +30,10 @@ export const scriptEditorApi = {
   },
 
   listScriptSkills: async (kind: 'script' | 'motion' | 'all' = 'script', includeHidden = false): Promise<ScriptSkill[]> => (await axios.get(`${API_URL}/script-skills`, { params: { kind: kind === 'all' ? undefined : kind, include_hidden: includeHidden } })).data,
-  createScriptSkill: async (name: string, content: string, kind: 'script' | 'motion' = 'script'): Promise<ScriptSkill> => (await axios.post(`${API_URL}/script-skills`, { name, content, kind })).data,
-  updateScriptSkill: async (id: string, name: string, content: string, kind?: 'script' | 'motion'): Promise<ScriptSkill> => (await axios.put(`${API_URL}/script-skills/${id}`, { name, content, kind })).data,
+  createScriptSkill: async (name: string, content: string, kind: 'script' | 'motion' = 'script', files?: Record<string, string>): Promise<ScriptSkill> => (await axios.post(`${API_URL}/script-skills`, { name, content, kind, files })).data,
+  exportScriptSkill: async (id: string): Promise<Blob> => (await axios.get(`${API_URL}/script-skills/${id}/export`, { responseType: 'blob' })).data,
+  updateScriptSkill: async (id: string, name: string, content: string, kind?: 'script' | 'motion', files?: Record<string, string>): Promise<ScriptSkill> => (await axios.put(`${API_URL}/script-skills/${id}`, { name, content, kind, files })).data,
+  resetScriptSkill: async (id: string, recover = false): Promise<void> => { await axios.post(`${API_URL}/script-skills/${id}/default`, null, { params: { recover } }); },
   deleteScriptSkill: async (id: string): Promise<void> => { await axios.delete(`${API_URL}/script-skills/${id}`); },
   restoreScriptSkill: async (id: string): Promise<void> => { await axios.post(`${API_URL}/script-skills/${id}/restore`); },
   standardizeScript: async (projectId: string, text: string, skill: string, skillId?: string, instruction?: string): Promise<StandardizeResponse> => {

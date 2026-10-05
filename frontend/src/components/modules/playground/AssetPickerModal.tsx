@@ -16,7 +16,7 @@ interface AssetPickerModalProps {
   onClose: () => void;
   /** 点一张瓦片：不在参考图里的就加进去，已在里面的就移出去。**点完就生效**，
    *  弹窗没有「提交」这一步 —— 所以直接关掉（× / Esc / 点背景 / 完成）不会丢东西。 */
-  onToggle: (ref: string) => void;
+  onToggle: (ref: string, item?: AssetPickerItem) => void;
   accept: 'image' | 'video' | 'all';
   /** 参考图里现有的引用（＝瓦片的勾选态）。 */
   existing?: string[];
@@ -304,7 +304,7 @@ export default function AssetPickerModal({
                         title={[asset.sourceName ? `${asset.sourceName} · ${asset.label}` : asset.label, hint]
                           .filter(Boolean)
                           .join(' — ')}
-                        onClick={() => onToggle(asset.ref)}
+                        onClick={() => onToggle(asset.ref, asset)}
                         className={`
                           relative aspect-square rounded-lg overflow-hidden
                           bg-glass transition-all duration-150

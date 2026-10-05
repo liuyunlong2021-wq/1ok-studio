@@ -3,13 +3,16 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { Save, Undo2, Redo2, Plus, History, X, Copy } from 'lucide-react';
-import { promptEditorApi, type PromptDocument, type PromptVersion } from '@/lib/promptEditorApi';
+import { promptEditorApi, type PromptDocument, type PromptVersion, type PromptContext } from '@/lib/promptEditorApi';
 import { useEditorSetup } from '../ScriptEditor/hooks/useEditorSetup';
 import AiPanel, { type AiPreview, type AiScope } from '../ScriptEditor/panels/AiPanel';
 import AiResultPreview, { applyAiPreview, previewSourceChanged, textToEditorDocument } from '../ScriptEditor/components/AiResultPreview';
 import { applyAiScope } from '../ScriptEditor/extensions';
 import { usePlaygroundStore, type PlaygroundMode } from '../playground/usePlaygroundStore';
 import { getModelsForMode } from '../playground/playgroundModels';
+import PromptContextInput from './PromptContextInput';
+import { getMediaInputConfig } from '../playground/mediaModes';
+import { getModelMaxReferenceImages } from '../playground/playgroundModels';
 import { getPromptMaxLength } from '../playground/promptLimits';
 import { toast } from '@/store/toastStore';
 
@@ -24,6 +27,10 @@ interface EditorHandle { save: (snapshot?: boolean) => Promise<boolean> }
 const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument; onSaved: (document: PromptDocument) => void; switching: boolean }>(function PromptDocumentEditor({ document, onSaved, switching }, ref) {
   const initialContent = useRef(textToEditorDocument(document.text, 'prompt')).current;
   const { editor } = useEditorSetup({ purpose: 'prompt', content: initialContent });
+  const [context, setContext] = useState<PromptContext>({ style: document.style ?? null, images: document.images ?? [] });
+  const [includeImages, setIncludeImages] = useState(true);
+  const [handoffBusy, setHandoffBusy] = useState(false);
+  const [mediaAction, setMediaAction] = useState<'replace' | 'append'>('replace');
   const [name, setName] = useState(document.name);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,7 +44,9 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
   const [handoff, setHandoff] = useState<'image' | 'video' | 'audio' | null>(null);
   const alive = useRef(true);
   const saved = useRef(document);
-  const draft = useRef({ name: document.name, text: document.text });
+  const draft = useRef({ name: document.name, text: document.text, style: document.style ?? null, images: document.images ?? [] });
+  const contextKey = () => JSON.stringify({ style: draft.current.style, images: draft.current.images });
+  const sameSaved = () => JSON.stringify({ ...draft.current, name: draft.current.name.trim() || '未命名提示词' }) === JSON.stringify({ name: saved.current.name, text: saved.current.text, style: saved.current.style ?? null, images: saved.current.images ?? [] });
   const serial = useRef<Promise<boolean>>(Promise.resolve(true));
   const actionLock = useRef(false);
   const onSavedRef = useRef(onSaved);
@@ -50,14 +59,14 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
         let first = true;
         do {
           const current = { ...draft.current, name: draft.current.name.trim() || '未命名提示词' };
-          if (!snapshot && current.name === saved.current.name && current.text === saved.current.text) break;
+          if (!snapshot && sameSaved()) break;
           const response = await promptEditorApi.save(document.id, { ...current, revision: saved.current.revision, snapshot: first && snapshot });
           first = false;
           snapshot = false;
           saved.current = response;
           onSavedRef.current(response);
           if (alive.current) setLastSaved(response.updated_at);
-        } while ((draft.current.name.trim() || '未命名提示词') !== saved.current.name || draft.current.text !== saved.current.text);
+        } while (!sameSaved());
         if (alive.current) setDirty(false);
         return true;
       } catch (error) {
@@ -97,7 +106,7 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
   }, [dirty, editTick, save, restoring]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (draft.current.text !== saved.current.text || (draft.current.name.trim() || '未命名提示词') !== saved.current.name) { event.preventDefault(); event.returnValue = ''; }
+      if (!sameSaved()) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
@@ -109,13 +118,13 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
     if (!editor || !preview || actionLock.current) return;
     actionLock.current = true;
     try {
-      if (previewSourceChanged(editor, preview)) {
+      if ((previewSourceChanged(editor, preview) || preview.sourceContext !== contextKey())) {
         toast.error('原文已改动，不能覆盖新编辑', { body: '可复制预览结果，或放弃后重新生成。' }); return;
       }
       // Persist the source as a restorable version before changing the document.
       if (!await save(true)) return;
       if (!alive.current || editor.isDestroyed) return;
-      if (previewSourceChanged(editor, preview)) { toast.error('原文已变化，请重新生成'); return; }
+      if ((previewSourceChanged(editor, preview) || preview.sourceContext !== contextKey())) { toast.error('原文已变化，请重新生成'); return; }
       applyAiPreview(editor, preview, 'prompt');
       setPreview(null); setScope(null);
       await save(true);
@@ -133,7 +142,8 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
       const response = await promptEditorApi.restore(document.id, version.id, saved.current.revision);
       if (!alive.current || editor.isDestroyed) return;
       saved.current = response;
-      draft.current = { name: response.name, text: response.text };
+      draft.current = { name: response.name, text: response.text, style: response.style ?? null, images: response.images ?? [] };
+      setContext({ style: response.style ?? null, images: response.images ?? [] });
       setName(response.name);
       editor.commands.setContent(textToEditorDocument(response.text, 'prompt'), { emitUpdate: false });
       editor.commands.setTextSelection(1);
@@ -149,16 +159,18 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
   const transfer = async (category: 'image' | 'video' | 'audio', append: boolean) => {
     if (!editor || preview || !transferText.trim() || actionLock.current) return;
     const sourceDocument = JSON.stringify(editor.getJSON());
-    actionLock.current = true;
+    const sourceContext = contextKey();
+    actionLock.current = true; setHandoffBusy(true);
     try {
       if (!await save()) return;
       if (!alive.current || editor.isDestroyed) return;
-      if (JSON.stringify(editor.getJSON()) !== sourceDocument) {
+      if (JSON.stringify(editor.getJSON()) !== sourceDocument || contextKey() !== sourceContext) {
         toast.error('正文已变化，请重新选择带入内容'); return;
       }
       const state = usePlaygroundStore.getState();
       const sameCategory = category === 'image' ? ['t2i', 'i2i'].includes(state.mode) : category === 'video' ? ['t2v', 'i2v', 'r2v', 'v2v'].includes(state.mode) : ['t2a', 'r2a'].includes(state.mode);
-      const targetMode: PlaygroundMode = sameCategory ? state.mode : category === 'image' ? 't2i' : category === 'video' ? 't2v' : 't2a';
+      const withImages = includeImages && context.images.length > 0 && category !== 'audio';
+      const targetMode: PlaygroundMode = withImages ? category === 'image' ? 'i2i' : context.images.length > 1 ? 'r2v' : 'i2v' : sameCategory ? state.mode : category === 'image' ? 't2i' : category === 'video' ? 't2v' : 't2a';
       const targetModels = getModelsForMode(targetMode);
       let modelId = state.modelId;
       // Resolve mode defaults without changing materials, parameters, or negative prompt.
@@ -167,14 +179,30 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
         modelId = targetModels.find((model) => model.id === preferred)?.id ?? targetModels.find((model) => model.recommended)?.id ?? targetModels[0]?.id ?? '';
       }
       if (!modelId) { toast.error('该类别没有可用模型'); return; }
+      let inputMedia = state.inputMedia;
+      if (withImages) {
+        await promptEditorApi.validateImages(document.id, context);
+        if (!alive.current || editor.isDestroyed) return;
+        if (JSON.stringify(editor.getJSON()) !== sourceDocument || contextKey() !== sourceContext) { toast.error('正文或参考图已变化，请重新带入'); return; }
+        const incoming = context.images.map((image) => image.ref);
+        if (mediaAction === 'append' && state.inputMedia.length && state.inputMedia.some((ref) => !incoming.includes(ref))) {
+          toast.error('已有素材会改变 Image 编号，请选择替换素材，或先在创作台处理已有素材后带入'); return;
+        }
+        inputMedia = mediaAction === 'append' ? Array.from(new Set([...state.inputMedia, ...incoming])) : incoming;
+        const config = getMediaInputConfig(targetMode, getModelMaxReferenceImages(modelId));
+        if (!config || inputMedia.length > config.maxFiles) { toast.error(`目标模式／模型最多支持 ${config?.maxFiles ?? 0} 张图片，请减少参考图或在创作台选择其他模型`); return; }
+        if (append && state.prompt && /(?:Image\s*\d|图像?\s*\d)/i.test(state.prompt) && mediaAction === 'replace' && JSON.stringify(state.inputMedia) !== JSON.stringify(inputMedia)) {
+          toast.error('追加文字会保留旧 Image 引用，但素材已变化，请选择替换文字或先修正旧引用'); return;
+        }
+      }
       const text = append && state.prompt ? state.prompt + '\n' + transferText : transferText;
       const maxLength = getPromptMaxLength(modelId);
       if (text.length > maxLength) { toast.error(`提示词为 ${text.length} 字，目标输入上限为 ${maxLength} 字`, { body: '请精简正文或框选要带入的内容，未截断文本。' }); return; }
-      usePlaygroundStore.setState({ mode: targetMode, modelId, prompt: text });
+      usePlaygroundStore.setState({ mode: targetMode, modelId, prompt: text, ...(withImages ? { inputMedia } : {}) });
       setHandoff(null);
       window.location.hash = '#/playground';
       toast.success('提示词已带入创作台', { body: '选择素材和参数后，点击生成。' });
-    } finally { actionLock.current = false; }
+    } catch (error) { toast.error(errorText(error)); } finally { actionLock.current = false; if (alive.current) setHandoffBusy(false); }
   };
 
   return <div className="flex h-full min-h-0 flex-col">
@@ -191,7 +219,7 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
         <div className="absolute right-0 top-full z-30 mt-1 w-48 rounded-xl border border-border-subtle bg-surface p-2 shadow-lg">
           <p className="mb-2 px-2 text-xs text-text-muted">{validScope ? '选区' : '全文'} · {transferText.length} 字</p>
           {(['image', 'video', 'audio'] as const).map((category) => <button key={category} disabled={!transferText.trim() || !!preview || switching || restoring} className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-hover-bg disabled:opacity-40"
-            onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); if (usePlaygroundStore.getState().prompt) setHandoff(category); else void transfer(category, false); }}>
+            onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); setMediaAction('replace'); setHandoff(category); }}>
             {{ image: '图片', video: '视频', audio: '音频' }[category]}
           </button>)}
           {preview && <p className="px-2 text-xs text-text-muted">请先接受或放弃预览</p>}
@@ -200,25 +228,30 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
     </div>
     {saveError && <p role="alert" className="px-5 py-2 text-xs text-status-failed-fg">{saveError}</p>}
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5">
+        <div className="mx-auto flex min-h-full max-w-[900px] flex-col rounded-2xl border border-border-subtle bg-surface shadow-sm">
+        <h2 className="border-b border-border-subtle px-6 py-3 text-sm font-medium">{preview ? 'AI 结果预览' : '正文'}</h2>
         {preview ? <><div className="px-8 pt-3"><button className={BUTTON} onClick={() => { void navigator.clipboard.writeText(preview.text).then(() => toast.success('已复制预览')).catch(() => toast.error('复制失败')); }}><Copy size={13} />复制预览</button></div><AiResultPreview purpose="prompt" text={preview.text} onAccept={() => { void accept(); }} onDiscard={() => { setPreview(null); setScope(null); }} /></>
-          : <EditorContent editor={editor} className="mx-auto min-h-full max-w-[850px] px-8 py-8 [&_.tiptap]:min-h-[60vh] [&_.tiptap]:whitespace-pre-wrap [&_.tiptap]:break-words [&_.tiptap]:outline-none [&_.tiptap]:text-[1rem] [&_.tiptap]:leading-8 [&_.tiptap_p]:m-0" />}
+          : <EditorContent editor={editor} className="mx-auto w-full min-h-full max-w-[850px] px-8 py-8 [&_.tiptap]:min-h-[60vh] [&_.tiptap]:whitespace-pre-wrap [&_.tiptap]:break-words [&_.tiptap]:outline-none [&_.tiptap]:text-[1rem] [&_.tiptap]:leading-8 [&_.tiptap_p]:m-0" />}
+        </div>
       </main>
-      <aside className="h-[380px] shrink-0 border-t border-border-subtle md:h-auto md:w-[340px] md:border-l md:border-t-0">
-        <AiPanel purpose="prompt" editor={editor} projectId={document.id} onPreview={setPreview} scope={scope} onScopeChange={setScope} />
+      <aside className="flex h-[450px] shrink-0 flex-col overflow-y-auto border-t border-border-subtle md:h-auto md:w-[340px] md:border-l md:border-t-0">
+        <PromptContextInput value={context} disabled={switching || restoring || handoffBusy} onChange={(value) => { draft.current.style = value.style; draft.current.images = value.images; setContext(value); setDirty(true); setEditTick((tick) => tick + 1); }} />
+        <div className="min-h-[440px] flex-1"><AiPanel promptContext={context} purpose="prompt" editor={editor} projectId={document.id} onPreview={setPreview} scope={scope} onScopeChange={setScope} /></div>
       </aside>
     </div>
     <footer className="border-t border-border-subtle px-5 py-2 text-xs text-text-muted">{draft.current.text.length} 字 · 独立文档</footer>
     {versions && <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6" onClick={() => setVersions(null)}>
       <section role="dialog" aria-modal="true" aria-label="文档历史" className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-border-subtle bg-surface p-5" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between"><h2>文档历史</h2><button aria-label="关闭" onClick={() => setVersions(null)}><X size={18} /></button></div>
-        <div className="overflow-auto">{versions.length ? versions.map((version) => <details key={version.id} className="mb-3 rounded-xl border border-border-subtle p-3"><summary className="cursor-pointer text-sm">{new Date(version.created_at).toLocaleString()} · {version.name} · {version.text.length} 字</summary><pre className="my-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{version.text || '空白文档'}</pre><button className={BUTTON} disabled={restoring} onClick={() => { void restore(version); }}>恢复此版本</button></details>) : <p className="text-sm text-text-muted">尚无保存版本</p>}</div>
+        <div className="overflow-auto">{versions.length ? versions.map((version) => <details key={version.id} className="mb-3 rounded-xl border border-border-subtle p-3"><summary className="cursor-pointer text-sm">{new Date(version.created_at).toLocaleString()} · {version.name} · {version.text.length} 字 · {version.images?.length ?? 0} 张图{version.style ? ` · ${version.style.name}` : ''}</summary><pre className="my-3 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{version.text || '空白文档'}</pre><button className={BUTTON} disabled={restoring} onClick={() => { void restore(version); }}>恢复此版本</button></details>) : <p className="text-sm text-text-muted">尚无保存版本</p>}</div>
       </section>
     </div>}
     {handoff && <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6">
       <section role="dialog" aria-modal="true" aria-label="带入创作台" className="w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-6">
-        <h2 className="mb-2 font-semibold">创作台已有提示词</h2><p className="mb-4 text-sm text-text-muted">本次带入{validScope ? '选区' : '全文'}，共 {transferText.length} 字。选择替换或追加。</p>
-        <div className="flex justify-end gap-2"><button className={BUTTON} onClick={() => setHandoff(null)}>取消</button><button className={BUTTON} onClick={() => { void transfer(handoff, true); }}>追加</button><button className={BUTTON} onClick={() => { void transfer(handoff, false); }}>替换</button></div>
+        <h2 className="mb-2 font-semibold">用于创作台</h2>
+        {context.images.length > 0 && handoff !== 'audio' && <div className="mb-3 space-y-2 text-xs"><label className="block"><input type="checkbox" checked={includeImages} onChange={(event) => setIncludeImages(event.target.checked)} /> 同时带入 {context.images.length} 张参考图片</label>{includeImages && <><p>目标：{handoff === 'image' ? '图片编辑' : context.images.length > 1 ? '参考生视频' : '图生视频'}；按 Image 1 开始的顺序带入。</p>{usePlaygroundStore.getState().inputMedia.length > 0 && <label>创作台已有素材：<select value={mediaAction} onChange={(event) => setMediaAction(event.target.value as 'replace' | 'append')} className="ml-2 rounded border bg-surface p-1"><option value="replace">替换已有素材</option><option value="append">追加（编号冲突时阻止）</option></select></label>}{context.images.map((image, index) => <p key={image.ref}>Image {index + 1} · {image.name}</p>)}</>}</div>}<p className="mb-4 text-sm text-text-muted">{handoffBusy ? '正在检查参考图片…' : ''}本次带入{validScope ? '选区' : '全文'}，共 {transferText.length} 字。创作台已有文字时可替换或追加；取消不做修改。</p>
+        <div className="flex justify-end gap-2"><button disabled={handoffBusy} className={BUTTON} onClick={() => setHandoff(null)}>取消</button><button disabled={handoffBusy} className={BUTTON} onClick={() => { void transfer(handoff, true); }}>追加</button><button disabled={handoffBusy} className={BUTTON} onClick={() => { void transfer(handoff, false); }}>替换</button></div>
       </section>
     </div>}
   </div>;

@@ -1,12 +1,14 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { ImagePlus, Film, X, Music } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { usePlaygroundStore } from './usePlaygroundStore';
-import { MODE_CONFIG, getMediaInputConfig, mergeReferences } from './mediaModes';
+import { MODE_CONFIG, getMediaInputConfig, mergeReferences, type ModeConfig } from './mediaModes';
 import AssetPickerModal from './AssetPickerModal';
+import { toast } from '@/store/toastStore';
+import type { AssetPickerItem } from '@/lib/assetLibrary';
 import { getModelMaxReferenceImages } from './playgroundModels';
 
 // ---------------------------------------------------------------------------
@@ -126,13 +128,20 @@ function SingleRefPreview({
 // Component
 // ---------------------------------------------------------------------------
 
-export default function MediaInput() {
+export interface ControlledMediaInput { value: string[]; onChange: (value: string[]) => void; config: ModeConfig; onAsset?: (item: AssetPickerItem) => void; onUploaded?: (file: File, ref: string) => void; disabled?: boolean; maxBytes?: number }
+export default function MediaInput({ controlled }: { controlled?: ControlledMediaInput } = {}) {
   const mode = usePlaygroundStore((s) => s.mode);
   const modelId = usePlaygroundStore((s) => s.modelId);
-  const inputMedia = usePlaygroundStore((s) => s.inputMedia);
-  const setInputMedia = usePlaygroundStore((s) => s.setInputMedia);
+  const storedMedia = usePlaygroundStore((s) => s.inputMedia);
+  const setStoredMedia = usePlaygroundStore((s) => s.setInputMedia);
+  const inputMedia = controlled?.value ?? storedMedia;
+  const setInputMedia = controlled?.onChange ?? setStoredMedia;
   const t = useTranslations('playground');
 
+  const latest = useRef({ controlled, inputMedia, setInputMedia });
+  latest.current = { controlled, inputMedia, setInputMedia };
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -141,10 +150,10 @@ export default function MediaInput() {
   const isSeedance = modelId.startsWith('seedance');
 
   const modelReferenceLimit = getModelMaxReferenceImages(modelId);
-  let config = getMediaInputConfig(mode, modelReferenceLimit);
+  let config = controlled?.config ?? getMediaInputConfig(mode, modelReferenceLimit);
 
   // Override r2v config when Seedance is selected
-  if (config && mode === 'r2v' && isSeedance) {
+  if (!controlled && config && mode === 'r2v' && isSeedance) {
     config = {
       ...config,
       labelKey: 'media.labelRefMaterialAV',
@@ -166,7 +175,10 @@ export default function MediaInput() {
 
   const handleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    if (fileArray.length === 0) return;
+    if (fileArray.length === 0 || controlled?.disabled) return;
+    if (controlled && fileArray.some((file) => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > (controlled.maxBytes ?? Infinity))) {
+      toast.error('请上传不超过 10MB 的 PNG、JPEG 或 WebP 图片'); return;
+    }
 
     // 单参考模式永远是「传一张、替掉旧的」；多参考模式按剩余空位切。
     // （旧写法用 maxFiles - 已有 当 available，单参考模式已有一张时算出来是 0
@@ -175,17 +187,23 @@ export default function MediaInput() {
       ? activeConfig.maxFiles - inputMedia.length
       : 1;
     if (room <= 0) return;
+    if (controlled && fileArray.length > room) { toast.error(`最多 ${activeConfig.maxFiles} 张参考图，请减少选择`); return; }
 
     setUploading(true);
     try {
       const results = await Promise.all(
-        fileArray.slice(0, room).map((file) => playgroundApi.uploadMedia(file))
+        fileArray.slice(0, room).map((file) => playgroundApi.uploadMedia(file, controlled ? 'prompt' : undefined))
       );
-      setInputMedia(mergeReferences(inputMedia, results.map((r) => r.path), activeConfig));
+      if (!mounted.current) return;
+      const current = controlled ? latest.current : { inputMedia, setInputMedia };
+      if (controlled && current.inputMedia.length + results.length > activeConfig.maxFiles) { toast.error('参考图数量已变化，上传已完成，请重新选取图片'); return; }
+      results.forEach((result, index) => latest.current.controlled?.onUploaded?.(fileArray[index], result.path));
+      current.setInputMedia(mergeReferences(current.inputMedia, results.map((r) => r.path), activeConfig));
     } catch (err) {
       console.error('[MediaInput] upload failed:', err);
+      toast.error('图片上传失败，请重试');
     } finally {
-      setUploading(false);
+      if (mounted.current) setUploading(false);
     }
   };
 
@@ -239,7 +257,9 @@ export default function MediaInput() {
   };
 
   /** 选择器里点一张瓦片：不在参考图里的加进去，已在里面的移出去。 */
-  const handleAssetToggle = (ref: string) => {
+  const handleAssetToggle = (ref: string, item?: AssetPickerItem) => {
+    if (controlled?.disabled) return;
+    if (item && !inputMedia.includes(ref)) controlled?.onAsset?.(item);
     setInputMedia(
       inputMedia.includes(ref)
         ? inputMedia.filter((p) => p !== ref)

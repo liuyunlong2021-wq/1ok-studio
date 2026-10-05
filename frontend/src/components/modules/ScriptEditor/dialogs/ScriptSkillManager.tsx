@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Download, Loader2, Search, Upload, X } from 'lucide-react';
+import { api } from '@/lib/api';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
 
 function errorText(error: unknown): string {
@@ -46,6 +47,10 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
+  const [files, setFiles] = useState<Record<string, string> | undefined>();
+  const [entry, setEntry] = useState('SKILL.md');
+  const [activeFile, setActiveFile] = useState('SKILL.md');
+  const folderRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [uploadDraft, setUploadDraft] = useState(false);
@@ -54,7 +59,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const selected = items.find((item) => item.id === selectedId);
-  const dirty = selected ? !selected.is_builtin && (name !== selected.name || content !== selected.content) : !!(name || content);
+  const dirty = selected ? (name !== selected.name || content !== (selected.files?.[selected.entry ?? 'SKILL.md'] ?? selected.content) || JSON.stringify(files) !== JSON.stringify(selected.files)) : !!(name || content);
   const matchingName = items.filter((item) => item.id !== selectedId && item.name.trim().toLowerCase() === name.trim().toLowerCase());
   const sameContent = uploadDraft && content.trim() ? items.find((item) => normalizedContent(item.content) === normalizedContent(content)) : undefined;
   const unchangedLegacyName = !!selected && name.trim() === selected.name.trim();
@@ -63,7 +68,9 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   const loadItem = (item?: ScriptSkill) => {
     setSelectedId(item?.id ?? null);
     setName(item?.name ?? '');
-    setContent(item?.content ?? '');
+    const entry = item?.entry ?? 'SKILL.md';
+    setEntry(entry); setActiveFile(entry); setFiles(item?.files);
+    setContent(item?.files?.[entry] ?? item?.content ?? '');
     setUploadDraft(false);
     setError('');
     setNotice('');
@@ -83,7 +90,15 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     const load = async () => {
       try {
         const list = await scriptEditorApi.listScriptSkills(kind, true);
-        const text = initialFile ? await initialFile.text() : null;
+        let text: string | null = null;
+        if (initialFile?.name.toLowerCase().endsWith('.zip')) {
+          const uploaded = await api.uploadSkillPackage(initialFile);
+          const refreshed = await scriptEditorApi.listScriptSkills(kind, true);
+          if (cancelled) return;
+          setItems(refreshed); loadItem(refreshed.find((item) => item.id === uploaded.id));
+          onChange(refreshed.filter((item) => !item.hidden), uploaded.id); return;
+        }
+        text = initialFile ? await initialFile.text() : null;
         if (cancelled) return;
         setItems(list);
         if (text !== null && !text.trim()) throw new Error('上传的文件内容为空');
@@ -128,13 +143,13 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   };
 
   const save = (updateTarget?: ScriptSkill) => {
-    if (busy || !name.trim() || !content.trim() || selected?.is_builtin) return;
+    if (busy || !name.trim() || !content.trim()) return;
     if (updateTarget && !window.confirm(`确认用当前内容更新“${updateTarget.name}”？其他项目之后也会使用新版。`)) return;
     void operate(async () => {
       const target = updateTarget ?? selected;
       const saved = target
-        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, target?.kind ?? 'script')
-        : await scriptEditorApi.createScriptSkill(name.trim(), content, 'script');
+        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, target?.kind ?? 'script', files ? { ...files, [entry]: content } : undefined)
+        : await scriptEditorApi.createScriptSkill(name.trim(), content, 'script', files ? { ...files, [entry]: content } : undefined);
       const list = await refresh(target ? undefined : saved.id);
       loadItem(list.find((item) => item.id === saved.id));
       setNotice('已保存，后续请求使用新版内容。');
@@ -144,10 +159,11 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   const upload = async (file?: File, replace = false) => {
     if (!file || !canLeave()) return;
     await operate(async () => {
+      if (file.name.toLowerCase().endsWith('.zip')) { const uploaded = await api.uploadSkillPackage(file); const list = await refresh(uploaded.id); loadItem(list.find((item) => item.id === uploaded.id)); setNotice('完整 Skill 包已上传。'); return; }
       const text = (await file.text()).replace(/^\uFEFF/, '');
       if (!text.trim()) throw new Error('上传的文件内容为空');
       if (!replace) {
-        setSelectedId(null);
+        setSelectedId(null); setFiles(undefined); setEntry('SKILL.md'); setActiveFile('SKILL.md');
         setName(importedName(text, file.name));
         setUploadDraft(true);
       }
@@ -185,29 +201,32 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   };
 
   const exportFile = () => {
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
+    void operate(async () => {
+    const blob = selected?.files ? await scriptEditorApi.exportScriptSkill(selected.id) : new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${(name || 'Skill').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')}.md`;
+    link.download = `${(name || 'Skill').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')}.${selected?.files ? 'zip' : 'md'}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
   };
 
-  const visible = items.filter((item) => (filter === 'all' || (filter === 'builtin' ? item.is_builtin : !item.is_builtin)) && item.name.toLowerCase().includes(query.toLowerCase()));
+  const visible = items.filter((item) => (filter === 'all' || (filter === 'hidden' ? item.hidden : filter === 'builtin' ? item.is_builtin : !item.is_builtin)) && item.name.toLowerCase().includes(query.toLowerCase()));
 
   return createPortal(
     <dialog ref={dialogRef} aria-labelledby="script-skill-manager-title" onCancel={(event) => { event.preventDefault(); close(); }} className="fixed inset-0 m-auto h-[min(760px,90dvh)] w-[min(1040px,94vw)] overflow-hidden rounded-2xl border border-border-subtle bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/40">
       <div className="flex h-full flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle p-5">
-          <div><h2 id="script-skill-manager-title" className="font-semibold">剧本 Skill 管理</h2><p className="mt-1 text-xs text-text-muted">本机共享 · 修改影响后续请求</p></div>
-          <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button><button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
+          <div><h2 id="script-skill-manager-title" className="font-semibold">Skill 管理</h2><p className="mt-1 text-xs text-text-muted">本机共享 · 修改影响后续请求</p></div>
+          <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button><button type="button" disabled={busy || loading} className={BUTTON} onClick={() => folderRef.current?.click()}>上传文件夹</button><button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
         </header>
         <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] max-sm:grid-cols-[140px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-r border-border-subtle p-3">
             <label className="flex items-center gap-2 rounded-lg border border-border-subtle px-2 py-2"><Search size={13} className="shrink-0 text-text-muted" /><input aria-label="搜索 Skill" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称" className="min-w-0 w-full bg-transparent text-xs outline-none" /></label>
-            <select aria-label="筛选 Skill" value={filter} onChange={(event) => setFilter(event.target.value)} className="mt-2 rounded-lg border border-border-subtle bg-surface px-2 py-2 text-xs"><option value="all">全部</option><option value="custom">自定义</option><option value="builtin">内置（含隐藏）</option></select>
+            <select aria-label="筛选 Skill" value={filter} onChange={(event) => setFilter(event.target.value)} className="mt-2 rounded-lg border border-border-subtle bg-surface px-2 py-2 text-xs"><option value="all">全部</option><option value="custom">自定义</option><option value="builtin">内置</option><option value="hidden">已隐藏</option></select>
             <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-auto">
               {loading && <p className="p-2 text-xs text-text-muted">加载中…</p>}
               {visible.map((item) => <button key={item.id} type="button" disabled={busy} onClick={() => { if (canLeave()) loadItem(item); }} className={`w-full rounded-lg p-3 text-left text-xs ${item.id === selectedId ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-hover-bg'} ${item.hidden ? 'opacity-60' : ''}`}>
@@ -218,18 +237,20 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
             </div>
           </aside>
           <section className="flex min-h-0 flex-col gap-3 p-5 max-sm:p-3">
-            <label className="text-xs text-text-secondary">名称<input value={name} readOnly={!!selected?.is_builtin} disabled={busy || loading} onChange={(event) => setName(event.target.value)} className="mt-1 block w-full rounded-lg border border-border-subtle bg-input-bg px-3 py-2 text-sm text-foreground" /></label>
-            {selected?.is_builtin && <p className="text-xs text-text-muted">内置内容只读，点击“复制”可创建自己的版本。</p>}
-            <label className="flex min-h-0 flex-1 flex-col text-xs text-text-secondary">完整内容<textarea value={content} readOnly={!!selected?.is_builtin} disabled={busy || loading} onChange={(event) => setContent(event.target.value)} spellCheck={false} className="mt-1 min-h-[100px] flex-1 resize-none rounded-lg border border-border-subtle bg-input-bg p-3 font-mono text-xs leading-relaxed text-foreground" /></label>
+            <label className="text-xs text-text-secondary">名称<input value={name} disabled={busy || loading} onChange={(event) => setName(event.target.value)} className="mt-1 block w-full rounded-lg border border-border-subtle bg-input-bg px-3 py-2 text-sm text-foreground" /></label>
+            {selected?.is_builtin && <p className="text-xs text-text-muted">直接保存为个人版本，应用升级保留修改；可恢复内置默认。</p>}
+            <label className="flex min-h-0 flex-1 flex-col text-xs text-text-secondary">{files ? '规则文件' : '完整内容'}{files && <select className="mt-1 rounded border bg-surface p-2" value={activeFile} onChange={(event) => setActiveFile(event.target.value)}>{Object.keys(files).map((path) => <option key={path} value={path}>{path}{path === entry ? ' · 主规则' : ''}</option>)}</select>}<textarea value={activeFile === entry ? content : files?.[activeFile] ?? ''} disabled={busy || loading} onChange={(event) => { if (activeFile === entry) setContent(event.target.value); else setFiles((previous) => ({ ...previous, [activeFile]: event.target.value })); }} spellCheck={false} className="mt-1 min-h-[100px] flex-1 resize-none rounded-lg border border-border-subtle bg-input-bg p-3 font-mono text-xs leading-relaxed text-foreground" /></label>
             {sameContent && <div className="rounded-lg bg-primary/10 p-3 text-xs">相同内容已存在：{sameContent.name}<div className="mt-2 flex flex-wrap gap-2">{!sameContent.hidden && <button type="button" className={BUTTON} onClick={() => useExisting(sameContent)}>选用已有 Skill</button>}<button type="button" className={BUTTON} onClick={copy}>另存一份</button></div></div>}
             {nameConflict && !sameContent && <div className="rounded-lg border border-border-subtle p-3 text-xs">已有同名 Skill，请选择更新或另存。<div className="mt-2 flex flex-wrap gap-2">{uploadDraft && matchingName.filter((item) => !item.is_builtin).map((item, index) => <button type="button" key={item.id} disabled={busy} className={BUTTON} onClick={() => save(item)}>更新已有{matchingName.length > 1 ? `（${index + 1}）` : ''}</button>)}<button type="button" className={BUTTON} onClick={copy}>另存一份</button></div></div>}
             {notice && <p role="status" className="text-xs text-primary">{notice}</p>}
             {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" disabled={busy || loading || !content.trim()} onClick={copy} className={BUTTON}><Copy size={13} className="mr-1 inline" />复制</button>
-              <button type="button" disabled={busy || loading || !content.trim()} onClick={exportFile} className={BUTTON}><Download size={13} className="mr-1 inline" />导出</button>
+              <button type="button" disabled={busy || loading || !content.trim() || (!!selected?.files && dirty)} onClick={exportFile} className={BUTTON}><Download size={13} className="mr-1 inline" />导出</button>
               {selected && !selected.is_builtin && <button type="button" disabled={busy} onClick={() => replaceRef.current?.click()} className={BUTTON}>重新上传更新</button>}
               {selected && (selected.hidden ? <button type="button" disabled={busy} className={BUTTON} onClick={() => void operate(async () => { await scriptEditorApi.restoreScriptSkill(selected.id); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复显示。'); })}>恢复显示</button> : <button type="button" disabled={busy} onClick={remove} className={`${BUTTON} text-red-400`}>{selected.is_builtin ? '隐藏' : '删除'}</button>)}
+              {selected?.is_builtin && <button type="button" disabled={busy} className={BUTTON} onClick={() => { if (canLeave() && window.confirm('恢复内置默认？当前修改会保留备份。')) void operate(async () => { await scriptEditorApi.resetScriptSkill(selected.id); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复默认，修改备份已保留。'); }); }}>恢复内置默认</button>}
+              {selected?.has_backup && <button type="button" disabled={busy} className={BUTTON} onClick={() => { if (canLeave()) void operate(async () => { await scriptEditorApi.resetScriptSkill(selected.id, true); const list = await refresh(); loadItem(list.find((item) => item.id === selected.id)); setNotice('已恢复上一份修改备份。'); }); }}>恢复修改备份</button>}
             </div>
           </section>
         </div>
@@ -237,10 +258,11 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
           {busy && <Loader2 size={15} className="animate-spin" />}
           <button type="button" disabled={busy || loading || !dirty} className={BUTTON} onClick={() => { if (canLeave()) loadItem(selected ?? items.find((item) => item.id === activeId) ?? items[0]); }}>取消修改</button>
           {selected && !selected.hidden && <button type="button" disabled={busy || loading || dirty} className={BUTTON} onClick={() => useExisting(selected)}>使用此 Skill</button>}
-          {!selected?.is_builtin && <button type="button" disabled={busy || loading || !dirty || !name.trim() || !content.trim() || nameConflict || !!sameContent} onClick={() => save()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-accent disabled:opacity-40">保存</button>}
+          <button type="button" disabled={busy || loading || !dirty || !name.trim() || !content.trim() || nameConflict || !!sameContent} onClick={() => save()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-accent disabled:opacity-40">保存</button>
           <button type="button" disabled={busy} onClick={close} className={BUTTON}>关闭</button>
         </footer>
-        <input ref={fileRef} type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
+        <input ref={fileRef} type="file" accept=".md,.markdown,.txt,.zip" className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
+        <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked); const list = await refresh(uploaded.id); loadItem(list.find((item) => item.id === uploaded.id)); setNotice('完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
         <input ref={replaceRef} type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => { void upload(event.target.files?.[0], true); event.target.value = ''; }} />
       </div>
     </dialog>, document.body,
