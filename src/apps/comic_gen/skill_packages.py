@@ -7,6 +7,9 @@ import re
 import shutil
 import uuid
 import zipfile
+import tempfile
+import threading
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -33,6 +36,7 @@ REFERENCE_RE = re.compile(
 DEFAULT_STORYBOARD_SKILL_ID = "builtin:storyboard-inline-camera"
 BUILTIN_PREFIX = "builtin:"
 BUILTIN_ID_RE = re.compile(r"^builtin:[a-z0-9][a-z0-9-]*$")
+_MANAGEMENT_LOCK = threading.RLock()
 BUILTIN_ROOT = Path(__file__).resolve().parents[3] / "skills"
 
 
@@ -256,12 +260,12 @@ class SkillPackageStore:
             "contents": files,
         }
 
-    def list(self) -> List[Dict[str, Any]]:
+    def list(self, include_hidden=False) -> List[Dict[str, Any]]:
         """Every selectable package: bundled built-ins first, then uploads."""
         packages: List[Dict[str, Any]] = []
         for name in self._builtin_names():
             try:
-                packages.append(self._builtin_package(name)["metadata"])
+                packages.append(self.get(f"builtin:{name}")["metadata"])
             except (SkillPackageError, OSError) as exc:
                 # One bad bundled skill must not blank the whole picker.
                 logger.warning("Skipping unreadable built-in skill %s: %s", name, exc)
@@ -272,13 +276,13 @@ class SkillPackageStore:
                     continue
                 try:
                     with open(path, encoding="utf-8") as handle:
-                        metadata = json.load(handle)["metadata"]
+                        metadata = self.get(entry)["metadata"]
                 except (OSError, ValueError, KeyError) as exc:
                     logger.warning("Skipping malformed skill package %s: %s", entry, exc)
                     continue
                 metadata["builtin"] = False
                 packages.append(metadata)
-        return packages
+        return packages if include_hidden else [item for item in packages if not item.get("hidden")]
 
     def get(self, package_id: str) -> Dict[str, Any]:
         if self.is_builtin(package_id):
@@ -287,14 +291,77 @@ class SkillPackageStore:
             name = package_id[len(BUILTIN_PREFIX):]
             if name not in self._builtin_names():
                 raise SkillPackageError("内置 Skill 不存在")
-            return self._builtin_package(name)
+            return self._effective(self._builtin_package(name))
         if not re.fullmatch(r"skillpkg_[a-f0-9]{32}", package_id or ""):
             raise SkillPackageError("无效的 Skill Package ID")
         path = os.path.join(self.root, package_id, "package.json")
         if not os.path.exists(path):
             raise SkillPackageError("Skill Package 不存在")
         with open(path, encoding="utf-8") as handle:
+            return self._effective(json.load(handle))
+
+    def _management(self):
+        path = os.path.join(self.root, "management.json")
+        if not os.path.exists(path):
+            return {}
+        with open(path, encoding="utf-8") as handle:
             return json.load(handle)
+
+    def _save_management(self, state):
+        os.makedirs(self.root, exist_ok=True)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self.root, delete=False) as handle:
+                temporary = handle.name
+                json.dump(state, handle, ensure_ascii=False, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, os.path.join(self.root, "management.json"))
+        finally:
+            if temporary and os.path.exists(temporary):
+                os.unlink(temporary)
+
+    def _effective(self, package):
+        with _MANAGEMENT_LOCK:
+            record = self._management().get(package["metadata"]["id"], {})
+        if record.get("contents") is not None:
+            package["contents"] = record["contents"]
+            package["metadata"]["name"] = record["name"]
+            package["metadata"]["modified"] = True
+            package["metadata"]["files"] = [{"path": path, "size": len(text.encode())} for path, text in package["contents"].items()]
+            package["metadata"]["sha256"] = self._digest(package["contents"])
+        package["metadata"].update(hidden=record.get("hidden", False), updated_at=record.get("updated_at"), has_backup=bool(record.get("history")))
+        return package
+
+    def manage(self, package_id, *, name=None, contents=None, hidden=None, reset=False, recover=False):
+        with _MANAGEMENT_LOCK:
+            package = self.get(package_id)
+            entry = package["metadata"]["entry"]
+            if contents is not None:
+                contents = {self._safe_path(path): text for path, text in contents.items()}
+                if not contents or len(contents) > MAX_FILES or entry not in contents:
+                    raise SkillPackageError("文件数量不合法或缺少主规则")
+                if any(os.path.splitext(path)[1].lower() not in ALLOWED_TEXT_EXTENSIONS or len(text.encode()) > MAX_FILE_BYTES for path, text in contents.items()) or sum(len(text.encode()) for text in contents.values()) > MAX_PACKAGE_BYTES:
+                    raise SkillPackageError("Skill 文件类型或大小超限")
+                self._resolve_references(contents, entry)
+            state = self._management()
+            record = state.setdefault(package_id, {})
+            if contents is not None or reset or recover:
+                previous = {"name": package["metadata"]["name"], "contents": package["contents"]}
+                target = record.get("history", [])[-1] if recover and record.get("history") else None
+                if recover and not target:
+                    raise SkillPackageError("没有可恢复的备份")
+                record.setdefault("history", []).append(previous)
+                if reset:
+                    record.pop("contents", None)
+                    record.pop("name", None)
+                else:
+                    record.update(target or {"name": name, "contents": contents})
+            if hidden is not None:
+                record["hidden"] = hidden
+            record["updated_at"] = time.time()
+            self._save_management(state)
+            return self.get(package_id)
 
     def describe(self, package_id: str) -> Dict[str, Any]:
         return self.get(package_id)["metadata"]

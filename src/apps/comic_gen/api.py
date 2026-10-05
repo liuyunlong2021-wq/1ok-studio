@@ -231,13 +231,25 @@ def _read_script_skills(kind=None, include_hidden=False):
     try:
         with open(SKILLS_FILE, "r", encoding="utf-8") as f:
             saved = json.load(f)
-            items = [dict(item) for item in BUILTIN_SCRIPT_SKILLS if include_hidden or item["id"] not in deleted] + [item for item in saved if not item.get("is_builtin")]
     except (FileNotFoundError, json.JSONDecodeError):
-        items = [dict(item) for item in BUILTIN_SCRIPT_SKILLS if include_hidden or item["id"] not in deleted]
+        saved = []
+    overrides = {item["id"]: item for item in saved if item.get("is_builtin")}
+    items = [{**item, **overrides.get(item["id"], {})} for item in BUILTIN_SCRIPT_SKILLS]
+    store = SkillPackageStore()
+    engineering = store.get("builtin:engineering-screenplay")
     for item in items:
         item.setdefault("kind", "script")
-        item["hidden"] = item.get("is_builtin", False) and item["id"] in deleted
-    return [item for item in items if item["kind"] == kind] if kind else items
+        item["hidden"] = item["id"] in deleted
+        if item["id"] == "builtin-engineering":
+            item.update(name=engineering["metadata"]["name"], content=store.compile("builtin:engineering-screenplay"), files=engineering["contents"], entry=engineering["metadata"]["entry"], has_backup=engineering["metadata"].get("has_backup"), hidden=engineering["metadata"].get("hidden", False))
+    items += [item for item in saved if not item.get("is_builtin")]
+    if kind is None:
+        for metadata in store.list(include_hidden=True):
+            if metadata["id"] == "builtin:engineering-screenplay":
+                continue  # Existing engineering ID is the compatibility alias.
+            package = store.get(metadata["id"])
+            items.append({"id": metadata["id"], "name": metadata["name"], "content": store.compile(metadata["id"]), "files": package["contents"], "entry": metadata["entry"], "scope": "system" if metadata["builtin"] else "user", "is_builtin": metadata["builtin"], "kind": "script", "hidden": metadata.get("hidden", False), "updated_at": metadata.get("updated_at"), "has_backup": metadata.get("has_backup")})
+    return [item for item in items if (include_hidden or not item.get("hidden")) and (kind is None or item.get("kind", "script") == kind)]
 
 def _write_script_skill_json(path, data):
     temporary = f"{path}.{uuid.uuid4().hex}.tmp"
@@ -250,7 +262,7 @@ def _write_script_skill_json(path, data):
             os.remove(temporary)
 
 def _write_script_skills(items):
-    _write_script_skill_json(SKILLS_FILE, [item for item in items if not item.get("is_builtin")])
+    _write_script_skill_json(SKILLS_FILE, [item for item in items if not item["id"].startswith(("builtin:", "skillpkg_")) and item["id"] != "builtin-engineering"])
 
 def _set_deleted_builtin(skill_id, deleted):
     if skill_id in {item["id"] for item in BUILTIN_SCRIPT_SKILLS}:
@@ -609,6 +621,7 @@ class ScriptSkillRequest(BaseModel):
     name: str
     content: str
     kind: Optional[str] = None
+    files: Optional[Dict[str, str]] = None
 
 @app.get("/script-skills")
 def list_script_skills(kind: Optional[str] = None, include_hidden: bool = False):
@@ -648,9 +661,19 @@ def update_script_skill(skill_id: str, request: ScriptSkillRequest):
         found = next((item for item in items if item["id"] == skill_id), None)
         if not found:
             raise HTTPException(status_code=404, detail="Skill 不存在")
-        if found.get("is_builtin"):
-            raise HTTPException(status_code=400, detail="内置 Skill 只读，请复制为自定义后编辑")
+        if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
+            package_id = "builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id
+            store = SkillPackageStore()
+            package = store.get(package_id)
+            files = request.files if request.files is not None else {**package["contents"], package["metadata"]["entry"]: request.content}
+            try:
+                store.manage(package_id, name=request.name.strip(), contents=files)
+            except SkillPackageError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            return next(item for item in _read_script_skills(include_hidden=True) if item["id"] == skill_id)
         _validate_script_skill(request, items, skill_id)
+        if found.get("is_builtin"):
+            found.setdefault("history", []).append({"name": found["name"], "content": found["content"]})
         found.update(name=request.name.strip(), content=request.content, updated_at=time.time())
         if request.kind:
             found["kind"] = request.kind
@@ -660,11 +683,41 @@ def update_script_skill(skill_id: str, request: ScriptSkillRequest):
 @app.post("/script-skills/{skill_id}/restore")
 def restore_script_skill(skill_id: str):
     with _SCRIPT_SKILLS_LOCK:
+        if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
+            SkillPackageStore().manage("builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id, hidden=False)
+            return {"ok": True}
         if not any(item["id"] == skill_id for item in BUILTIN_SCRIPT_SKILLS):
             raise HTTPException(status_code=404, detail="内置 Skill 不存在")
         deleted = _read_deleted_script_skills()
         deleted.discard(skill_id)
         _set_deleted_builtin(skill_id, deleted)
+        return {"ok": True}
+
+
+@app.post("/script-skills/{skill_id}/default")
+def reset_script_skill(skill_id: str, recover: bool = False):
+    with _SCRIPT_SKILLS_LOCK:
+        if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
+            package_id = "builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id
+            if not recover and not SkillPackageStore.is_builtin(package_id):
+                raise HTTPException(400, "仅内置 Skill 可以恢复默认")
+            try:
+                SkillPackageStore().manage(package_id, reset=not recover, recover=recover)
+            except SkillPackageError as exc:
+                raise HTTPException(400, str(exc)) from exc
+        else:
+            items = _read_script_skills(include_hidden=True)
+            found = next((item for item in items if item["id"] == skill_id), None)
+            default = next((item for item in BUILTIN_SCRIPT_SKILLS if item["id"] == skill_id), None)
+            if not found or not default:
+                raise HTTPException(404, "内置 Skill 不存在")
+            history = found.setdefault("history", [])
+            if recover and not history:
+                raise HTTPException(400, "没有修改备份")
+            target = history[-1] if recover else default
+            history.append({"name": found["name"], "content": found["content"]})
+            found.update(name=target["name"], content=target["content"], updated_at=time.time(), has_backup=True)
+            _write_script_skills(items)
         return {"ok": True}
 
 
@@ -885,7 +938,9 @@ def delete_script_skill(skill_id: str):
         found = next((item for item in items if item["id"] == skill_id), None)
         if not found:
             raise HTTPException(status_code=404, detail="Skill 不存在")
-        if found.get("is_builtin"):
+        if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
+            SkillPackageStore().manage("builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id, hidden=True)
+        elif found.get("is_builtin"):
             deleted = _read_deleted_script_skills()
             deleted.add(skill_id)
             _set_deleted_builtin(skill_id, deleted)
