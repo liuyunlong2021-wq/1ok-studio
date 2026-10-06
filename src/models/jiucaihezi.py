@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 _QWEN_IMAGE_LOCK = threading.Lock()
 
 
-
 def _raise_for_status_with_body(response: requests.Response, what: str) -> None:
     """把上游的响应体带进异常。
 
@@ -42,6 +41,16 @@ def _raise_for_status_with_body(response: requests.Response, what: str) -> None:
         response.raise_for_status()
     except requests.exceptions.HTTPError as exc:
         detail = " ".join((response.text or "").split())[:400]
+        diagnostics = []
+        for header, label in (
+            ("cf-ray", "Cloudflare Ray ID"),
+            ("x-oneapi-request-id", "NewAPI request ID"),
+        ):
+            value = getattr(response, "headers", {}).get(header)
+            if isinstance(value, str) and value:
+                diagnostics.append(f"{label}: {value}")
+        if diagnostics:
+            detail = f"{detail} [{' | '.join(diagnostics)}]" if detail else "; ".join(diagnostics)
         if not detail:
             raise
         raise requests.exceptions.HTTPError(
@@ -134,7 +143,6 @@ _RH_WEBAPP_IDS = {
     # 应用名「文武双修」，参考图上限 9 张
     "rh_minimax_h3_ref_9": "2101840271142117377",
 }
-
 
 _REF2V_ASPECT_RATIOS = {
     "16:9": "16:9 (Widescreen)",
@@ -322,9 +330,8 @@ def poll_video_task(
                     f"上游任务已完成，但产物取不回来（任务号 {task_id}，网关侧已不可用）：{exc}"
                 ) from exc
         if status in ("failed", "error", "cancelled"):
-            raise RuntimeError(
-                f"Jiucaihezi video failed: {_payload_error_message(result)} [task {task_id}]"
-            )
+            reason = _payload_error_message(result) or "上游任务失败，但状态接口没有返回失败原因"
+            raise RuntimeError(f"Jiucaihezi video failed: {reason} [task {task_id}]")
         # queued / in_progress / pending: keep polling until the deadline.
 
 

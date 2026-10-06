@@ -332,7 +332,13 @@ function getFallbackVisibleModelId(group: SelectionGroup, surface: VisibilitySur
             ? PREFERRED_R2V_MODEL_ID
             : getConfiguredDefaultId(group);
 
-    if (visibleModels.some((model) => model.id === configuredDefaultId)) {
+    const configuredDefaultModel = MODEL_CATALOG.models[configuredDefaultId];
+    if (
+        visibleModels.some((model) => model.id === configuredDefaultId) ||
+        (configuredDefaultModel &&
+            onlyAllowedModels([configuredDefaultModel]).length > 0 &&
+            !['deprecated', 'hidden', 'planned'].includes(configuredDefaultModel.status))
+    ) {
         return configuredDefaultId;
     }
 
@@ -434,6 +440,12 @@ export function getMaxReferenceImages(modelId?: string | null): number {
         MODEL_CATALOG.models[resolvedModelId]?.inputs?.reference_images?.max;
 
     return typeof maxReferenceImages === 'number' ? maxReferenceImages : 3;
+}
+
+export function getModelReferenceImageLimit(modelId?: string | null, fallback = 9): number {
+    const resolvedModelId = modelId ? (toCatalogModelId(modelId) ?? modelId) : '';
+    const limit = MODEL_CATALOG.models[resolvedModelId]?.inputs?.reference_images?.max;
+    return typeof limit === 'number' ? limit : fallback;
 }
 
 // getVisibleModels() 已按允许家族过滤，所以这些选择器不需要再包一层。

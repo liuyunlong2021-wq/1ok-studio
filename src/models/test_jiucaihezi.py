@@ -490,6 +490,31 @@ def test_minimax_sibling_model_shares_the_same_config(post, get, _sleep, _downlo
     assert payload["ratio"] == "9:16"
 
 
+@pytest.mark.parametrize(
+    "catalog_id, gateway_id",
+    [
+        ("jc-minimax-h3", "jc-minimax-h3"),
+        ("jc-minimax-h3-ref2v", "jc-minimax-h3-ref2v"),
+    ],
+)
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._download_video_content")
+@patch("src.models.jiucaihezi.time.sleep")
+@patch("src.models.jiucaihezi.requests.get")
+@patch("src.models.jiucaihezi.requests.post")
+def test_new_minimax_catalog_ids_preserve_gateway_model_names(
+    post, get, _sleep, _download_content, catalog_id, gateway_id
+):
+    post.return_value = _response({"task_id": "task-1"})
+    get.return_value = _response({"status": "completed"})
+
+    JiucaiheziVideoModel({}).generate(
+        "prompt", "/tmp/output.mp4", model_name=f"jiucaihezi/{catalog_id}", duration=5,
+    )
+
+    assert post.call_args.kwargs["json"]["model"] == gateway_id
+
+
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")

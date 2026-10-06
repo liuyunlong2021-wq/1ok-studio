@@ -18,7 +18,7 @@ import {
 
 import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, VideoTask } from "@/lib/api";
-import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, VIDEO_R2V_MODELS, isR2vImageBased } from "@/lib/modelCatalog";
+import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, VIDEO_R2V_MODELS, getModelReferenceImageLimit, isR2vImageBased } from "@/lib/modelCatalog";
 import { selectedShotTiming, type ShotTiming } from "@/lib/shotDuration";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
@@ -617,8 +617,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     const castSlots = referenceAssets;
     const availableReferenceVideos: any[] = [];
     const r2vUsesImages = true;
-    // 所有视频模型的参考图上限都是 9（对应目录 inputs.reference_images.max）。
-    const referenceImageLimit = 9;
+    const referenceImageLimit = getModelReferenceImageLimit(params.model);
     const promptLimit = 12000;
 
     // 截帧 → 上传 → 插到参考图**第一位**。

@@ -84,6 +84,7 @@ describe('model catalog selectors', () => {
         // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
             'dola-seedance2.5',
+            'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
             'rh_minimax_h3_ref_9',

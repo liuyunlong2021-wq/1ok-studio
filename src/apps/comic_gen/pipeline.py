@@ -37,7 +37,13 @@ from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
 from .storyboard_contract import storyboard_duration
 from ...utils import get_logger
 from ...utils.system_check import get_ffmpeg_path, get_ffmpeg_install_instructions
-from ...utils.model_catalog import get_catalog_accessor, get_default_model_settings, is_minimax_h3_model
+from ...utils.model_catalog import (
+    get_catalog_accessor,
+    get_default_model_settings,
+    is_jc_minimax_h3_model,
+    is_jc_minimax_h3_ref2v_model,
+    is_minimax_h3_model,
+)
 from ...utils.global_settings import get_active_text_model
 from ...utils.media_refs import media_ref, to_media_ref
 from ...models.jiucaihezi import AUDIO_MAX_INPUT_CHARS, AUDIO_MAX_REFERENCE_AUDIOS
@@ -2452,6 +2458,29 @@ class ComicGenPipeline:
                 raise ValueError("MiniMax H3 accepts at most 3 reference audios")
             if not 1 <= duration <= 15:
                 raise ValueError("MiniMax H3 duration must be between 1 and 15 seconds")
+
+        is_jc_h3 = is_jc_minimax_h3_model(model)
+        is_jc_h3_ref2v = is_jc_minimax_h3_ref2v_model(model)
+        if is_jc_h3 or is_jc_h3_ref2v:
+            prompt = (prompt or "").strip()
+            if not 1 <= len(prompt) <= 12000:
+                raise ValueError("MiniMax H3 prompt must contain 1-12000 characters")
+            if not 1 <= duration <= 28:
+                raise ValueError("MiniMax H3 duration must be between 1 and 28 seconds")
+            image_count = len(set([image_url] if image_url else []) | set(reference_image_urls or []))
+            if is_jc_h3_ref2v:
+                if generation_mode != "r2v":
+                    raise ValueError("MiniMax H3 Ref2V requires reference-to-video mode")
+                if not 1 <= image_count <= 6:
+                    raise ValueError("MiniMax H3 Ref2V requires 1-6 reference images")
+            else:
+                if generation_mode == "r2v":
+                    raise ValueError("Choose MiniMax H3 Ref2V for reference-to-video generation")
+                if image_count > 2:
+                    raise ValueError("MiniMax H3 accepts at most a first and last frame")
+            if audio_url or reference_audio_urls:
+                raise ValueError("These MiniMax H3 models generate their own audio and do not accept audio references")
+            generate_audio = False
         
         task_id = str(uuid.uuid4())
         
