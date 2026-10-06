@@ -15,8 +15,8 @@ One OK Studio 是一个本地运行的 AI 漫剧制作工具：从剧本、角�
 | 项目 | 要求 |
 | --- | --- |
 | 芯片 | Apple Silicon（M1 / M2 / M3 / M4） |
-| 系统 | macOS 11 Big Sur 或更高 |
-| 磁盘 | 约 300 MB（生成的图片 / 视频另计） |
+| 系统 | macOS 11.1 Big Sur 或更高 |
+| 磁盘 | 预留 1 GB（生成的图片 / 视频另计） |
 
 > 目前只发布 Apple Silicon 版本（原生 arm64，一份安装包覆盖全部 M 系列芯片）。Intel Mac 请走下面的「二、开发者」路线。
 
@@ -46,15 +46,12 @@ App 自带的只是一个外壳，**没有任何密钥**，生成类功能需要
 
 密钥存在 `~/.1okstudio/config.json`，不会随 App 升级丢失，也不会被打进安装包。
 
-### 安装 FFmpeg（导出功能依赖）
+### 运行依赖已内置
 
-视频合成、音频混流等需要 FFmpeg。为了控制安装包体积，当前版本**有意不内置** FFmpeg，需要你装一次：
+安装包已包含 Python 运行时、FFmpeg/FFprobe、音频分离运行时及本地模型权重。
+用户无需安装 Python、Node.js、Rust 或 Homebrew，配置自己的 API Key 后即可生成媒体。
 
-```bash
-brew install ffmpeg
-```
-
-装完重启 App，到 **设置 → 系统自检** 确认 FFmpeg 状态正常。若没装过 Homebrew，先看 https://brew.sh 。
+可在 **设置 → 系统自检** 查看包内视频工具状态。
 
 ### 启动的服务与端口
 
@@ -180,18 +177,19 @@ uv pip install --python .venv-release-macos11/bin/python -r requirements-macos-a
 bash build_tauri_mac.sh
 ```
 
-一条命令完成：PyInstaller 打包后端 → 前端静态导出 → Tauri 构建 → 修复 Python.framework 符号链接 → macOS 11 兼容扫描 → 签名 → 公证 → staple → `spctl` 校验。产物在 `src-tauri/target/aarch64-apple-darwin/release/bundle/`。
+一条命令完成：运行资源预检 → PyInstaller 打包后端 → 前端静态导出 → Tauri 构建 → 修复 Python.framework 符号链接 → macOS 11.1 兼容扫描 → 签名 → 公证 → staple → `spctl` 校验。产物在 `src-tauri/target/aarch64-apple-darwin/release/bundle/`。
 
 前置条件：
 
-- **Apple Silicon 机器**。arm64 发布包支持 macOS 11.0 及以上的 M 系列 Mac。
-- 发布专用 Python 3.11 环境，必须按上面的 `requirements-macos-arm64.txt` 安装；构建脚本会拒绝任何最低系统高于 macOS 11 的内嵌二进制。
+- **Apple Silicon 机器**。arm64 发布包支持 macOS 11.1 及以上的 M 系列 Mac。
+- 发布专用 Python 3.11 环境，必须按上面的 `requirements-macos-arm64.txt` 安装；构建脚本会拒绝任何最低系统高于 macOS 11.1 的内嵌二进制。
+- 准备 `bin/ffmpeg`、`bin/ffprobe`（可用 `bash scripts/build_release_ffmpeg_macos.sh` 从源码编译）及 `bin/demucs-models/` 下的校验通过的 htdemucs 权重。
 - 钥匙串里有 `Developer ID Application` 证书。
 - notarytool 钥匙串 profile，默认名 `one-ok-studio`，可用 `APPLE_NOTARY_PROFILE` 覆盖。
 
 没有证书时构建会在签名步骤失败 —— 这是刻意的，避免产出别人打不开的包。脚本最后用 `spctl` 强制校验，没通过公证不会算成功。
 
-> **FFmpeg 暂不打包**（有意为之，不是待补项）。打包只带 `1okstudio-backend/` 与 `1okstudio-demucs` 两个资源（macOS 由 `build_tauri_mac.sh` 用 `tauri build --config` 临时注入，Windows 写在 `src-tauri/tauri.bundle.windows.conf.json`；`tauri.conf.json` 本身**没有** `bundle.resources` 这一项），安装包体积优先；代价是用户要自己 `brew install ffmpeg` 一次。程序按「包内 `_internal/bin/ffmpeg` → PATH → 系统常见安装位置」的顺序查找，以后若要改成免安装，只需把一份自带依赖的 ffmpeg 放进资源目录，无需改代码。
+> 资源包含 `1okstudio-backend/`、`1okstudio-demucs` 与 `runtime/`。FFmpeg/FFprobe 位于后端 `_internal/bin/`，本地音频模型、构建清单及第三方许可位于 `runtime/`；用户配置与媒体不会打包。
 
 > **不带自动更新，但设置页有「检查更新」**。前者指没有自动下载安装 —— 升级方式是重新下载 DMG 覆盖安装（见「六、更新」）；后者是 `frontend/src/components/settings/UpdateChecker.tsx`，读 GitHub 仓库的 `/releases/latest` 比版本号、只做提示，不下载。
 >
@@ -208,13 +206,13 @@ bash build_tauri_mac.sh
 ## 五、常见问题
 
 **App 打不开，提示「无法验证开发者」**
-确认系统 ≥ macOS 12、芯片是 Apple Silicon。仍不行就到 **系统设置 → 隐私与安全性** 点「仍要打开」。
+确认系统 ≥ macOS 11.1、芯片是 Apple Silicon。仍不行就到 **系统设置 → 隐私与安全性** 点「仍要打开」。
 
 **点生成没反应，或报 Key 相关错误**
 到 **设置** 检查对应服务商的 Key、余额和模型权限。源码运行时是 `.env`，打包态是 `~/.1okstudio/config.json`。
 
 **导出视频失败**
-基本都是 FFmpeg。到 **设置 → 系统自检** 看状态；缺了就 `brew install ffmpeg` 再重启 App。
+到 **设置 → 系统自检** 看状态，并查看启动日志。正式包已内置 FFmpeg；资源缺失时重新安装完整安装包。
 
 **界面空白 / 一直转圈**
 后端没起来。先看 `~/.1okstudio/logs/sidecar.log`。源码运行时再确认 17178 端口没被占用：
