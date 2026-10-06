@@ -54,6 +54,14 @@ def main():
             subprocess.run([sys.executable, str(ROOT / 'scripts/check_macos_compat.py'),
                             '--max', os.environ.get('MACOSX_DEPLOYMENT_TARGET', '11.0'), str(source)], check=True)
         subprocess.run([str(source.resolve()), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=15)
+        if name == 'ffmpeg':
+            encoders = subprocess.run([str(source.resolve()), '-encoders'], check=True,
+                                      capture_output=True, text=True, timeout=15).stdout
+            available = {line.split()[1] for line in encoders.splitlines() if len(line.split()) >= 2}
+            required_encoders = {'libx264', 'aac'}
+            if not required_encoders.issubset(available):
+                raise SystemExit('Release FFmpeg missing composition encoders: '
+                                 + ', '.join(sorted(required_encoders - available)))
         target = STAGE / 'bin' / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
