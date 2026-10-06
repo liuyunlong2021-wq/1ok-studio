@@ -7,9 +7,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# The first Apple Silicon Macs shipped with macOS 11. Every native component
-# in the bundle is checked against this value before notarization.
-export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+# The bundled torchaudio C++ runtime requires macOS 11.1. Every native
+# component is checked against this declared minimum before notarization.
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.1}"
 
 echo "╔═══════════════════════════════════════════════════╗"
 echo "║  One OK Studio — Tauri macOS Build               ║"

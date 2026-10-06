@@ -52,7 +52,7 @@ def main():
             raise SystemExit(f'Missing release {filename}. Provide bin/{filename} or ONEOK_{name.upper()}_PATH. System PATH is deliberately not used.')
         if platform.system() == 'Darwin':
             subprocess.run([sys.executable, str(ROOT / 'scripts/check_macos_compat.py'),
-                            '--max', os.environ.get('MACOSX_DEPLOYMENT_TARGET', '11.0'), str(source)], check=True)
+                            '--max', os.environ.get('MACOSX_DEPLOYMENT_TARGET', '11.1'), str(source)], check=True)
         subprocess.run([str(source.resolve()), '-version'], check=True, stdout=subprocess.DEVNULL, timeout=15)
         if name == 'ffmpeg':
             encoders = subprocess.run([str(source.resolve()), '-encoders'], check=True,
