@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Send, Settings2, Upload } from 'lucide-react';
+import { ChevronDown, Loader2, Send, Settings2, Upload } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { scriptEditorApi, type ScriptSkill } from '@/lib/scriptEditorApi';
 import { promptEditorApi, type PromptContext } from '@/lib/promptEditorApi';
@@ -247,8 +247,8 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
       </div>
       {isH3 && <div className="mt-3 space-y-2">
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs text-text-secondary">目标时长（秒）<input aria-label="H3 增强时长" type="number" min={4} max={15} step={1} value={Number.isFinite(h3Duration) ? h3Duration : ''} disabled={h3.busy} onChange={(event) => setH3Duration(event.target.value === '' ? NaN : Number(event.target.value))} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground" /></label>
-          <label className="text-xs text-text-secondary">画幅<select aria-label="H3 增强画幅" value={h3Ratio} disabled={h3.busy} onChange={(event) => setH3Ratio(event.target.value)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground">{H3_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select></label>
+          <label className="text-xs text-text-secondary">目标时长（秒）<input aria-label="H3 增强时长" type="number" min={4} max={15} step={1} value={Number.isFinite(h3Duration) ? h3Duration : ''} disabled={h3.busy} onChange={(event) => setH3Duration(event.target.value === '' ? NaN : Number(event.target.value))} className="mt-1 block h-10 w-full box-border rounded-lg border border-border-subtle bg-surface px-3 py-0 text-xs text-foreground" /></label>
+          <label className="text-xs text-text-secondary">画幅<span className="relative mt-1 block"><select aria-label="H3 增强画幅" value={h3Ratio} disabled={h3.busy} onChange={(event) => setH3Ratio(event.target.value)} className="block h-10 w-full box-border appearance-none rounded-lg border border-border-subtle bg-surface pl-3 pr-8 py-0 text-xs text-foreground">{H3_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select><ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" /></span></label>
         </div>
         <label className="block text-xs text-text-secondary">图片用途<select aria-label="H3 图片用途" value={h3ImageMode} disabled={h3.busy} onChange={(event) => setH3ImageMode(event.target.value as H3ImageMode)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground"><option value="reference">参考图（无图时使用纯文本）</option><option value="first_frame">首帧</option><option value="last_frame">尾帧</option><option value="first_last">首尾帧（按图片顺序）</option></select></label>
         <p className="text-xs text-text-muted">使用选定风格和参考图片增强提示词，图片通过韭菜盒子临时上传。{h3ImageMode !== 'reference' ? '首尾帧画幅由图片决定。' : '图片编号沿用当前顺序。'}</p>
