@@ -934,7 +934,7 @@ models:
   - id: ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746
     display_name: Fk MiniMax H3 768P · 0.08 元/秒
     description: 特价渠道 MiniMax H3-768p，0.08 元/秒，1–15 秒；参考图片 9、视频 0、音频 3。登记合同，实扣以账单为准。
-    status: active
+    status: hidden
     release_stage: preview
     capabilities:
     - t2v
@@ -951,11 +951,7 @@ models:
         video_contract: fk_video
     ui:
       selection_group: r2v
-      visible_in:
-      - project_settings
-      - series_settings
-      - video_sidebar
-      - global_settings
+      visible_in: []  # 当前账号 /v1/models 未返回，开通后再显示
       order: 1027
       recommended: false
       badges:
