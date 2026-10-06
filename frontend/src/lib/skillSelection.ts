@@ -8,7 +8,7 @@ export function selectableSkills(items: ScriptSkill[]): SelectableSkill[] {
   for (const item of [...items].sort((a, b) => Number(b.is_builtin) - Number(a.is_builtin))) {
     if (item.hidden) continue;
     const content = item.content.replace(/\r\n/g, '\n').trim();
-    const key = item.validation_error ? item.id : content;
+    const key = item.executor || item.validation_error ? item.id : content;
     const existing = groups.get(key);
     if (existing) existing.aliases.push(item.id);
     else groups.set(key, { ...item, aliases: [item.id], displayName: item.name });

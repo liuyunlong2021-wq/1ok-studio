@@ -126,6 +126,7 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
       if (!alive.current || editor.isDestroyed) return;
       if ((previewSourceChanged(editor, preview) || preview.sourceContext !== contextKey())) { toast.error('原文已变化，请重新生成'); return; }
       applyAiPreview(editor, preview, 'prompt');
+      preview.onResolved?.();
       setPreview(null); setScope(null);
       await save(true);
     } finally { actionLock.current = false; }
@@ -231,7 +232,7 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5">
         <div className="mx-auto flex min-h-full max-w-[900px] flex-col rounded-2xl border border-border-subtle bg-surface shadow-sm">
         <h2 className="border-b border-border-subtle px-6 py-3 text-sm font-medium">{preview ? 'AI 结果预览' : '正文'}</h2>
-        {preview ? <><div className="px-8 pt-3"><button className={BUTTON} onClick={() => { void navigator.clipboard.writeText(preview.text).then(() => toast.success('已复制预览')).catch(() => toast.error('复制失败')); }}><Copy size={13} />复制预览</button></div><AiResultPreview purpose="prompt" text={preview.text} onAccept={() => { void accept(); }} onDiscard={() => { setPreview(null); setScope(null); }} /></>
+        {preview ? <><div className="px-8 pt-3"><button className={BUTTON} onClick={() => { void navigator.clipboard.writeText(preview.text).then(() => toast.success('已复制预览')).catch(() => toast.error('复制失败')); }}><Copy size={13} />复制预览</button></div><AiResultPreview purpose="prompt" text={preview.text} onAccept={() => { void accept(); }} onDiscard={() => { preview.onResolved?.(); setPreview(null); setScope(null); }} /></>
           : <EditorContent editor={editor} className="mx-auto w-full min-h-full max-w-[850px] px-8 py-8 [&_.tiptap]:min-h-[60vh] [&_.tiptap]:whitespace-pre-wrap [&_.tiptap]:break-words [&_.tiptap]:outline-none [&_.tiptap]:text-[1rem] [&_.tiptap]:leading-8 [&_.tiptap_p]:m-0" />}
         </div>
       </main>

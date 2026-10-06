@@ -35,7 +35,7 @@ function fakeEditor(initialSelection = { from: 1, to: 1 }) {
   const api = {
     state: {
       selection: initialSelection,
-      doc: { textBetween: vi.fn(() => SELECTED_TEXT) },
+      doc: { content: { size: 50 }, textBetween: vi.fn(() => SELECTED_TEXT) },
     },
     getText: vi.fn(() => '全文原稿'),
     on: vi.fn((event: string, cb: () => void) => {
@@ -70,16 +70,18 @@ function Harness({ editor, onPreview }: { editor: any; onPreview: (preview: any)
 describe('AiPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     listScriptSkills.mockResolvedValue([builtin]);
     standardizeScript.mockResolvedValue({ standardized_text: 'AI 新稿', model: 'test' });
   });
 
-  it('默认作用于全文，发送的是整篇', async () => {
+  it('默认作用于全文，选择 Skill 后发送的是整篇', async () => {
     const onPreview = vi.fn();
     renderWithIntl(<Harness editor={fakeEditor().editor} onPreview={onPreview} />);
 
     await screen.findByRole('option', { name: '中文短剧标准化 · 内置' });
-    expect(screen.getByRole('combobox')).toHaveValue('builtin-short');
+    expect(screen.getByRole('combobox')).toHaveValue('');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'builtin-short' } });
     expect(screen.getByText(/作用范围：全文/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('输入这次希望 AI 完成的修改要求'), {
@@ -99,6 +101,7 @@ describe('AiPanel', () => {
     renderWithIntl(<Harness editor={editor} onPreview={onPreview} />);
 
     await screen.findByRole('option', { name: '中文短剧标准化 · 内置' });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'builtin-short' } });
     select(2, 6);
 
     // 面板里要看得出「改的是哪一段、多少字」
@@ -124,6 +127,7 @@ describe('AiPanel', () => {
     renderWithIntl(<Harness editor={editor} onPreview={vi.fn()} />);
 
     await screen.findByRole('option', { name: '中文短剧标准化 · 内置' });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'builtin-short' } });
     select(2, 6);
     expect(await screen.findByText('作用范围：已框选 4 字')).toBeInTheDocument();
 
@@ -137,6 +141,7 @@ describe('AiPanel', () => {
     renderWithIntl(<Harness editor={editor} onPreview={vi.fn()} />);
 
     await screen.findByRole('option', { name: '中文短剧标准化 · 内置' });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'builtin-short' } });
     select(2, 6);
     fireEvent.click(await screen.findByRole('button', { name: '改为全文' }));
 

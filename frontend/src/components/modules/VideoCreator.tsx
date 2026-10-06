@@ -25,6 +25,10 @@ import { updateFrameSelection } from "@/lib/frameSelection";
 import { deriveSegmentReferences } from "@/lib/segmentReferences";
 import { toast } from "@/store/toastStore";
 import PromptBuilder, { PromptSegment, PromptBuilderRef } from "./PromptBuilder";
+import { scriptEditorApi } from '@/lib/scriptEditorApi';
+import { H3_SKILL_ID, h3ParameterError, h3Images, h3ImageModeError } from '@/lib/h3PromptEnhancer';
+import { useH3PromptEnhancement } from '@/hooks/useH3PromptEnhancement';
+import H3EnhancementStatus from '@/components/shared/H3EnhancementStatus';
 import type { VideoParams } from "@/store/projectStore";
 
 type ReferenceAsset = {
@@ -118,7 +122,19 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
         unmountedRef.current = false;
         return () => { unmountedRef.current = true; };
     }, []);
-    const [selectedPromptPreset, setSelectedPromptPreset] = useState<"r2v" | "r2v_minimax">("r2v");
+    const [selectedPromptPreset, setSelectedPromptPreset] = useState<string>("r2v");
+    const [h3SkillAvailable, setH3SkillAvailable] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        const refresh = () => { void scriptEditorApi.listScriptSkills('motion').then((items) => {
+            if (cancelled) return;
+            const available = items.some((item) => item.id === H3_SKILL_ID && !item.hidden);
+            setH3SkillAvailable(available);
+            if (!available) setSelectedPromptPreset((preset) => preset === H3_SKILL_ID ? 'r2v' : preset);
+        }).catch(() => { if (!cancelled) setMotionError('增强 Skill 加载失败，可刷新后重试。'); }); };
+        refresh(); window.addEventListener('script-skills-changed', refresh);
+        return () => { cancelled = true; window.removeEventListener('script-skills-changed', refresh); };
+    }, []);
     const [isUploadingReference, setIsUploadingReference] = useState(false);
     const [generationMode, setGenerationMode] = useState<"i2v" | "r2v">(I2V_MODE_AVAILABLE ? "i2v" : "r2v"); // Local mode state
     const [extractingFrameId, setExtractingFrameId] = useState<string | null>(null);
@@ -210,6 +226,29 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
 
     // Computed prompt for API
     const prompt = segments.map(s => s.value).join(" ");
+    const h3 = useH3PromptEnhancement(`motion:${currentProject?.id ?? ''}`);
+    const isH3PromptSkill = selectedPromptPreset === H3_SKILL_ID;
+    const h3Ratio = currentProject?.model_settings?.storyboard_aspect_ratio || "16:9";
+    const h3Invalid = h3ParameterError(shotTiming.duration, h3Ratio) || h3ImageModeError(referenceAssets.length, 'reference');
+    const h3SourceContext = JSON.stringify({
+        projectId: currentProject?.id, prompt, segments, frameIds: selectedFrameIds,
+        frames: currentProject?.frames?.filter((frame: any) => selectedFrameIds.includes(frame.id)),
+        references: referenceAssets, duration: shotTiming.duration, ratio: h3Ratio, model: params.model,
+    });
+    const h3SourceRef = useRef(h3SourceContext);
+    h3SourceRef.current = h3SourceContext;
+    const h3PreparationLock = useRef(false);
+    const [h3Original, setH3Original] = useState<{ segments: PromptSegment[]; appliedText: string } | null>(null);
+    useEffect(() => { setH3Original(null); }, [currentProject?.id]);
+    const adoptH3Prompt = () => {
+        if (!h3.job || h3.job.status !== 'completed') return;
+        if (h3.job.source_context !== h3SourceRef.current) { setMotionError('原文、镜头或参数已变化，不能覆盖新编辑。可复制增强结果后重新处理。'); return; }
+        if (h3.job.text.length > 12000) { setMotionError('增强结果超过当前视频提示词的 12000 字上限，请复制后精简，未截断结果。'); return; }
+        setH3Original({ segments, appliedText: h3.job.text });
+        setSegments([{ type: 'text', value: h3.job.text, id: `h3-${h3.job.job_id}` }]);
+        setMotionError('');
+        h3.clear();
+    };
 
     // negativePrompt moved to params
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -336,6 +375,26 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
         if (!currentProject || !selectedFrameIds.length) return;
         if (shotTiming.duration === null) { setMotionError('请先补齐所选镜头时长'); return; }
         const scriptId = currentProject.id;
+        if (isH3PromptSkill) {
+            if (h3.busy || h3.pendingId || h3PreparationLock.current) return;
+            if (h3Invalid) { setMotionError(h3Invalid); return; }
+            const sourceContext = h3SourceRef.current;
+            h3PreparationLock.current = true;
+            setIsGeneratingPrompt(true); setMotionError('');
+            try {
+                // Empty draft: assemble selected shots locally, without an extra LLM call.
+                const text = prompt.trim() ? prompt : (await api.assembleMotionPrompt(scriptId, {
+                    frame_ids: selectedFrameIds,
+                    references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
+                    ratio: h3Ratio, duration: shotTiming.duration,
+                })).prompt;
+                if (unmountedRef.current || sourceContext !== h3SourceRef.current) return;
+                h3.run({ text, images: h3Images(referenceAssets.map((asset) => ({ ref: asset.url, name: asset.name }))), duration: shotTiming.duration, ratio: h3Ratio, source_context: sourceContext });
+            } catch (reason: any) {
+                if (!unmountedRef.current && sourceContext === h3SourceRef.current) setMotionError(reason?.response?.data?.detail || '准备增强提示词失败');
+            } finally { h3PreparationLock.current = false; if (!unmountedRef.current) setIsGeneratingPrompt(false); }
+            return;
+        }
         setIsGeneratingPrompt(true);
         setMotionError("");
         setPromptJobStatus("queued");
@@ -343,7 +402,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
             const job = await api.generateMotionPrompt(scriptId, {
                 frame_ids: selectedFrameIds,
                 references: referenceAssets.map((asset) => ({ name: asset.name, asset_type: asset.type })),
-                prompt_preset: selectedPromptPreset,
+                prompt_preset: selectedPromptPreset === "r2v_minimax" ? "r2v_minimax" : "r2v",
                 duration: shotTiming.duration,
                 ratio: currentProject.model_settings?.storyboard_aspect_ratio || "16:9",
             });
@@ -1226,26 +1285,46 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                 <div className="min-w-0 flex-1"><p className="text-sm font-medium text-text-secondary">提示词配置</p><p className="mt-1 text-xs text-text-muted">选择 Skill 后生成对应提示词，参考图可稍后绑定。</p></div>
                                 <select
                                     value={selectedPromptPreset}
-                                    onChange={(e) => setSelectedPromptPreset(e.target.value as "r2v" | "r2v_minimax")}
+                                    disabled={isGeneratingPrompt || h3.busy}
+                                    onChange={(e) => setSelectedPromptPreset(e.target.value)}
                                     className="max-w-[220px] rounded border border-glass-border bg-surface px-2 py-1.5 text-xs text-foreground"
                                     aria-label="提示词 Skill"
                                 >
                                     <option value="r2v">提示词配置 · R2V</option>
                                     <option value="r2v_minimax">MiniMax 参考生视频 Skill</option>
+                                    {h3SkillAvailable && <option value={H3_SKILL_ID}>MiniMax H3 提示词增强 · 内置</option>}
                                 </select>
-                                <button type="button" onClick={assembleMotionPrompt} disabled={isGeneratingPrompt || !selectedFrameIds.length} className="rounded border border-glass-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/50 hover:text-primary disabled:opacity-40">
+                                <button type="button" onClick={assembleMotionPrompt} disabled={isGeneratingPrompt || h3.busy || !selectedFrameIds.length} className="rounded border border-glass-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/50 hover:text-primary disabled:opacity-40">
                                     拼装提示词
                                 </button>
-                                <button type="button" onClick={generateMotionPrompt} disabled={isGeneratingPrompt || !selectedFrameIds.length} className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40">
-                                    {isGeneratingPrompt ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Wand2 size={13} className="mr-1 inline" />}
-                                    {promptJobStatus === "running" ? "生成中..." : promptJobStatus === "queued" ? "排队中..." : "生成提示词"}
+                                <button type="button" onClick={generateMotionPrompt} disabled={isGeneratingPrompt || h3.busy || !selectedFrameIds.length || (isH3PromptSkill && (!!h3Invalid || !!h3.pendingId))} className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40">
+                                    {isGeneratingPrompt || h3.busy ? <Loader2 size={13} className="mr-1 inline animate-spin" /> : <Wand2 size={13} className="mr-1 inline" />}
+                                    {isH3PromptSkill ? isGeneratingPrompt || h3.busy ? "增强中..." : "增强提示词" : promptJobStatus === "running" ? "生成中..." : promptJobStatus === "queued" ? "排队中..." : "生成提示词"}
                                 </button>
                             </div>
+                            {isH3PromptSkill && <p className="text-xs text-text-muted">H3 提示词增强 · {shotTiming.duration ?? '未填写'} 秒 · {h3Ratio}。按当前顺序读取并上传参考图；空白提示词按所选镜头本地拼装后增强。</p>}
+                            {isH3PromptSkill && h3Invalid && <p className="text-xs text-red-400">{h3Invalid}</p>}
                             {motionError && <p className="text-xs text-red-400">{motionError}</p>}
                         </div>
                     )}
 
 
+                    <H3EnhancementStatus {...h3} onResume={h3.resume} onClear={h3.clear} />
+                    {h3.job?.status === 'completed' && <div className="space-y-3 rounded-lg border border-primary/30 bg-surface p-4">
+                        <p className="text-sm font-medium text-text-secondary">H3 增强结果预览</p>
+                        <details className="text-xs text-text-muted"><summary className="cursor-pointer">增强前提示词</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-sans">{h3.job.source_text}</pre></details>
+                        <pre className="max-h-80 overflow-auto whitespace-pre-wrap text-sm text-foreground custom-scrollbar">{h3.job.text}</pre>
+                        {h3.job.source_context !== h3SourceContext && <p className="text-xs text-red-400">原文、镜头或参数已变化，请复制结果或放弃后重新增强。</p>}
+                        <div className="flex gap-3 text-xs">
+                            <button type="button" disabled={h3.job.source_context !== h3SourceContext || h3.job.text.length > 12000} className="rounded bg-primary px-3 py-2 text-on-accent disabled:opacity-40" onClick={adoptH3Prompt}>采用增强结果</button>
+                            <button type="button" className="text-primary" onClick={() => { void navigator.clipboard.writeText(h3.job!.text).then(() => toast.success('已复制增强结果')).catch(() => toast.error('复制失败')); }}>复制结果</button>
+                            <button type="button" className="text-text-secondary" onClick={h3.clear}>放弃结果</button>
+                        </div>
+                    </div>}
+                    {h3Original && <button type="button" className="text-xs text-primary" onClick={() => {
+                        if (prompt !== h3Original.appliedText) { setMotionError('采用后正文已有修改，未覆盖当前内容。'); return; }
+                        setSegments(h3Original.segments); setH3Original(null); setMotionError('');
+                    }}>恢复增强前提示词</button>}
                     {/* 2. Prompt Input */}
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">

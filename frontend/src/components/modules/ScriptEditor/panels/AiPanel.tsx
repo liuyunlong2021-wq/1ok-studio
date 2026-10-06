@@ -8,6 +8,9 @@ import { promptEditorApi, type PromptContext } from '@/lib/promptEditorApi';
 import { scriptTextOf } from '../documentText';
 import { selectableSkills, type SelectableSkill } from '@/lib/skillSelection';
 import ScriptSkillManager from '../dialogs/ScriptSkillManager';
+import { H3_SKILL_ID, H3_RATIOS, h3ParameterError, h3Images, h3ImageModeError, type H3ImageMode } from '@/lib/h3PromptEnhancer';
+import { useH3PromptEnhancement } from '@/hooks/useH3PromptEnhancement';
+import H3EnhancementStatus from '@/components/shared/H3EnhancementStatus';
 
 function selectionKey(projectId: string) { return `script-ai-skill:${projectId}`; }
 
@@ -31,6 +34,7 @@ export interface AiPreview {
   sourceText: string;
   sourceDocument?: string;
   sourceContext?: string;
+  onResolved?: () => void;
 }
 
 /** 锁定的作用范围。`null` = 全文。 */
@@ -75,6 +79,28 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   const [loadingSkills, setLoadingSkills] = useState(true);
   const [showManager, setShowManager] = useState(false);
   const [importFile, setImportFile] = useState<File>();
+  const h3 = useH3PromptEnhancement(`${purpose}:${projectId ?? ''}`);
+  const deliveredH3 = useRef('');
+  const [h3Duration, setH3Duration] = useState(() => {
+    try { return Number(localStorage.getItem('1okstudio:h3-duration') ?? 5); } catch { return 5; }
+  });
+  const [h3ImageMode, setH3ImageMode] = useState<H3ImageMode>('reference');
+  const [h3Ratio, setH3Ratio] = useState(() => {
+    try { return localStorage.getItem('1okstudio:h3-ratio') ?? '9:16'; } catch { return '9:16'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('1okstudio:h3-duration', String(h3Duration)); localStorage.setItem('1okstudio:h3-ratio', h3Ratio); } catch { /* Optional preference. */ }
+  }, [h3Duration, h3Ratio]);
+  useEffect(() => { deliveredH3.current = ''; }, [projectId]);
+  useEffect(() => {
+    if (purpose !== 'prompt' || h3.job?.status !== 'completed' || deliveredH3.current === h3.job.job_id) return;
+    try {
+      const source = JSON.parse(h3.job.source_context) as { documentId: string; preview: Omit<AiPreview, 'text' | 'onResolved'> };
+      if (source.documentId !== projectId) return;
+      deliveredH3.current = h3.job.job_id;
+      onPreview({ ...source.preview, text: h3.job.text, onResolved: h3.clear });
+    } catch { setError('增强结果的原文记录无法读取，请保留任务 ID。'); }
+  }, [h3.job, h3.clear, onPreview, projectId, purpose]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +169,9 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   }, [editor, onScopeChange]);
 
   const selectedSkill = useMemo(() => skills.find((item) => item.id === skillId), [skills, skillId]);
+  const isH3 = purpose === 'prompt' && selectedSkill?.id === H3_SKILL_ID;
+  const h3Invalid = isH3 ? h3ParameterError(h3Duration, h3Ratio) || h3ImageModeError(promptContext?.images.length ?? 0, h3ImageMode) : '';
+  const sending = busy || h3.busy;
   // 空白不计入字数，否则「已框选 128 字」和看到的字对不上
   const scopeLength = scope ? scope.text.replace(/\s/g, '').length : 0;
 
@@ -156,7 +185,7 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   }, [editor, scope, onScopeChange, purpose]);
 
   const send = async () => {
-    if (!editor || !projectId || (!selectedSkill && !instruction.trim()) || busy) return;
+    if (!editor || !projectId || (!selectedSkill && !instruction.trim()) || sending) return;
     if (scope && (scope.to > editor.state.doc.content.size || editor.state.doc.textBetween(scope.from, scope.to, '\n') !== scope.text)) {
       onScopeChange(null); setError('选区已变化，请重新框选或改为全文'); return;
     }
@@ -169,6 +198,15 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
     const requestId = projectId;
     const sourceContext = purpose === 'prompt' ? JSON.stringify(promptContext ?? { style: null, images: [] }) : undefined;
     const sourceDocument = purpose === 'prompt' ? JSON.stringify(editor.getJSON()) : undefined;
+    if (isH3) {
+      if (h3.pendingId) return;
+      setError('');
+      const style = promptContext?.style;
+      const contextInstruction = [style ? `风格：${style.name}\n${style.positive_prompt || style.description}${style.negative_prompt ? `\n避免：${style.negative_prompt}` : ''}` : '', instruction].filter(Boolean).join('\n\n');
+      if (contextInstruction.length > 20000) { setError('风格与本次要求合计超过 20000 字，请精简后重试；未截断内容'); return; }
+      h3.run({ text, instruction: contextInstruction, images: h3Images(promptContext?.images ?? [], h3ImageMode), duration: h3Duration, ratio: h3Ratio, source_context: JSON.stringify({ documentId: projectId, preview: { range: scope ? { from: scope.from, to: scope.to } : null, sourceText: text, sourceDocument, sourceContext } }) });
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -201,12 +239,21 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
             <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
           </div>
         </div>
-        <select id="script-ai-skill" value={skillId} disabled={loadingSkills} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
+        <select id="script-ai-skill" value={skillId} disabled={loadingSkills || sending} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
           <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
           {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.displayName}{item.validation_error ? ' · 需修复' : ''}</option>)}
         </select>
         {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
       </div>
+      {isH3 && <div className="mt-3 space-y-2">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-xs text-text-secondary">目标时长（秒）<input aria-label="H3 增强时长" type="number" min={4} max={15} step={1} value={Number.isFinite(h3Duration) ? h3Duration : ''} disabled={h3.busy} onChange={(event) => setH3Duration(event.target.value === '' ? NaN : Number(event.target.value))} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground" /></label>
+          <label className="text-xs text-text-secondary">画幅<select aria-label="H3 增强画幅" value={h3Ratio} disabled={h3.busy} onChange={(event) => setH3Ratio(event.target.value)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground">{H3_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select></label>
+        </div>
+        <label className="block text-xs text-text-secondary">图片用途<select aria-label="H3 图片用途" value={h3ImageMode} disabled={h3.busy} onChange={(event) => setH3ImageMode(event.target.value as H3ImageMode)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground"><option value="reference">参考图（无图时使用纯文本）</option><option value="first_frame">首帧</option><option value="last_frame">尾帧</option><option value="first_last">首尾帧（按图片顺序）</option></select></label>
+        <p className="text-xs text-text-muted">使用选定风格和参考图片增强提示词，图片通过韭菜盒子临时上传。{h3ImageMode !== 'reference' ? '首尾帧画幅由图片决定。' : '图片编号沿用当前顺序。'}</p>
+        {h3Invalid && <p className="text-xs text-red-400">{h3Invalid}</p>}
+      </div>}
       {/* 占满剩下的高度：输入框随窗口伸缩，「已框选的那段」保持固定高度露在下面。 */}
       <div className="mt-5 flex min-h-0 flex-1 flex-col">
         <label htmlFor="script-ai-instruction" className="shrink-0 text-xs font-medium text-text-secondary">本次要求</label>
@@ -234,8 +281,9 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
         ) : null}
         {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
       </div>
-      <button type="button" onClick={send} disabled={busy || !!selectedSkill?.validation_error || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
-        {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{busy ? '生成中…' : '发送'}
+      <H3EnhancementStatus {...h3} onResume={h3.resume} onClear={h3.clear} />
+      <button type="button" onClick={send} disabled={sending || !!h3Invalid || (isH3 && !!h3.pendingId) || !!selectedSkill?.validation_error || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">
+        {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}{sending ? isH3 ? '增强中…' : '生成中…' : isH3 ? '增强提示词' : '发送'}
       </button>
       {showManager && <ScriptSkillManager kind={skillKind} activeId={skillId} initialFile={importFile} onChange={applySkills} onClose={() => { setShowManager(false); setImportFile(undefined); }} />}
     </div>
