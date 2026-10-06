@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getFkReferenceLimits } from '@/lib/modelCatalog';
 import { getMediaInputConfig } from './mediaModes';
 import { getDefaultModelForMode, getModelMaxReferenceImages } from './playgroundModels';
 
@@ -318,6 +319,14 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
 
     if (inputMedia.includes(mediaPath)) {
       return 'duplicate';
+    }
+
+    const fkLimits = currentMode === 'r2v' ? getFkReferenceLimits(modelId) : null;
+    if (fkLimits && !targetMode) {
+      const kindOf = (path: string) => /\.(mp4|mov|webm|avi|mkv)(?:\?|$)/i.test(path) ? 'video' : /\.(mp3|wav|ogg|opus|pcm|m4a|flac|aac)(?:\?|$)/i.test(path) ? 'audio' : 'image';
+      if (inputMedia.filter((path) => kindOf(path) === mediaType).length >= fkLimits[mediaType]) return 'full';
+      set({ inputMedia: [...inputMedia, mediaPath] });
+      return 'appended';
     }
 
     // 当前模式直接收得下：追加（多张）或替换（单张），不动模式。
