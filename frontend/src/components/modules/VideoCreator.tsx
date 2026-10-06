@@ -18,7 +18,7 @@ import {
 
 import { useProjectStore } from "@/store/projectStore";
 import { api, API_URL, VideoTask } from "@/lib/api";
-import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, VIDEO_R2V_MODELS, getModelReferenceImageLimit, isR2vImageBased } from "@/lib/modelCatalog";
+import { I2V_MODE_AVAILABLE, R2V_SELECTION_MODEL_ID, VIDEO_R2V_MODELS, getModelReferenceImageLimit, getModelPromptLimit, isR2vImageBased } from "@/lib/modelCatalog";
 import { selectedShotTiming, type ShotTiming } from "@/lib/shotDuration";
 import { getAssetUrl, getAssetUrlWithTimestamp } from "@/lib/utils";
 import { updateFrameSelection } from "@/lib/frameSelection";
@@ -243,7 +243,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     const adoptH3Prompt = () => {
         if (!h3.job || h3.job.status !== 'completed') return;
         if (h3.job.source_context !== h3SourceRef.current) { setMotionError('原文、镜头或参数已变化，不能覆盖新编辑。可复制增强结果后重新处理。'); return; }
-        if (h3.job.text.length > 12000) { setMotionError('增强结果超过当前视频提示词的 12000 字上限，请复制后精简，未截断结果。'); return; }
+        if (h3.job.text.length > promptLimit) { setMotionError(`增强结果超过当前视频提示词的 ${promptLimit} 字上限，请复制后精简，未截断结果。`); return; }
         setH3Original({ segments, appliedText: h3.job.text });
         setSegments([{ type: 'text', value: h3.job.text, id: `h3-${h3.job.job_id}` }]);
         setMotionError('');
@@ -458,8 +458,8 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                 setMotionError("请先选择连续镜头和至少一张参考图");
                 return;
             }
-            if (!prompt || !currentProject || prompt.length > 12000) {
-                setMotionError("视频提示词必须为 1-12000 字");
+            if (!prompt || !currentProject || prompt.length > promptLimit) {
+                setMotionError(`视频提示词必须为 1-${promptLimit} 字`);
                 return;
             }
         }
@@ -677,7 +677,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
     const availableReferenceVideos: any[] = [];
     const r2vUsesImages = true;
     const referenceImageLimit = getModelReferenceImageLimit(params.model);
-    const promptLimit = 12000;
+    const promptLimit = getModelPromptLimit(params.model);
 
     // 截帧 → 上传 → 插到参考图**第一位**。
     //
@@ -1316,7 +1316,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                         <pre className="max-h-80 overflow-auto whitespace-pre-wrap text-sm text-foreground custom-scrollbar">{h3.job.text}</pre>
                         {h3.job.source_context !== h3SourceContext && <p className="text-xs text-red-400">原文、镜头或参数已变化，请复制结果或放弃后重新增强。</p>}
                         <div className="flex gap-3 text-xs">
-                            <button type="button" disabled={h3.job.source_context !== h3SourceContext || h3.job.text.length > 12000} className="rounded bg-primary px-3 py-2 text-on-accent disabled:opacity-40" onClick={adoptH3Prompt}>采用增强结果</button>
+                            <button type="button" disabled={h3.job.source_context !== h3SourceContext || h3.job.text.length > promptLimit} className="rounded bg-primary px-3 py-2 text-on-accent disabled:opacity-40" onClick={adoptH3Prompt}>采用增强结果</button>
                             <button type="button" className="text-primary" onClick={() => { void navigator.clipboard.writeText(h3.job!.text).then(() => toast.success('已复制增强结果')).catch(() => toast.error('复制失败')); }}>复制结果</button>
                             <button type="button" className="text-text-secondary" onClick={h3.clear}>放弃结果</button>
                         </div>

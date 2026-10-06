@@ -19,6 +19,7 @@ export interface ModelParamSupport {
     viduAudio?: boolean;
     movementAmplitude?: { options: string[]; default: string };
     watermark?: boolean;
+    maxPromptLength?: number;
 }
 
 export interface I2VModelConfig {
@@ -254,7 +255,7 @@ function getVisibleModels(group: SelectionGroup, surface: VisibilitySurface): Ca
         (model) => isVisibleModel(model, surface) && (
             model.ui.selection_group === group
             || (group === 'i2v' && model.capabilities.includes('i2v')
-                && model.runtime?.jiucaihezi?.video_contract === 'lingdong_seedance25')
+                && ['lingdong_seedance25', 'fk_video'].includes(String(model.runtime?.jiucaihezi?.video_contract)))
         )
     );
     // Capability fallback: when the strict bucket is empty for t2i/i2i (the
@@ -448,6 +449,17 @@ export function getModelReferenceImageLimit(modelId?: string | null, fallback = 
     return typeof limit === 'number' ? limit : fallback;
 }
 
+export function getFkReferenceLimits(modelId: string): { image: number; video: number; audio: number } | null {
+    const model = MODEL_CATALOG.models[modelId];
+    if (model?.runtime?.jiucaihezi?.video_contract !== 'fk_video') return null;
+    const inputs = model.inputs as Record<string, { max?: number }> | undefined;
+    return { image: inputs?.reference_images?.max ?? 0, video: inputs?.reference_videos?.max ?? 0, audio: inputs?.reference_audios?.max ?? 0 };
+}
+
+export function getModelPromptLimit(modelId?: string | null, fallback = 12000): number {
+    return modelId ? MODEL_CATALOG.models[modelId]?.params?.maxPromptLength ?? fallback : fallback;
+}
+
 // getVisibleModels() 已按允许家族过滤，所以这些选择器不需要再包一层。
 export const PROJECT_T2I_MODELS = getVisibleModels('t2i', 'project_settings').map(toSelectableModel);
 export const SERIES_T2I_MODELS = getVisibleModels('t2i', 'series_settings').map(toSelectableModel);
@@ -525,7 +537,7 @@ export const DEFAULT_R2V_MODEL_ID =
 export function getR2vRouteModelId(selectedI2vModelId: string): string {
     const selectedModel = MODEL_CATALOG.models[selectedI2vModelId];
     if (!selectedModel) return R2V_ROUTE_MODEL_ID;
-    if (selectedModel.runtime?.jiucaihezi?.video_contract === 'lingdong_seedance25') return selectedI2vModelId;
+    if (['lingdong_seedance25', 'fk_video'].includes(String(selectedModel.runtime?.jiucaihezi?.video_contract))) return selectedI2vModelId;
     return R2V_ROUTE_MAP[selectedModel.family] ?? R2V_ROUTE_MODEL_ID;
 }
 

@@ -10,6 +10,7 @@ import AssetPickerModal from './AssetPickerModal';
 import { toast } from '@/store/toastStore';
 import type { AssetPickerItem } from '@/lib/assetLibrary';
 import { getModelMaxReferenceImages } from './playgroundModels';
+import { getFkReferenceLimits } from '@/lib/modelCatalog';
 
 // ---------------------------------------------------------------------------
 // Mode config（每种模式对输入素材的约束，与引用加入逻辑共用 mediaModes.ts）
@@ -39,7 +40,7 @@ function getFileName(path: string): string {
 function isVideoPath(path: string): boolean {
   return /\.(mp4|mov|webm|avi|mkv)$/i.test(path);
 }
-function isAudioPath(path: string): boolean { return /\.(mp3|wav|ogg|opus|pcm|m4a)$/i.test(path); }
+function isAudioPath(path: string): boolean { return /\.(mp3|wav|ogg|opus|pcm|m4a|flac|aac)$/i.test(path); }
 
 // Resolve a stored media path to a browser-loadable URL. Local `output/...` paths
 // are served via the backend /files static mount; absolute (http(s)/blob/data) and
@@ -148,6 +149,9 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
   const [showAssetPicker, setShowAssetPicker] = useState(false);
 
   const isSeedance = modelId.startsWith('seedance');
+  const fkLimits = !controlled && mode === 'r2v' ? getFkReferenceLimits(modelId) : null;
+  const mediaKind = (path: string): 'image' | 'video' | 'audio' => isVideoPath(path.split('?')[0]) ? 'video' : isAudioPath(path.split('?')[0]) ? 'audio' : 'image';
+  const fkOverLimit = (paths: string[]) => fkLimits && (Object.keys(fkLimits) as Array<keyof typeof fkLimits>).some((kind) => paths.filter((path) => mediaKind(path) === kind).length > fkLimits[kind]);
 
   const modelReferenceLimit = getModelMaxReferenceImages(modelId);
   let config = controlled?.config ?? getMediaInputConfig(mode, modelReferenceLimit);
@@ -161,6 +165,8 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
       hintKey: 'r2vSeedance',
     };
   }
+
+  if (config && fkLimits) config = { ...config, multiple: true, maxFiles: fkLimits.image + fkLimits.video + fkLimits.audio, accept: [fkLimits.image ? 'image/*' : '', fkLimits.video ? 'video/*' : '', fkLimits.audio ? 'audio/*' : ''].filter(Boolean).join(','), hintKey: 'r2vSeedance' };
 
   // Hooks below must run for every render; use a harmless fallback for modes
   // that intentionally render no media input.
@@ -176,6 +182,7 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
   const handleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0 || controlled?.disabled) return;
+    if (fkOverLimit([...inputMedia, ...fileArray.map((file) => file.name)])) { toast.error(`当前模型最多接受图片 ${fkLimits!.image}、视频 ${fkLimits!.video}、音频 ${fkLimits!.audio} 个，请减少或更换素材`); return; }
     if (controlled && fileArray.some((file) => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > (controlled.maxBytes ?? Infinity))) {
       toast.error('请上传不超过 10MB 的 PNG、JPEG 或 WebP 图片'); return;
     }
@@ -259,6 +266,7 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
   /** 选择器里点一张瓦片：不在参考图里的加进去，已在里面的移出去。 */
   const handleAssetToggle = (ref: string, item?: AssetPickerItem) => {
     if (controlled?.disabled) return;
+    if (!inputMedia.includes(ref) && fkOverLimit([...inputMedia, ref])) { toast.error('此模型不支持该素材类型或已达数量上限'); return; }
     if (item && !inputMedia.includes(ref)) controlled?.onAsset?.(item);
     setInputMedia(
       inputMedia.includes(ref)
@@ -269,7 +277,7 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
 
   // Determine accept type for AssetPickerModal
   const acceptType: 'image' | 'video' | 'all' =
-      mode === 'r2v' && isSeedance
+      mode === 'r2v' && (isSeedance || !!fkLimits)
       ? 'all'
       : activeConfig.icon === 'video'
         ? 'video'
@@ -384,6 +392,7 @@ export default function MediaInput({ controlled }: { controlled?: ControlledMedi
 
   return (
     <div className="space-y-2">
+      {fkLimits && <p className="text-xs text-text-muted">图片 ≤{fkLimits.image} · 视频 ≤{fkLimits.video} · 音频 ≤{fkLimits.audio}；按素材类型分别计数</p>}
       {activeConfig.multiple ? (
         <div className="space-y-3">
           {/* Thumbnail row */}
