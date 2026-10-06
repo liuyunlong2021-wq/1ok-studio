@@ -90,6 +90,11 @@ class PlaygroundService:
             error=None,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
+        from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
+        if fk_video_spec(gen.model_id):
+            images, videos, audios = split_fk_media(gen.input_media)
+            payload = fk_video_payload(gen.model_id, gen.prompt, images, {**gen.parameters, 'reference_video_urls': videos, 'reference_audio_urls': audios})
+            gen.parameters.update({k: payload[k] for k in ['duration', 'resolution', 'ratio']})
         self.storage.add_generation(gen)
         return gen
 
@@ -322,6 +327,14 @@ class PlaygroundService:
 
         if self._jiucaihezi_video_model is None:
             self._jiucaihezi_video_model = JiucaiheziVideoModel({})
+        from ...models.fk_video import fk_video_spec, split_fk_media
+        if fk_video_spec(gen.model_id):
+            images, videos, audios = split_fk_media(gen.input_media)
+            self._jiucaihezi_video_model.generate(gen.prompt, out_path, model_name=gen.model_id,
+                duration=gen.parameters.get('duration'), resolution=gen.parameters.get('resolution'),
+                ratio=gen.parameters.get('ratio'), ref_image_urls=images,
+                reference_video_urls=videos, reference_audio_urls=audios)
+            return
         img_path, img_url = self._resolve_first_input_media(gen)
         self._jiucaihezi_video_model.generate(
             gen.prompt,

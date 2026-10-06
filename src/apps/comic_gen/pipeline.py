@@ -2482,6 +2482,15 @@ class ComicGenPipeline:
                 raise ValueError("These MiniMax H3 models generate their own audio and do not accept audio references")
             generate_audio = False
         
+        from ...models.fk_video import fk_video_payload
+        fk_params = fk_video_payload(model, prompt, list(dict.fromkeys(([image_url] if image_url else []) + (reference_image_urls or []))), {
+            'duration': duration, 'resolution': resolution, 'ratio': ratio or script.model_settings.storyboard_aspect_ratio,
+            'reference_video_urls': reference_video_urls, 'reference_audio_urls': reference_audio_urls, 'audio_url': audio_url,
+        })
+        if fk_params:
+            resolution = fk_params['resolution']
+            ratio = fk_params['ratio']
+
         task_id = str(uuid.uuid4())
         
         # R2V 模式：选中的不是 R2V 模型时，切到目录默认的 R2V 模型。
@@ -3659,7 +3668,11 @@ class ComicGenPipeline:
                 # 续跑：上游任务号在手，直接接着问。跳过音频/图片准备 —— 那些在第一次
                 # 提交前就已经做过，重做只会再烧一次钱。
                 from ...models.jiucaihezi import poll_video_task
-                poll_video_task(task.provider_task_id, output_path)
+                from ...models.fk_video import fk_video_spec
+                if fk_video_spec(task.model):
+                    poll_video_task(task.provider_task_id, output_path, allow_url_fallback=False)
+                else:
+                    poll_video_task(task.provider_task_id, output_path)
             else:
                 # Download image to temp file
                 img_path = None
@@ -3695,6 +3708,7 @@ class ComicGenPipeline:
                     audio_url=final_audio_url, reference_audio_urls=task.reference_audio_urls or [],
                     aspect_ratio=task.ratio or "16:9",
                     ref_image_urls=task.reference_image_urls or [],
+                    reference_video_urls=task.reference_video_urls or [],
                     # 上游任务号一到手就落盘，否则后端重启就彻底丢了。
                     on_task_id=lambda pid: self._remember_provider_task_id(script, task, pid),
                 )

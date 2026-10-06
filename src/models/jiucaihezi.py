@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Sequence, Tuple
 
 import requests
 
+from .fk_video import fk_video_payload, fk_video_spec
 from .base import VideoGenModel
 from .image import ImageGenModel
 from ..utils.model_catalog import (
@@ -235,6 +236,9 @@ def _download_video_content(task_id: str, output_path: str) -> None:
             f"Jiucaihezi video content download failed ({response.status_code}): "
             f"{_error_message(response)}"
         )
+    content_type = str(response.headers.get("Content-Type", "")).lower()
+    if "json" in content_type or "html" in content_type or not response.content:
+        raise RuntimeError(f"视频下载未返回视频数据 [task {task_id}]")
     with open(output_path, "wb") as output:
         output.write(response.content)
 
@@ -285,6 +289,7 @@ def poll_video_task(
     task_id: str,
     output_path: str,
     timeout: int = VIDEO_POLL_TIMEOUT,
+    allow_url_fallback: bool = True,
 ) -> str:
     """按**已存在**的上游任务号轮询到完成并取回产物。
 
@@ -312,7 +317,7 @@ def poll_video_task(
                 return download_video_content(task_id, output_path)
             except Exception as exc:  # noqa: BLE001 — 换句人能看懂的话再抛
                 url = str(result.get("url") or "").strip()
-                if url:
+                if url and allow_url_fallback:
                     try:
                         _download(url, output_path)
                         logger.info(
@@ -332,6 +337,8 @@ def poll_video_task(
         if status in ("failed", "error", "cancelled"):
             reason = _payload_error_message(result) or "上游任务失败，但状态接口没有返回失败原因"
             raise RuntimeError(f"Jiucaihezi video failed: {reason} [task {task_id}]")
+        if status == "unknown" and not allow_url_fallback:
+            raise RuntimeError(f"Fk 视频任务状态未知，请保留任务号联系平台 [task {task_id}]")
         # queued / in_progress / pending: keep polling until the deadline.
 
 
@@ -630,7 +637,10 @@ class JiucaiheziVideoModel(VideoGenModel):
             images.insert(0, kwargs["img_url"])
         if kwargs.get("img_path"):
             images.insert(0, kwargs["img_path"])
+        if fk_video_spec(model_name) and kwargs.get("img_path") and kwargs.get("img_url"):
+            images = [ref for ref in images if ref != kwargs["img_url"]]
         images = list(dict.fromkeys(images))
+        fk_payload = fk_video_payload(model_name, prompt, images, kwargs)
         lingdong_payload = _lingdong_video_payload(model_name, prompt, images, kwargs)
         images = [_public_media_url(ref, "image") for ref in images]
         resolution = str(kwargs.get("resolution") or "")
@@ -644,7 +654,12 @@ class JiucaiheziVideoModel(VideoGenModel):
             local_params = resolve_local_h3_video_parameters(model_name, kwargs)
             ratio = _REF2V_ASPECT_RATIOS[local_params["aspect_ratio"]]
         webapp_id = _RH_WEBAPP_IDS.get(model_name)
-        if lingdong_payload is not None:
+        if fk_payload is not None:
+            payload = fk_payload
+            payload["imageUrls"] = images
+            payload["videoUrls"] = [_public_media_url(ref, "video") for ref in payload["videoUrls"]]
+            payload["audioUrls"] = [_public_media_url(ref, "audio") for ref in payload["audioUrls"]]
+        elif lingdong_payload is not None:
             payload = lingdong_payload
             if images:
                 payload["images"] = images
@@ -686,7 +701,7 @@ class JiucaiheziVideoModel(VideoGenModel):
                     audio_refs.insert(0, kwargs["audio_url"])
                 if audio_refs:
                     payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
-        if images and lingdong_payload is None and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
+        if images and fk_payload is None and lingdong_payload is None and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
             # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]
@@ -712,7 +727,7 @@ class JiucaiheziVideoModel(VideoGenModel):
                 f"{_error_message(response)}"
             )
         task = response.json()
-        task_id = task.get("task_id") or task.get("id")
+        task_id = task.get("id") if fk_payload is not None else task.get("task_id") or task.get("id")
         if not task_id:
             raise RuntimeError(f"Jiucaihezi video response missing task id: {task}")
         # 拿到任务号的第一时间就交给调用方（落盘）。轮询可能要几分钟，期间后端一重启
@@ -724,5 +739,8 @@ class JiucaiheziVideoModel(VideoGenModel):
             except Exception:  # noqa: BLE001 — 记录失败不能拖垮生成本身
                 pass
 
-        poll_video_task(str(task_id), output_path)
+        if fk_payload is not None:
+            poll_video_task(str(task_id), output_path, allow_url_fallback=False)
+        else:
+            poll_video_task(str(task_id), output_path)
         return output_path, time.time() - started
