@@ -149,3 +149,45 @@ rm -rf frontend/.next frontend/out static/
 包含：
 - `config.json` — 配置（API Key 等）
 - `logs/` — 运行日志
+
+## Stable installer runtime contract
+
+Users install and launch the app without installing Python, Node.js, Rust,
+FFmpeg, pip packages, or WebView2 by hand. Online generation still requires
+network access and the user's own API key in Settings.
+
+The Tauri distribution includes the frozen Python runtime and modules, static
+frontend, model catalog, built-in Skill packages, FFmpeg/FFprobe (including their
+native libraries), the Demucs helper and its local htdemucs checkpoints.
+Windows NSIS embeds the offline WebView2 installer. User projects, uploaded
+Skills, media, `.env`, and API keys are never copied into the installer.
+
+Build-machine inputs (these are not end-user setup steps):
+
+- Install the platform release requirements into the release venv. The macOS
+  pins keep torch and torchaudio at the same version.
+- Provide `bin/ffmpeg` and `bin/ffprobe` (Windows: `.exe`), or point
+  `ONEOK_FFMPEG_PATH` and `ONEOK_FFPROBE_PATH` at compatible native tools.
+  The Tauri path collects their dynamic dependencies with PyInstaller. macOS
+  release tools and all collected libraries must support the configured minimum
+  macOS version; a Homebrew executable alone is not a portable runtime.
+- Provide the checksummed htdemucs `.th` checkpoints in `bin/demucs-models/`, or
+  set `ONEOK_DEMUCS_MODEL_REPO`. `prepare_release_runtime.py` reads the installed
+  Demucs model bag, checks each required checkpoint checksum, and prepares a
+  local model repo. Runtime separation uses this repo without downloading.
+- Both Node lockfiles and Cargo.lock are versioned. The Tauri release scripts
+  install Node dependencies with `npm ci` before building.
+
+`build_sidecar.sh` / `build_sidecar_windows.ps1` run resource preparation before
+freezing. Missing modules, media tools, checkpoints, or incompatible macOS
+binaries fail the build. Prepared resources live in `src-tauri/runtime/` and
+are bundled by the Tauri release scripts. `release-manifest.json` records
+versions and resource hashes; `python-requirements.lock` captures the exact
+transitive dependency versions of that build. These generated files contain no
+user settings or secrets and are not source-controlled.
+
+Release acceptance still requires launching the actual installer on a clean
+machine, opening a new workspace, and exercising image reading, media probing,
+composition, and offline audio separation. Source/dev success is not installer
+acceptance. macOS additionally requires successful signing and notarization;
+Windows must be built and accepted on Windows.

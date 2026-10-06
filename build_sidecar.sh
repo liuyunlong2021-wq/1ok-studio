@@ -68,6 +68,9 @@ if [ -n "$SIGNING_IDENTITY" ]; then
     PYINSTALLER_SIGNING_ARGS=(--codesign-identity "$SIGNING_IDENTITY")
 fi
 
+# Required user runtime resources are assembled before freezing Python.
+"$PYTHON" scripts/prepare_release_runtime.py
+
 # Build with PyInstaller
 echo "→ Running PyInstaller..."
 "$PYTHON" -m PyInstaller \
@@ -103,6 +106,8 @@ echo "→ Running PyInstaller..."
     --add-data "src:src" \
     --add-data "config:config" \
     --add-data "skills:skills" \
+    --add-binary "build/release-runtime/bin/ffmpeg:bin" \
+    --add-binary "build/release-runtime/bin/ffprobe:bin" \
     --distpath "$OUTPUT_DIR" \
     sidecar_entry.py
 

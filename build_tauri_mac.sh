@@ -92,6 +92,10 @@ if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
     export APPLE_SIGNING_IDENTITY
 fi
 
+# Install the exact Node dependency trees recorded for this release.
+npm ci
+npm --prefix frontend ci
+
 # ─── Step 2: Build Python sidecar ───
 echo "→ Step 2: Building Python sidecar..."
 bash build_sidecar.sh
@@ -129,7 +133,7 @@ echo "  Target: ${TARGET}"
 # path now used by the onedir resource folder. Leftover may be a file (old
 # onefile build) or a directory (older OUTPUT_DIR), so -rf rather than -f.
 rm -rf "src-tauri/target/${TARGET}/release/1okstudio-backend"
-npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["1okstudio-backend/","1okstudio-demucs"]}}'
+npx tauri build --target "$TARGET" --config '{"bundle":{"resources":["1okstudio-backend/","1okstudio-demucs","runtime/"]}}'
 
 APP_PATH="src-tauri/target/${TARGET}/release/bundle/macos/One OK Studio.app"
 DMG_PATH="src-tauri/target/${TARGET}/release/bundle/dmg/One OK Studio_$(node -p "require('./src-tauri/tauri.conf.json').version")_${TARGET%%-*}.dmg"

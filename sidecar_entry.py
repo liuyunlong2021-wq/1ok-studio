@@ -1,6 +1,8 @@
 """Standalone FastAPI entry point for the Tauri sidecar."""
 
 import argparse
+import os
+import sys
 
 
 def main() -> None:
@@ -16,6 +18,10 @@ def main() -> None:
     # 启动的 app，cwd 是只读的 `/`（macOS 封印系统卷），于是整个 sidecar
     # 起不来。api.py 明确约定「启动器负责先 chdir 到这里」，这就是那次 chdir。
     ensure_user_data_dir()
+    if getattr(sys, 'frozen', False):
+        media_bin = os.path.join(sys._MEIPASS, 'bin')
+        os.environ['PATH'] = media_bin + os.pathsep + os.environ.get('PATH', '')
+
 
     from src.apps.comic_gen.api import app
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="info")

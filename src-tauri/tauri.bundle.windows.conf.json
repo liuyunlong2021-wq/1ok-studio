@@ -1,5 +1,6 @@
 {
   "bundle": {
-    "resources": ["1okstudio-backend/", "1okstudio-demucs.exe"]
+    "windows": { "webviewInstallMode": { "type": "offlineInstaller", "silent": true } },
+    "resources": ["1okstudio-backend/", "1okstudio-demucs.exe", "runtime/"]
   }
 }

@@ -103,6 +103,9 @@ Write-Host "   PyInstaller $pyinstallerVersion"
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
+& $Python scripts/prepare_release_runtime.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 # --- Backend runtime -------------------------------------------------------
 Write-Host ''
 Write-Host '-> Building the backend runtime (onedir)...'
@@ -142,6 +145,8 @@ Remove-Item -Force (Join-Path $OutputDir "$BinaryName.spec") -ErrorAction Silent
     --add-data "src;src" `
     --add-data "config;config" `
     --add-data "skills;skills" `
+    --add-binary "build/release-runtime/bin/ffmpeg.exe;bin" `
+    --add-binary "build/release-runtime/bin/ffprobe.exe;bin" `
     --distpath $OutputDir `
     sidecar_entry.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

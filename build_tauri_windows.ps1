@@ -53,6 +53,11 @@ if ($running) {
     exit 1
 }
 
+& npm ci
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& npm --prefix frontend ci
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 # --- Step 2: Python sidecar ------------------------------------------------
 Write-Host ''
 Write-Host '-> Step 2: Building the Python sidecar...'
