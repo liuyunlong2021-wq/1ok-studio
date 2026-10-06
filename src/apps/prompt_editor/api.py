@@ -192,6 +192,9 @@ async def validate_images(document_id: str, request: PromptContext):
 
 @router.post("/{document_id}/generate")
 async def generate_text(document_id: str, request: TextGenerate):
+    from .h3_enhancer import SKILL_ID
+    if request.skill_id == SKILL_ID:
+        raise HTTPException(400, "H3 提示词增强请使用专用增强入口")
     with _LOCK:
         _find(_read(), document_id)
     if not request.text.strip() and not request.instruction.strip():

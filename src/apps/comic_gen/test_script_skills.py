@@ -16,3 +16,21 @@ def test_builtin_short_skill_uses_editor_parseable_format():
     assert "▲" not in skill["content"]
     assert "字数：" not in skill["content"]
     assert "英文对白" not in skill["content"]
+
+
+def test_native_h3_skill_is_motion_only_and_readonly(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from src.apps.comic_gen import api
+    from src.apps.prompt_editor.h3_enhancer import SKILL_ID
+    monkeypatch.setattr(api, 'SKILLS_FILE', str(tmp_path / 'skills.json'))
+    monkeypatch.setattr(api, 'DELETED_BUILTINS_FILE', str(tmp_path / 'hidden.json'))
+    client = TestClient(api.app)
+    native = next(item for item in client.get('/script-skills', params={'kind': 'motion'}).json() if item['id'] == SKILL_ID)
+    assert native['executor'] == 'h3_context_ir' and native['readonly']
+    assert not any(item['id'] == SKILL_ID for item in client.get('/script-skills', params={'kind': 'script'}).json())
+    assert client.put('/script-skills/' + SKILL_ID, json={'name': 'Changed', 'content': 'changed'}).status_code == 400
+    assert client.get('/script-skills/' + SKILL_ID + '/export').status_code == 400
+    assert client.delete('/script-skills/' + SKILL_ID).status_code == 200
+    assert not any(item['id'] == SKILL_ID for item in client.get('/script-skills').json())
+    assert client.post('/script-skills/' + SKILL_ID + '/restore').status_code == 200
+    assert any(item['id'] == SKILL_ID for item in client.get('/script-skills').json())

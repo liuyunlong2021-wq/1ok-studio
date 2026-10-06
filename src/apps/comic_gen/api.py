@@ -212,7 +212,10 @@ BUILTIN_SHORT_SCRIPT_SKILL = """你是中文短剧剧本格式整理器。把输
 
 # 忠实性检查
 输出前确认没有改变说话人、台词含义、动作先后、人物态度、因果关系或场次顺序；没有把推测写成事实；输入中的有效内容没有遗漏。"""
+from ..prompt_editor.h3_enhancer import SKILL as H3_ENHANCEMENT_SKILL, SKILL_ID as H3_ENHANCEMENT_SKILL_ID
+
 BUILTIN_SCRIPT_SKILLS = [
+    H3_ENHANCEMENT_SKILL,
     {"id": "builtin-engineering", "name": "工程台本 · 节奏与镜头设计", "content": SkillPackageStore().compile("builtin:engineering-screenplay"), "scope": "system", "is_builtin": True, "kind": "script"},
     {"id": "builtin-short", "name": "中文短剧标准化", "content": BUILTIN_SHORT_SCRIPT_SKILL, "scope": "system", "is_builtin": True, "kind": "script"},
     {"id": "builtin-film", "name": "影视剧本标准化", "content": "将输入内容转换为规范影视剧本，明确场景标题、动作、角色、对白和转场，保留原意。", "scope": "system", "is_builtin": True, "kind": "script"},
@@ -242,6 +245,10 @@ def _read_script_skills(kind=None, include_hidden=False):
         item["hidden"] = item["id"] in deleted
         if item["id"] == "builtin-engineering":
             item.update(name=engineering["metadata"]["name"], content=store.compile("builtin:engineering-screenplay"), files=engineering["contents"], entry=engineering["metadata"]["entry"], has_backup=engineering["metadata"].get("has_backup"), hidden=engineering["metadata"].get("hidden", False) or item["id"] in deleted)
+    # Native API Skills keep their executable descriptor immutable.
+    for item in items:
+        if item["id"] == H3_ENHANCEMENT_SKILL_ID:
+            item.update(H3_ENHANCEMENT_SKILL)
     items += [item for item in saved if not item.get("is_builtin")]
     if kind in (None, "script", "motion"):
         for metadata in store.list(include_hidden=True):
@@ -657,7 +664,7 @@ def create_script_skill(request: ScriptSkillRequest):
     with _SCRIPT_SKILLS_LOCK:
         items = _read_script_skills(include_hidden=True)
         if not request.files:
-            equivalent = next((item for item in items if not item.get("hidden") and not item.get("validation_error") and item.get("kind", "script") == (request.kind or "script") and item["content"].replace("\r\n", "\n").strip() == request.content.replace("\r\n", "\n").strip()), None)
+            equivalent = next((item for item in items if not item.get("executor") and not item.get("hidden") and not item.get("validation_error") and item.get("kind", "script") == (request.kind or "script") and item["content"].replace("\r\n", "\n").strip() == request.content.replace("\r\n", "\n").strip()), None)
             if equivalent:
                 return {**equivalent, "reused": True}
         if request.files:
@@ -678,6 +685,8 @@ def create_script_skill(request: ScriptSkillRequest):
 
 @app.put("/script-skills/{skill_id}")
 def update_script_skill(skill_id: str, request: ScriptSkillRequest):
+    if skill_id == H3_ENHANCEMENT_SKILL_ID:
+        raise HTTPException(400, "此内置 Skill 的执行规则由应用管理，可隐藏或恢复显示")
     with _SCRIPT_SKILLS_LOCK:
         items = _read_script_skills(include_hidden=True)
         found = next((item for item in items if item["id"] == skill_id), None)
@@ -723,6 +732,8 @@ def restore_script_skill(skill_id: str):
 
 @app.post("/script-skills/{skill_id}/default")
 def reset_script_skill(skill_id: str, recover: bool = False):
+    if skill_id == H3_ENHANCEMENT_SKILL_ID:
+        raise HTTPException(400, "此内置 Skill 没有可编辑的规则版本")
     with _SCRIPT_SKILLS_LOCK:
         if skill_id == "builtin-engineering" or skill_id.startswith(("builtin:", "skillpkg_")):
             package_id = "builtin:engineering-screenplay" if skill_id == "builtin-engineering" else skill_id
@@ -750,6 +761,8 @@ def reset_script_skill(skill_id: str, recover: bool = False):
 
 @app.get("/script-skills/{skill_id}/export")
 def export_script_skill(skill_id: str):
+    if skill_id == H3_ENHANCEMENT_SKILL_ID:
+        raise HTTPException(400, "此内置 Skill 由应用执行，无法导出为文本规则")
     import io
     import zipfile
     from fastapi.responses import Response
@@ -936,6 +949,8 @@ def generate_motion_prompt(script_id: str, request: GenerateMotionPromptRequest,
     _motion_total_duration_or_400(script, request.frame_ids)
     if len(request.references) > 9:
         raise HTTPException(status_code=400, detail="参考图数量不能超过 9 张")
+    if request.skill_id == H3_ENHANCEMENT_SKILL_ID or request.prompt_preset == H3_ENHANCEMENT_SKILL_ID:
+        raise HTTPException(400, "H3 提示词增强请使用专用增强入口")
     selected_skill = next((item for item in _read_script_skills("motion") if item["id"] == request.skill_id), None) if request.skill_id else None
     if selected_skill:
         skill_content, skill_name = selected_skill["content"], selected_skill["name"]
@@ -5704,3 +5719,6 @@ def confirm_shot_block(project_id: str, shot_id: str, req: ConfirmShotBlockReque
 # Independent prompt editor: shares the gateway, never project storage.
 from ..prompt_editor.api import router as prompt_editor_router
 app.include_router(prompt_editor_router)
+
+from ..prompt_editor.h3_enhancer import router as h3_enhancement_router
+app.include_router(h3_enhancement_router)
