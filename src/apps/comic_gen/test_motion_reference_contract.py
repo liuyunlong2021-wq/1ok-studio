@@ -11,9 +11,10 @@ class MotionReferenceContractTest(unittest.TestCase):
             id="project-1",
             title="test",
             original_text="test",
+            # R2V budgets come from saved shots; these fixed-duration channels need 30s.
             frames=[
-                StoryboardFrame(id="shot-1", scene_id="scene-1"),
-                StoryboardFrame(id="shot-2", scene_id="scene-1"),
+                StoryboardFrame(id="shot-1", scene_id="scene-1", duration=15),
+                StoryboardFrame(id="shot-2", scene_id="scene-1", duration=15),
             ],
             created_at=time.time(),
             updated_at=time.time(),
