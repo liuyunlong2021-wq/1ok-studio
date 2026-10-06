@@ -2123,6 +2123,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2184,6 +2190,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2244,6 +2255,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2337,6 +2353,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2431,6 +2453,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2525,6 +2553,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2586,6 +2620,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2675,6 +2714,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2778,6 +2822,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2881,6 +2931,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -2987,6 +3043,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3090,6 +3152,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3194,6 +3262,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3300,6 +3374,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3402,6 +3482,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3506,6 +3592,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3568,6 +3660,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3628,6 +3725,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3742,6 +3844,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3832,6 +3939,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -3967,6 +4079,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4049,6 +4166,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4135,6 +4257,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4231,6 +4358,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4317,6 +4449,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4413,6 +4550,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4495,6 +4637,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4593,6 +4740,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4693,6 +4845,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4782,6 +4939,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4877,6 +5039,12 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "lingdong_seedance25"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"
@@ -4967,6 +5135,11 @@
       "routing_prefixes": [
         "jiucaihezi/"
       ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
       "status": "active",
       "supported_backends": [
         "jiucaihezi"

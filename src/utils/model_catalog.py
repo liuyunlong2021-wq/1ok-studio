@@ -687,6 +687,7 @@ def build_catalog_dict(catalog_root: Optional[Path] = None) -> Dict[str, Any]:
                         inputs=legacy_model_payload["inputs"],
                     )
 
+                    legacy_model_payload["runtime"] = runtime
                     models[legacy_model_id] = legacy_model_payload
                     modes[canonical_mode_id] = mode_payload
                     legacy_model_ids[legacy_model_id] = canonical_mode_id
@@ -859,6 +860,7 @@ def build_catalog_dict(catalog_root: Optional[Path] = None) -> Dict[str, Any]:
                 inputs=legacy_model_payload["inputs"],
             )
 
+            legacy_model_payload["runtime"] = runtime
             models[model_id] = legacy_model_payload
             modes[canonical_mode_id] = mode_payload
             legacy_model_ids[model_id] = canonical_mode_id
