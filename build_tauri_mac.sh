@@ -188,6 +188,12 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 # from the signed final app using Tauri's generated DMG builder.
 DMG_BUILDER="$(dirname "$DMG_PATH")/bundle_dmg.sh"
 build_dmg() {
+    # Interrupted create-dmg runs can leave rw.*.dmg beside the app. Copy only
+    # the signed app into a fresh source folder so no previous image is nested
+    # in the installer. ditto preserves framework links and the stapled ticket.
+    local source_dir
+    source_dir="$(mktemp -d "${TMPDIR:-/tmp}/one-ok-dmg.XXXXXX")"
+    ditto "$APP_PATH" "$source_dir/One OK Studio.app"
     rm -f "$DMG_PATH"
     "$DMG_BUILDER" \
         --volname "One OK Studio" \
@@ -199,7 +205,8 @@ build_dmg() {
         --app-drop-link 480 170 \
         --codesign "$APPLE_SIGNING_IDENTITY" \
         "$DMG_PATH" \
-        "$(dirname "$APP_PATH")"
+        "$source_dir"
+    rm -rf "$source_dir"
 }
 
 build_dmg
