@@ -32,7 +32,7 @@ const backend = spawn(pythonPath, [
   '--app-dir', repoRoot,
   // cwd 是数据目录 ⇒ 不指定的话 --reload 只盯数据目录，改 src/ 永远不重启。
   '--reload-dir', repoRoot,
-  '--reload', '--port', '17177', '--host', '0.0.0.0',
+  '--reload', '--port', process.env.NEXT_PUBLIC_BACKEND_PORT || '17178', '--host', '0.0.0.0',
   'src.apps.comic_gen.api:app'
 ], {
   stdio: 'inherit',

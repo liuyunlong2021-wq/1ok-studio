@@ -8,7 +8,7 @@ setTimeout(() => {
   console.log('  ║   One OK Studio — AI Comic Platform Ready!   ║');
   console.log('  ║                                          ║');
   console.log('  ║   Frontend:  http://localhost:3008       ║');
-  console.log('  ║   Backend:   http://localhost:17177      ║');
+  console.log('  ║   Backend:   http://localhost:17178      ║');
   console.log('  ║                                          ║');
   console.log('  ║   Press Ctrl+C to stop all services.     ║');
   console.log('  ║                                          ║');

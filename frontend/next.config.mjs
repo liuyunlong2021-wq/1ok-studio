@@ -5,7 +5,9 @@ const isProd = process.env.NODE_ENV === 'production';
 const isDocker = process.env.DOCKER_BUILD === 'true';
 const isTauri = process.env.TAURI_BUILD === 'true';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:17177';
+// Keep source runs off the packaged app's fixed port, so both can run at once.
+const BACKEND_PORT = process.env.NEXT_PUBLIC_BACKEND_PORT || (isProd ? '17177' : '17178');
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${BACKEND_PORT}`;
 
 // 版本号的唯一来源。界面上显示的那份（src/lib/version.ts）和打包产物那份
 // （src-tauri/tauri.conf.json）都从 package.json 跟过来，别再往组件里写死值。
@@ -29,6 +31,7 @@ const nextConfig = {
         NEXT_PUBLIC_APP_VERSION: `v${pkg.version}`,
         NEXT_PUBLIC_BUILD_DATE: BUILD_DATE,
         NEXT_PUBLIC_BASE_PATH: BASE_PATH,
+        NEXT_PUBLIC_BACKEND_PORT: BACKEND_PORT,
     },
     output: isProd ? 'export' : undefined,
     distDir: isProd ? (isTauri ? 'out' : (isDocker ? 'out' : '../static')) : undefined,
@@ -59,7 +62,7 @@ const nextConfig = {
             {
                 protocol: "http",
                 hostname: "localhost",
-                port: "17177",
+                port: BACKEND_PORT,
             },
         ],
     },

@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex};
 mod sidecar;
 mod menu;
 
+const BACKEND_PORT: u16 = if cfg!(debug_assertions) { 17178 } else { 17177 };
+
 #[derive(Debug, Serialize, Deserialize)]
 struct ApiProxyRequest {
     method: String,
@@ -29,7 +31,7 @@ struct ApiProxyResponse {
 #[tauri::command]
 async fn api_proxy(method: String, path: String, body: Option<String>) -> Result<ApiProxyResponse, String> {
     let client = reqwest::Client::new();
-    let url = format!("http://127.0.0.1:17177{}", path);
+    let url = format!("http://127.0.0.1:{BACKEND_PORT}{path}");
 
     let request = match method.to_uppercase().as_str() {
         "GET" => client.get(&url),
@@ -73,7 +75,11 @@ async fn check_backend_health() -> Result<bool, String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    match client.get("http://127.0.0.1:17177/health").send().await {
+    match client
+        .get(format!("http://127.0.0.1:{BACKEND_PORT}/health"))
+        .send()
+        .await
+    {
         Ok(resp) => Ok(resp.status().is_success()),
         Err(_) => Ok(false),
     }
@@ -245,7 +251,7 @@ pub fn run() {
                 // Destroyed fires while the event loop is already shutting down,
                 // and the process can exit before anything gets to run — which
                 // is how the backend used to survive as an orphan still holding
-                // port 17177 after the app was closed. CloseRequested still has
+                // its port after the app was closed. CloseRequested still has
                 // a live process to clean up. The slot makes both idempotent.
                 tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed => {
                     backend_running.store(false, Ordering::SeqCst);

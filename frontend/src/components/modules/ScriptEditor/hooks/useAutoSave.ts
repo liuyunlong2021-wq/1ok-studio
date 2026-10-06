@@ -129,7 +129,7 @@ export function useAutoSave(editor: Editor | null, projectId: string | null, onM
           const content = editor.getJSON();
           // 使用 sendBeacon 或同步请求不可靠，这里仅做拦截提醒
           navigator.sendBeacon?.(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:17177'}/projects/${projectId}/document`,
+            `${process.env.NEXT_PUBLIC_API_URL || `http://localhost:${process.env.NEXT_PUBLIC_BACKEND_PORT || '17177'}`}/projects/${projectId}/document`,
             JSON.stringify({ content, create_snapshot: false })
           );
         }

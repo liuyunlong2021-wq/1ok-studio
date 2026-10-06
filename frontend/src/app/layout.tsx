@@ -29,6 +29,13 @@ export default function RootLayout({
             __html: `(function(){var p=window.location.protocol;var h=window.location.hostname;var isTauri=p==='tauri:'||window.__TAURI__||window.__TAURI_INTERNALS__||h==='tauri.localhost';var isPywebview=!!window.pywebview||(p==='http:'&&(h==='127.0.0.1'||h==='localhost')&&window.location.pathname.indexOf('/static/')===0);if(isTauri||isPywebview){document.documentElement.style.fontSize='81.25%';}})();`,
           }}
         />
+        {process.env.NODE_ENV !== "production" && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){var key="chunk-error-reload-at";function recover(message){if(!/ChunkLoadError|Loading chunk .* failed/i.test(String(message||"")))return;try{var last=Number(sessionStorage.getItem(key)||0);if(Date.now()-last<15000)return;sessionStorage.setItem(key,String(Date.now()));}catch(e){}window.location.reload();}window.addEventListener("error",function(event){recover(event.message||(event.error&&event.error.message));},true);window.addEventListener("unhandledrejection",function(event){var reason=event.reason;recover((reason&&reason.message)||reason);},true);})();`,
+            }}
+          />
+        )}
       </head>
       <body className="font-sans bg-background text-foreground antialiased">
         <Providers>

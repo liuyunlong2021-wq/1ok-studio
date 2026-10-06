@@ -9,6 +9,8 @@ use std::thread;
 use std::time::{Duration, UNIX_EPOCH};
 use tauri::Manager;
 
+const BACKEND_PORT: u16 = if cfg!(debug_assertions) { 17178 } else { 17177 };
+
 /// The running backend process, shared with the window-close handler.
 ///
 /// It lives in a slot rather than on the monitoring thread's stack because
@@ -28,7 +30,7 @@ fn show_main_window(app_handle: &tauri::AppHandle, reload: bool) {
 /// Stop the backend, children included.
 ///
 /// `Child::kill` only signals the direct child. PyInstaller's bootloader
-/// re-execs itself, so the interpreter that actually serves 17177 can survive
+/// re-execs itself, so the interpreter that actually serves the backend port can survive
 /// as an orphan — the next launch then finds a stale backend answering
 /// /health, which `start_backend` has to reason about (see the reuse guards
 /// there). `taskkill /T` walks the tree instead.
@@ -59,7 +61,7 @@ fn terminate(process: &mut Child) {
 /// The monitor loop cannot be trusted for this. Closing the window ends the
 /// Tauri event loop, and the process exits while that thread is still asleep in
 /// its one-second poll interval, so a `running = false` check there never runs.
-/// The backend then survives as an orphan holding port 17177: the next launch
+/// The backend then survives as an orphan holding its port: the next launch
 /// finds a backend already answering /health, and — per the reuse rules in
 /// `start_backend` — a stale release sidecar is exactly the thing that must not
 /// be adopted, because it still holds the project list it read at its own
@@ -79,7 +81,7 @@ pub fn terminate_backend(child_slot: &SharedChild) {
 }
 
 /// Start the Python backend sidecar process
-/// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17177`
+/// In dev mode: runs `python -m uvicorn src.apps.comic_gen.api:app --host 0.0.0.0 --port 17178`
 /// In production: runs the bundled PyInstaller binary
 pub fn start_backend(
     app_handle: &tauri::AppHandle,
@@ -87,7 +89,7 @@ pub fn start_backend(
     child_slot: SharedChild,
 ) {
     if let Some(health) = backend_health() {
-        // "Healthy on 17177" is not the same as "the backend this build would
+        // "Healthy on this port" is not the same as "the backend this build would
         // run". A leftover release sidecar — or an orphan whose app already
         // quit — answers /health too, and it serves whatever code it was built
         // from, plus the project list it read into memory back then; on its
@@ -101,22 +103,23 @@ pub fn start_backend(
         };
         if reusable {
             running.store(true, Ordering::SeqCst);
-            println!("[sidecar] Reusing matching backend on port 17177");
+            println!("[sidecar] Reusing matching backend on port {BACKEND_PORT}");
             show_main_window(app_handle, cfg!(debug_assertions));
             return;
         }
         if !terminate_stale_backend(&health) {
-            // Dev backend (uvicorn, `python -m uvicorn ...`) and the release
-            // sidecar share port 17177, and the dev one is deliberately not
+            // An unknown backend owns the selected port, and it is deliberately not
             // killable from here (see the pid guard in `terminate_stale_backend`).
             // The window still opens and adopts whatever answers /health — but if
             // that backend is mid-reload, the frontend's gate spins for its full
             // 30s deadline and then reports "服务启动失败" with no cause. Record the
             // cause first, so the "打开启动日志" button lands on something useful.
-            let message = "Port 17177 is occupied by a backend that cannot be safely replaced \
-                           (usually the dev backend — stop it, or quit and relaunch this app)";
+            let message = format!(
+                "Port {BACKEND_PORT} is occupied by a backend that cannot be safely replaced \
+                 (stop that backend, then retry this app)"
+            );
             eprintln!("[sidecar] {message}");
-            append_sidecar_log(message);
+            append_sidecar_log(&message);
             show_main_window(app_handle, false);
             return;
         }
@@ -281,13 +284,9 @@ fn start_dev_backend() -> Result<Child, std::io::Error> {
             "--app-dir",
         ])
         .arg(project_root)
-        .args([
-            "--host",
-            "0.0.0.0",
-            "--port",
-            "17177",
-            "src.apps.comic_gen.api:app",
-        ])
+        .args(["--host", "0.0.0.0", "--port"])
+        .arg(BACKEND_PORT.to_string())
+        .arg("src.apps.comic_gen.api:app")
         .spawn()
 }
 
@@ -305,7 +304,7 @@ fn start_prod_backend(app_handle: &tauri::AppHandle) -> Result<Child, std::io::E
     let mut command = Command::new(prod_sidecar_path(app_handle)?);
     command
         .arg("--port")
-        .arg("17177")
+        .arg(BACKEND_PORT.to_string())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr));
 
@@ -359,7 +358,7 @@ fn backend_health() -> Option<serde_json::Value> {
         .build()
         .ok()?;
     client
-        .get("http://127.0.0.1:17177/health")
+        .get(format!("http://127.0.0.1:{BACKEND_PORT}/health"))
         .send()
         .ok()?
         .json()
@@ -410,7 +409,8 @@ fn terminate_stale_backend(health: &serde_json::Value) -> bool {
 
 fn listener_pid() -> Option<u64> {
     let output = Command::new("/usr/sbin/lsof")
-        .args(["-tiTCP:17177", "-sTCP:LISTEN"])
+        .arg(format!("-tiTCP:{BACKEND_PORT}"))
+        .args(["-sTCP:LISTEN"])
         .output()
         .ok()?;
     String::from_utf8_lossy(&output.stdout)
@@ -429,7 +429,7 @@ fn process_command(pid: u64) -> String {
         .unwrap_or_default()
 }
 
-/// True when whatever holds 17177 is what `start_dev_backend` would have
+/// True when whatever holds the dev port is what `start_dev_backend` would have
 /// spawned, i.e. a dev uvicorn. The bundled release sidecar is a PyInstaller
 /// binary named `1okstudio-backend` and must never be adopted by a dev build.
 fn listener_is_dev_backend() -> bool {

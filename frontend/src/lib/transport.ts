@@ -16,6 +16,9 @@ interface ApiResponse<T = unknown> {
     status: number;
 }
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL
+    || `http://localhost:${process.env.NEXT_PUBLIC_BACKEND_PORT || '17177'}`;
+
 /**
  * Make an API request that works in both Tauri and Web environments.
  * In Tauri mode, requests are proxied through the Rust backend via IPC.
@@ -42,8 +45,7 @@ export async function tauriApiRequest<T = unknown>(
         };
     } else {
         // Web mode: use standard fetch
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:17177';
-        const url = `${baseUrl}${path}`;
+        const url = `${BACKEND_URL}${path}`;
 
         const options: RequestInit = {
             method: method.toUpperCase(),
@@ -79,8 +81,7 @@ export async function checkBackendReady(): Promise<boolean> {
         }
     } else {
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:17177';
-            const response = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(2000) });
+            const response = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(2000) });
             return response.ok;
         } catch {
             return false;

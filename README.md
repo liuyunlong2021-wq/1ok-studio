@@ -117,13 +117,13 @@ npm run dev
 
 ```bash
 # 终端一：后端
-.venv/bin/python -m uvicorn src.apps.comic_gen.api:app --reload --port 17177 --host 127.0.0.1
+.venv/bin/python -m uvicorn src.apps.comic_gen.api:app --reload --port 17178 --host 127.0.0.1
 
 # 终端二：前端
 cd frontend && npm run dev
 ```
 
-浏览器打开 `http://localhost:3008`，API 文档为 `http://localhost:17177/docs`。
+浏览器打开 `http://localhost:3008`，API 文档为 `http://localhost:17178/docs`。
 
 跑桌面壳（Tauri），前后端一起拉起：
 
@@ -217,11 +217,11 @@ bash build_tauri_mac.sh
 基本都是 FFmpeg。到 **设置 → 系统自检** 看状态；缺了就 `brew install ffmpeg` 再重启 App。
 
 **界面空白 / 一直转圈**
-后端没起来。先看 `~/.1okstudio/logs/sidecar.log`。源码运行时再确认 17177 端口没被占用：
+后端没起来。先看 `~/.1okstudio/logs/sidecar.log`。源码运行时再确认 17178 端口没被占用：
 
 ```bash
 lsof -nP -iTCP:3008 -sTCP:LISTEN
-lsof -nP -iTCP:17177 -sTCP:LISTEN
+lsof -nP -iTCP:17178 -sTCP:LISTEN
 ```
 
 **端口被别的进程占了**

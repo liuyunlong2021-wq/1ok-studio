@@ -19,7 +19,7 @@ export async function reportClientError(payload: {
     // Written straight to the backend rather than through invoke(): the Tauri
     // IPC path is one of the things that may be broken, and this must not
     // depend on it. CSP already allows http://127.0.0.1:* for connect-src.
-    const base = "http://127.0.0.1:17177";
+    const base = `http://127.0.0.1:${process.env.NEXT_PUBLIC_BACKEND_PORT || '17177'}`;
 
     try {
         await fetch(`${base}/debug/client-error`, {
