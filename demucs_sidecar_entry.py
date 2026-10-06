@@ -29,4 +29,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Frozen multiprocessing children must enter their worker bootstrap before
+    # our CLI parser sees Python's internal worker arguments.
+    import multiprocessing
+    multiprocessing.freeze_support()
     main()
