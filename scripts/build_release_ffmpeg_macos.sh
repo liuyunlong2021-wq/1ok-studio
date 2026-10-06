@@ -21,7 +21,8 @@ git clone https://code.videolan.org/videolan/x264.git "$WORK/x264"
 git -C "$WORK/x264" checkout --detach "$X264_COMMIT"
 cd "$WORK/x264"
 ./configure --prefix="$PREFIX" --enable-static --disable-cli --disable-opencl \
-    --extra-cflags=-mmacosx-version-min=11.0 --extra-ldflags=-mmacosx-version-min=11.0
+    --extra-cflags=-mmacosx-version-min=11.0 --extra-asflags=-mmacosx-version-min=11.0 \
+    --extra-ldflags=-mmacosx-version-min=11.0
 make -j8
 make install
 cd "$WORK/ffmpeg-$FFMPEG_VERSION"
