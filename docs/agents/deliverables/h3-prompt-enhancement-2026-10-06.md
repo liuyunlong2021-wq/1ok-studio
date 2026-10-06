@@ -37,4 +37,18 @@
 - 更新了旧测试中的默认 Skill 选择和缺失镜头时长夹具，生产默认选择与视频时长规则沿用已有行为。
 - 网关传输与上传在测试中模拟，不发起付费任务。本次未进行真实上游多模态验收或费用对账。
 
-已安装的桌面客户端使用打包后的前端与 Python sidecar，源码更新不会自动更新现有客户端；本次交付为源码、验证结果和生产静态构建，未替换已安装应用或发布安装包。
+## 本机安装验收（2026-10-06 补齐）
+
+首次交付仅更新源码，已安装的 1.3.8 客户端仍运行旧前端和 sidecar，因此下拉框没有新增入口。已按 `build_tauri_mac.sh` 完整重新打包并更新本机安装版。
+
+- 构建来源：`6a8a0a3d5d34b792d66aef38cdb8ad7d12273376`；应用版本号保持 1.3.8，此次为包含 H3 增强的本机构建。
+- App 与最终 DMG 均完成签名、公证、staple 和 Gatekeeper 校验，构建脚本成功退出。
+- 已替换 `/Applications/One OK Studio.app` 并重新打开。旧应用备份保留在 `/tmp/oneok-h3-client-backup/`；用户数据目录沿用 `~/.1okstudio/`。
+- 安装版 `/script-skills` 与 `?kind=motion` 均返回 `builtin-h3-context-ir`，只读执行器为 `h3_context_ir`；增强 API 路由已注册。
+- 实际桌面界面已验证：提示词编辑器下拉框出现「MiniMax H3 提示词增强 · 内置」，选中后显示时长、画幅和图片用途控件。已停留在该面板供用户直接使用。
+- 未发起付费增强任务；上游实付多模态与费用验收仍未执行。未对外发布安装包。
+
+最终 DMG：`src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/One OK Studio_1.3.8_aarch64.dmg`。
+
+
+DMG SHA-256：`d8a5c445391160650a148a8ba1a1265598e3ea913c4cf293bf663a9706de0a1d`。
