@@ -251,6 +251,9 @@ function toOption(model: CatalogModel): PlaygroundModelOption {
  * Filtering: exclude deprecated/planned models. Include hidden models that
  * have the required capability (they are hidden from Studio but available in
  * Playground — e.g. HappyHorse T2V, Wan 2.7 VideoEdit).
+ *
+ * 例外：**hidden 且 `visible_in` 为空**的是「已登记、但当前账号/渠道还没有它」
+ * （如 Fk MiniMax H3）。这种模型网关会回 503「无可用渠道」，不能摆给用户选。
  */
 export function getModelsForMode(mode: PlaygroundMode): PlaygroundModelOption[] {
   if (AUDIO_MODES.has(mode)) {
@@ -259,6 +262,7 @@ export function getModelsForMode(mode: PlaygroundMode): PlaygroundModelOption[] 
   return allModels
     .filter(([, model]) => {
       if (model.status === 'deprecated' || model.status === 'planned') return false;
+      if (model.status === 'hidden' && (model.ui.visible_in?.length ?? 0) === 0) return false;
       if (!model.capabilities.includes(mode)) return false;
       return true;
     })
