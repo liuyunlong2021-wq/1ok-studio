@@ -82,7 +82,8 @@ describe('model catalog selectors', () => {
             expect(models.every((model) => model.family === 'jiucaihezi')).toBe(true);
         }
         // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空。
-        // 2026-10-06 新增 Fk 通道 7 款（第 8 款 Fk MiniMax H3 因账号未开通而 hidden，不进选择器）。
+        // 2026-10-06 新增 Fk 通道 7 款；2026-10-07 该通道的 MiniMax H3 开通后
+        // （原来因账号未开通而 hidden）从 8 款都进来了。
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
             'SD-2.5-特价',
             'cvk-2.5-1080',
@@ -92,6 +93,7 @@ describe('model catalog selectors', () => {
             'ft-video-v1-451adae35b0c4a3d275c2c46394abc98',
             'ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f',
             'ft-video-v1-7393b0529b788d532d031dcac5e820cb',
+            'ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746',
             'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70',
             'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
             'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',

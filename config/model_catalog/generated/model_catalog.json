@@ -836,7 +836,7 @@
           "video_contract": "fk_video"
         }
       },
-      "status": "hidden",
+      "status": "active",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -3158,7 +3158,7 @@
           "video_contract": "fk_video"
         }
       },
-      "status": "hidden",
+      "status": "active",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -3181,7 +3181,12 @@
         "order": 1027,
         "recommended": false,
         "selection_group": "r2v",
-        "visible_in": []
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
       }
     },
     "ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70": {
@@ -6294,7 +6299,7 @@
           "video_contract": "fk_video"
         }
       },
-      "status": "hidden",
+      "status": "active",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -6317,7 +6322,12 @@
         "order": 1027,
         "recommended": false,
         "selection_group": "r2v",
-        "visible_in": []
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
       }
     },
     "jiucaihezi/ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70#r2v": {
