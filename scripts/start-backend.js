@@ -4,9 +4,25 @@ const path = require('path');
 const os = require('os');
 
 const isWin = os.platform() === 'win32';
-const pythonPath = isWin
-  ? path.join(__dirname, '..', '.venv', 'Scripts', 'python')
-  : path.join(__dirname, '..', '.venv', 'bin', 'python');
+
+/**
+ * 解释器候选：显式环境变量 → 仓库自己的 venv → PATH 上的 python3。
+ *
+ * 原来只写 `.venv/bin/python`，而本机根本没有这个 venv（只有
+ * `.venv-release-macos11`），于是 `npm run tauri:dev` 拉起的后端一启动就
+ * ENOENT，看起来像「后端起不来」而不是「解释器路径写死了」。
+ */
+function resolvePython() {
+  if (process.env.ONEOKSTUDIO_PYTHON) return process.env.ONEOKSTUDIO_PYTHON;
+  const venvPython = isWin
+    ? path.join(__dirname, '..', '.venv', 'Scripts', 'python.exe')
+    : path.join(__dirname, '..', '.venv', 'bin', 'python');
+  if (fs.existsSync(venvPython)) return venvPython;
+  return isWin ? 'python' : 'python3';
+}
+
+const pythonPath = resolvePython();
+console.log(`[backend] python: ${pythonPath}`);
 
 // The backend resolves every runtime path relatively (output/projects.json,
 // output/assets/..., the /files mounts), so the launcher has to point cwd at
