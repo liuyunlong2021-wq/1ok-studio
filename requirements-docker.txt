@@ -5,6 +5,8 @@ python-multipart>=0.0.9
 
 # AI/ML Models
 dashscope>=1.20.0
+# 文本通道走 OpenAI 兼容接口：llm_adapter._get_jiucaihezi_client 直接 import openai
+openai>=1.0.0
 
 # Data Validation & Processing
 pydantic>=2.0.0
@@ -15,5 +17,10 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 pyyaml>=6.0
 PyJWT>=2.8.0
+
+# Image Processing
+# H3 提示词增强（prompt_editor/h3_enhancer.py）导入时就用 PIL 量参考图，测试与
+# docker 都要装；缺了它 8 个测试模块会在收集阶段直接失败。
+Pillow>=11.0.0
 
 # Audio Processing
