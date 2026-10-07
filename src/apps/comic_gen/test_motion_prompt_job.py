@@ -12,13 +12,13 @@ from fastapi.testclient import TestClient
 
 from src.apps.comic_gen import api as api_mod
 from src.apps.comic_gen.llm_adapter import LLMAdapter
-from src.apps.comic_gen.models import Script, StoryboardFrame
+from src.apps.comic_gen.models import Script, Segment, StoryboardFrame
 
 PROJECT_ID = "test-project"
 PROMPT_URL = f"/projects/{PROJECT_ID}/motion/generate_prompt"
 
 
-def _make_client(monkeypatch) -> TestClient:
+def _make_client(monkeypatch, segments=None) -> TestClient:
     script = Script(
         id=PROJECT_ID,
         title="test",
@@ -27,6 +27,7 @@ def _make_client(monkeypatch) -> TestClient:
             StoryboardFrame(id="shot-1", scene_id="scene-1", visual_description="城门布告栏", duration=5),
             StoryboardFrame(id="shot-2", scene_id="scene-1", visual_description="围观百姓", duration=5),
         ],
+        segments=list(segments or []),
         created_at=time.time(),
         updated_at=time.time(),
     )
@@ -170,3 +171,79 @@ def test_assemble_rejects_non_consecutive_frames(monkeypatch):
     client = _make_client(monkeypatch)
     response = client.post(ASSEMBLE_URL, json={"frame_ids": ["shot-2", "shot-1"]})
     assert response.status_code == 400
+
+
+# ─── 段间衔接：起点继承（段 N 继承段 N-1 的接续句） ──────────────────────────
+
+def _segment(index: int, frame_ids: list, exit_state: str = "") -> Segment:
+    return Segment(index=index, frame_ids=frame_ids, duration=5, exit_state=exit_state)
+
+
+def _assemble(client: TestClient, frame_ids: list) -> str:
+    response = client.post(ASSEMBLE_URL, json={
+        "frame_ids": frame_ids,
+        "references": [{"name": "城门布告栏", "asset_type": "场景"}],
+    })
+    assert response.status_code == 200, response.text
+    return response.json()["prompt"]
+
+
+def test_second_segment_inherits_the_previous_segment_state(monkeypatch):
+    client = _make_client(monkeypatch, segments=[
+        _segment(1, ["shot-1"], "角色A 在画面左侧中景、面朝画面右侧"),
+        _segment(2, ["shot-2"]),
+    ])
+    prompt = _assemble(client, ["shot-2"])
+    assert "起点继承（上一段结束时的状态）：角色A 在画面左侧中景、面朝画面右侧" in prompt
+    assert api_mod.MOTION_PROMPT_CONTINUITY_LOCK in prompt
+    # 位置契约：在「一致性锁」之后、「镜头」之前 —— 先锁资产，再交代从哪接，再逐镜内容。
+    assert prompt.index(api_mod.MOTION_PROMPT_REFERENCE_LOCK) < prompt.index("起点继承")
+    assert prompt.index("起点继承") < prompt.index("镜头1：")
+
+
+def test_first_segment_does_not_inherit_itself(monkeypatch):
+    client = _make_client(monkeypatch, segments=[
+        _segment(1, ["shot-1"], "不该被自己继承"),
+        _segment(2, ["shot-2"]),
+    ])
+    prompt = _assemble(client, ["shot-1"])
+    assert "起点继承" not in prompt
+    assert "不该被自己继承" not in prompt
+
+
+def test_empty_exit_state_adds_no_block(monkeypatch):
+    client = _make_client(monkeypatch, segments=[
+        _segment(1, ["shot-1"], ""),
+        _segment(2, ["shot-2"]),
+    ])
+    assert "起点继承" not in _assemble(client, ["shot-2"])
+
+
+def test_project_without_segments_is_unaffected(monkeypatch):
+    prompt = _assemble(_make_client(monkeypatch), ["shot-2"])
+    assert "起点继承" not in prompt
+
+
+def test_llm_path_also_receives_the_continuity_block(monkeypatch):
+    """LLM 那条路（生成 Skill 提示词）也要看到接续句，否则它会把上一段当全新场景写。"""
+    client = _make_client(monkeypatch, segments=[
+        _segment(1, ["shot-1"], "角色A 在画面左侧中景"),
+        _segment(2, ["shot-2"]),
+    ])
+    seen = []
+
+    def fake_chat(self, messages, model=None, response_format=None):
+        seen.append(messages)
+        return "镜头1：围观百姓"
+
+    monkeypatch.setattr(LLMAdapter, "chat", fake_chat)
+    # 只提交第二段的镜头，这样「上一段」才存在。
+    job = client.post(PROMPT_URL, json={
+        "frame_ids": ["shot-2"],
+        "references": [{"name": "城门布告栏", "asset_type": "场景"}],
+    }).json()
+    _poll(client, job["job_id"])
+
+    user_message = seen[0][1]["content"]
+    assert "[起点继承]" in user_message
+    assert "角色A 在画面左侧中景" in user_message

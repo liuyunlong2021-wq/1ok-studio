@@ -640,6 +640,26 @@ class EpisodeAudioPlan(BaseModel):
     selected_take_id: Optional[str] = Field(None, description="Take the user is currently listening to")
 
 
+class Segment(BaseModel):
+    """分镜阶段产出的「段」—— 一整集自动生成的最小单位。
+
+    段边界只落在镜头边界上（分镜的时间码本身就是一条连续轴，见
+    `storyboard_contract`），段时长 = 段内各镜 `duration` 之和。
+
+    `exit_state` 是「接续句」：本段**结束时**的状态（人物站位/朝向/持物/光源/机位），
+    生成下一段时作为「起点继承」写进提示词 —— 这是段间衔接的主路线（不靠首尾帧）。
+
+    这里刻意与运行层（`EpisodeRenderJob`）分开：分镜一改，段边界就要重排；
+    而每次运行的历史记录不该被改写。
+    """
+
+    index: int = Field(..., ge=1, description="段号，从 1 开始")
+    frame_ids: List[str] = Field(default_factory=list, description="这一段包含哪些镜头（必须连续）")
+    duration: int = Field(0, description="段时长（秒）= 段内各镜 duration 之和")
+    exit_state: str = Field("", description="接续句：本段结束时的状态，供下一段作为起点继承")
+    manual: bool = Field(False, description="用户手调过边界；自动重排时作为锚点保留")
+
+
 class Script(BaseModel):
     id: str = Field(..., description="Unique identifier for the script project")
     title: str = Field(..., description="Title of the comic/video")
@@ -653,6 +673,11 @@ class Script(BaseModel):
     props: List[Prop] = Field(default_factory=list)
     frames: List[StoryboardFrame] = Field(default_factory=list)
     video_tasks: List[VideoTask] = Field(default_factory=list)
+
+    # 整集自动生成：分段方案（分镜阶段的产物，见 segment_plan.py）。
+    # 是方案不是运行记录 —— 每次运行的状态在 EpisodeRenderJob 上。
+    segment_target_seconds: int = Field(12, description="段长目标（秒）；实际受模型上下限约束")
+    segments: List[Segment] = Field(default_factory=list, description="分段方案：段边界 + 段间接续句")
     
     # Global style settings (legacy, will be replaced by art_direction)
     style_preset: str = Field("realistic", description="Global style preset for all image generations")

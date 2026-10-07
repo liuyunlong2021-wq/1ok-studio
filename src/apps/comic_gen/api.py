@@ -815,6 +815,26 @@ def _motion_prompt_reference_block(references: List["MotionPromptReference"]) ->
     )
 
 
+MOTION_PROMPT_CONTINUITY_LOCK = (
+    "本段从上一段结束时的状态自然延续：不重新交代环境、不更换机位方向、"
+    "不改变光源方向与人物站位、不让人物凭空换位或换装。"
+)
+
+
+def _motion_prompt_continuity_block(script, frame_ids: List[str]) -> str:
+    """起点继承块：把**上一段**的接续句写进本段，让段与段在切点处不突变。
+
+    段间衔接的主路线就是这段文字（不靠首尾帧）—— 零计费、不占参考图槽位、
+    对任意模型都有效。第一段、或没有接续句时返回空串，调用方跳过这个块。
+    """
+    from .segment_plan import continuity_for
+
+    state = continuity_for(script.segments, frame_ids).strip()
+    if not state:
+        return ""
+    return f"起点继承（上一段结束时的状态）：{state}\n{MOTION_PROMPT_CONTINUITY_LOCK}"
+
+
 def _motion_prompt_shot_block(script, frame_ids: List[str]) -> str:
     """连续镜头块：每个镜头一行，字段顺序固定。"""
     frame_positions = {frame.id: index for index, frame in enumerate(script.frames)}
@@ -836,7 +856,7 @@ def _motion_prompt_shot_block(script, frame_ids: List[str]) -> str:
 
 
 def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateMotionPromptRequest) -> str:
-    """Build the [参考图] + [连续镜头] user message for the Motion prompt."""
+    """Build the [参考图] + [起点继承] + [连续镜头] user message for the Motion prompt."""
     reference_count = len(request.references)
     if reference_count:
         refs = (f"本次将绑定 {reference_count} 张参考图，按提交顺序编号如下：\n"
@@ -845,6 +865,8 @@ def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateM
                 "不得输出原始文件名、上传文件名或 URL。")
     else:
         refs = "当前尚未绑定参考图；如需引用图片，只能使用通用占位符，不得虚构图片名称。"
+    continuity = _motion_prompt_continuity_block(script, frame_ids)
+    continuity_section = f"\n[起点继承]\n{continuity}\n" if continuity else ""
     return f"""请严格按照系统 Skill，把下列连续镜头整合成一条可直接提交给视频模型的中文提示词。
 输出总时长：{_motion_total_duration_or_400(script, frame_ids)}秒（所选镜头时长相加）
 画幅：{request.ratio}
@@ -853,7 +875,7 @@ def _motion_prompt_user_message(script, frame_ids: List[str], request: GenerateM
 
 [参考图]
 {refs}
-
+{continuity_section}
 [连续镜头]
 {_motion_prompt_shot_block(script, frame_ids)}"""
 
@@ -933,6 +955,9 @@ def assemble_motion_prompt(script_id: str, request: GenerateMotionPromptRequest)
     if request.references:
         blocks.append(_motion_prompt_reference_block(request.references))
         blocks.append(MOTION_PROMPT_REFERENCE_LOCK)
+    continuity = _motion_prompt_continuity_block(script, request.frame_ids)
+    if continuity:
+        blocks.append(continuity)
     blocks.append(_motion_prompt_shot_block(script, request.frame_ids))
     return {"prompt": "\n\n".join(blocks), "model": "本地拼装", "skill_name": "本地拼装"}
 
