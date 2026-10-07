@@ -84,7 +84,7 @@ function ParamDropdown({
           type="button"
           disabled={disabled}
           onClick={() => !disabled && setOpen((o) => !o)}
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[14px] bg-surface-inset border border-border-subtle text-foreground text-xs font-medium transition cursor-pointer ${
+          className={`w-full h-10 flex items-center justify-between px-3 rounded-[14px] bg-surface-inset border border-border-subtle text-foreground text-xs font-medium transition cursor-pointer ${
             disabled
               ? 'opacity-50 cursor-not-allowed'
               : 'hover:border-foreground/30'
@@ -243,7 +243,7 @@ function SizePresetPicker({
                   inputMode="numeric"
                   value={customInput[axis]}
                   onChange={(e) => typeCustom(axis, e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-[14px] bg-surface-inset border border-border-subtle text-foreground text-xs font-medium outline-none focus:border-foreground/30"
+                  className="w-full h-10 px-3 rounded-[14px] bg-surface-inset border border-border-subtle text-foreground text-xs font-medium outline-none focus:border-foreground/30"
                 />
               </div>
             ))}
@@ -281,11 +281,11 @@ function PillToggle({
   return (
     <div className="flex flex-col gap-[6px]">
       <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-text-muted">{label}</span>
-      <div className="flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
+      <div className="h-10 flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
         <button
           type="button"
           onClick={() => onChange(true)}
-          className={`flex-1 rounded-full px-3 py-1.5 text-[0.6875rem] font-medium text-center cursor-pointer transition-all ${
+          className={`flex-1 h-full flex items-center justify-center rounded-full px-3 text-[0.6875rem] font-medium text-center cursor-pointer transition-all ${
             value
               ? 'bg-primary text-on-accent'
               : 'text-text-muted hover:text-foreground hover:bg-hover-bg'
@@ -296,7 +296,7 @@ function PillToggle({
         <button
           type="button"
           onClick={() => onChange(false)}
-          className={`flex-1 rounded-full px-3 py-1.5 text-[0.6875rem] font-medium text-center cursor-pointer transition-all ${
+          className={`flex-1 h-full flex items-center justify-center rounded-full px-3 text-[0.6875rem] font-medium text-center cursor-pointer transition-all ${
             !value
               ? 'bg-primary text-on-accent'
               : 'text-text-muted hover:text-foreground hover:bg-hover-bg'
@@ -347,16 +347,16 @@ function DurationStepper({
   return (
     <div className="flex flex-col gap-[6px]">
       <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-text-muted">{t('parameters.duration')}</span>
-      <div className="flex items-center gap-0 rounded-[14px] border border-border-subtle bg-surface-inset overflow-hidden">
+      <div className="h-10 flex items-center gap-0 rounded-[14px] border border-border-subtle bg-surface-inset overflow-hidden">
         <button
           type="button"
           disabled={value <= min}
           onClick={() => nudge(-step)}
-          className="px-3 py-2.5 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
+          className="h-full flex items-center px-3 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
         >
           −
         </button>
-        <div className="flex-1 flex items-center justify-center gap-0.5 py-2.5">
+        <div className="flex-1 h-full flex items-center justify-center gap-0.5">
           <input
             type="text"
             inputMode="numeric"
@@ -373,7 +373,7 @@ function DurationStepper({
           type="button"
           disabled={value >= max}
           onClick={() => nudge(step)}
-          className="px-3 py-2.5 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
+          className="h-full flex items-center px-3 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
         >
           +
         </button>
@@ -571,13 +571,13 @@ export default function ParameterBar() {
   const batchPills = (
     <div className="flex flex-col gap-[6px]">
       <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-text-muted">{t('parameters.batchSize')}</span>
-      <div className="flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
+      <div className="h-10 flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
         {BATCH_OPTIONS.map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setBatchSize(n)}
-            className={`flex-1 rounded-full px-3 py-1.5 font-mono text-[0.6875rem] font-medium cursor-pointer transition-all text-center ${
+            className={`flex-1 h-full flex items-center justify-center rounded-full px-3 font-mono text-[0.6875rem] font-medium cursor-pointer transition-all text-center ${
               batchSize === n
                 ? 'bg-primary text-on-accent'
                 : 'text-text-muted hover:text-foreground hover:bg-hover-bg'
@@ -696,20 +696,20 @@ export default function ParameterBar() {
             {durationFixed ? (
               <div className="flex flex-col gap-[6px]">
                 <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-text-muted">{t('parameters.duration')}</span>
-                <div className="w-full flex items-center px-3 py-2.5 rounded-[14px] bg-surface-inset border border-border-subtle text-text-muted text-xs font-medium">
+                <div className="w-full h-10 flex items-center px-3 rounded-[14px] bg-surface-inset border border-border-subtle text-text-muted text-xs font-medium">
                   {durationValue}s {t('parameters.durationFixedSuffix')}
                 </div>
               </div>
             ) : modelDuration?.type === 'buttons' ? (
               <div className="flex flex-col gap-[6px]">
                 <span className="font-mono text-[0.625rem] uppercase tracking-[0.08em] text-text-muted">{t('parameters.duration')}</span>
-                <div className="flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
+                <div className="h-10 flex gap-[2px] p-[3px] bg-surface-inset rounded-full atelier-pill-tabs">
                   {modelDuration.options.map((n) => (
                     <button
                       key={n}
                       type="button"
                       onClick={() => updateParam('duration', n)}
-                      className={`flex-1 rounded-full px-3 py-1.5 font-mono text-[0.6875rem] font-medium cursor-pointer transition-all text-center ${
+                      className={`flex-1 h-full flex items-center justify-center rounded-full px-3 font-mono text-[0.6875rem] font-medium cursor-pointer transition-all text-center ${
                         durationValue === n
                           ? 'bg-primary text-on-accent'
                           : 'text-text-muted hover:text-foreground hover:bg-hover-bg'
@@ -757,7 +757,7 @@ export default function ParameterBar() {
                   <input
                     type="number"
                     placeholder={t('parameters.seedPlaceholder')}
-                    className="glass-input w-full text-xs text-foreground font-mono placeholder:text-text-muted bg-surface-inset rounded-[14px]"
+                    className="glass-input w-full h-10 text-xs text-foreground font-mono placeholder:text-text-muted bg-surface-inset rounded-[14px]"
                     value={parameters.seed ?? ''}
                     onChange={(e) => {
                       const val = e.target.value;
