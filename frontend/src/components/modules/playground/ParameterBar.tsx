@@ -327,15 +327,21 @@ function DurationStepper({
   onChange: (v: number) => void;
 }) {
   const t = useTranslations('playground');
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9]/g, '');
-    if (raw === '') return;
-    const num = parseInt(raw, 10);
-    onChange(Math.max(min, Math.min(max, num)));
+  // 输入过程中允许空串/中间态：输入框直接受控在数字 value 上时，删空会立刻被写回
+  // 原值（`raw === ''` 直接 return），用户看到的就是「数字删不掉」。
+  // 草稿只在离开输入框（或回车）时提交，并在那时夹到 [min, max]。
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = (raw: string) => {
+    setDraft(null);
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (!digits) return; // 空 = 放弃本次编辑，回到原值
+    onChange(Math.max(min, Math.min(max, parseInt(digits, 10))));
   };
 
-  const handleBlur = () => {
-    onChange(Math.max(min, Math.min(max, value)));
+  const nudge = (delta: number) => {
+    setDraft(null);
+    onChange(Math.max(min, Math.min(max, value + delta)));
   };
 
   return (
@@ -345,7 +351,7 @@ function DurationStepper({
         <button
           type="button"
           disabled={value <= min}
-          onClick={() => onChange(Math.max(min, value - step))}
+          onClick={() => nudge(-step)}
           className="px-3 py-2.5 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
         >
           −
@@ -354,9 +360,11 @@ function DurationStepper({
           <input
             type="text"
             inputMode="numeric"
-            value={value}
-            onChange={handleInputChange}
-            onBlur={handleBlur}
+            aria-label={t('parameters.duration')}
+            value={draft ?? String(value)}
+            onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
             className="w-8 bg-transparent text-center font-mono text-xs font-medium text-foreground outline-none"
           />
           <span className="text-[0.625rem] text-text-muted font-mono">s</span>
@@ -364,7 +372,7 @@ function DurationStepper({
         <button
           type="button"
           disabled={value >= max}
-          onClick={() => onChange(Math.min(max, value + step))}
+          onClick={() => nudge(step)}
           className="px-3 py-2.5 text-text-secondary hover:text-foreground hover:bg-hover-bg transition disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium shrink-0"
         >
           +
