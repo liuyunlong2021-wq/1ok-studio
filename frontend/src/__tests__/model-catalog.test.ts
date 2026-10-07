@@ -81,17 +81,31 @@ describe('model catalog selectors', () => {
             expect(models.length).toBeGreaterThan(0);
             expect(models.every((model) => model.family === 'jiucaihezi')).toBe(true);
         }
-        // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空
+        // 反向确认：r2v 组确实留下了韭菜盒子的模型，不是被误清空。
+        // 2026-10-06 新增 Fk 通道 7 款（第 8 款 Fk MiniMax H3 因账号未开通而 hidden，不进选择器）。
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
+            'SD-2.5-特价',
+            'cvk-2.5-1080',
+            'cvk-2.5-480',
+            'cvk-2.5-720',
             'dola-seedance2.5',
+            'ft-video-v1-451adae35b0c4a3d275c2c46394abc98',
+            'ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f',
+            'ft-video-v1-7393b0529b788d532d031dcac5e820cb',
+            'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70',
+            'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
+            'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
+            'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
             'rh_minimax_h3_ref_9',
+            'sd2.5-a',
             '海seedance2.5',
         ]);
-        // 默认必须是 海seedance2.5（列表顺序是按 ui.order 排的，不是默认值）
-        expect(DEFAULT_R2V_MODEL_ID).toBe('海seedance2.5');
+        // 默认必须是 meta 默认值（列表顺序按 ui.order 排，不是默认值）。
+        // 1c6a04c 把 r2v_model 从「海seedance2.5」换成本地的 jc-minimax-h3-ref2v。
+        expect(DEFAULT_R2V_MODEL_ID).toBe('jc-minimax-h3-ref2v');
     });
 
     it('exposes Grok image generation and editing without resetting the selection', () => {
@@ -146,7 +160,7 @@ describe('model catalog fallbacks', () => {
         );
         expect(stale.t2i_model).toBe(imageDefault);
         expect(stale.image_model).toBe(imageDefault);
-        expect(stale.r2v_model).toBe('海seedance2.5');
+        expect(stale.r2v_model).toBe('jc-minimax-h3-ref2v');
         expect(stale.text_model).toBe('gpt-5.6-sol');
         // 韭菜盒子自家的模型即使不在该分组里也要保留：若走分组兜底会换成
         // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
@@ -158,9 +172,10 @@ describe('model catalog fallbacks', () => {
             .toBe('dola-seedance2.5');
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5' }, 'project_settings').i2v_model)
             .toBe('dola-seedance2.5');
-        // 只有更早期数据才有的 -r2v 后缀（网关没有这个名字）目录里没有，仍落默认 R2V 模型。
+        // 只有更早期数据才有的 -r2v 后缀（网关没有这个名字）目录里没有，落到兜底。
+        // 注意这里走的是 **i2v 面**，兜底值是 i2v 默认（jc-minimax-h3），不是 r2v 默认。
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5-r2v' }, 'project_settings').i2v_model)
-            .toBe('海seedance2.5');
+            .toBe('jc-minimax-h3');
     });
 
     it('normalizes canonical mode ids back to legacy compatibility ids when compat metadata exists', async () => {
@@ -241,20 +256,20 @@ describe('model catalog fallbacks', () => {
 
         expect(compatI2vModels.map((model) => model.id)).not.toContain('wan2.6-i2v');
         expect(compatI2vModels.some((model) => model.id === 'wan/wan2.6-video#i2v')).toBe(false);
-        // R2V selection/route ids resolve to PREFERRED_R2V_MODEL_ID (海seedance2.5):
-        // 显式钉住用户实际在跑的模型，而不是让默认值漂到 ui.order 最高的 minimax。
+        // R2V selection/route ids resolve to PREFERRED_R2V_MODEL_ID (jc-minimax-h3-ref2v):
+        // 显式钉住 meta 默认值，而不是让默认值漂到 ui.order 最高的模型。
         // Selection and route are unified (R2V_ROUTE_MODEL_ID = R2V_SELECTION_MODEL_ID).
-        expect(compatR2vSelectionModelId).toBe('海seedance2.5');
-        expect(compatR2vRouteModelId).toBe('海seedance2.5');
+        expect(compatR2vSelectionModelId).toBe('jc-minimax-h3-ref2v');
+        expect(compatR2vRouteModelId).toBe('jc-minimax-h3-ref2v');
     });
 });
 
 describe('model catalog runtime helpers', () => {
     it('derives the current R2V selection and route ids from catalog data', () => {
-        // 固定为 PREFERRED_R2V_MODEL_ID（海seedance2.5），不是列表首个：
+        // 固定为 PREFERRED_R2V_MODEL_ID（目录 meta 的 r2v_model），不是列表首个：
         // 列表按 ui.order 排序，会漂到 minimax_h3…（order 最大）。
-        expect(R2V_SELECTION_MODEL_ID).toBe('海seedance2.5');
-        expect(R2V_ROUTE_MODEL_ID).toBe('海seedance2.5');
+        expect(R2V_SELECTION_MODEL_ID).toBe('jc-minimax-h3-ref2v');
+        expect(R2V_ROUTE_MODEL_ID).toBe('jc-minimax-h3-ref2v');
     });
 
     it('reads per-model reference image limits from catalog metadata', () => {

@@ -39,7 +39,8 @@ describe("assetPickerItems", () => {
         // ref 保持 output/ 相对引用（input_media 就是这么写的，后端两处都认）
         expect(items[0].ref).toBe("uploads/liubei.png");
         expect(items[0].url.endsWith("/files/uploads/liubei.png")).toBe(true);
-        expect(items[0].label).toBe("刘备");
+        // 资产支持多版本后，标签带「图类型 · 版本 N」（见 assetImageVersions）。
+        expect(items[0].label).toBe("刘备 · 全身图 · 版本 1");
     });
 
     it("没图的资产不进列表（选进去也当不了参考图）", () => {
@@ -50,7 +51,7 @@ describe("assetPickerItems", () => {
             }),
         ]);
 
-        expect(items.map((i) => i.label)).toEqual(["屠夫"]);
+        expect(items.map((i) => i.label)).toEqual(["屠夫 · 全身图 · 版本 1"]);
     });
 
     it("顺序＝源顺序，源内 角色 → 场景 → 道具", () => {
@@ -66,10 +67,10 @@ describe("assetPickerItems", () => {
         ]);
 
         expect(items.map((i) => `${i.sourceName}/${i.label}`)).toEqual([
-            "孔子系列/孔子",
-            "孔子系列/古朴学堂",
-            "孔子系列/招兵布告",
-            "三国/刘备",
+            "孔子系列/孔子 · 全身图 · 版本 1",
+            "孔子系列/古朴学堂 · 资产图 · 版本 1",
+            "孔子系列/招兵布告 · 资产图 · 版本 1",
+            "三国/刘备 · 全身图 · 版本 1",
         ]);
     });
 

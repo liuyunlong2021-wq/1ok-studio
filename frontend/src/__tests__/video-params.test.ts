@@ -54,12 +54,25 @@ const VIDEO_MODELS = Object.entries(rawCatalog.models).filter(
 describe('视频模型参数契约', () => {
     it('目录里确实有视频模型（防止下面的断言空跑）', () => {
         expect(VIDEO_MODELS.map(([id]) => id).sort()).toEqual([
+            'SD-2.5-特价',
+            'cvk-2.5-1080',
+            'cvk-2.5-480',
+            'cvk-2.5-720',
             'dola-seedance2.5',
+            'ft-video-v1-451adae35b0c4a3d275c2c46394abc98',
+            'ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f',
+            'ft-video-v1-7393b0529b788d532d031dcac5e820cb',
+            'ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746',
+            'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70',
+            'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
+            'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
+            'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
             'jc-minimax-h3',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
             'rh_minimax_h3_ref_9',
+            'sd2.5-a',
             '海seedance2.5',
         ]);
     });

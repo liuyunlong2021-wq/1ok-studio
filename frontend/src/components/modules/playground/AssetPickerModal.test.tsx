@@ -78,7 +78,8 @@ describe('AssetPickerModal', () => {
   it('挂在 document.body 上（不留在调用方的子树里，否则会被玻璃卡片裁住）', async () => {
     const { container } = renderModal();
 
-    await screen.findByText('刘备');
+    // 标签是「资产名 · 图类型 · 版本 N」（资产支持多版本后），用正则匹配。
+    await screen.findByText(/刘备/);
     const dialog = dialogOf();
 
     expect(dialog).not.toBeNull();
@@ -88,17 +89,18 @@ describe('AssetPickerModal', () => {
   it('只列有图的资产，名字用资产名', async () => {
     renderModal();
 
-    await screen.findByText('刘备');
+    await screen.findByText(/刘备/);
     expect(tiles().map((b) => b.textContent)).toHaveLength(2);
-    expect(screen.queryByText('没有图的角色')).toBeNull();
+    expect(screen.queryByText(/没有图的角色/)).toBeNull();
   });
 
   it('点一下未加入的瓦片 → 直接交回该引用（没有待提交的选择态）', async () => {
     const { onToggle } = renderModal();
 
-    fireEvent.click(await screen.findByText('刘备'));
+    fireEvent.click(await screen.findByText(/刘备/));
 
-    expect(onToggle).toHaveBeenCalledWith('uploads/liubei.png');
+    // 第二个参数是完整条目（Fk 混合参考要看图/视频/音频类型）
+    expect(onToggle).toHaveBeenCalledWith('uploads/liubei.png', expect.objectContaining({ type: 'image' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
@@ -113,7 +115,7 @@ describe('AssetPickerModal', () => {
 
     expect(tile.disabled).toBe(false);
     fireEvent.click(tile);
-    expect(onToggle).toHaveBeenCalledWith('uploads/liubei.png');
+    expect(onToggle).toHaveBeenCalledWith('uploads/liubei.png', expect.objectContaining({ type: 'image' }));
   });
 
   it('单参考模式：已在里面的那张不给点（想换就点别人）', async () => {
@@ -133,7 +135,7 @@ describe('AssetPickerModal', () => {
   it('容量用完：没加入的瓦片点不动，已在里面的仍可点（用来腾地方）', async () => {
     renderModal({ existing: ['uploads/liubei.png'], capacity: 0, canRemoveExisting: true });
 
-    await screen.findByText('刘备');
+    await screen.findByText(/刘备/);
     expect(tileNamed('关羽').disabled).toBe(true);
     expect(tileNamed('刘备').disabled).toBe(false);
   });
