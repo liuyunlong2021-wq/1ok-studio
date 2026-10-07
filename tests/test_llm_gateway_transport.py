@@ -59,7 +59,7 @@ class GatewayTransportTests(unittest.TestCase):
     def test_explicit_openai_provider_keeps_normal_completion(self):
         client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
             create=Mock(return_value=SimpleNamespace(choices=[SimpleNamespace(
-                message=SimpleNamespace(content="正文"),
+                message=SimpleNamespace(content="正文"), finish_reason="stop",
             )])),
         )))
         self.assertEqual(LLMAdapter()._chat_once(client, "selected-model", [], None, "OpenAI"), "正文")

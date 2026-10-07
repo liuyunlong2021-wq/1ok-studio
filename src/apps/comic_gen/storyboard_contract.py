@@ -11,6 +11,14 @@ CAMERA_ANGLES = {"平视", "俯视", "仰视", "鸟瞰", "蚁视", "过肩", "�
 TIME_RANGE = re.compile(r"【(\d+:\d+(?:\.\d+)?)-(\d+:\d+(?:\.\d+)?)】")
 SOURCE_LINE = re.compile(r"^([^：:（）()\[\]【】△#]{1,30}?)(?:[（(].*?[）)])?\s*[：:]\s*(.*)$")
 
+# 分镜解析只认这批字段：技能示例里多写的键会被静默丢掉（写了等于没写）。
+# 契约两侧的对齐由 tests/test_storyboard_skill_contract.py 守住。
+REQUIRED_FRAME_KEYS = frozenset({
+    "scene_ref_name", "character_ref_names", "prop_ref_names", "action_summary",
+    "visual_description", "shot_size", "camera_angle", "camera_movement",
+    "dialogue", "speaker", "duration",
+})
+
 
 def storyboard_duration(frames):
     """Sum saved shot budgets; never invent a duration for legacy empty fields."""
@@ -90,7 +98,7 @@ def validate_storyboard_frames(frames, entities, source_text):
         try:
             if not isinstance(frame, dict):
                 raise StoryboardContractError("镜头必须是对象")
-            required = {"scene_ref_name", "character_ref_names", "prop_ref_names", "action_summary", "visual_description", "shot_size", "camera_angle", "camera_movement", "dialogue", "speaker", "duration"}
+            required = REQUIRED_FRAME_KEYS
             missing = required - frame.keys()
             if missing:
                 raise StoryboardContractError("缺少字段：" + "、".join(sorted(missing)))

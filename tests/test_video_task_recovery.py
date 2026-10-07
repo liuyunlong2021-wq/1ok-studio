@@ -187,7 +187,10 @@ def test_create_video_task_rejects_r2v_model_without_refs(pipeline):
 
 
 def test_create_video_task_rejects_wan26_r2v_without_video_refs(pipeline):
-    pipeline.scripts = {"p1": _script_with_tasks()}
+    script = _script_with_tasks()
+    # 带镜头才能走到模型⇄参考素材的校验（R2V 无镜头会先被「请先选择连续镜头」拦住）。
+    script.frames = [StoryboardFrame(id="shot-1", scene_id="scene-1", duration=5)]
+    pipeline.scripts = {"p1": script}
 
     with pytest.raises(ValueError, match="reference-to-video"):
         pipeline.create_video_task(
@@ -197,6 +200,7 @@ def test_create_video_task_rejects_wan26_r2v_without_video_refs(pipeline):
             model="wan2.6-r2v",
             generation_mode="r2v",
             reference_video_urls=[],
+            source_frame_ids=["shot-1"],
         )
 
 
@@ -276,7 +280,11 @@ def test_model_settings_persists_r2v_model(pipeline):
 
 
 def test_create_video_task_accepts_r2v_with_refs(pipeline):
-    pipeline.scripts = {"p1": _script_with_tasks()}
+    script = _script_with_tasks()
+    # R2V 现在按所选镜头时长合计（storyboard_contract.storyboard_duration），
+    # 取景的镜头必须带有效时长。
+    script.frames = [StoryboardFrame(id="shot-1", scene_id="scene-1", duration=5)]
+    pipeline.scripts = {"p1": script}
     # Avoid touching disk for snapshot copy.
     with patch.object(pipeline, "_save_data"):
         # The snapshot copy logic also touches the filesystem; route a
@@ -290,6 +298,7 @@ def test_create_video_task_accepts_r2v_with_refs(pipeline):
             model="wan2.7-r2v",
             generation_mode="r2v",
             reference_image_urls=["http://example.com/ref1.png"],
+            source_frame_ids=["shot-1"],
         )
 
     assert task_id

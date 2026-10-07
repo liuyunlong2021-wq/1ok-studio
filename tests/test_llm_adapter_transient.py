@@ -38,7 +38,7 @@ def test_readable_gateway_error_compacts_the_cloudflare_json():
     message = _readable_gateway_error(RuntimeError(CLOUDFLARE_524))
 
     assert "524" in message
-    assert "120" in message
+    assert "超时" in message
     assert "cloudflare.com" not in message  # 别把那一大块 JSON 甩给用户
     assert len(message) < 200
 
@@ -63,7 +63,7 @@ def test_fallback_model_is_retried_once_and_then_reports_readably(adapter):
     assert calls == [JIUCAIHEZI_FALLBACK_MODEL, JIUCAIHEZI_FALLBACK_MODEL]
     assert sleeper.call_count == 1
     assert "cloudflare.com" not in str(excinfo.value)
-    assert "120" in str(excinfo.value)
+    assert "524" in str(excinfo.value)
 
 
 def test_fallback_model_retry_can_succeed(adapter):

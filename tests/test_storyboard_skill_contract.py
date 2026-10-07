@@ -1,33 +1,24 @@
 """Contract check for the storyboard-inline-camera skill.
 
-`analyze_text_to_frames` only reads a fixed set of keys out of each frame dict
-(`frame_data.get(...)`); anything else the model emits is dropped without a
-warning. So a skill that adds a field the pipeline does not read produces a
-silent no-op — which is exactly what happened while writing this skill.
+分镜解析只认契约里列出的那批字段（`storyboard_contract.REQUIRED_FRAME_KEYS`），
+技能示例里多出来的键会被静默丢掉 —— 写了等于没写（当年写这个技能时正是这么踩的）。
+实际链路：技能输出 → `storyboard_contract.validate_storyboard_frames` 校验 →
+`engineering_script` 落成 StoryboardFrame。
 
-This test keeps the two sides honest: every key in the skill's worked example
-must be a key the pipeline actually consumes.
+所以这个测试守两件事：① 技能示例的字段与契约**完全一致**；
+② 第 1 镜的影像基调段按技能自己的规则写全。
 
-Run: `.venv/bin/python -m pytest tests/test_storyboard_skill_contract.py -q`
+Run: `python -m pytest tests/test_storyboard_skill_contract.py -q`
 """
 
 import json
 import re
 from pathlib import Path
 
+from src.apps.comic_gen.storyboard_contract import REQUIRED_FRAME_KEYS
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL_PATH = REPO_ROOT / "skills" / "storyboard-inline-camera" / "SKILL.md"
-PIPELINE_PATH = REPO_ROOT / "src" / "apps" / "comic_gen" / "pipeline.py"
-
-
-def _pipeline_consumed_keys() -> set:
-    """Keys `analyze_text_to_frames` pulls out of each frame dict."""
-    source = PIPELINE_PATH.read_text(encoding="utf-8")
-    start = source.index("def analyze_text_to_frames")
-    # Method body ends at the next method definition at the same indent.
-    end = source.index("\n    def ", start + 1)
-    body = source[start:end]
-    return set(re.findall(r'frame_data\.get\(\s*"([^"]+)"', body))
 
 
 def _skill_example_frames() -> list:
@@ -40,20 +31,20 @@ def _skill_example_frames() -> list:
     raise AssertionError("skill has no parsable {\"frames\": [...]} example")
 
 
-def test_skill_example_only_uses_keys_the_pipeline_consumes():
-    consumed = _pipeline_consumed_keys()
-    assert "visual_description" in consumed, (
-        "pipeline.analyze_text_to_frames no longer reads 'visual_description' — "
-        "the skill's fused camera paragraph would be dropped"
-    )
+def test_skill_example_matches_the_contract_exactly():
+    required = set(REQUIRED_FRAME_KEYS)
 
     for index, frame in enumerate(_skill_example_frames(), start=1):
         assert isinstance(frame, dict), f"frame {index} is not an object"
-        unknown = set(frame) - consumed
+        unknown = set(frame) - required
         assert not unknown, (
             f"frame {index} emits {sorted(unknown)}, which "
-            f"analyze_text_to_frames drops. Either remove them from the skill or "
-            f"wire them up in pipeline.py."
+            f"validate_storyboard_frames drops. Either remove them from the skill or "
+            f"wire them up in storyboard_contract.py."
+        )
+        missing = required - set(frame)
+        assert not missing, (
+            f"frame {index} is missing {sorted(missing)}, which the contract requires"
         )
 
 
@@ -65,17 +56,12 @@ def test_skill_keeps_the_template_placeholders():
         assert placeholder in text, f"skill lost {placeholder} — the call would send no script content"
 
 
-def test_first_shot_carries_episode_summary_and_music():
-    first = _skill_example_frames()[0]
-    opener = first["visual_description"]
+def test_first_shot_carries_the_look_and_feel_opener():
+    """只有第 1 镜在 visual_description 开头写影像基调（类型题材 / 画幅 / 调色 /
+    光线 / 焦段 / 构图），且不预述整集剧情、不把音乐当成本镜已发生的事件。"""
+    opener = _skill_example_frames()[0]["visual_description"]
 
-    assert opener.startswith("生成一段"), "第 1 镜必须以「生成一段〈画幅〉电影片段，讲述……」开头"
-    assert re.search(r"生成一段\d+:\d+电影片段，讲述", opener), "总起段要写明画幅和整集剧情"
-    assert "音乐以" in opener and "为主奏乐器" in opener, "总起段要写主奏乐器"
-    assert "整体情绪" in opener, "总起段要收在整体情绪上"
-
-    # Later shots must not repeat the episode opener.
-    for index, frame in enumerate(_skill_example_frames()[1:], start=2):
-        assert "音乐以" not in (frame.get("visual_description") or ""), (
-            f"第 {index} 镜重复写了音乐说明，总起段只属于第 1 镜"
-        )
+    assert opener.startswith("现实主义情感短剧"), "第 1 镜开头应是影像基调段"
+    for token in ("9:16", "色调", "光", "焦段", "构图"):
+        assert token in opener, f"影像基调要写清「{token}」"
+    assert "音乐" not in opener, "第 1 镜不预述整集声音与音乐"

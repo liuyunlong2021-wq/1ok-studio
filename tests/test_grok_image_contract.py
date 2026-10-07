@@ -16,7 +16,7 @@ class GrokImageContractTest(unittest.TestCase):
             reference = Path(directory) / "reference.png"
             reference.write_bytes(b"reference")
             for editing in (False, True):
-                with self.subTest(editing=editing), patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"}), patch("src.models.jiucaihezi.requests.post", return_value=response) as post:
+                with self.subTest(editing=editing), patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"}), patch("src.models.jiucaihezi._image_request", return_value=response) as post:
                     output = Path(directory) / "result.png"
                     JiucaiheziImageModel({}).generate(
                         "blue cup", str(output), model_name="jiucaihezi/grok-imagine-image-2.0",

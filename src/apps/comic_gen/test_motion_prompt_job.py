@@ -24,8 +24,8 @@ def _make_client(monkeypatch) -> TestClient:
         title="test",
         original_text="test",
         frames=[
-            StoryboardFrame(id="shot-1", scene_id="scene-1", visual_description="城门布告栏"),
-            StoryboardFrame(id="shot-2", scene_id="scene-1", visual_description="围观百姓"),
+            StoryboardFrame(id="shot-1", scene_id="scene-1", visual_description="城门布告栏", duration=5),
+            StoryboardFrame(id="shot-2", scene_id="scene-1", visual_description="围观百姓", duration=5),
         ],
         created_at=time.time(),
         updated_at=time.time(),
@@ -140,14 +140,18 @@ def test_assemble_puts_references_then_shots_in_order(monkeypatch):
         ],
     })
     assert response.status_code == 200, response.text
+    # 本地拼装现在的格式：先「画幅 + 输出总时长」头，再参考图，再镜头块
+    # （每镜一行，固定的字段顺序；时长是所选镜头相加）。
     assert response.json()["prompt"] == (
+        "画幅：16:9；输出总时长：10秒（所选镜头时长相加）。从00:00按每镜时长连续累计，原文时间码仅供定位。\n"
+        "\n"
         "参考图1：城门布告栏（场景）\n"
         "参考图2：刘邦（角色）\n"
         "\n"
         "所有镜头严格沿用对应参考图，身份、服装、材质、比例和关键特征保持锁定。\n"
         "\n"
-        "镜头1：城门布告栏；运镜：Medium Shot\n"
-        "镜头2：围观百姓；运镜：Medium Shot"
+        "镜头1：机位：Medium Shot；时长：5秒；城门布告栏\n"
+        "镜头2：机位：Medium Shot；时长：5秒；围观百姓"
     )
 
 
@@ -155,7 +159,11 @@ def test_assemble_without_references_only_lists_shots(monkeypatch):
     client = _make_client(monkeypatch)
     response = client.post(ASSEMBLE_URL, json={"frame_ids": ["shot-1"]})
     assert response.status_code == 200
-    assert response.json()["prompt"] == "镜头1：城门布告栏；运镜：Medium Shot"
+    assert response.json()["prompt"] == (
+        "画幅：16:9；输出总时长：5秒（所选镜头时长相加）。从00:00按每镜时长连续累计，原文时间码仅供定位。\n"
+        "\n"
+        "镜头1：机位：Medium Shot；时长：5秒；城门布告栏"
+    )
 
 
 def test_assemble_rejects_non_consecutive_frames(monkeypatch):

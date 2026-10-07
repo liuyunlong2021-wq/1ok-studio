@@ -18,14 +18,16 @@ from src.apps.comic_gen.pipeline import ComicGenPipeline
 from src.utils.model_catalog import get_default_model_settings
 
 
-def _pipeline_with_script() -> ComicGenPipeline:
+def _pipeline_with_script(frame_duration: int = 5) -> ComicGenPipeline:
+    """R2V 现在按所选镜头时长合计（storyboard_contract.storyboard_duration），
+    所以取景的镜头必须带有效时长；默认 5 秒，需要凑模型档位的用例自己传。"""
     script = Script(
         id="project-1",
         title="test",
         original_text="test",
         frames=[
-            StoryboardFrame(id="shot-1", scene_id="scene-1"),
-            StoryboardFrame(id="shot-2", scene_id="scene-1"),
+            StoryboardFrame(id="shot-1", scene_id="scene-1", duration=frame_duration),
+            StoryboardFrame(id="shot-2", scene_id="scene-1", duration=frame_duration),
         ],
         created_at=time.time(),
         updated_at=time.time(),
@@ -43,7 +45,8 @@ def _task_of(pipeline, task_id):
 
 def test_flat_jiucaihezi_id_is_not_switched_to_wan():
     """海seedance2.5（扁平 id）必须保持原样，不能被换成 wan2.7-r2v。"""
-    pipeline = _pipeline_with_script()
+    # 这条通道只接受 30 秒 → 两镜各 15 秒。
+    pipeline = _pipeline_with_script(15)
 
     _, task_id = pipeline.create_video_task(
         "project-1", "", "prompt", model="海seedance2.5", generation_mode="r2v",
@@ -58,7 +61,8 @@ def test_flat_jiucaihezi_id_is_not_switched_to_wan():
 
 def test_prefixed_jiucaihezi_id_is_not_switched():
     """带前缀的写法同样不能被切换。"""
-    pipeline = _pipeline_with_script()
+    # 单镜 30 秒正好是该通道唯一合法时长。
+    pipeline = _pipeline_with_script(30)
 
     _, task_id = pipeline.create_video_task(
         "project-1", "", "prompt", model="jiucaihezi/海seedance2.5", generation_mode="r2v",
@@ -86,7 +90,8 @@ def test_unregistered_model_falls_back_to_catalog_r2v_default():
 
     task = _task_of(pipeline, task_id)
     assert task.model == get_default_model_settings().r2v_model
-    assert task.model == "海seedance2.5"
+    # 1c6a04c 把 meta 默认从「海seedance2.5」换成本地的 jc-minimax-h3-ref2v。
+    assert task.model == "jc-minimax-h3-ref2v"
 
 
 def test_missing_model_uses_catalog_i2v_default():
