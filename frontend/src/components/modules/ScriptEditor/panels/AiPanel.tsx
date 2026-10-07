@@ -229,57 +229,62 @@ export default function AiPanel({ editor, projectId, onPreview, scope, onScopeCh
   };
 
   return (
-    <div className="flex h-full flex-col p-4">
-      <div><h2 className="text-sm font-semibold text-foreground">{purpose === 'prompt' ? 'AI 创作与修改' : 'AI 修改剧本'}</h2><p className="mt-1 text-xs text-text-muted">输入修改要求，Skill 可选，结果将在左侧预览。</p></div>
-      <div className="mt-5 space-y-2">
-        <div className="flex items-center justify-between">
-          <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
-          <div className="flex items-center gap-3">
-            <label className={`text-xs text-primary ${loadingSkills ? 'opacity-40' : 'cursor-pointer'}`}><Upload size={13} className="mr-1 inline" />上传<input type="file" accept={purpose === 'prompt' ? ' .md,.markdown,.txt,.zip'.trim() : '.md,.markdown,.txt'} disabled={loadingSkills} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImportFile(file); setShowManager(true); } event.target.value = ''; }} /></label>
-            <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
+    <div className="flex h-full min-h-0 flex-col p-4">
+      {/* 内容区自己滚，动作按钮留在滚动区之外。
+          提示词编辑器右栏在窄窗口只有 450px 高、剧本编辑器右栏是 overflow-hidden，
+          内容一高（尤其选中 H3 后多出时长/画幅/图片用途）按钮就会被挤到折叠线以下或被裁掉。 */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto custom-scrollbar">
+        <div><h2 className="text-sm font-semibold text-foreground">{purpose === 'prompt' ? 'AI 创作与修改' : 'AI 修改剧本'}</h2><p className="mt-1 text-xs text-text-muted">输入修改要求，Skill 可选，结果将在左侧预览。</p></div>
+        <div className="mt-5 space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="script-ai-skill" className="text-xs font-medium text-text-secondary">Skill</label>
+            <div className="flex items-center gap-3">
+              <label className={`text-xs text-primary ${loadingSkills ? 'opacity-40' : 'cursor-pointer'}`}><Upload size={13} className="mr-1 inline" />上传<input type="file" accept={purpose === 'prompt' ? ' .md,.markdown,.txt,.zip'.trim() : '.md,.markdown,.txt'} disabled={loadingSkills} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImportFile(file); setShowManager(true); } event.target.value = ''; }} /></label>
+              <button type="button" disabled={loadingSkills} onClick={() => { setImportFile(undefined); setShowManager(true); }} className="text-xs text-primary disabled:opacity-40"><Settings2 size={13} className="mr-1 inline" />管理</button>
+            </div>
           </div>
+          <select id="script-ai-skill" value={skillId} disabled={loadingSkills || sending} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
+            <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
+            {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.displayName}{item.validation_error ? ' · 需修复' : ''}</option>)}
+          </select>
+          {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
         </div>
-        <select id="script-ai-skill" value={skillId} disabled={loadingSkills || sending} onChange={(event) => { skillIdRef.current = event.target.value; setSkillId(event.target.value); rememberSkill(memoryId, event.target.value); setError(''); }} className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-foreground">
-          <option value="">{loadingSkills ? '加载中…' : purpose === 'prompt' ? '不使用 Skill · 按本次要求创作' : '不使用 Skill · 按本次要求修改'}</option>
-          {skills.map((item) => <option key={item.id} value={item.id} disabled={!!item.validation_error}>{item.displayName}{item.validation_error ? ' · 需修复' : ''}</option>)}
-        </select>
-        {selectedSkill && <details className="rounded-lg border border-border-subtle bg-surface px-3 py-2 text-xs text-text-muted"><summary className="cursor-pointer">已加载：{selectedSkill.name}</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem]">{selectedSkill.content}</pre></details>}
-      </div>
-      {isH3 && <div className="mt-3 space-y-2">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-xs text-text-secondary">目标时长（秒）<input aria-label="H3 增强时长" type="number" min={4} max={15} step={1} value={Number.isFinite(h3Duration) ? h3Duration : ''} disabled={h3.busy} onChange={(event) => setH3Duration(event.target.value === '' ? NaN : Number(event.target.value))} className="mt-1 block h-10 w-full box-border rounded-lg border border-border-subtle bg-surface px-3 py-0 text-xs text-foreground" /></label>
-          <label className="text-xs text-text-secondary">画幅<span className="relative mt-1 block"><select aria-label="H3 增强画幅" value={h3Ratio} disabled={h3.busy} onChange={(event) => setH3Ratio(event.target.value)} className="block h-10 w-full box-border appearance-none rounded-lg border border-border-subtle bg-surface pl-3 pr-8 py-0 text-xs text-foreground">{H3_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select><ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" /></span></label>
-        </div>
-        <label className="block text-xs text-text-secondary">图片用途<select aria-label="H3 图片用途" value={h3ImageMode} disabled={h3.busy} onChange={(event) => setH3ImageMode(event.target.value as H3ImageMode)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground"><option value="reference">参考图（无图时使用纯文本）</option><option value="first_frame">首帧</option><option value="last_frame">尾帧</option><option value="first_last">首尾帧（按图片顺序）</option></select></label>
-        <p className="text-xs text-text-muted">使用选定风格和参考图片增强提示词，图片通过韭菜盒子临时上传。{h3ImageMode !== 'reference' ? '首尾帧画幅由图片决定。' : '图片编号沿用当前顺序。'}</p>
-        {h3Invalid && <p className="text-xs text-red-400">{h3Invalid}</p>}
-      </div>}
-      {/* 占满剩下的高度：输入框随窗口伸缩，「已框选的那段」保持固定高度露在下面。 */}
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <label htmlFor="script-ai-instruction" className="shrink-0 text-xs font-medium text-text-secondary">本次要求</label>
-        <textarea id="script-ai-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="输入这次希望 AI 完成的修改要求" className="mt-2 min-h-[8rem] w-full flex-1 resize-none rounded-lg border border-border-subtle bg-surface p-3 text-xs leading-relaxed text-foreground custom-scrollbar" />
-        <div className="mt-2 flex shrink-0 items-center gap-2 text-xs">
+        {isH3 && <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-xs text-text-secondary">目标时长（秒）<input aria-label="H3 增强时长" type="number" min={4} max={15} step={1} value={Number.isFinite(h3Duration) ? h3Duration : ''} disabled={h3.busy} onChange={(event) => setH3Duration(event.target.value === '' ? NaN : Number(event.target.value))} className="mt-1 block h-10 w-full box-border rounded-lg border border-border-subtle bg-surface px-3 py-0 text-xs text-foreground" /></label>
+            <label className="text-xs text-text-secondary">画幅<span className="relative mt-1 block"><select aria-label="H3 增强画幅" value={h3Ratio} disabled={h3.busy} onChange={(event) => setH3Ratio(event.target.value)} className="block h-10 w-full box-border appearance-none rounded-lg border border-border-subtle bg-surface pl-3 pr-8 py-0 text-xs text-foreground">{H3_RATIOS.map((ratio) => <option key={ratio} value={ratio}>{ratio}</option>)}</select><ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" /></span></label>
+          </div>
+          <label className="block text-xs text-text-secondary">图片用途<select aria-label="H3 图片用途" value={h3ImageMode} disabled={h3.busy} onChange={(event) => setH3ImageMode(event.target.value as H3ImageMode)} className="mt-1 w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-foreground"><option value="reference">参考图（无图时使用纯文本）</option><option value="first_frame">首帧</option><option value="last_frame">尾帧</option><option value="first_last">首尾帧（按图片顺序）</option></select></label>
+          <p className="text-xs text-text-muted">使用选定风格和参考图片增强提示词，图片通过韭菜盒子临时上传。{h3ImageMode !== 'reference' ? '首尾帧画幅由图片决定。' : '图片编号沿用当前顺序。'}</p>
+          {h3Invalid && <p className="text-xs text-red-400">{h3Invalid}</p>}
+        </div>}
+        {/* 占满剩下的高度：输入框随窗口伸缩，「已框选的那段」保持固定高度露在下面。 */}
+        <div className="mt-5 flex min-h-0 flex-1 flex-col">
+          <label htmlFor="script-ai-instruction" className="shrink-0 text-xs font-medium text-text-secondary">本次要求</label>
+          <textarea id="script-ai-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="输入这次希望 AI 完成的修改要求" className="mt-2 min-h-[8rem] w-full flex-1 resize-none rounded-lg border border-border-subtle bg-surface p-3 text-xs leading-relaxed text-foreground custom-scrollbar" />
+          <div className="mt-2 flex shrink-0 items-center gap-2 text-xs">
+            {scope ? (
+              <>
+                <span className="shrink-0 text-text-secondary">作用范围：已框选 {scopeLength} 字</span>
+                <button
+                  type="button"
+                  onClick={() => onScopeChange(null)}
+                  className="shrink-0 text-primary hover:underline"
+                >
+                  改为全文
+                </button>
+              </>
+            ) : (
+              <span className="text-text-muted">{purpose === 'prompt' && !editor?.getText().trim() ? '作用范围：从零创作' : '作用范围：全文（在左侧正文里框选，可只改选中的段落）'}</span>
+            )}
+          </div>
           {scope ? (
-            <>
-              <span className="shrink-0 text-text-secondary">作用范围：已框选 {scopeLength} 字</span>
-              <button
-                type="button"
-                onClick={() => onScopeChange(null)}
-                className="shrink-0 text-primary hover:underline"
-              >
-                改为全文
-              </button>
-            </>
-          ) : (
-            <span className="text-text-muted">{purpose === 'prompt' && !editor?.getText().trim() ? '作用范围：从零创作' : '作用范围：全文（在左侧正文里框选，可只改选中的段落）'}</span>
-          )}
+            <pre className="mt-1.5 max-h-24 shrink-0 overflow-auto whitespace-pre-wrap rounded-lg border border-primary/30 bg-primary/[0.06] px-2.5 py-2 font-sans text-[0.6875rem] leading-relaxed text-text-secondary custom-scrollbar">
+              {scope.text}
+            </pre>
+          ) : null}
+          {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
         </div>
-        {scope ? (
-          <pre className="mt-1.5 max-h-24 shrink-0 overflow-auto whitespace-pre-wrap rounded-lg border border-primary/30 bg-primary/[0.06] px-2.5 py-2 font-sans text-[0.6875rem] leading-relaxed text-text-secondary custom-scrollbar">
-            {scope.text}
-          </pre>
-        ) : null}
-        {error && <p className="mt-2 shrink-0 text-xs text-red-400">{error}</p>}
       </div>
       <H3EnhancementStatus {...h3} onResume={h3.resume} onClear={h3.clear} />
       <button type="button" onClick={send} disabled={sending || !!h3Invalid || (isH3 && !!h3.pendingId) || !!selectedSkill?.validation_error || !editor || !projectId || (!selectedSkill && !instruction.trim()) || (purpose === 'prompt' && !editor?.getText().trim() && !instruction.trim())} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40">

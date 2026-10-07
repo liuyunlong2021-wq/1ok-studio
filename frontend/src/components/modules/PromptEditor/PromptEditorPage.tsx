@@ -238,7 +238,8 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
       </main>
       <aside className="flex h-[450px] shrink-0 flex-col overflow-y-auto border-t border-border-subtle md:h-auto md:w-[340px] md:border-l md:border-t-0">
         <PromptContextInput value={context} disabled={switching || restoring || handoffBusy} onChange={(value) => { draft.current.style = value.style; draft.current.images = value.images; setContext(value); setDirty(true); setEditTick((tick) => tick + 1); }} />
-        <div className="min-h-[440px] flex-1"><AiPanel promptContext={context} purpose="prompt" editor={editor} projectId={document.id} onPreview={setPreview} scope={scope} onScopeChange={setScope} /></div>
+        {/* min-h-0：窄窗口下这栏只有 450px，面板自己滚，动作按钮才不会被挤到折叠线以下。 */}
+        <div className="flex min-h-0 flex-1 flex-col"><AiPanel promptContext={context} purpose="prompt" editor={editor} projectId={document.id} onPreview={setPreview} scope={scope} onScopeChange={setScope} /></div>
       </aside>
     </div>
     <footer className="border-t border-border-subtle px-5 py-2 text-xs text-text-muted">{draft.current.text.length} 字 · 独立文档</footer>
