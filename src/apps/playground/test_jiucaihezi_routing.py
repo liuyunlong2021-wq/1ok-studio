@@ -21,6 +21,17 @@ def _generation(model_id, mode):
 
 
 class JiucaiheziRoutingTest(unittest.TestCase):
+    def test_image_modes_reject_video_before_saving(self):
+        for mode in ("t2i", "i2i"):
+            with self.subTest(mode=mode):
+                storage = Mock()
+                with self.assertRaisesRegex(ValueError, "参考素材必须是图片"):
+                    PlaygroundService(storage).create_generation(GenerateRequest(
+                        mode=mode, model_id="ft-image-v1-186289ba9d3263010c69372f8939dd94",
+                        prompt="test", input_media=["output/playground/videos/source.mp4"],
+                    ))
+                storage.add_generation.assert_not_called()
+
     def test_v2v_rejects_image_only_model_before_saving_or_uploading(self):
         storage = Mock()
         service = PlaygroundService(storage)
@@ -101,6 +112,8 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             model_name="jiucaihezi/gpt-image-2.5-菠萝",
             size="1024x1024",
             n=1,
+            resolution="768p竖",
+            aspect_ratio=None,
             quality=None,
         )
 

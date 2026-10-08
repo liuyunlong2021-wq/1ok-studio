@@ -67,6 +67,23 @@ class ImageTransportChecks(unittest.TestCase):
         self.proxy_lookup.assert_called()
         self.assertEqual(self.calls[0][1]["proxies"]["https"], "http://127.0.0.1:1")
 
+    def test_fk_edit_uses_images_and_native_size_ratio_fields(self):
+        reference = Path(self.directory.name) / "reference.png"
+        reference.write_bytes(b"reference")
+        model = "ft-image-v1-186289ba9d3263010c69372f8939dd94"
+        JiucaiheziImageModel({}).generate(
+            "prompt", str(self.output), model_name=model,
+            ref_image_paths=[str(reference)], resolution="2K", aspect_ratio="9:16",
+        )
+        request, _ = self.calls[0]
+        self.assertTrue(request.url.endswith("/v1/images/edits"))
+        self.assertIn(b'name="images"; filename="reference.png"', request.body)
+        self.assertNotIn(b'name="image";', request.body)
+        for name, value in (("model", model), ("imageSize", "2K"), ("ratio", "9:16")):
+            self.assertIn(f'name="{name}"\r\n\r\n{value}'.encode(), request.body)
+        self.assertNotIn(b'name="size"', request.body)
+        self.assert_direct()
+
     def test_text_to_image_bypasses_proxy_and_preserves_size(self):
         JiucaiheziImageModel({}).generate(
             "prompt", str(self.output), model_name="jc-qwen-image-2.1", size="1088x1920",

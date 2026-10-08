@@ -532,18 +532,19 @@ class JiucaiheziImageModel(ImageGenModel):
         if refs and model != "jc-qwen-image-2.1":
             files = []
             handles = []
+            image_field = "images" if fk_params is not None else "image"
             for ref in refs:
                 if ref.startswith(("http://", "https://")):
                     downloaded = _image_request(ref, timeout=180)
                     _raise_for_status_with_body(downloaded, ref)
                     mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
-                    files.append(("image", (os.path.basename(ref) or "reference", downloaded.content, mime)))
+                    files.append((image_field, (os.path.basename(ref) or "reference", downloaded.content, mime)))
                     continue
                 path = ref if os.path.exists(ref) else os.path.join("output", ref)
                 if os.path.exists(path):
                     handle = open(path, "rb")
                     handles.append(handle)
-                    files.append(("image", (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
+                    files.append((image_field, (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
             if not files:
                 raise ValueError("No valid reference images found for image editing")
             data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": response_format}

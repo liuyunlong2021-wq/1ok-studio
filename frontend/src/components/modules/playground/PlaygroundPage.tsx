@@ -186,6 +186,10 @@ export default function PlaygroundPage() {
 
   const handleGenerate = useCallback(() => {
     if (!prompt.trim() || prompt.length > getPromptMaxLength(modelId)) return;
+    if ((mode === 't2i' || mode === 'i2i') && inputMedia.some((ref) => /\.(mp4|mov|webm|avi|mkv|mp3|wav|ogg|opus|pcm|m4a|flac|aac)(?:[?#]|$)/i.test(ref))) {
+      toast.error('参考素材是视频或音频，请移除后上传图片。使用视频画面时请先截帧。');
+      return;
+    }
     // Auto-detect i2i: t2i + reference images -> i2i
     const effectiveMode = (mode === 't2i' && inputMedia.length > 0) ? 'i2i' : mode;
     enqueueRequest({

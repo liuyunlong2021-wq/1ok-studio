@@ -80,6 +80,10 @@ class PlaygroundService:
         persist it via storage, and return it."""
         from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
         spec = fk_video_spec(request.model_id)
+        if request.mode in (PlaygroundMode.T2I, PlaygroundMode.I2I):
+            _, videos, audios = split_fk_media(request.input_media)
+            if videos or audios:
+                raise ValueError("图片生成的参考素材必须是图片。请移除视频或音频，换成 PNG、JPG 或 WebP 图片；使用视频画面时请先截帧。")
         if request.mode == PlaygroundMode.V2V:
             if not spec or spec["inputs"]["reference_videos"]["max"] < 1:
                 raise ValueError("此模型不支持视频输入。请在「视频编辑」中重新选择支持参考视频的模型，再提交。")
