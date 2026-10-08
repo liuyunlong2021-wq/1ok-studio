@@ -201,6 +201,62 @@ models:
       watermark: false
     inputs:
       reference_images: {max: 5, reference_type: image}
+  # UI 显示 FK 请求名；目录 ID 保留 NewAPI 唯一可用的真实上游 ID，
+  # JiucaiheziImageModel 会原样发送这个 ID，不向 NewAPI 发送 FK 别名。
+  - id: ft-image-v1-211f28f47b0355abb1798f72eb65f22d
+    display_name: "FK-image2"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1020, recommended: false, badges: [FK, NewAPI]}
+  - id: ft-image-v1-186289ba9d3263010c69372f8939dd94
+    display_name: "FK-image2.5"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-186289ba9d3263010c69372f8939dd94"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1019, recommended: false, badges: [FK, NewAPI]}
+  - id: ft-image-v1-eb47192eb578f340043911005a06fb6e
+    display_name: "FK-image2.5-flare"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-eb47192eb578f340043911005a06fb6e"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1018, recommended: false, badges: [FK, NewAPI]}
+  - id: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d
+    display_name: "FK-image2.5-sunburst"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1017, recommended: false, badges: [FK, NewAPI]}
+  - id: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82
+    display_name: "FK-banana-2"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1016, recommended: false, badges: [FK, NewAPI]}
+  - id: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9
+    display_name: "FK-banana-pro"
+    description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9"
+    status: active
+    release_stage: preview
+    capabilities: [t2i, i2i]
+    docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1015, recommended: false, badges: [FK, NewAPI]}
   # Seedance 2.5 的两个通道，id 就是网关上的模型名原文：
   #   海seedance2.5    —— 中文前缀不是拼写错误；目前是默认的 i2v/r2v 通道
   #   dola-seedance2.5 —— 2026-09-18 曾因任务频繁超时下线，2026-09-19 拿回可选
@@ -213,7 +269,7 @@ models:
     description: "文生 / 图生 / 参考生 / 编辑全能（海通道），via 韭菜盒子"
     status: active
     release_stage: stable
-    capabilities: [r2v, i2v, t2v, v2v]
+    capabilities: [r2v, i2v, t2v]
     docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -308,7 +364,7 @@ models:
     description: "文生 / 图生 / 参考生 / 编辑全能（dola 通道），via 韭菜盒子"
     status: active
     release_stage: stable
-    capabilities: [r2v, i2v, t2v, v2v]
+    capabilities: [r2v, i2v, t2v]
     docs: {official_snapshot_ids: [jiucaihezi/videos], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -329,7 +385,7 @@ models:
     status: active
     release_stage: stable
     # 同 海seedance2.5：显式 selection_group 优先，分组仍是 r2v。
-    capabilities: [r2v, i2v, t2v, v2v]
+    capabilities: [r2v, i2v, t2v]
     docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -355,7 +411,7 @@ models:
     description: "图片/音频参考生视频及文生、图生、编辑全能，via 韭菜盒子"
     status: active
     release_stage: stable
-    capabilities: [r2v, i2v, t2v, v2v]
+    capabilities: [r2v, i2v, t2v]
     docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui:
@@ -624,6 +680,7 @@ models:
     - t2v
     - i2v
     - r2v
+    - v2v
     docs:
       official_snapshot_ids:
       - jiucaihezi/fk-video-2026-10-06
@@ -747,6 +804,7 @@ models:
     - t2v
     - i2v
     - r2v
+    - v2v
     docs:
       official_snapshot_ids:
       - jiucaihezi/fk-video-2026-10-06
@@ -877,6 +935,7 @@ models:
     - t2v
     - i2v
     - r2v
+    - v2v
     docs:
       official_snapshot_ids:
       - jiucaihezi/fk-video-2026-10-06
