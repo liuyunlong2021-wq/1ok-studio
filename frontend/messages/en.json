@@ -1755,6 +1755,7 @@
       "tapToRemove": "Click to remove from references"
     },
     "parameters": {
+      "auto": "Auto",
       "imageSize": "Image size",
       "quality": "Quality",
       "aspectRatio": "Aspect ratio",

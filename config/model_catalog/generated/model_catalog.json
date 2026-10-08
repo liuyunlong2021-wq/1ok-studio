@@ -661,7 +661,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -721,7 +722,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -781,7 +783,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -841,7 +844,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -901,7 +905,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -961,7 +966,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3146,7 +3152,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-186289ba9d3263010c69372f8939dd94",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3154,7 +3189,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3213,7 +3249,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3221,7 +3286,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3280,7 +3346,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3288,7 +3383,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3347,7 +3443,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3355,7 +3480,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3414,7 +3540,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3422,7 +3577,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -3481,7 +3637,36 @@
       "family": "jiucaihezi",
       "id": "ft-image-v1-eb47192eb578f340043911005a06fb6e",
       "inputs": {},
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -3489,7 +3674,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -6679,7 +6865,36 @@
       "legacy_model_id": "ft-image-v1-186289ba9d3263010c69372f8939dd94",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -6687,7 +6902,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -6749,7 +6965,36 @@
       "legacy_model_id": "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -6757,7 +7002,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -6819,7 +7065,36 @@
       "legacy_model_id": "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -6827,7 +7102,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -6889,7 +7165,36 @@
       "legacy_model_id": "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -6897,7 +7202,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -6959,7 +7265,36 @@
       "legacy_model_id": "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -6967,7 +7302,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -7029,7 +7365,36 @@
       "legacy_model_id": "ft-image-v1-eb47192eb578f340043911005a06fb6e",
       "mode": "image",
       "model_line_id": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e",
-      "params": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
       "provider": "jiucaihezi",
       "release_stage": "preview",
       "routing_prefixes": [
@@ -7037,7 +7402,8 @@
       ],
       "runtime": {
         "jiucaihezi": {
-          "gateway": "jiucaihezi"
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",

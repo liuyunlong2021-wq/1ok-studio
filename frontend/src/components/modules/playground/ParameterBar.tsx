@@ -462,7 +462,7 @@ export default function ParameterBar() {
     }
     if (hasRatio && !usesBackendSizePresets) {
       const cur = parameters.aspect_ratio as string | undefined;
-      if (cur && !ratioOptions.includes(cur)) patches.aspect_ratio = ratioDefault;
+      if (!cur || !ratioOptions.includes(cur)) patches.aspect_ratio = ratioDefault;
     }
     if (hasResolution && !usesBackendSizePresets) {
       const cur = parameters.resolution as string | undefined;
@@ -630,6 +630,24 @@ export default function ParameterBar() {
                   formatOption={formatImageSize}
                 />
               ))}
+
+            {!hasSize && hasResolution && (
+              <ParamDropdown
+                label={t('parameters.imageSize')}
+                value={(parameters.resolution as string) ?? resolutionDefault}
+                options={resolutionOptions}
+                onChange={(v) => updateParam('resolution', v)}
+              />
+            )}
+            {!hasSize && showRatio && (
+              <ParamDropdown
+                label={t('parameters.aspectRatio')}
+                value={(parameters.aspect_ratio as string) ?? ratioDefault}
+                options={ratioOptions}
+                onChange={(v) => updateParam('aspect_ratio', v)}
+                formatOption={(v) => v === 'auto' ? t('parameters.auto') : v}
+              />
+            )}
 
             {/* Quality (GPT-Image-2 specific) */}
             {hasQuality && (

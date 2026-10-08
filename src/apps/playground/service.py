@@ -20,7 +20,7 @@ from .models import (
 from .storage import PlaygroundStorage
 from ...utils import get_logger
 from ...utils.media_refs import to_media_ref
-from ...utils.model_catalog import load_generated_model_catalog, resolve_local_h3_video_parameters
+from ...utils.model_catalog import load_generated_model_catalog, resolve_local_h3_video_parameters, resolve_fk_image_parameters
 
 logger = get_logger(__name__)
 
@@ -34,6 +34,12 @@ AUDIO_OUTPUT_DIR = os.path.join("output", "playground", "audio")
 
 def resolve_image_parameters(model_id: str, parameters: dict) -> dict:
     """Resolve catalog size tiers/ratios in the backend, including legacy history."""
+    fk_params = resolve_fk_image_parameters(model_id, parameters)
+    if fk_params is not None:
+        resolved = {**parameters, "resolution": fk_params["imageSize"], "aspect_ratio": fk_params["ratio"]}
+        for key in ("size", "quality", "ratio", "imageSize"):
+            resolved.pop(key, None)
+        return resolved
     model_params = load_generated_model_catalog().get("models", {}).get(model_id, {}).get("params", {})
     size_config = model_params.get("size", {})
     presets = size_config.get("presets")
@@ -287,6 +293,8 @@ class PlaygroundService:
             "model_name": gen.model_id,
             "size": gen.parameters.get("size", "1024x1024"),
             "n": 1,
+            "resolution": gen.parameters.get("resolution"),
+            "aspect_ratio": gen.parameters.get("aspect_ratio"),
             # 只有声明了 quality 的模型（如 gpt-image-2.5-菠萝）在 UI 里能选到；
             # 其余模型这里是 None，适配器会跳过不发给网关。
             "quality": gen.parameters.get("quality"),

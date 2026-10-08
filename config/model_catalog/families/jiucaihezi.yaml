@@ -210,8 +210,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1020, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   - id: ft-image-v1-186289ba9d3263010c69372f8939dd94
     display_name: "FK-image2.5"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-186289ba9d3263010c69372f8939dd94"
@@ -219,8 +226,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1019, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   - id: ft-image-v1-eb47192eb578f340043911005a06fb6e
     display_name: "FK-image2.5-flare"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-eb47192eb578f340043911005a06fb6e"
@@ -228,8 +242,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1018, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   - id: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d
     display_name: "FK-image2.5-sunburst"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d"
@@ -237,8 +258,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1017, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   - id: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82
     display_name: "FK-banana-2"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82"
@@ -246,8 +274,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1016, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   - id: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9
     display_name: "FK-banana-pro"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9"
@@ -255,8 +290,15 @@ models:
     release_stage: preview
     capabilities: [t2i, i2i]
     docs: {official_snapshot_ids: [jiucaihezi/fk-image-2026-10-08], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    runtime: {jiucaihezi: {gateway: jiucaihezi, image_contract: fk_image}}
     ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1015, recommended: false, badges: [FK, NewAPI]}
+    params:
+      resolution: {options: ["1K", "2K", "4K"], default: "2K"}
+      ratio: {options: ["auto", "1:1", "9:16", "16:9", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"], default: "9:16"}
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
   # Seedance 2.5 的两个通道，id 就是网关上的模型名原文：
   #   海seedance2.5    —— 中文前缀不是拼写错误；目前是默认的 i2v/r2v 通道
   #   dola-seedance2.5 —— 2026-09-18 曾因任务频繁超时下线，2026-09-19 拿回可选

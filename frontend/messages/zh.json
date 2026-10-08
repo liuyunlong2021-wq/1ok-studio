@@ -1755,6 +1755,7 @@
       "tapToRemove": "点一下从参考图移除"
     },
     "parameters": {
+      "auto": "自动",
       "imageSize": "图像尺寸",
       "quality": "画质",
       "aspectRatio": "画面比例",

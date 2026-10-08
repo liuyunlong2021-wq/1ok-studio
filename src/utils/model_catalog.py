@@ -1019,6 +1019,21 @@ def resolve_local_h3_video_parameters(model_id: str, parameters: Dict[str, Any])
     return resolved
 
 
+def resolve_fk_image_parameters(model_id: str, parameters: dict) -> Optional[dict]:
+    """Resolve FK's native tier/ratio fields for both JSON and multipart requests."""
+    spec = load_generated_model_catalog()["models"].get(jiucaihezi_upstream_model_id(model_id), {})
+    if spec.get("runtime", {}).get("jiucaihezi", {}).get("image_contract") != "fk_image":
+        return None
+    params = spec["params"]
+    tier = parameters.get("resolution") or parameters.get("imageSize") or params["resolution"]["default"]
+    ratio = parameters.get("aspect_ratio") or parameters.get("ratio") or params["ratio"]["default"]
+    if tier not in params["resolution"]["options"]:
+        raise ValueError(f"FK 图片尺寸不支持 {tier}，请选择 1K / 2K / 4K")
+    if ratio not in params["ratio"]["options"]:
+        raise ValueError(f"FK 图片比例不支持 {ratio}")
+    return {"imageSize": tier, "ratio": ratio}
+
+
 def jiucaihezi_upstream_model_id(model_id: Optional[str]) -> str:
     """Remove catalog scope while preserving the exact gateway model ID.
 

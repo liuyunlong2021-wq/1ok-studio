@@ -18,6 +18,7 @@ from ..utils.model_catalog import (
     is_minimax_h3_model,
     resolve_local_h3_video_parameters,
     load_generated_model_catalog,
+    resolve_fk_image_parameters,
 )
 
 
@@ -67,11 +68,13 @@ def _log_image_request(endpoint: str, payload: Dict[str, Any]) -> None:
     n 这几个字段正是历史踩坑点（模型名带中文、size 格式、质量档）。
     """
     logger.info(
-        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s n=%s format=%s prompt_chars=%s transport=direct",
+        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s imageSize=%s ratio=%s n=%s format=%s prompt_chars=%s transport=direct",
         endpoint,
         payload.get("model"),
         payload.get("size"),
         payload.get("quality"),
+        payload.get("imageSize"),
+        payload.get("ratio"),
         payload.get("n"),
         payload.get("response_format"),
         len(str(payload.get("prompt") or "")),
@@ -525,6 +528,7 @@ class JiucaiheziImageModel(ImageGenModel):
         # quality 只有声明了该档位的模型（如 gpt-image-2.5-菠萝）才会传进来；
         # 别的模型这里是 None，JSON 里不带这个键。
         quality = kwargs.get("quality")
+        fk_params = resolve_fk_image_parameters(model, kwargs)
         if refs and model != "jc-qwen-image-2.1":
             files = []
             handles = []
@@ -543,7 +547,10 @@ class JiucaiheziImageModel(ImageGenModel):
             if not files:
                 raise ValueError("No valid reference images found for image editing")
             data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": response_format}
-            if quality:
+            if fk_params is not None:
+                data.pop("size", None)
+                data.update(fk_params)
+            elif quality:
                 data["quality"] = str(quality)
             endpoint = "/v1/images/edits"
             _log_image_request(endpoint, data)
@@ -560,7 +567,10 @@ class JiucaiheziImageModel(ImageGenModel):
                 # Both routes are documented, but JSON avoids the gateway's
                 # multipart -> file placeholder -> data URL conversion.
                 payload["images"] = [_qwen_reference_data_url(ref) for ref in refs]
-            if quality:
+            if fk_params is not None:
+                payload.pop("size", None)
+                payload.update(fk_params)
+            elif quality:
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"
             _log_image_request(endpoint, payload)
