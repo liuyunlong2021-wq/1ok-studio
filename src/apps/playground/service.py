@@ -72,6 +72,13 @@ class PlaygroundService:
     def create_generation(self, request: GenerateRequest) -> PlaygroundGeneration:
         """Create a :class:`PlaygroundGeneration` record with *status=pending*,
         persist it via storage, and return it."""
+        from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
+        spec = fk_video_spec(request.model_id)
+        if request.mode == PlaygroundMode.V2V:
+            if not spec or spec["inputs"]["reference_videos"]["max"] < 1:
+                raise ValueError("此模型不支持视频输入。请在「视频编辑」中重新选择支持参考视频的模型，再提交。")
+            if not split_fk_media(request.input_media)[1]:
+                raise ValueError("视频编辑需要添加源视频。")
         gen = PlaygroundGeneration(
             id=str(uuid.uuid4()),
             mode=request.mode,
@@ -90,8 +97,7 @@ class PlaygroundService:
             error=None,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
-        from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
-        if fk_video_spec(gen.model_id):
+        if spec:
             images, videos, audios = split_fk_media(gen.input_media)
             payload = fk_video_payload(gen.model_id, gen.prompt, images, {**gen.parameters, 'reference_video_urls': videos, 'reference_audio_urls': audios})
             gen.parameters.update({k: payload[k] for k in ['duration', 'resolution', 'ratio']})

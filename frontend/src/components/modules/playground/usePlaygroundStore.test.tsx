@@ -12,6 +12,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { usePlaygroundStore } from './usePlaygroundStore';
+import { getModelsForMode } from './playgroundModels';
 
 const call = (...args: Parameters<ReturnType<typeof usePlaygroundStore.getState>['useResultAsReference']>) =>
   usePlaygroundStore.getState().useResultAsReference(...args);
@@ -74,6 +75,22 @@ describe('useResultAsReference 加入规则', () => {
     expect(result).toBe('switched');
     expect(usePlaygroundStore.getState().mode).toBe('v2v');
     expect(usePlaygroundStore.getState().inputMedia).toEqual(['clip.mp4']);
+  });
+
+  it('切换视频编辑时，旧的 MiniMax 图片模型偏好不会继续沿用', () => {
+    usePlaygroundStore.setState({ modelPreferences: { v2v: 'minimax_h3_zm_u24' } });
+    usePlaygroundStore.getState().setMode('v2v');
+    expect(getModelsForMode('v2v').map((model) => model.id))
+      .toContain(usePlaygroundStore.getState().modelId);
+  });
+
+  it('视频用作参考时，失效的模型偏好会换成支持视频输入的模型', () => {
+    usePlaygroundStore.setState({
+      mode: 'i2i', modelPreferences: { v2v: 'minimax_h3_zm_u24' },
+    });
+    call('clip.mp4', 'video');
+    expect(getModelsForMode('v2v').map((model) => model.id))
+      .toContain(usePlaygroundStore.getState().modelId);
   });
 
   it('显式 targetMode：按目标模式走（生成视频 → i2v 首帧）', () => {

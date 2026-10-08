@@ -10,6 +10,7 @@ import GalleryView from './GalleryView';
 import DetailPanel from './DetailPanel';
 import QueuePanel from './QueuePanel';
 import { toast } from '@/store/toastStore';
+import { errorMessage } from '@/lib/utils';
 
 type VisibilityTarget = { generation_id: string; output_id: string };
 const targetKey = (item: VisibilityTarget) => `${item.generation_id}:${item.output_id}`;
@@ -136,6 +137,7 @@ export default function ResultGallery() {
       }, 2000);
     } catch (err) {
       console.error('[Playground] Retry failed:', err);
+      toast.error(errorMessage(err));
     }
   }, [startGeneration, updateGeneration]);
 

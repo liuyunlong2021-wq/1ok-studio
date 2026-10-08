@@ -12,6 +12,9 @@ import ParameterBar from './ParameterBar';
 import ResultGallery from './ResultGallery';
 import { usePlaygroundStore, type PlaygroundMode, type PlaygroundGeneration, type QueuedRequest } from './usePlaygroundStore';
 import { playgroundApi, type PlaygroundGenerationResponse } from '@/lib/api';
+import { getModelsForMode } from './playgroundModels';
+import { errorMessage } from '@/lib/utils';
+import { toast } from '@/store/toastStore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -90,6 +93,12 @@ export default function PlaygroundPage() {
   const queue = usePlaygroundStore((s) => s.queue);
   const activeCount = usePlaygroundStore((s) => s.activeGenerationIds.length);
   const maxConcurrent = usePlaygroundStore((s) => s.maxConcurrent);
+
+  useEffect(() => {
+    if (!getModelsForMode(mode).some((model) => model.id === modelId)) {
+      usePlaygroundStore.getState().setMode(mode);
+    }
+  }, [mode, modelId]);
 
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
@@ -211,6 +220,7 @@ export default function PlaygroundPage() {
       }
     } catch (err) {
       console.error('[Playground] Dispatch failed:', err);
+      toast.error(errorMessage(err));
       removeFromQueue(req.id);
     }
   }, [startGeneration, removeFromQueue, startPolling]);

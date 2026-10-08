@@ -296,7 +296,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
     const preferredModel = modelPreferences[mode];
     set({
       mode,
-      modelId: preferredModel ?? getDefaultModelForMode(mode),
+      modelId: getDefaultModelForMode(mode, preferredModel),
     });
   },
 
@@ -351,7 +351,7 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
     set({
       mode,
       inputMedia: [mediaPath],
-      modelId: preferredModel ?? getDefaultModelForMode(mode),
+      modelId: getDefaultModelForMode(mode, preferredModel),
     });
     return 'switched';
   },
@@ -435,9 +435,10 @@ export const usePlaygroundStore = create<PlaygroundState>((set, get) => ({
     if (template.default_mode != null) {
       patch.mode = template.default_mode;
     }
-    if (template.default_model_id != null) {
-      patch.modelId = template.default_model_id;
-    }
+    patch.modelId = getDefaultModelForMode(
+      patch.mode ?? get().mode,
+      template.default_model_id ?? get().modelId,
+    );
     if (
       template.default_parameters != null &&
       Object.keys(template.default_parameters).length > 0
