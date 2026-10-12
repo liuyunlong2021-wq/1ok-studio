@@ -26,6 +26,7 @@
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
       "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
+      "jc-minimax-h3-director8": "jiucaihezi/jc-minimax-h3-director8#r2v",
       "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
@@ -101,6 +102,7 @@
         "gemini-3.8-flash",
         "gpt-5.6-sol",
         "jc-minimax-h3",
+        "jc-minimax-h3-director8",
         "jc-minimax-h3-ref2v",
         "jc-qwen-image-2.1",
         "jiucaihezi/gemini-3-pro-image-preview",
@@ -1630,6 +1632,66 @@
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-director8": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-director8",
+      "legacy_model_ids": [
+        "jc-minimax-h3-director8"
+      ],
+      "modes": [
+        "jiucaihezi/jc-minimax-h3-director8#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
@@ -4834,6 +4896,109 @@
         "order": 1004,
         "recommended": true,
         "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jc-minimax-h3-director8": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 120,
+        "min": 0.2,
+        "step": 0.1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jc-minimax-h3-director8",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "min": 1,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "736x1280",
+          "options": [
+            "736x1280",
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
         "visible_in": [
           "project_settings",
           "series_settings",
@@ -8595,6 +8760,112 @@
         "order": 1004,
         "recommended": true,
         "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-director8#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 120,
+        "min": 0.2,
+        "step": 0.1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-director8#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "min": 1,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jc-minimax-h3-director8",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/jc-minimax-h3-director8",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "736x1280",
+          "options": [
+            "736x1280",
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
         "visible_in": [
           "project_settings",
           "series_settings",

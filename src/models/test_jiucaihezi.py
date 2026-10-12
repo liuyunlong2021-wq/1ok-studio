@@ -667,6 +667,35 @@ def test_generate_audio_leaves_other_gateway_errors_alone(post, tmp_path):
         generate_audio("p", str(tmp_path / "out.mp3"))
 
 
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi.poll_video_task")
+@patch("src.models.jiucaihezi._gateway_post")
+def test_director8_preserves_decimal_duration_size_and_nine_images(post, poll, tmp_path):
+    post.return_value = _response({"id": "director-task"})
+    references = [f"https://cdn.example/{i}.png" for i in range(9)]
+    JiucaiheziVideoModel({}).generate(
+        "p" * 4751, str(tmp_path / "video.mp4"), model_name="jc-minimax-h3-director8",
+        duration=5.7, resolution="736x1280", ref_image_urls=references,
+    )
+    assert post.call_args.kwargs["json"] == {
+        "model": "jc-minimax-h3-director8", "prompt": "p" * 4751,
+        "duration": 5.7, "size": "736x1280", "images": references,
+    }
+    poll.assert_called_once_with("director-task", str(tmp_path / "video.mp4"))
+
+
+@pytest.mark.parametrize("count", [0, 10])
+@patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
+@patch("src.models.jiucaihezi._gateway_post")
+def test_director8_rejects_invalid_reference_count_before_creation(post, count, tmp_path):
+    with pytest.raises(ValueError, match="1–9"):
+        JiucaiheziVideoModel({}).generate(
+            "prompt", str(tmp_path / "video.mp4"), model_name="jc-minimax-h3-director8",
+            ref_image_urls=[f"https://cdn.example/{i}.png" for i in range(count)],
+        )
+    post.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # 合同补漏：input 必须 1-3000 字符（见 Seed Audio 1.0 接入合同）
 # ---------------------------------------------------------------------------

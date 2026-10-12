@@ -702,6 +702,15 @@ class JiucaiheziVideoModel(VideoGenModel):
                 "extra_fields": {"webappId": webapp_id},
                 "webappId": webapp_id,
             }
+        elif model_name == "jc-minimax-h3-director8":
+            local_params = resolve_local_h3_video_parameters(model_name, kwargs)
+            if not 1 <= len(images) <= 9:
+                raise ValueError("Director8 需要 1–9 张参考图")
+            payload = {
+                "model": upstream_model_name, "prompt": prompt,
+                "duration": local_params["duration"],
+                "size": local_params["resolution"], "images": images,
+            }
         elif is_jc_minimax_h3_model(model_name):
             local_params = resolve_local_h3_video_parameters(model_name, kwargs)
             payload = {"model": upstream_model_name, "prompt": prompt, "duration": int(kwargs.get("duration") or 5), "size": local_params["size"]}

@@ -401,6 +401,29 @@ models:
       audio: false
     inputs:
       reference_images: {max: 6, reference_type: image}
+  - id: jc-minimax-h3-director8
+    display_name: "MiniMax H3 Director 8 步 · 本地"
+    description: "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理"
+    status: active
+    release_stage: preview
+    capabilities: [r2v]
+    docs: {official_snapshot_ids: [jiucaihezi/director8], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui:
+      selection_group: r2v
+      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
+      order: 1006
+      recommended: false
+      badges: [本地, MiniMax]
+    duration: {type: slider, min: 0.2, max: 120, step: 0.1, default: 5}
+    params:
+      resolution:
+        options: ["736x1280", "1344x768", "1024x1024", "1024x576", "576x1024", "1024x768", "768x1024", "960x640", "640x960", "1440x1440", "1920x1088", "1088x1920", "1664x1248", "1248x1664", "1760x1184", "1184x1760"]
+        default: "736x1280"
+      negativePrompt: false
+      promptExtend: false
+    inputs:
+      reference_images: {min: 1, max: 9, reference_type: image}
   - id: dola-seedance2.5
     display_name: "Seedance 2.5 dola · 韭菜盒子"
     description: "文生 / 图生 / 参考生 / 编辑全能（dola 通道），via 韭菜盒子"

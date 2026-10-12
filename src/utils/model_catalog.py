@@ -1000,6 +1000,15 @@ def is_jc_minimax_h3_ref2v_model(model_id: Optional[str]) -> bool:
 def resolve_local_h3_video_parameters(model_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Local H3 uses ratio-only controls; pixels/Ref2V wire labels stay server-side."""
     bare = str(model_id).split("/")[-1].split("#")[0]
+    if bare == "jc-minimax-h3-director8":
+        spec = load_generated_model_catalog()["models"][bare]
+        size = parameters.get("resolution") or parameters.get("size") or spec["params"]["resolution"]["default"]
+        if size not in spec["params"]["resolution"]["options"]:
+            raise ValueError(f"Director8 不支持生成尺寸 {size}")
+        duration = float(parameters.get("duration", 5))
+        if not 0.2 <= duration <= 120:
+            raise ValueError("Director8 时长必须为 0.2–120 秒")
+        return {**parameters, "resolution": size, "duration": round(duration, 1)}
     if bare not in {"jc-minimax-h3", "jc-minimax-h3-ref2v"}:
         return dict(parameters)
     config = load_generated_model_catalog()["models"][bare]["params"]["ratio"]
