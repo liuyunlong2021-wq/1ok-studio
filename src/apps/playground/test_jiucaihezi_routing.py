@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from .models import GenerateRequest, PlaygroundMode
 from .service import PlaygroundService
@@ -95,6 +95,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             img_url=None,
             ratio="16:9",
             ref_image_urls=[],
+            on_task_id=ANY,
         )
 
     def test_image_quality_parameter_reaches_adapter(self):
@@ -124,7 +125,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
 
     @patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"})
     @patch("src.models.jiucaihezi.upload_to_jiucaihezi")
-    @patch("src.apps.playground.service.requests.post")
+    @patch("src.models.jiucaihezi._gateway_post")
     def test_seed_audio_local_reference_uses_jiucaihezi_upload(self, post, upload):
         upload.return_value = "https://api.jiucaihezi.studio/media/creation/audio"
         response = Mock()

@@ -15,7 +15,10 @@ import requests
 from src.apps.playground.models import GenerateRequest
 from src.apps.playground.service import PlaygroundService
 from src.apps.playground.storage import PlaygroundStorage
-from src.models.jiucaihezi import JiucaiheziImageModel, MAX_TEMP_UPLOAD_BYTES, _image_request
+from src.models.jiucaihezi import (
+    JiucaiheziImageModel, JiucaiheziVideoModel, MAX_TEMP_UPLOAD_BYTES,
+    _gateway_request, generate_audio,
+)
 
 
 class ImageTransportChecks(unittest.TestCase):
@@ -244,10 +247,78 @@ class ImageTransportChecks(unittest.TestCase):
         self.handler = disconnect
         with patch("src.models.jiucaihezi.requests.Session", side_effect=session_factory):
             with self.assertRaises(requests.ConnectionError):
-                _image_request("https://api.jiucaihezi.studio/v1/images/generations", method="POST")
+                _gateway_request("https://api.jiucaihezi.studio/v1/images/generations", method="POST")
         self.assertFalse(sessions[0].trust_env)
         sessions[0].close.assert_called_once()
         self.assertEqual(len(self.calls), 1)
+
+    def test_local_video_upload_create_poll_download_and_task_persistence(self):
+        reference = Path(self.directory.name) / "reference.png"
+        reference.write_bytes(b"reference")
+        storage = PlaygroundStorage.__new__(PlaygroundStorage)
+        storage._history = []
+        storage._save_history = Mock()
+        service = PlaygroundService(storage)
+        gen = service.create_generation(GenerateRequest(
+            mode="r2v", model_id="jc-minimax-h3-ref2v", prompt="prompt",
+            input_media=[str(reference)],
+            parameters={"duration": 3, "ratio": "9:16"},
+        ))
+
+        def respond(request):
+            if request.url.endswith("/api/creations/uploads"):
+                return self.response(b'{"url":"https://cdn.example/reference.png"}')
+            if request.method == "POST":
+                payload = json.loads(request.body)
+                self.assertEqual(payload["model"], "jc-minimax-h3-ref2v")
+                self.assertEqual(payload["aspect_ratio"], "9:16 (Portrait Widescreen)")
+                return self.response(b'{"id":"task-local"}')
+            # The task id must be saved before the first poll or download.
+            self.assertEqual(gen.provider_task_ids, ["task-local"])
+            if request.url.endswith("/content"):
+                return self.response(b"video", content_type="video/mp4")
+            return self.response(b'{"status":"completed"}')
+
+        self.handler = respond
+        with patch("src.apps.playground.service.VIDEO_OUTPUT_DIR", self.directory.name), patch(
+            "src.models.jiucaihezi.time.sleep"
+        ):
+            service.process_generation(gen.id)
+        self.assertEqual(gen.status, "completed", gen.error)
+        self.assertEqual(len(gen.outputs), 1)
+        self.assertEqual(len(self.calls), 4)
+        self.assert_direct()
+
+    def test_video_url_fallback_also_bypasses_proxy(self):
+        def respond(request):
+            if request.method == "POST":
+                return self.response(b'{"id":"task-fallback"}')
+            if request.url.endswith("/content"):
+                return self.response(b'{"error":{"message":"unavailable"}}', 502)
+            if request.url == "https://cdn.example/video.mp4":
+                self.assertNotIn("Authorization", request.headers)
+                return self.response(b"video", content_type="video/mp4")
+            return self.response(b'{"status":"completed","url":"https://cdn.example/video.mp4"}')
+        self.handler = respond
+        with patch("src.models.jiucaihezi.time.sleep"):
+            JiucaiheziVideoModel({}).generate("prompt", str(self.output), model_name="海seedance2.5")
+        self.assertEqual(self.output.read_bytes(), b"video")
+        self.assert_direct()
+
+    def test_video_connection_loss_does_not_resubmit(self):
+        def disconnect(request):
+            raise requests.ConnectionError("response lost")
+        self.handler = disconnect
+        with self.assertRaisesRegex(RuntimeError, "可能已经创建并计费"):
+            JiucaiheziVideoModel({}).generate("prompt", str(self.output))
+        self.assertEqual(len(self.calls), 1)
+        self.assert_direct()
+
+    def test_audio_submission_bypasses_proxy(self):
+        self.handler = lambda request: self.response(b"audio", content_type="audio/mpeg")
+        generate_audio("prompt", str(self.output))
+        self.assertEqual(self.output.read_bytes(), b"audio")
+        self.assert_direct()
 
     def test_playground_resolves_tier_then_generates_without_proxy(self):
         storage = PlaygroundStorage.__new__(PlaygroundStorage)

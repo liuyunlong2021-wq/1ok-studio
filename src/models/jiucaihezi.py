@@ -167,15 +167,24 @@ def _headers() -> Dict[str, str]:
     return {"Authorization": f"Bearer {key}"}
 
 
-def _image_request(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
-    """Use a per-request direct session for image submissions and media transfers.
+def _gateway_request(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
+    """Use direct sessions for gateway submissions and media transfers.
 
-    requests otherwise discovers macOS system proxies even without proxy env vars.
-    Keep TLS verification enabled and avoid automatic retries of billed submissions.
+    requests discovers macOS system proxies even without proxy env variables.
+    Disable that discovery for every media route, retain TLS verification, and
+    do not automatically retry billed submissions whose responses may be lost.
     """
     with requests.Session() as session:
         session.trust_env = False
         return session.request(method, url, **kwargs)
+
+
+def _gateway_get(url: str, **kwargs) -> requests.Response:
+    return _gateway_request(url, method="GET", **kwargs)
+
+
+def _gateway_post(url: str, **kwargs) -> requests.Response:
+    return _gateway_request(url, method="POST", **kwargs)
 
 
 def _qwen_reference_data_url(ref: str) -> str:
@@ -192,7 +201,7 @@ def _qwen_reference_data_url(ref: str) -> str:
             raise ValueError("参考图 base64 数据无效") from exc
         mime = header[5:-7]
     elif ref.startswith(("http://", "https://")):
-        downloaded = _image_request(ref, timeout=180, stream=True)
+        downloaded = _gateway_request(ref, timeout=180, stream=True)
         try:
             _raise_for_status_with_body(downloaded, "下载参考图")
             mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
@@ -221,15 +230,21 @@ def _qwen_reference_data_url(ref: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(content).decode('ascii')}"
 
 
-def _download(url: str, output_path: str, *, direct: bool = False) -> None:
-    response = _image_request(url, timeout=300) if direct else requests.get(url, timeout=300)
+def _download(url: str, output_path: str) -> None:
+    """直连取回产物。
+
+    以前这里有个 ``direct`` 开关，默认走模块级 ``requests.get`` —— 于是「轮询
+    响应里的 url 兜底」这条路径又悄悄吃上了系统代理，和 ``/content`` 一样会挂。
+    产物下载没有计费风险，统一直连即可。
+    """
+    response = _gateway_get(url, timeout=300)
     _raise_for_status_with_body(response, url)
     with open(output_path, "wb") as output:
         output.write(response.content)
 
 
 def _download_video_content(task_id: str, output_path: str) -> None:
-    response = requests.get(
+    response = _gateway_get(
         f"{_base_url()}/v1/videos/{task_id}/content",
         headers=_headers(),
         timeout=300,
@@ -252,7 +267,7 @@ def query_video_task(task_id: str) -> Dict[str, Any]:
     网关把任务留得比我们想得久（实测 3 天前的任务号仍可查），所以「回捞」是行得通
     的：拿着存下来的 task_id 重新问一次，完成了就补下载，不必重新生成。
     """
-    response = requests.get(
+    response = _gateway_get(
         f"{_base_url()}/v1/videos/{task_id}",
         headers=_headers(),
         timeout=VIDEO_POLL_REQUEST_TIMEOUT,
@@ -425,7 +440,7 @@ def generate_audio(
     if refs:
         payload["metadata"] = {"references": refs}
 
-    response = requests.post(
+    response = _gateway_post(
         f"{_base_url()}/v1/audio/speech",
         headers={**_headers(), "Content-Type": "application/json"},
         json=payload,
@@ -463,7 +478,7 @@ def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
         try:
             # Reopen the file on every attempt so retries always start at byte 0.
             with open(path, "rb") as handle:
-                response = requests.post(
+                response = _gateway_post(
                     f"{_base_url()}/api/creations/uploads",
                     headers=_headers(),
                     files={"file": (os.path.basename(path), handle, content_type)},
@@ -535,7 +550,7 @@ class JiucaiheziImageModel(ImageGenModel):
             image_field = "images" if fk_params is not None else "image"
             for ref in refs:
                 if ref.startswith(("http://", "https://")):
-                    downloaded = _image_request(ref, timeout=180)
+                    downloaded = _gateway_request(ref, timeout=180)
                     _raise_for_status_with_body(downloaded, ref)
                     mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
                     files.append((image_field, (os.path.basename(ref) or "reference", downloaded.content, mime)))
@@ -556,7 +571,7 @@ class JiucaiheziImageModel(ImageGenModel):
             endpoint = "/v1/images/edits"
             _log_image_request(endpoint, data)
             try:
-                response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers=_headers(), data=data, files=files, timeout=180)
+                response = _gateway_post(f"{_base_url()}{endpoint}", headers=_headers(), data=data, files=files, timeout=180)
             finally:
                 for handle in handles:
                     handle.close()
@@ -575,7 +590,7 @@ class JiucaiheziImageModel(ImageGenModel):
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"
             _log_image_request(endpoint, payload)
-            response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
+            response = _gateway_post(f"{_base_url()}{endpoint}", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
         logger.info(
             "Jiucaihezi image response <- %s | model=%s refs=%d status=%s elapsed=%.2fs request_id=%s",
             endpoint, model, len(refs), response.status_code, time.time() - started,
@@ -591,7 +606,7 @@ class JiucaiheziImageModel(ImageGenModel):
         url = item.get("url")
         b64 = item.get("b64_json")
         if url:
-            _download(url, output_path, direct=True)
+            _download(url, output_path)
         elif b64:
             with open(output_path, "wb") as output:
                 output.write(base64.b64decode(b64))
@@ -717,7 +732,7 @@ class JiucaiheziVideoModel(VideoGenModel):
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]
         try:
-            response = requests.post(
+            response = _gateway_post(
                 f"{_base_url()}/v1/videos",
                 headers={**_headers(), "Content-Type": "application/json"},
                 json=payload,
@@ -730,6 +745,14 @@ class JiucaiheziVideoModel(VideoGenModel):
             raise RuntimeError(
                 "Jiucaihezi video task creation did not return within 180 seconds; "
                 "submission status is unknown and it was not retried to avoid duplicate billing"
+            ) from exc
+        except requests.ConnectionError as exc:
+            # A lost response may hide an accepted, billed task. Never resubmit
+            # automatically; the user must check acceptance before trying again.
+            raise RuntimeError(
+                "提交视频任务时连接被中断，无法确认上游是否已受理（网络层错误，不是网关拒绝）："
+                f"{exc}。该任务**可能已经创建并计费**，请先到韭菜盒子后台核对任务列表，"
+                "确认没有已受理的任务再重试，以免重复扣费"
             ) from exc
         if not response.ok:
             # The create endpoint returns a structured error.message for 4xx.

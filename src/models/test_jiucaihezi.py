@@ -79,7 +79,7 @@ def test_image_request_fields_are_logged(caplog):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_local_media_upload_uses_jiucaihezi_temporary_media_api(post, tmp_path):
     source = tmp_path / "reference.wav"
     source.write_bytes(b"audio")
@@ -97,7 +97,7 @@ def test_local_media_upload_uses_jiucaihezi_temporary_media_api(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_local_media_upload_retries_transient_gateway_failure(post, tmp_path):
     source = tmp_path / "reference.png"
     source.write_bytes(b"image")
@@ -117,7 +117,7 @@ def test_local_media_upload_retries_transient_gateway_failure(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_local_media_upload_rejects_missing_url_without_a_fallback(post, tmp_path):
     source = tmp_path / "reference.png"
     source.write_bytes(b"image")
@@ -129,7 +129,7 @@ def test_local_media_upload_rejects_missing_url_without_a_fallback(post, tmp_pat
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_grok_text_to_image_uses_openai_image_channel(post, download):
     """Grok 图片走韭菜盒子 OpenAI 兼容图片通道，不是历史 /v1/videos 异步方案。"""
     post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
@@ -149,12 +149,12 @@ def test_grok_text_to_image_uses_openai_image_channel(post, download):
         "n": 1,
         "response_format": "url",
     }
-    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png", direct=True)
+    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png")
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_qwen_catalog_id_preserves_gateway_model_name(post, download):
     post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
 
@@ -164,12 +164,12 @@ def test_qwen_catalog_id_preserves_gateway_model_name(post, download):
 
     assert post.call_args.kwargs["json"]["model"] == "jc-qwen-image-2.1"
     assert post.call_args.kwargs["json"]["response_format"] == "b64_json"
-    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png", direct=True)
+    download.assert_called_once_with("https://example.com/image.png", "/tmp/output.png")
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download")
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_image_quality_reaches_gateway_payload(post, download):
     """菠萝的质量档要进 JSON payload；没传 quality 的模型不带这个键。"""
     post.return_value = _response({"data": [{"url": "https://example.com/image.png"}]})
@@ -195,7 +195,7 @@ def test_image_quality_reaches_gateway_payload(post, download):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_empty_data_reports_the_reason_not_a_keyerror(post, tmp_path):
     """HTTP 200 但 data 为空时要说人话，不是把 `KeyError: 'b64_json'` 扔给用户。
 
@@ -214,7 +214,7 @@ def test_empty_data_reports_the_reason_not_a_keyerror(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
     """data 为空、但网关在 body 里写了原因时，要把那句话带出来。"""
     post.return_value = _response({"data": [], "error": {"message": "upstream returned no image"}})
@@ -228,7 +228,7 @@ def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi._image_request")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
     post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
 
@@ -256,8 +256,8 @@ def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_uses_public_api_model_names(post, get, _sleep, _download_content):
     post.return_value = _response({"task_id": "task-1"})
     get.return_value = _response({"status": "completed"})
@@ -298,8 +298,8 @@ def test_video_uses_public_api_model_names(post, get, _sleep, _download_content)
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_reference_images_are_capped_at_nine_for_both_channels(post, get, _sleep, _download, tmp_path):
     """两个 Seedance 2.5 通道都是 9 张参考图上限。
 
@@ -320,8 +320,8 @@ def test_video_reference_images_are_capped_at_nine_for_both_channels(post, get, 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_normalizes_the_legacy_dola_r2v_id(post, get, _sleep, _download, tmp_path):
     """存量数据里存过的 `dola-seedance2.5-r2v` 在网关上不存在，要归一化成基础 id。"""
     post.return_value = _response({"task_id": "task-legacy"})
@@ -335,7 +335,7 @@ def test_video_normalizes_the_legacy_dola_r2v_id(post, get, _sleep, _download, t
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_create_timeout_is_not_retried(post, tmp_path):
     post.side_effect = requests.Timeout("gateway stalled")
 
@@ -349,8 +349,8 @@ def test_video_create_timeout_is_not_retried(post, tmp_path):
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_downloads_content_endpoint_when_completed_task_has_no_url(post, get, _sleep, tmp_path):
     post.return_value = _response({"id": "task-content"})
     poll = _response({
@@ -373,8 +373,8 @@ def test_video_downloads_content_endpoint_when_completed_task_has_no_url(post, g
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_keeps_polling_queued_and_in_progress(post, get, _sleep, _download_content, tmp_path):
     post.return_value = _response({"task_id": "task-slow"})
     get.side_effect = [
@@ -395,8 +395,8 @@ def test_video_keeps_polling_queued_and_in_progress(post, get, _sleep, _download
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_poll_failures_are_retried_without_recreating_the_task(post, get, _sleep, tmp_path):
     post.return_value = _response({"task_id": "task-flaky"})
     content = _response({})
@@ -421,8 +421,8 @@ def test_video_poll_failures_are_retried_without_recreating_the_task(post, get, 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_failure_surfaces_structured_error_message(post, get, _sleep, tmp_path):
     post.return_value = _response({"task_id": "task-bad"})
     get.return_value = _response({
@@ -437,7 +437,7 @@ def test_video_failure_surfaces_structured_error_message(post, get, _sleep, tmp_
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_create_rejection_surfaces_structured_error_message(post, tmp_path):
     rejected = _response({"error": {"message": "images[0] 素材格式不受支持"}})
     rejected.ok = False
@@ -461,8 +461,8 @@ def test_video_create_rejection_surfaces_structured_error_message(post, tmp_path
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_minimax_sibling_model_shares_the_same_config(post, get, _sleep, _download_content):
     """minimax_h3_zm_u24 与 v2_15s 同规格：必须拿到 duration/resolution/audios。
 
@@ -500,8 +500,8 @@ def test_minimax_sibling_model_shares_the_same_config(post, get, _sleep, _downlo
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_new_minimax_catalog_ids_preserve_gateway_model_names(
     post, get, _sleep, _download_content, catalog_id, gateway_id
 ):
@@ -518,8 +518,8 @@ def test_new_minimax_catalog_ids_preserve_gateway_model_names(
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_seedance_never_receives_minimax_only_fields(post, get, _sleep, _download_content):
     """反向守：只有 MiniMax H3 系列能带 duration/resolution/audios。"""
     post.return_value = _response({"task_id": "task-1"})
@@ -568,7 +568,7 @@ def _audio_response(payload: bytes = b"mp3-bytes"):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_without_reference_audio(post, tmp_path):
     """纯文生音频：不带 metadata.references。"""
     post.return_value = _audio_response()
@@ -588,7 +588,7 @@ def test_generate_audio_without_reference_audio(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_with_reference_audio(post, tmp_path):
     """带参考音频：放进 metadata.references。远程 URL 直接透传。"""
     post.return_value = _audio_response()
@@ -605,7 +605,7 @@ def test_generate_audio_with_reference_audio(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_caps_reference_audios_at_three(post, tmp_path):
     post.return_value = _audio_response()
 
@@ -619,7 +619,7 @@ def test_generate_audio_caps_reference_audios_at_three(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
     response = Mock()
     response.ok = False
@@ -631,7 +631,7 @@ def test_generate_audio_surfaces_gateway_error_message(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_translates_the_text_audit_rejection(post, tmp_path):
     """上游文本审核拒收（`demo text audit failed`）要翻成人话 + 处置办法。
 
@@ -655,7 +655,7 @@ def test_generate_audio_translates_the_text_audit_rejection(post, tmp_path):
 
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_generate_audio_leaves_other_gateway_errors_alone(post, tmp_path):
     """别把所有失败都套上「审核」那张皮 —— 别的错误照旧透传原文。"""
     response = Mock()
@@ -680,7 +680,7 @@ def test_generate_audio_rejects_blank_input(tmp_path):
 def test_generate_audio_truncates_input_at_contract_limit(tmp_path):
     """3000 是合同上限，超了要截断而不是原样发出去。"""
     with patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"}), patch(
-        "src.models.jiucaihezi.requests.post"
+        "src.models.jiucaihezi._gateway_post"
     ) as post:
         post.return_value = _audio_response()
         generate_audio("字" * 5000, str(tmp_path / "out.mp3"))
@@ -696,8 +696,8 @@ def test_generate_audio_truncates_input_at_contract_limit(tmp_path):
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_rh_aiapp_app_swaps_model_name_and_carries_webapp_id(post, get, _sleep, _download_content):
     """RH 渠道 8 个应用共用一个网关模型名，应用由 extra_fields.webappId 指定。
 
@@ -733,8 +733,8 @@ def test_rh_aiapp_app_swaps_model_name_and_carries_webapp_id(post, get, _sleep, 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._download_video_content")
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_rh_aiapp_app_defaults_duration_to_five(post, get, _sleep, _download_content):
     """时长不传时按合同的 5 秒，不是各应用自带的 9/4/2/3 秒。"""
     post.return_value = _response({"task_id": "task-rh-default"})
@@ -751,8 +751,8 @@ def test_rh_aiapp_app_defaults_duration_to_five(post, get, _sleep, _download_con
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(post, get, _sleep, tmp_path):
     """RH 渠道的 /content 实测恒 502，成片只在查询响应的 url 上。
 
@@ -783,8 +783,8 @@ def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(post, ge
 
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi.time.sleep")
-@patch("src.models.jiucaihezi.requests.get")
-@patch("src.models.jiucaihezi.requests.post")
+@patch("src.models.jiucaihezi._gateway_get")
+@patch("src.models.jiucaihezi._gateway_post")
 def test_video_reports_clearly_when_both_content_and_url_fail(post, get, _sleep, tmp_path):
     """两处都拉不到时才报「取不回来」—— 那是让用户决定要不要重生成的那句话。"""
     post.return_value = _response({"task_id": "task-dead"})

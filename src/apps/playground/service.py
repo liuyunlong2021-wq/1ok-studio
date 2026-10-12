@@ -346,13 +346,16 @@ class PlaygroundService:
         if self._jiucaihezi_video_model is None:
             self._jiucaihezi_video_model = JiucaiheziVideoModel({})
         from ...models.fk_video import fk_video_spec, split_fk_media
+        # Persist task IDs for every video route before polling, so interrupted
+        # downloads can be recovered without creating another billed task.
+        remember_task = lambda task_id: self._remember_video_task(gen, task_id)
         if fk_video_spec(gen.model_id):
             images, videos, audios = split_fk_media(gen.input_media)
             self._jiucaihezi_video_model.generate(gen.prompt, out_path, model_name=gen.model_id,
                 duration=gen.parameters.get('duration'), resolution=gen.parameters.get('resolution'),
                 ratio=gen.parameters.get('ratio'), ref_image_urls=images,
                 reference_video_urls=videos, reference_audio_urls=audios,
-                on_task_id=lambda task_id: self._remember_video_task(gen, task_id))
+                on_task_id=remember_task)
             return
         img_path, img_url = self._resolve_first_input_media(gen)
         self._jiucaihezi_video_model.generate(
@@ -365,6 +368,7 @@ class PlaygroundService:
             img_url=img_url,
             ratio=gen.parameters.get("ratio") or gen.parameters.get("aspect_ratio") or "16:9",
             ref_image_urls=list(gen.input_media) if gen.mode == PlaygroundMode.R2V else [],
+            on_task_id=remember_task,
         )
 
     def _remember_video_task(self, gen: PlaygroundGeneration, task_id: str) -> None:
