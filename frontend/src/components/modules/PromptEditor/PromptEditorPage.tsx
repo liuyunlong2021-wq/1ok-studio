@@ -13,7 +13,6 @@ import { getModelsForMode } from '../playground/playgroundModels';
 import PromptContextInput from './PromptContextInput';
 import { getMediaInputConfig } from '../playground/mediaModes';
 import { getModelMaxReferenceImages } from '../playground/playgroundModels';
-import { getPromptMaxLength } from '../playground/promptLimits';
 import { toast } from '@/store/toastStore';
 
 const BUTTON = 'inline-flex items-center gap-1.5 rounded-lg border border-border-subtle px-3 py-2 text-xs hover:bg-hover-bg disabled:opacity-40';
@@ -197,8 +196,6 @@ const PromptDocumentEditor = forwardRef<EditorHandle, { document: PromptDocument
         }
       }
       const text = append && state.prompt ? state.prompt + '\n' + transferText : transferText;
-      const maxLength = getPromptMaxLength(modelId);
-      if (text.length > maxLength) { toast.error(`提示词为 ${text.length} 字，目标输入上限为 ${maxLength} 字`, { body: '请精简正文或框选要带入的内容，未截断文本。' }); return; }
       usePlaygroundStore.setState({ mode: targetMode, modelId, prompt: text, ...(withImages ? { inputMedia } : {}) });
       setHandoff(null);
       window.location.hash = '#/playground';
