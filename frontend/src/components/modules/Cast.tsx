@@ -28,11 +28,60 @@ import { useLightbox } from "@/components/shared/preview/LightboxProvider";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import PreviewImage from "@/components/shared/preview/PreviewImage";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
-import CastWorkbenchModal, { activePolls } from "./cast/CastWorkbenchModal";
+import { toast } from "@/store/toastStore";
+import CastWorkbenchModal, { activePolls, startAssetPoll } from "./cast/CastWorkbenchModal";
 import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
 import ReconcileAction from "./ReconcileAction";
 
 type AssetKind = "character" | "scene" | "prop";
+const VOICE_KEYS = ["年龄感", "音高", "明暗", "厚薄", "共鸣", "气息", "颗粒感", "口音", "稳定表达习惯"] as const;
+
+async function waitForProductionAssetPrompt(projectId: string, assetId: string, kind: AssetKind, update: (id: string, project: any) => void) {
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        update(projectId, project);
+        const pool = kind === "character" ? project.characters : kind === "scene" ? project.scenes : project.props;
+        const asset = (pool || []).find((item: any) => item.id === assetId);
+        if (asset?.prompt_generation_status === "completed") return;
+        if (["failed", "stale"].includes(asset?.prompt_generation_status)) {
+            throw new Error(asset.prompt_generation_error || "资产提示词生成失败，请重试");
+        }
+    }
+    throw new Error("提示词仍在后台处理中；稍后可重新打开资产查看状态");
+}
+
+async function waitForProductionAssetExtraction(projectId: string, taskId: string, update: (id: string, project: any) => void) {
+    const deadline = Date.now() + 300_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        update(projectId, project);
+        const task = project.production_asset_extraction_task;
+        if (task?.task_id !== taskId) throw new Error("资产提取任务版本已变化，请刷新项目后重试");
+        if (task.status === "completed" && project.production_asset_preview?.extraction_task_id === taskId) {
+            return project.production_asset_preview;
+        }
+        if (["failed", "stale"].includes(task.status)) throw new Error(task.error || "资产提取失败，请重试");
+    }
+    throw new Error("资产仍在后台提取；稍后可重新打开项目查看状态");
+}
+
+async function waitForProductionVoiceDesign(projectId: string, assetId: string, taskId: string, update: (id: string, project: any) => void) {
+    const deadline = Date.now() + 180_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        update(projectId, project);
+        const character = (project.characters || []).find((item: any) => item.id === assetId);
+        const task = character?.voice_design_task;
+        if (task?.task_id !== taskId) throw new Error("角色声音任务版本已变化，请刷新后重试");
+        if (task.status === "completed") return character.voice_design || {};
+        if (["failed", "stale"].includes(task.status)) throw new Error(task.error || "九维声音档案生成失败");
+    }
+    throw new Error("声音档案仍在后台处理中；稍后可重新打开角色查看状态");
+}
 
 interface CastItem {
     id: string;
@@ -52,6 +101,7 @@ interface CastItem {
 export default function Cast() {
     const tStep = useTranslations("stepHeader");
     const t = useTranslations("cast");
+    const tWorkbench = useTranslations("castWorkbench");
     const currentProject = useProjectStore((state) => state.currentProject);
 
     // R2V v2 Phase 5 — add new asset modal (placeholder for full
@@ -61,9 +111,15 @@ export default function Cast() {
     // PR-3* · Cast redesign — tab filter + workbench launcher.
     const [activeTab, setActiveTab] = useState<"all" | "character" | "scene" | "prop">("all");
     const [workbench, setWorkbench] = useState<{ kind: "character" | "scene" | "prop"; entityId: string } | null>(null);
+    const [productionPreview, setProductionPreview] = useState<any>(null);
+    const [productionAssetBusy, setProductionAssetBusy] = useState("");
 
     const removeGeneratingTask = useProjectStore((s) => s.removeGeneratingTask);
+    const addGeneratingTask = useProjectStore((s) => s.addGeneratingTask);
+    const updateProject = useProjectStore((s) => s.updateProject);
     const generatingTasks = useProjectStore((s) => s.generatingTasks);
+    const [selectedProductionAssets, setSelectedProductionAssets] = useState<string[]>([]);
+    const [bulkProductionBusy, setBulkProductionBusy] = useState("");
     useEffect(() => {
         if (generatingTasks.length === 0) return;
         for (const task of generatingTasks) {
@@ -143,6 +199,111 @@ export default function Cast() {
     }, [currentProject?.frames, currentProject?.characters, currentProject?.scenes, currentProject?.props]);
 
     const totalCast = characters.length + scenes.length + props.length;
+    const production = currentProject?.production_workflow === "engineering_segments_v1";
+    const productionAssets = [
+        ...(currentProject?.characters || []).map((item: any) => ({ id: item.id, name: item.name, kind: "character" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.reference_sheet?.image_prompt || item.full_body_prompt || "", hasImage: !!characterImageUrl(item), voice: item.voice_design || {} })),
+        ...(currentProject?.scenes || []).map((item: any) => ({ id: item.id, name: item.name, kind: "scene" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
+        ...(currentProject?.props || []).map((item: any) => ({ id: item.id, name: item.name, kind: "prop" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
+    ];
+    const previewProductionAssets = async () => {
+        if (!currentProject) return;
+        setProductionAssetBusy("preview");
+        try {
+            const task = await api.previewProductionAssets(currentProject.id);
+            setProductionPreview(await waitForProductionAssetExtraction(currentProject.id, task.task_id, updateProject));
+        }
+        catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("资产提取失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : "请重试。" });
+        } finally { setProductionAssetBusy(""); }
+    };
+    const applyProductionAssets = async () => {
+        if (!currentProject || !productionPreview) return;
+        setProductionAssetBusy("apply");
+        try {
+            await api.applyProductionAssets(currentProject.id, productionPreview.source_revision, productionPreview.screenplay_revision);
+            useProjectStore.getState().updateProject(currentProject.id, await api.getProject(currentProject.id));
+            setProductionPreview(null);
+            toast.success("资产与工程镜头已绑定", { body: "角色的九维声音档案可在角色工作台中补充。" });
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("采用资产失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : "请重新预览。" });
+        } finally { setProductionAssetBusy(""); }
+    };
+    const generateSelectedPrompts = async () => {
+        if (!currentProject) return;
+        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.id) && !item.locked);
+        if (!selected.length) return;
+        const remapped: Record<string, string> = {};
+        setBulkProductionBusy("prompts");
+        try {
+            for (const initial of selected) {
+                let asset = initial;
+                if (asset.source === "global") {
+                    const forked = await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    asset = { ...asset, id: forked.id, source: "episode", imagePrompt: forked.image_prompt || "", voice: forked.voice_design || {} };
+                    remapped[initial.id] = asset.id;
+                }
+                if (!asset.imagePrompt) {
+                    await api.generateProductionAssetPrompt(currentProject.id, asset.id);
+                    await waitForProductionAssetPrompt(currentProject.id, asset.id, asset.kind, updateProject);
+                }
+                if (asset.kind === "character" && !VOICE_KEYS.every((key) => asset.voice?.[key]?.trim())) {
+                    const task = await api.generateProductionVoiceDesign(currentProject.id, asset.id);
+                    await waitForProductionVoiceDesign(currentProject.id, asset.id, task.task_id, updateProject);
+                }
+            }
+            updateProject(currentProject.id, await api.getProject(currentProject.id));
+            toast.success("所选资产提示词与缺失的角色九维声音档案已生成", { body: "内容已保存，可在各资产工作台中继续编辑。" });
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("批量生成未完成", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+        } finally {
+            setSelectedProductionAssets((ids) => ids.map((id) => remapped[id] || id));
+            setBulkProductionBusy("");
+        }
+    };
+    const generateSelectedImages = async () => {
+        if (!currentProject) return;
+        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.id) && !item.locked && !item.hasImage);
+        if (!selected.length) { toast.warning("所选资产均已有参考图或已锁定"); return; }
+        const remapped: Record<string, string> = {};
+        setBulkProductionBusy("images");
+        let queued = 0;
+        try {
+            for (let asset of selected) {
+                if (asset.source === "global") {
+                    const originalId = asset.id;
+                    const forked = await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    asset = { ...asset, id: forked.id, source: "episode", imagePrompt: forked.image_prompt || "" };
+                    remapped[originalId] = asset.id;
+                }
+                if (!asset.imagePrompt.trim()) throw new Error(`请先为“${asset.name}”生成资产提示词`);
+                const result = await api.generateAsset(
+                    currentProject.id, asset.id, asset.kind, currentProject.style_preset || "realistic",
+                    currentProject.art_direction?.style_config?.positive_prompt || "",
+                    asset.kind === "character" ? "reference_sheet" : "all", asset.imagePrompt, true,
+                    currentProject.art_direction?.style_config?.negative_prompt || "", 1,
+                    currentProject.production_settings?.image_model, currentProject.production_settings?.aspect_ratio,
+                );
+                const taskId = result?._task_id;
+                if (!taskId) throw new Error(`“${asset.name}”没有返回图片任务编号`);
+                addGeneratingTask(asset.id, asset.kind === "character" ? "reference_sheet" : "all", 1);
+                startAssetPoll(asset.id, taskId, currentProject.id, asset.kind, asset.kind === "character" ? "reference_sheet" : "all", tWorkbench, () => ({
+                    updateProject: useProjectStore.getState().updateProject,
+                    removeGeneratingTask: useProjectStore.getState().removeGeneratingTask,
+                }));
+                queued += 1;
+            }
+            if (queued) toast.success(`已提交 ${queued} 个资产图片任务`, { body: "每个任务完成后会保留候选图，人工确认后再进入分段。" });
+        } catch (error) {
+            toast.error("图片任务提交未完成", { body: error instanceof Error ? error.message : String(error) });
+        } finally {
+            setSelectedProductionAssets((ids) => ids.map((id) => remapped[id] || id));
+            updateProject(currentProject.id, await api.getProject(currentProject.id).catch(() => currentProject));
+            setBulkProductionBusy("");
+        }
+    };
 
     return (
         <div className="flex h-full w-full flex-col overflow-hidden">
@@ -160,8 +321,19 @@ export default function Cast() {
                         />
                     </>
                 ) : null}
-                trailing={<ReconcileAction scriptId={currentProject?.id ?? null} />}
+                trailing={<div className="flex items-center gap-2">{production && <WorkflowActionButton size="sm" variant="secondary" loading={productionAssetBusy === "preview"} onClick={() => void previewProductionAssets()}>从已采用工程剧本提取资产</WorkflowActionButton>}{!production && <ReconcileAction scriptId={currentProject?.id ?? null} />}</div>}
             />
+
+            {productionPreview && <div className="mx-6 mt-4 rounded-xl border border-primary/25 bg-primary/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">资产提取预览</h2><p className="mt-1 text-xs text-text-muted">确认后只新增或复用资产并同步镜头绑定；不会覆盖你已有的系列资产。</p></div><div className="flex gap-2"><WorkflowActionButton size="sm" variant="secondary" onClick={() => setProductionPreview(null)}>取消</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" loading={productionAssetBusy === "apply"} onClick={() => void applyProductionAssets()}>确认采用</WorkflowActionButton></div></div>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">{([['characters', '角色'], ['scenes', '场景'], ['props', '道具']] as const).map(([key, label]) => <div key={key} className="rounded-lg border border-glass-border bg-black/10 p-3"><h3 className="mb-2 text-xs font-medium">{label} · {productionPreview[key]?.length || 0}</h3><ul className="space-y-1 text-xs text-text-secondary">{(productionPreview[key] || []).map((item: any) => <li key={item.id}>{item.name}{item.match_ambiguous ? " · 同名有歧义" : item.match_id ? " · 将复用" : " · 新增"}</li>)}</ul></div>)}</div>
+            </div>}
+
+            {production && productionAssets.length > 0 && <section className="mx-6 mt-4 rounded-xl border border-glass-border bg-glass p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">所选资产：提示词、九维声音与参考图</h2><p className="mt-1 text-xs text-text-muted">批量动作只补缺失项，不覆盖锁定资产和已采用参考图；图片生成任务完成后保留候选供人工确认。</p></div><div className="flex flex-wrap gap-2"><WorkflowActionButton size="sm" variant="secondary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "prompts"} onClick={() => void generateSelectedPrompts()}>生成所选提示词与角色声音</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "images"} onClick={() => void generateSelectedImages()}>生成所选缺失资产图</WorkflowActionButton></div></div>
+                <div className="mt-3 flex items-center gap-3"><button className="text-xs text-primary hover:underline" onClick={() => setSelectedProductionAssets(productionAssets.filter((item) => !item.locked && (!item.imagePrompt || (item.kind === "character" && !VOICE_KEYS.every((key) => (item.voice as any)?.[key]?.trim())))).map((item) => item.id))}>选择缺失提示词／声音的资产</button><span className="text-xs text-text-muted">已选 {selectedProductionAssets.length} / {productionAssets.length}</span></div>
+                <div className="mt-2 grid max-h-44 gap-1 overflow-auto sm:grid-cols-2 xl:grid-cols-3">{productionAssets.map((item) => <label key={item.id} className="flex min-w-0 items-center gap-2 rounded px-2 py-1.5 text-xs text-text-secondary hover:bg-hover-bg"><input type="checkbox" checked={selectedProductionAssets.includes(item.id)} onChange={(event) => setSelectedProductionAssets((ids) => event.target.checked ? (ids.includes(item.id) ? ids : ids.concat(item.id)) : ids.filter((id) => id !== item.id))} /><span className="truncate">{item.kind === "character" ? "角色" : item.kind === "scene" ? "场景" : "道具"} · {item.name}</span><span className="ml-auto shrink-0 text-text-muted">{item.locked ? "锁定" : item.hasImage ? "有图" : "缺图"}</span></label>)}</div>
+            </section>}
 
             {/* Empty state — no entities extracted yet */}
             {totalCast === 0 ? (
@@ -262,6 +434,7 @@ export default function Cast() {
                 kind={workbench?.kind ?? null}
                 entityId={workbench?.entityId ?? null}
                 onClose={() => setWorkbench(null)}
+                onEntityForked={(entityId) => setWorkbench((current) => current ? { ...current, entityId } : current)}
             />
 
             {/* R2V v2 Phase 5 — real Add new cast modal (AI / upload tabs). */}

@@ -18,6 +18,10 @@ import VideoGenerator from "@/components/modules/VideoGenerator";
 import VideoAssembly from "@/components/modules/VideoAssembly";
 import ConsistencyVault from "@/components/modules/ConsistencyVault";
 import ArtDirection from "@/components/modules/ArtDirection";
+import ProductionEngineeringWorkbench from "@/components/modules/ProductionEngineeringWorkbench";
+import ProductionSegmentsWorkbench from "@/components/modules/ProductionSegmentsWorkbench";
+import ProductionSegmentVideoWorkbench from "@/components/modules/ProductionSegmentVideoWorkbench";
+import ProductionAssemblyWorkbench from "@/components/modules/ProductionAssemblyWorkbench";
 import StoryboardComposer from "@/components/modules/StoryboardComposer";
 import ModelSettingsModal from "@/components/common/ModelSettingsModal";
 import EnvConfigDialog from "@/components/project/EnvConfigDialog";
@@ -262,17 +266,21 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
                     <div className="atelier-page-bloom" aria-hidden="true" />
                     <div className="atelier-page-grain" aria-hidden="true" />
                     <div className="relative z-10 h-full flex flex-col overflow-hidden">
-                        {activeStep === "script" && <ScriptEditorShell key={id} mode="embedded" projectId={id} onExtractEntities={handleExtractEntities} />}
+                        {activeStep === "script" && (currentProject.production_workflow === "engineering_segments_v1"
+                            ? <ProductionEngineeringWorkbench key={id} />
+                            : <ScriptEditorShell key={id} mode="embedded" projectId={id} onExtractEntities={handleExtractEntities} />)}
                         {activeStep === "art_direction" && <ArtDirection />}
                         {activeStep === "cast" && <Cast />}
-                        {activeStep === "segments" && <div className="h-full overflow-auto p-8 text-text-secondary">分段工程剧本工作台即将就绪</div>}
-                        {activeStep === "segment_video" && <div className="h-full overflow-auto p-8 text-text-secondary">分段视频工作台即将就绪</div>}
+                        {activeStep === "segments" && <ProductionSegmentsWorkbench />}
+                        {activeStep === "segment_video" && <ProductionSegmentVideoWorkbench />}
                         {activeStep === "sound" && <SoundDesign />}
                         {activeStep === "assets" && <ConsistencyVault />}  {/* legacy i2v only */}
                         {activeStep === "storyboard" && <StoryboardComposer />}
                         {activeStep === "storyboard_r2v" && <StoryboardR2V />}
                         {activeStep === "motion" && <VideoGenerator />}
-                        {activeStep === "assembly" && <VideoAssembly />}
+                        {activeStep === "assembly" && (currentProject.production_workflow === "engineering_segments_v1"
+                            ? <ProductionAssemblyWorkbench />
+                            : <VideoAssembly />)}
                     </div>
                 </div>
             </div>

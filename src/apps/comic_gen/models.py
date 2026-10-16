@@ -246,6 +246,9 @@ class VideoTask(BaseModel):
         None,
         description="Storyboard R2V workbench tab the user generated from: 't2i_i2v' | 'direct_r2v'",
     )
+    segment_id: Optional[str] = Field(None, description="Production segment represented by this task")
+    segment_revision: Optional[str] = Field(None, description="Immutable production segment revision used for submission")
+    input_snapshot_revision: Optional[str] = Field(None, description="Hash of prompt, duration, model and ordered references")
     created_at: float = Field(default_factory=time.time)
     #: 处理时间线。只有创建时间不够 —— 出问题时要知道「排了多久 / 跑了多久 / 什么时候
     #: 结束的」，界面上也要能跟后端日志的时间对上。
@@ -265,6 +268,10 @@ class Character(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    voice_design: Dict[str, str] = Field(default_factory=dict, description="Nine-dimension voice identity design; text only")
+    voice_design_version: int = Field(0, ge=0)
+    voice_design_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
 
     # R2V v2 Phase 4 — persona grouping. The character.id is the *visual
     # unit* (e.g. "young Zhang San" vs "adult Zhang San" are two ids).
@@ -382,6 +389,7 @@ class Scene(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
     visual_weight: int = Field(3, description="Visual importance weight (1-5)")
     time_of_day: Optional[str] = Field(None, description="Time of day (e.g. Night, Day)")
     lighting_mood: Optional[str] = Field(None, description="Lighting atmosphere")
@@ -411,6 +419,7 @@ class Prop(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
     video_url: Optional[str] = None
     audio_url: Optional[str] = None
     sfx_url: Optional[str] = None
@@ -665,6 +674,20 @@ class Script(BaseModel):
     title: str = Field(..., description="Title of the comic/video")
     original_text: str = Field(..., description="The original novel text")
     production_workflow: Optional[str] = Field(None, description="Versioned production workflow; None keeps the legacy route")
+    production_settings: Dict[str, Any] = Field(default_factory=dict)
+    production_style_revision: Optional[str] = None
+    production_style_confirmed_at: Optional[float] = None
+    production_source_revision: Optional[str] = None
+    production_engineering_draft: Dict[str, Any] = Field(default_factory=dict)
+    production_engineering_task: Dict[str, Any] = Field(default_factory=dict)
+    production_asset_extraction_task: Dict[str, Any] = Field(default_factory=dict)
+    production_asset_preview: Dict[str, Any] = Field(default_factory=dict)
+    production_engineering_source_revision: Optional[str] = None
+    production_engineering_style_revision: Optional[str] = None
+    production_engineering_archives: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segments: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segment_archives: List[Dict[str, Any]] = Field(default_factory=list)
+    production_selected_video_tasks: Dict[str, str] = Field(default_factory=dict)
     engineering_script: Optional[Dict[str, Any]] = None
     storyboard_source_revision: Optional[str] = None
     storyboard_archives: List[Dict[str, Any]] = Field(default_factory=list)
@@ -785,6 +808,9 @@ class Series(BaseModel):
     # Workflow mode for all episodes in this series
     workflow_mode: str = Field("i2v_legacy", description="Workflow mode: 'r2v' or 'i2v_legacy'")
     production_workflow: Optional[str] = Field(None, description="Versioned production workflow inherited by new episodes")
+    production_settings: Dict[str, Any] = Field(default_factory=dict)
+    production_style_revision: Optional[str] = None
+    production_style_confirmed_at: Optional[float] = None
 
     # PR-3e (r2v-workflow-v3) — Visual control preference at series level.
     # Episodes inherit this when created; user can override per-shot via

@@ -35,7 +35,7 @@ function uniqueName(name: string, items: ScriptSkill[]) {
 const BUTTON = 'rounded-lg border border-border-subtle px-3 py-2 text-xs text-foreground hover:bg-hover-bg disabled:opacity-40';
 
 export default function ScriptSkillManager({ activeId, initialFile, onChange, onClose, kind = 'script' }: {
-  kind?: 'script' | 'all';
+  kind?: 'script' | 'motion' | 'all';
   activeId: string;
   initialFile?: File;
   onChange: (items: ScriptSkill[], selectedId?: string) => void;
@@ -151,8 +151,8 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
     void operate(async () => {
       const target = updateTarget ?? selected;
       const saved = target
-        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, target?.kind ?? 'script', files ? { ...files, [entry]: content } : undefined)
-        : await scriptEditorApi.createScriptSkill(name.trim(), content, 'script', files ? { ...files, [entry]: content } : undefined);
+        ? await scriptEditorApi.updateScriptSkill(target.id, updateTarget ? target.name : name.trim(), content, kind === 'all' ? target?.kind ?? 'script' : kind, files ? { ...files, [entry]: content } : undefined)
+        : await scriptEditorApi.createScriptSkill(name.trim(), content, kind === 'all' ? 'script' : kind, files ? { ...files, [entry]: content } : undefined);
       const list = await refresh(target ? undefined : saved.id);
       loadItem(list.find((item) => item.id === saved.id));
       setNotice(saved.reused ? '相同内容已存在，已复用已有 Skill。' : '已保存，后续请求使用新版内容。');
@@ -162,7 +162,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
   const upload = async (file?: File, replace = false) => {
     if (!file || !canLeave()) return;
     await operate(async () => {
-      if (file.name.toLowerCase().endsWith('.zip')) { const uploaded = await api.uploadSkillPackage(file); const list = await refresh((uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id))); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 包已上传。'); return; }
+      if (file.name.toLowerCase().endsWith('.zip')) { const uploaded = await api.uploadSkillPackage(file, kind === 'all' ? 'script' : kind); const list = await refresh((uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id))); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 包已上传。'); return; }
       const text = (await file.text()).replace(/^\uFEFF/, '');
       if (!text.trim()) throw new Error('上传的文件内容为空');
       if (!replace) {
@@ -229,7 +229,7 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
       <div className="flex h-full flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle p-5">
           <div><h2 id="script-skill-manager-title" className="font-semibold">Skill 管理</h2><p className="mt-1 text-xs text-text-muted">本机共享 · 修改影响后续请求</p></div>
-          <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button>{kind === 'all' && <button type="button" disabled={busy || loading} className={BUTTON} onClick={() => folderRef.current?.click()}>上传文件夹</button>}<button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
+        <div className="flex items-center gap-2"><button type="button" disabled={busy || loading} onClick={() => fileRef.current?.click()} className={BUTTON}><Upload size={13} className="mr-1 inline" />上传</button>{kind !== 'script' && <button type="button" disabled={busy || loading} className={BUTTON} onClick={() => folderRef.current?.click()}>上传文件夹</button>}<button type="button" onClick={close} disabled={busy} aria-label="关闭 Skill 管理" className={BUTTON}><X size={16} /></button></div>
         </header>
         <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] max-sm:grid-cols-[140px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-r border-border-subtle p-3">
@@ -270,8 +270,8 @@ export default function ScriptSkillManager({ activeId, initialFile, onChange, on
           <button type="button" disabled={busy || loading || selected?.readonly || !dirty || !name.trim() || !content.trim() || nameConflict || !!sameContent} onClick={() => save()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-accent disabled:opacity-40">保存</button>
           <button type="button" disabled={busy} onClick={close} className={BUTTON}>关闭</button>
         </footer>
-        <input ref={fileRef} type="file" accept={kind === 'all' ? '.md,.markdown,.txt,.zip' : '.md,.markdown,.txt'} className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
-        <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked); const list = await refresh((uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === (uploaded.id === 'builtin:engineering-screenplay' ? 'builtin-engineering' : uploaded.id))); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
+        <input ref={fileRef} type="file" accept={kind === 'all' || kind === 'motion' ? '.md,.markdown,.txt,.zip' : '.md,.markdown,.txt'} className="hidden" onChange={(event) => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
+        <input ref={folderRef} type="file" multiple {...({ webkitdirectory: '' } as Record<string, string>)} className="hidden" onChange={(event) => { const picked = Array.from(event.target.files ?? []); if (picked.length && canLeave()) void operate(async () => { const uploaded = await api.uploadSkillFolder(picked, kind === 'all' ? 'script' : kind); const list = await refresh((uploaded.id === 'builtin-engineering' ? 'builtin-engineering' : uploaded.id)); loadItem(list.find((item) => item.id === uploaded.id)); setNotice(uploaded.reused ? '相同内容已存在，已复用已有 Skill。' : '完整 Skill 文件夹已上传。'); }); event.target.value = ''; }} />
         <input ref={replaceRef} type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(event) => { void upload(event.target.files?.[0], true); event.target.value = ''; }} />
       </div>
     </dialog>, document.body,

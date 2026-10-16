@@ -10,6 +10,14 @@ import { publicAsset } from "@/lib/publicAsset";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 import { toast } from "@/store/toastStore";
+import { IMAGE_MODELS } from "@/store/projectStore";
+import { VIDEO_R2V_MODELS } from "@/lib/modelCatalog";
+import { scriptEditorApi, type ScriptSkill } from "@/lib/scriptEditorApi";
+import ScriptSkillManager from "@/components/modules/ScriptEditor/dialogs/ScriptSkillManager";
+
+const PRODUCTION_VIDEO_MODELS = VIDEO_R2V_MODELS.filter((model) =>
+    /h3|seedance/i.test(model.id) && model.duration.type !== "fixed",
+);
 
 export default function ArtDirection() {
     const ta = useTranslations("artDirection");
@@ -48,6 +56,44 @@ export default function ArtDirection() {
     const [editingPositive, setEditingPositive] = useState("");
     const [editingNegative, setEditingNegative] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [aspectRatio, setAspectRatio] = useState("9:16");
+    const [imageModel, setImageModel] = useState("");
+    const [videoModel, setVideoModel] = useState("");
+    const [maxSegmentSeconds, setMaxSegmentSeconds] = useState("");
+    const [motionSkillId, setMotionSkillId] = useState("");
+    const [motionSkills, setMotionSkills] = useState<ScriptSkill[]>([]);
+    const [skillManagerOpen, setSkillManagerOpen] = useState(false);
+
+    const production = currentProject?.production_workflow === "engineering_segments_v1";
+    const selectedVideoConfig = PRODUCTION_VIDEO_MODELS.find((model) => model.id === videoModel);
+    const segmentDurationOptions = (() => {
+        const duration = selectedVideoConfig?.duration;
+        if (!duration || duration.type === "fixed") return [];
+        const modelMax = duration.type === "slider" ? duration.max : Math.max(...duration.options);
+        const cap = /h3/i.test(selectedVideoConfig?.id || "") ? 27 : /seedance/i.test(selectedVideoConfig?.id || "") ? 29 : modelMax;
+        if (duration.type === "buttons") return duration.options.filter((value) => value >= 2 && value <= cap);
+        const first = duration.min + Math.max(0, Math.ceil((2 - duration.min) / duration.step)) * duration.step;
+        return Array.from({ length: Math.max(0, Math.floor((Math.min(duration.max, cap) - first) / duration.step) + 1) }, (_, index) => first + index * duration.step).filter((value) => value >= 2);
+    })();
+
+    useEffect(() => {
+        const settings = currentProject?.production_settings || {};
+        setAspectRatio(settings.aspect_ratio || currentProject?.model_settings?.storyboard_aspect_ratio || "9:16");
+        setImageModel(settings.image_model || currentProject?.model_settings?.image_model || IMAGE_MODELS[0]?.id || "");
+        setVideoModel(settings.video_model || currentProject?.model_settings?.r2v_model || PRODUCTION_VIDEO_MODELS[0]?.id || "");
+        setMaxSegmentSeconds(settings.max_segment_seconds ? String(settings.max_segment_seconds) : "");
+        setMotionSkillId(settings.motion_skill_id || "");
+    }, [currentProject?.id, currentProject?.production_settings, currentProject?.model_settings]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const refresh = () => void scriptEditorApi.listScriptSkills("motion").then((items) => {
+            if (!cancelled) setMotionSkills(items.filter((item) => !item.hidden && !item.validation_error && item.executor !== "h3_context_ir"));
+        }).catch(() => {});
+        refresh();
+        window.addEventListener("script-skills-changed", refresh);
+        return () => { cancelled = true; window.removeEventListener("script-skills-changed", refresh); };
+    }, []);
 
     const filteredPresets = useMemo(() => {
         if (activeCategory === "all") return presets;
@@ -359,13 +405,25 @@ export default function ArtDirection() {
 
         setIsSaving(true);
         try {
-            const updated = await api.saveArtDirection(
+            let updated = await api.saveArtDirection(
                 currentProject.id,
                 finalConfig.id,
                 finalConfig,
                 customStyles,
                 aiRecommendations
             );
+            if (production) {
+                if (!imageModel || !videoModel || !motionSkillId || !maxSegmentSeconds) {
+                    throw new Error("请先选定画幅、图片模型、视频通道、提示词 Skill 和单段总时长上限");
+                }
+                updated = await api.confirmProductionSettings(currentProject.id, {
+                    aspect_ratio: aspectRatio,
+                    image_model: imageModel,
+                    video_model: videoModel,
+                    motion_skill_id: motionSkillId,
+                    max_segment_seconds: Number(maxSegmentSeconds),
+                });
+            }
             updateProject(currentProject.id, updated);
             setOverrideAccepted(false);
             toast.success(ta("styleApplied"), {
@@ -387,10 +445,10 @@ export default function ArtDirection() {
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
             <StepPageHeader
-                stepNumber={2}
+                stepNumber={production ? 1 : 2}
                 englishName="STYLE"
-                title={tStep("styleTitle")}
-                subtitle={tStep("styleSubtitle")}
+                title={production ? "風格與製作設置" : tStep("styleTitle")}
+                subtitle={production ? "先鎖定本項目的最高視覺準則與實際生成能力；此處不設置 BGM。" : tStep("styleSubtitle")}
                 pills={projectStyle?.name ? (
                     <StepPill label={ta("styleLabel")} value={projectStyle.name} />
                 ) : null}
@@ -398,6 +456,48 @@ export default function ArtDirection() {
 
             {/* Scrollable content — full width */}
             <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-8 bg-surface">
+                {production && (
+                    <section className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-5 space-y-4">
+                        <div>
+                            <h3 className="text-sm font-semibold text-foreground">制作设置（确认后作为全流程准则）</h3>
+                            <p className="mt-1 text-xs text-text-secondary">尾部 1 秒全景计入总时长。固定 30 秒的 Seedance 通道不适用于 29 秒内分段，不会自动裁切。</p>
+                        </div>
+                        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+                            <label className="text-xs text-text-secondary">画幅
+                                <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"].map((value) => <option key={value}>{value}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">资产图片模型
+                                <select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {IMAGE_MODELS.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">参考生视频通道
+                                <select value={videoModel} onChange={(e) => { setVideoModel(e.target.value); setMaxSegmentSeconds(""); }} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {PRODUCTION_VIDEO_MODELS.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">单段总时长上限（含尾部全景）
+                                <select value={maxSegmentSeconds} onChange={(e) => setMaxSegmentSeconds(e.target.value)} disabled={!segmentDurationOptions.length} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground disabled:opacity-50">
+                                    <option value="">请选择</option>
+                                    {segmentDurationOptions.map((value) => <option key={value} value={value}>{value} 秒（剧情最多 {value - 1} 秒）</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary xl:col-span-2">视频提示词 Skill
+                                <div className="mt-1 flex gap-2">
+                                    <select value={motionSkillId} onChange={(e) => setMotionSkillId(e.target.value)} className="w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                        <option value="">请选择已导入的 H3 / Seedance 分镜 Skill</option>
+                                        {motionSkills.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}
+                                    </select>
+                                    <button type="button" onClick={() => setSkillManagerOpen(true)} className="shrink-0 rounded-lg border border-glass-border px-3 text-xs text-foreground hover:bg-hover-bg">管理 / 导入</button>
+                                </div>
+                            </label>
+                        </div>
+                        {!segmentDurationOptions.length && <p className="text-xs text-amber-300">当前通道没有与本流程上限相交的可变时长选项，请更换通道。</p>}
+                        <p className="text-xs text-text-muted">已确认风格优先于各步临时提示；原剧情与台词不因风格改写。最终成片不混入 BGM。</p>
+                    </section>
+                )}
                 {/* Series inherit/override banners */}
                 {inSeries && !seriesBaselineLoading && (
                     <>
@@ -606,11 +706,13 @@ export default function ArtDirection() {
                     loading={isSaving}
                     rightIcon={<ChevronRight />}
                     onClick={handleApply}
-                    disabled={!selectedStyle}
+                    disabled={!selectedStyle || (production && (!imageModel || !videoModel || !motionSkillId || !maxSegmentSeconds || !segmentDurationOptions.includes(Number(maxSegmentSeconds))))}
                 >
-                    {isSaving ? ta("saving") : ta("applyAndContinue")}
+                    {isSaving ? ta("saving") : production ? "确认制作方案" : ta("applyAndContinue")}
                 </WorkflowActionButton>
             </div>
+
+            {production && skillManagerOpen && <ScriptSkillManager kind="motion" activeId={motionSkillId} onClose={() => setSkillManagerOpen(false)} onChange={(items, selectedId) => { setMotionSkills(items.filter((item) => !item.hidden && !item.validation_error && item.executor !== "h3_context_ir")); if (selectedId) setMotionSkillId(selectedId); }} />}
 
             {/* AI Recommendation Detail Modal */}
             <AnimatePresence>

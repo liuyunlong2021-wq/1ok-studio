@@ -150,7 +150,17 @@ def parse_engineering_script(text):
 
 def engineering_status(script):
     plan = script.engineering_script
-    return {"confirmed": bool(plan), "current": bool(plan and plan["revision"] == screenplay_revision(script.original_text)),
+    if script.production_workflow == "engineering_segments_v1":
+        from .production_workflow import source_revision
+        current = bool(
+            plan
+            and script.production_engineering_source_revision == source_revision(script.original_text)
+            and script.production_engineering_style_revision == script.production_style_revision
+            and script.production_style_confirmed_at
+        )
+    else:
+        current = bool(plan and plan["revision"] == screenplay_revision(script.original_text))
+    return {"confirmed": bool(plan), "current": current,
             "revision": plan["revision"] if plan else None, "count": len(plan["shots"]) if plan else 0,
             "duration": plan["duration"] if plan else 0, "synced": bool(plan and script.storyboard_source_revision == plan["revision"])}
 
