@@ -664,6 +664,7 @@ class Script(BaseModel):
     id: str = Field(..., description="Unique identifier for the script project")
     title: str = Field(..., description="Title of the comic/video")
     original_text: str = Field(..., description="The original novel text")
+    production_workflow: Optional[str] = Field(None, description="Versioned production workflow; None keeps the legacy route")
     engineering_script: Optional[Dict[str, Any]] = None
     storyboard_source_revision: Optional[str] = None
     storyboard_archives: List[Dict[str, Any]] = Field(default_factory=list)
@@ -783,6 +784,7 @@ class Series(BaseModel):
 
     # Workflow mode for all episodes in this series
     workflow_mode: str = Field("i2v_legacy", description="Workflow mode: 'r2v' or 'i2v_legacy'")
+    production_workflow: Optional[str] = Field(None, description="Versioned production workflow inherited by new episodes")
 
     # PR-3e (r2v-workflow-v3) — Visual control preference at series level.
     # Episodes inherit this when created; user can override per-shot via

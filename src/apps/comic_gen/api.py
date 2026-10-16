@@ -45,6 +45,7 @@ from .skill_packages import SkillPackageError, SkillPackageStore, DEFAULT_STORYB
 from .engineering_script import parse_engineering_script, engineering_status, preview_engineering_sync, apply_engineering_sync, require_synced_engineering
 from .models import (
     ArtDirection,
+    ModelSettings,
     PromptConfig,
     Script,
     Series,
@@ -583,6 +584,8 @@ class CreateProjectRequest(BaseModel):
     # Omit for a standalone project — behavior unchanged.
     series_id: Optional[str] = None
     prompt_config: Optional[PromptConfig] = None
+    production_workflow: Optional[str] = None
+    model_settings: Optional[ModelSettings] = None
 
 
 @app.post("/projects", response_model=Script)
@@ -595,6 +598,10 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
     """
     if request.prompt_config:
         _validate_skill_bindings(request.prompt_config.skill_bindings)
+    if request.production_workflow not in (None, "engineering_segments_v1"):
+        raise HTTPException(status_code=422, detail="Unsupported production workflow")
+    if request.production_workflow and request.workflow_mode != "r2v":
+        raise HTTPException(status_code=422, detail="engineering_segments_v1 requires workflow_mode=r2v")
     # Run in thread pool to avoid blocking event loop during LLM analysis (Python 3.8 compatible)
     loop = asyncio.get_event_loop()
     try:
@@ -608,6 +615,8 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
                 request.workflow_mode,
                 request.series_id,
                 request.prompt_config.model_dump() if request.prompt_config else None,
+                request.production_workflow,
+                request.model_settings.model_dump() if request.model_settings else None,
             )
         )
     except ValueError as e:
@@ -1147,6 +1156,7 @@ class CreateSeriesRequest(BaseModel):
     # PR-3e (r2v-workflow-v3) — Visual control preference.
     # 'r2v' (节奏优先, default) | 'i2v' (画面优先).
     default_generation_mode: str = "r2v"
+    production_workflow: Optional[str] = None
 
 
 class UpdateSeriesRequest(BaseModel):
@@ -1163,12 +1173,17 @@ class UpdateSeriesRequest(BaseModel):
 @app.post("/series")
 def create_series(request: CreateSeriesRequest):
     """Create a new Series."""
+    if request.production_workflow not in (None, "engineering_segments_v1"):
+        raise HTTPException(status_code=422, detail="Unsupported production workflow")
+    if request.production_workflow and (request.workflow_mode != "r2v" or request.content_mode != "scripted"):
+        raise HTTPException(status_code=422, detail="engineering_segments_v1 series require scripted r2v workflow")
     series = pipeline.create_series(
         request.title,
         request.description,
         request.workflow_mode,
         request.content_mode,
         request.default_generation_mode,
+        request.production_workflow,
     )
     return signed_response(series)
 

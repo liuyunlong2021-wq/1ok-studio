@@ -1,4 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
+import copy
 import hashlib
 import json
 import os
@@ -25,6 +26,7 @@ from .models import (
     Series,
     PromptConfig,
     ArtDirection,
+    ModelSettings,
     GlobalAssetLibrary,
 )
 from .llm import ScriptProcessor
@@ -577,7 +579,7 @@ class ComicGenPipeline:
         if repaired:
             self._save_data()
 
-    def create_project(self, title: str, text: str, skip_analysis: bool = False, workflow_mode: str = "i2v_legacy", series_id: Optional[str] = None, prompt_config: Optional[Dict[str, Any]] = None) -> Script:
+    def create_project(self, title: str, text: str, skip_analysis: bool = False, workflow_mode: str = "i2v_legacy", series_id: Optional[str] = None, prompt_config: Optional[Dict[str, Any]] = None, production_workflow: Optional[str] = None, model_settings: Optional[Dict[str, Any]] = None) -> Script:
         """Step 1: Parse novel and create project.
 
         When `series_id` is provided the new project is bound as the next
@@ -587,10 +589,21 @@ class ComicGenPipeline:
         is None the behavior is the original standalone-project path,
         bit-for-bit unchanged.
         """
-        if skip_analysis:
+        if production_workflow not in (None, "engineering_segments_v1"):
+            raise ValueError("Unsupported production workflow")
+        if production_workflow and workflow_mode != "r2v":
+            raise ValueError("engineering_segments_v1 requires workflow_mode=r2v")
+        series = self.series_store.get(series_id) if series_id else None
+        if production_workflow and series_id and not series:
+            raise ValueError("Series not found")
+        if production_workflow and series and series.production_workflow != production_workflow:
+            raise ValueError("Series production workflow does not match the requested project workflow")
+
+        # This workflow always creates a free draft; text analysis happens only
+        # after the user confirms style and explicitly asks for an engineering script.
+        if skip_analysis or production_workflow:
             script = self.script_processor.create_draft_script(title, text)
         else:
-            series = self.series_store.get(series_id) if series_id else None
             initial_config = PromptConfig(**(prompt_config or {}))
             model = get_active_text_model()
             custom_extraction = ""
@@ -613,6 +626,45 @@ class ComicGenPipeline:
             script.prompt_config = PromptConfig(**prompt_config)
 
         script.workflow_mode = workflow_mode
+        if production_workflow:
+            script.production_workflow = production_workflow
+            if model_settings:
+                script.model_settings = ModelSettings(**model_settings)
+            if series:
+                script.art_direction = copy.deepcopy(series.art_direction)
+                script.model_settings = copy.deepcopy(series.model_settings)
+                script.prompt_config = copy.deepcopy(series.prompt_config)
+                script.default_generation_mode = series.default_generation_mode
+
+            with self._save_lock:
+                if series:
+                    episodes = self.get_series_episodes(series_id)
+                    script.episode_number = max([ep.episode_number for ep in episodes if ep.episode_number] or [0]) + 1
+                    script.series_id = series.id
+                    updated_series = copy.deepcopy(series)
+                    updated_series.episode_ids.append(script.id)
+                    updated_series.updated_at = time.time()
+                else:
+                    updated_series = None
+                self.scripts[script.id] = script
+                try:
+                    _atomic_write_json(self.data_file, {k: v.model_dump() for k, v in self.scripts.items()})
+                    if updated_series:
+                        next_series = dict(self.series_store)
+                        next_series[updated_series.id] = updated_series
+                        _atomic_write_json(self.series_data_file, {k: v.model_dump() for k, v in next_series.items()})
+                        series.episode_ids = updated_series.episode_ids
+                        series.updated_at = updated_series.updated_at
+                        self.series_store[series.id] = series
+                except Exception:
+                    self.scripts.pop(script.id, None)
+                    try:
+                        _atomic_write_json(self.data_file, {k: v.model_dump() for k, v in self.scripts.items()})
+                    except Exception:
+                        logger.exception("Failed to roll back incomplete production project creation")
+                    raise
+            return script
+
         self.scripts[script.id] = script
         self._save_data()
 
@@ -4523,8 +4575,12 @@ class ComicGenPipeline:
             self._save_data()
             return new_asset
 
-    def create_series(self, title: str, description: str = "", workflow_mode: str = "i2v_legacy", content_mode: str = "scripted", default_generation_mode: str = "r2v") -> Series:
+    def create_series(self, title: str, description: str = "", workflow_mode: str = "i2v_legacy", content_mode: str = "scripted", default_generation_mode: str = "r2v", production_workflow: Optional[str] = None) -> Series:
         """Create a new Series."""
+        if production_workflow not in (None, "engineering_segments_v1"):
+            raise ValueError("Unsupported production workflow")
+        if production_workflow and (workflow_mode != "r2v" or content_mode != "scripted"):
+            raise ValueError("engineering_segments_v1 series require scripted r2v workflow")
         with self._save_lock:
             series = Series(
                 id=str(uuid.uuid4()),
@@ -4533,6 +4589,7 @@ class ComicGenPipeline:
                 workflow_mode=workflow_mode,
                 content_mode=content_mode,
                 default_generation_mode=default_generation_mode,
+                production_workflow=production_workflow,
                 created_at=time.time(),
                 updated_at=time.time(),
             )

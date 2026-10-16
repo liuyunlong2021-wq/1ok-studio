@@ -60,6 +60,15 @@ export const UNIFIED_STEPS: Step[] = [
     { id: "assembly", label: "6. 合成", icon: Film },
 ];
 
+export const ENGINEERING_SEGMENTS_V1_STEPS: Step[] = [
+    { id: "art_direction", label: "1. 风格与制作设置", icon: Palette },
+    { id: "script", label: "2. 工程剧本", icon: BookOpen },
+    { id: "cast", label: "3. 资产", icon: Users },
+    { id: "segments", label: "4. 分段工程剧本", icon: Clapperboard },
+    { id: "segment_video", label: "5. 分段视频", icon: Video },
+    { id: "assembly", label: "6. 整集合成", icon: Film },
+];
+
 /**
  * 按项目的工作流模式选出步骤表。
  *
@@ -70,10 +79,15 @@ export const UNIFIED_STEPS: Step[] = [
 export function stepsForWorkflow({
     workflowMode,
     seriesContentMode,
+    productionWorkflow,
 }: {
     workflowMode?: string | null;
     seriesContentMode?: string | null;
+    productionWorkflow?: string | null;
 }): Step[] {
+    if (productionWorkflow === "engineering_segments_v1") {
+        return ENGINEERING_SEGMENTS_V1_STEPS;
+    }
     if (workflowMode !== "r2v") {
         return LEGACY_STEPS;
     }

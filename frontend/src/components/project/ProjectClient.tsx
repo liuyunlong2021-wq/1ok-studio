@@ -82,6 +82,7 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
         const base = stepsForWorkflow({
             workflowMode: currentProject?.workflow_mode,
             seriesContentMode,
+            productionWorkflow: currentProject?.production_workflow,
         });
 
         // Per-step stage status (conservative signals from project state —
@@ -150,6 +151,16 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
     useEffect(() => {
         selectProject(id);
     }, [id, selectProject]);
+
+    useEffect(() => {
+        setActiveStep("script");
+    }, [id]);
+
+    useEffect(() => {
+        if (currentProject?.id === id) {
+            setActiveStep(currentProject.production_workflow === "engineering_segments_v1" ? "art_direction" : "script");
+        }
+    }, [currentProject?.id, currentProject?.production_workflow, id]);
 
     if (!currentProject) {
         return (
@@ -254,6 +265,8 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
                         {activeStep === "script" && <ScriptEditorShell key={id} mode="embedded" projectId={id} onExtractEntities={handleExtractEntities} />}
                         {activeStep === "art_direction" && <ArtDirection />}
                         {activeStep === "cast" && <Cast />}
+                        {activeStep === "segments" && <div className="h-full overflow-auto p-8 text-text-secondary">分段工程剧本工作台即将就绪</div>}
+                        {activeStep === "segment_video" && <div className="h-full overflow-auto p-8 text-text-secondary">分段视频工作台即将就绪</div>}
                         {activeStep === "sound" && <SoundDesign />}
                         {activeStep === "assets" && <ConsistencyVault />}  {/* legacy i2v only */}
                         {activeStep === "storyboard" && <StoryboardComposer />}

@@ -276,8 +276,8 @@ async function describeFailure(response: Response, fallback: string): Promise<st
 }
 
 export const api = {
-    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>) => {
-        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig }, {
+    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>, productionWorkflow?: string, modelSettings?: Record<string, any>) => {
+        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig, production_workflow: productionWorkflow, model_settings: modelSettings }, {
             params: { skip_analysis: skipAnalysis }
         });
         return { ...res.data, originalText: res.data.original_text };
@@ -1388,7 +1388,7 @@ export const api = {
     // Series CRUD
     createSeriesV2: async (
         title: string,
-        opts: { description?: string; workflow_mode?: string; content_mode?: "scripted" | "freeform"; default_generation_mode?: "r2v" | "i2v" } = {},
+        opts: { description?: string; workflow_mode?: string; content_mode?: "scripted" | "freeform"; default_generation_mode?: "r2v" | "i2v"; production_workflow?: string } = {},
     ) => {
         const response = await axios.post(`${API_URL}/series`, {
             title,
@@ -1396,6 +1396,7 @@ export const api = {
             workflow_mode: opts.workflow_mode ?? "r2v",
             content_mode: opts.content_mode ?? "scripted",
             default_generation_mode: opts.default_generation_mode ?? "r2v",
+            production_workflow: opts.production_workflow,
         });
         return response.data;
     },
@@ -1699,11 +1700,13 @@ export const api = {
     },
 
     // Helper: create a project and add it as an episode to a series
-    createEpisodeForSeries: async (seriesId: string, title: string, episodeNumber: number, workflowMode: string = "r2v") => {
+    createEpisodeForSeries: async (seriesId: string, title: string, episodeNumber: number, workflowMode: string = "r2v", productionWorkflow?: string) => {
+        if (productionWorkflow === "engineering_segments_v1") {
+            return api.createProject(title, "", true, workflowMode, seriesId, undefined, productionWorkflow);
+        }
         const project = await api.createProject(title, "", true, workflowMode);
         await api.addEpisodeToSeries(seriesId, project.id, episodeNumber);
-        const refreshed = await api.getProject(project.id);
-        return refreshed;
+        return api.getProject(project.id);
     },
 
     // File Import
