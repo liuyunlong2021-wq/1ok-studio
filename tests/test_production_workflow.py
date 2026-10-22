@@ -4,6 +4,8 @@ from src.apps.comic_gen.production_workflow import (
     plan_production_segments,
     render_production_segment,
     segment_duration_choices,
+    validate_production_episode_duration,
+    validate_production_video_model,
     validate_segment_maximum,
 )
 
@@ -20,12 +22,15 @@ def _shot(number, start, end, scene="场1-1 室内 - 夜", body="【近景，固
     }
 
 
-def test_h3_duration_choices_include_tail_cap_and_fixed_30_second_seedance_is_ineligible():
-    assert segment_duration_choices("jc-minimax-h3-ref2v") == list(range(2, 28))
-    assert segment_duration_choices("海seedance2.5") == []
-    validate_segment_maximum("jc-minimax-h3-ref2v", 27)
-    with pytest.raises(ValueError, match="更换支持可变时长"):
-        validate_segment_maximum("海seedance2.5", 29)
+def test_segment_duration_choices_are_independent_of_model_capabilities():
+    assert segment_duration_choices() == list(range(2, 31))
+    validate_segment_maximum(30)
+    validate_production_video_model("jc-minimax-h3-ref2v")
+    validate_production_video_model("cvk-2.5-720")
+    with pytest.raises(ValueError, match="请选择目录中可用的参考生视频通道"):
+        validate_production_video_model("missing-model")
+    with pytest.raises(ValueError, match="30秒"):
+        validate_segment_maximum(31)
 
 
 def test_segment_planner_never_splits_shots_and_adds_one_second_tail_budget():
@@ -54,6 +59,13 @@ def test_segment_planner_prefers_scene_changes_and_rebases_local_timecodes():
 def test_segment_planner_rejects_a_shot_that_cannot_fit_without_cutting_it():
     with pytest.raises(ValueError, match="请先回工程剧本拆镜"):
         plan_production_segments([_shot(1, 0, 6)], max_total_seconds=6)
+
+
+def test_standalone_episode_is_limited_to_30_seconds_including_segment_tails():
+    validate_production_episode_duration(None, [{"duration_total": 30}])
+    with pytest.raises(ValueError, match="单集剧成片总时长不能超过30秒"):
+        validate_production_episode_duration(None, [{"duration_total": 20}, {"duration_total": 11}])
+    validate_production_episode_duration("series-1", [{"duration_total": 31}])
 
 
 @pytest.mark.parametrize(

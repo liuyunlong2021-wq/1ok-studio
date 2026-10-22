@@ -402,6 +402,30 @@ def signed_response(data):
         processed_data = [item.model_dump() if hasattr(item, "model_dump") else item for item in data]
     else:
         processed_data = data
+
+    def redact_image_artifact_addresses(value):
+        if isinstance(value, list):
+            return [redact_image_artifact_addresses(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        result = {key: redact_image_artifact_addresses(item) for key, item in value.items()}
+        for field in ("production_image_task", "production_image_task_history"):
+            task_value = result.get(field)
+            tasks = task_value if isinstance(task_value, list) else [task_value]
+            for task in tasks:
+                if not isinstance(task, dict):
+                    continue
+                artifacts = task.get("artifacts") or []
+                task["can_resume"] = task.get("phase") == "download_pending" and any(
+                    pipeline._asset_image_artifact_resumable(item) for item in artifacts if isinstance(item, dict)
+                )
+                task["artifacts"] = [
+                    {key: item[key] for key in ("variant_id", "status", "content_type") if key in item}
+                    for item in artifacts if isinstance(item, dict)
+                ]
+        return result
+
+    processed_data = redact_image_artifact_addresses(processed_data)
     
     # Return JSONResponse directly to avoid Pydantic re-validation stripping fields
     return JSONResponse(content=processed_data)
@@ -413,6 +437,7 @@ def signed_response(data):
 
 class GenerateAssetRequest(BaseModel):
     asset_id: str
+    look_id: Optional[str] = None
     asset_type: str
     style_preset: str = "Cinematic"
     reference_image_url: Optional[str] = None
@@ -534,7 +559,8 @@ def upload_asset(
     asset_id: str,
     upload_type: str,
     description: Optional[str] = None,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    look_id: Optional[str] = None,
 ):
     """
     Uploads an image as a new variant for an asset.
@@ -563,7 +589,8 @@ def upload_asset(
             asset_id=asset_id,
             upload_type=upload_type,
             image_url=image_url,
-            description=description
+            description=description,
+            look_id=look_id,
         )
         
         if not updated_script:
@@ -2747,6 +2774,7 @@ class ProductionEngineeringTextRequest(BaseModel):
 class ApplyProductionAssetsRequest(BaseModel):
     source_revision: str
     screenplay_revision: str
+    shot_bindings: Optional[List[Dict[str, Any]]] = None
 
 
 class ProductionSegmentRequest(BaseModel):
@@ -2762,6 +2790,7 @@ class ProductionVoiceDesignRequest(BaseModel):
 
 class ProductionAssetPromptRequest(BaseModel):
     prompt: str
+    look_id: Optional[str] = None
 
 
 class ProductionSegmentPromptRequest(BaseModel):
@@ -2790,7 +2819,7 @@ def confirm_production_settings(script_id: str, request: ConfirmProductionSettin
     if not skill or skill.get("hidden") or skill.get("validation_error"):
         raise HTTPException(status_code=400, detail="所选视频提示词 Skill 不存在或不可用")
     if skill.get("executor") == "h3_context_ir":
-        raise HTTPException(status_code=400, detail="H3 Context IR 只支持4–15秒单段增强；请在 Skill 管理中导入长段视频提示词 Skill")
+        raise HTTPException(status_code=400, detail="H3 Context IR 增强器不适用于本制作流程")
     if request.aspect_ratio not in ("9:16", "16:9", "1:1", "4:3", "3:4", "21:9"):
         raise HTTPException(status_code=400, detail="不支持的画幅")
     timing = hashlib.sha256(skill["content"].encode("utf-8")).hexdigest()
@@ -2891,7 +2920,7 @@ def preview_production_assets(script_id: str, background_tasks: BackgroundTasks)
 @app.post("/projects/{script_id}/production/assets/apply")
 def apply_production_assets(script_id: str, request: ApplyProductionAssetsRequest):
     try:
-        return signed_response(pipeline.apply_production_assets(script_id, request.source_revision, request.screenplay_revision))
+        return signed_response(pipeline.apply_production_assets(script_id, request.source_revision, request.screenplay_revision, shot_bindings=request.shot_bindings))
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -2942,7 +2971,7 @@ def _production_asset_and_type(script: Script, asset_id: str):
 
 
 @app.post("/projects/{script_id}/production/assets/{asset_id}/image-prompt/generate", status_code=202)
-def generate_production_asset_prompt(script_id: str, asset_id: str, background_tasks: BackgroundTasks):
+def generate_production_asset_prompt(script_id: str, asset_id: str, background_tasks: BackgroundTasks, look_id: Optional[str] = None):
     script = pipeline.get_script(script_id)
     if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
         raise HTTPException(status_code=404, detail="新制作流程项目不存在")
@@ -2954,6 +2983,11 @@ def generate_production_asset_prompt(script_id: str, asset_id: str, background_t
     if getattr(asset, "locked", False):
         raise HTTPException(status_code=409, detail="资产已锁定")
     try:
+        from .production_assets import asset_description, get_look, resolve_target, require_editable
+        if asset_type == "character" and asset.looks:
+            look_id = get_look(asset, look_id).id
+        owner, asset, source = resolve_target(pipeline, script, asset_id, asset_type, look_id)
+        require_editable(owner, asset, source)
         series = pipeline.get_series(script.series_id) if script.series_id else None
         custom = pipeline.get_effective_prompt(f"{asset_type}_prompt", script, series)
         model = pipeline.get_effective_polish_model(script)
@@ -2963,9 +2997,10 @@ def generate_production_asset_prompt(script_id: str, asset_id: str, background_t
         already_queued = asset.prompt_generation_status in ("queued", "processing")
         task_id = pipeline.create_prompt_generation_task(
             script_id, asset_id, asset_type, asset.name,
-            asset.description or asset.extracted_description or "", custom, model or "",
+            asset_description(owner, asset if look_id else None), custom, model or "",
             aspect_ratio=script.production_settings.get("aspect_ratio", "9:16"),
             production_settings_revision_snapshot=revision,
+            look_id=look_id,
         )
         if not already_queued:
             background_tasks.add_task(pipeline.process_prompt_generation_task, task_id)
@@ -2986,7 +3021,9 @@ def save_production_asset_prompt(script_id: str, asset_id: str, request: Product
     if not asset:
         raise HTTPException(status_code=404, detail="资产不存在")
     try:
-        return pipeline.save_production_asset_prompt(script_id, asset_id, asset_type, request.prompt, "manual")
+        from .production_assets import get_look
+        look_id = get_look(asset, request.look_id).id if asset_type == "character" and asset.looks else request.look_id
+        return pipeline.save_production_asset_prompt(script_id, asset_id, asset_type, request.prompt, "manual", look_id)
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -3687,6 +3724,7 @@ def generate_single_asset(script_id: str, request: GenerateAssetRequest, backgro
             request.batch_size,
             request.model_name,
             request.aspect_ratio,
+            look_id=request.look_id,
         )
         
         # Add background processing
@@ -3701,6 +3739,20 @@ def generate_single_asset(script_id: str, request: GenerateAssetRequest, backgro
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/projects/{script_id}/asset_tasks/{task_id}/resume")
+def resume_asset_image(script_id: str, task_id: str, background_tasks: BackgroundTasks):
+    """Continue downloading a previously generated asset image; never submit generation."""
+    try:
+        status = pipeline.queue_asset_image_recovery(script_id, task_id)
+        if not status.get("reused"):
+            background_tasks.add_task(pipeline.process_asset_image_recovery, task_id)
+        return {key: status.get(key) for key in ("task_id", "status", "phase", "reused", "can_resume")}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/tasks/{task_id}")
@@ -3840,6 +3892,7 @@ class UpdateAssetDescriptionRequest(BaseModel):
     asset_id: str
     asset_type: str
     description: str
+    look_id: Optional[str] = None
 
 
 class RewriteAssetDescriptionRequest(BaseModel):
@@ -3857,7 +3910,8 @@ def update_asset_description(script_id: str, request: UpdateAssetDescriptionRequ
             script_id,
             request.asset_id,
             request.asset_type,
-            request.description
+            request.description,
+            look_id=request.look_id
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3897,6 +3951,7 @@ class SelectVariantRequest(BaseModel):
     asset_id: str
     asset_type: str
     variant_id: str
+    look_id: Optional[str] = None
     generation_type: str = None  # For character: "full_body", "three_view", "headshot"
 
 @app.post("/projects/{script_id}/assets/variant/select", response_model=Script)
@@ -3908,7 +3963,8 @@ def select_asset_variant(script_id: str, request: SelectVariantRequest):
             request.asset_id,
             request.asset_type,
             request.variant_id,
-            request.generation_type
+            request.generation_type,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3920,6 +3976,7 @@ class DeleteVariantRequest(BaseModel):
     asset_id: str
     asset_type: str
     variant_id: str
+    look_id: Optional[str] = None
 
 @app.post("/projects/{script_id}/assets/variant/delete", response_model=Script)
 def delete_asset_variant(script_id: str, request: DeleteVariantRequest):
@@ -3929,7 +3986,8 @@ def delete_asset_variant(script_id: str, request: DeleteVariantRequest):
             script_id,
             request.asset_id,
             request.asset_type,
-            request.variant_id
+            request.variant_id,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3944,6 +4002,7 @@ class FavoriteVariantRequest(BaseModel):
     variant_id: str
     generation_type: Optional[str] = None  # For character: 'full_body', 'three_view', 'headshot'
     is_favorited: bool
+    look_id: Optional[str] = None
 
 @app.post("/projects/{script_id}/assets/variant/favorite", response_model=Script)
 def toggle_variant_favorite(script_id: str, request: FavoriteVariantRequest):
@@ -3955,7 +4014,8 @@ def toggle_variant_favorite(script_id: str, request: FavoriteVariantRequest):
             request.asset_type,
             request.variant_id,
             request.is_favorited,
-            request.generation_type
+            request.generation_type,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -4563,6 +4623,8 @@ class UpdateFrameRequest(BaseModel):
     camera_angle: Optional[str] = None
     scene_id: Optional[str] = None
     character_ids: Optional[List[str]] = None
+    character_look_ids: Optional[Dict[str, str]] = None
+    source_revision: Optional[str] = None
     duration: Optional[int] = None
     shot_size: Optional[str] = None
     camera_movement_description: Optional[str] = None
@@ -4581,6 +4643,8 @@ def update_frame(script_id: str, request: UpdateFrameRequest):
             camera_angle=request.camera_angle,
             scene_id=request.scene_id,
             character_ids=request.character_ids,
+            character_look_ids=request.character_look_ids,
+            source_revision=request.source_revision,
             duration=request.duration,
             shot_size=request.shot_size,
             camera_movement_description=request.camera_movement_description,

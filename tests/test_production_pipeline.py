@@ -1,5 +1,7 @@
 import json
+import io
 import pytest
+from PIL import Image
 import time
 import os
 import subprocess
@@ -7,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from src.apps.comic_gen.models import ArtDirection, Character, Scene, Script, StoryboardFrame, VideoTask
+from src.apps.comic_gen.models import ArtDirection, Character, ImageAsset, ImageVariant, Scene, Script, StoryboardFrame, VideoTask
 from src.apps.comic_gen.pipeline import ComicGenPipeline
 from src.apps.comic_gen.production_workflow import PRODUCTION_WORKFLOW_ID, production_segment_revision, production_settings_revision, source_revision, style_revision
 
@@ -97,6 +99,15 @@ def test_segment_video_task_rejects_prompt_or_segment_revision_drift(production_
         )
 
 
+def test_standalone_episode_cannot_merge_over_30_seconds(production_pipeline):
+    script = _segment_script()
+    script.production_segments[0]["duration_total"] = 31
+    production_pipeline.scripts[script.id] = script
+
+    with pytest.raises(ValueError, match="单集剧成片总时长不能超过30秒"):
+        production_pipeline._merge_production_segments(script)
+
+
 def test_production_asset_prompt_task_becomes_stale_if_confirmed_settings_change(production_pipeline):
     script = _segment_script()
     scene = Scene(id="scene-1", name="旧宅", description="深夜的旧宅客厅")
@@ -122,8 +133,8 @@ def test_production_asset_extraction_is_async_and_persists_its_preview(productio
     script = _segment_script()
     script.engineering_script["text"] = "工程剧本全文"
     production_pipeline.scripts[script.id] = script
-    parsed = SimpleNamespace(characters=[], scenes=[Scene(id="scene-new", name="新场景", description="雨夜巷口")], props=[])
-    with patch.object(production_pipeline.script_processor, "parse_novel", return_value=parsed):
+    parsed = SimpleNamespace(characters=[], scenes=[Scene(id="scene-new", name="新场景", description="雨夜巷口")], props=[], shot_bindings=[])
+    with patch.object(production_pipeline.script_processor, "extract_production_assets", return_value=parsed):
         task = production_pipeline.queue_production_asset_extraction(script.id)
         production_pipeline.process_production_asset_extraction_task(script.id, task["task_id"])
 
@@ -137,13 +148,13 @@ def test_production_asset_extraction_drops_results_after_settings_change(product
     script = _segment_script()
     script.engineering_script["text"] = "工程剧本全文"
     production_pipeline.scripts[script.id] = script
-    parsed = SimpleNamespace(characters=[], scenes=[], props=[])
+    parsed = SimpleNamespace(characters=[], scenes=[], props=[], shot_bindings=[])
 
     def change_settings_during_parse(*_args, **_kwargs):
         script.production_settings["revision"] = "changed-settings"
         return parsed
 
-    monkeypatch.setattr(production_pipeline.script_processor, "parse_novel", change_settings_during_parse)
+    monkeypatch.setattr(production_pipeline.script_processor, "extract_production_assets", change_settings_during_parse)
     task = production_pipeline.queue_production_asset_extraction(script.id)
     production_pipeline.process_production_asset_extraction_task(script.id, task["task_id"])
 
@@ -205,7 +216,7 @@ def test_production_image_task_persists_inputs_and_invalidates_segment_on_new_im
         script.id, scene.id, "scene", prompt="旧宅场景", model_name="test-image", aspect_ratio="9:16",
     )
     assert json.loads(Path(production_pipeline.data_file).read_text())[script.id]["scenes"][0]["production_image_task"]["status"] == "queued"
-    monkeypatch.setattr(production_pipeline, "generate_asset", lambda *_args: setattr(scene, "image_url", "new.png") or script)
+    monkeypatch.setattr(production_pipeline, "generate_asset", lambda *_args, **_kwargs: setattr(scene, "image_url", "new.png") or script)
     production_pipeline.process_asset_generation_task(task_id)
 
     assert scene.production_image_task["status"] == "completed"
@@ -213,6 +224,66 @@ def test_production_image_task_persists_inputs_and_invalidates_segment_on_new_im
     assert segment["asset_refs"][0]["image_url"] == "new.png"
     assert "adopted_at" not in segment
     assert segment["id"] not in script.production_selected_video_tasks
+
+
+def test_download_pending_image_resumes_original_artifact_without_regeneration(production_pipeline, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    script = _segment_script()
+    script.art_direction = ArtDirection(selected_style_id="cinematic", style_config={"name": "电影感"})
+    script.production_style_revision = style_revision(script.art_direction)
+    script.production_settings.update(image_model="test-image", aspect_ratio="9:16")
+    script.production_settings["revision"] = production_settings_revision(script.production_settings, script.production_style_revision)
+    segment_revision = script.production_segments[0]["revision"]
+    scene = Scene(id="scene-recovery", name="旧宅", description="深夜客厅", image_prompt="旧宅场景")
+    scene.image_asset.variants.append(ImageVariant(id="manual-image", url="assets/scenes/manual.png"))
+    script.scenes = [scene]
+    production_pipeline.scripts[script.id] = script
+    production_pipeline.asset_generator.output_dir = str(tmp_path / "output" / "assets")
+    _updated, task_id = production_pipeline.create_asset_generation_task(
+        script.id, scene.id, "scene", prompt="旧宅场景", model_name="test-image", aspect_ratio="9:16",
+    )
+    artifact_path = Path(production_pipeline.asset_generator.output_dir) / "scenes" / "scene-recovery.png"
+    generation_calls = []
+
+    def generate_then_lose_download(*_args, **kwargs):
+        generation_calls.append(True)
+        kwargs["on_artifact"]({
+            "variant_id": "paid-variant-1", "output_path": str(artifact_path),
+            "url": "https://cdn.example/paid.png?signature=private", "content_type": "image/png",
+        })
+        raise RuntimeError("simulated download interruption")
+
+    monkeypatch.setattr(production_pipeline, "generate_asset", generate_then_lose_download)
+    production_pipeline.process_asset_generation_task(task_id)
+    status = production_pipeline.get_asset_generation_task_status(task_id)
+    assert status["phase"] == "download_pending"
+    assert status["can_resume"] is True
+    assert status["artifacts"] == [{"variant_id": "paid-variant-1", "status": "pending_download", "content_type": "image/png"}]
+
+    image = io.BytesIO()
+    Image.new("RGB", (1, 1), (12, 34, 56)).save(image, format="PNG")
+    image_bytes = image.getvalue()
+
+    def download_existing(url, path, **_kwargs):
+        assert url == "https://cdn.example/paid.png?signature=private"
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_bytes(image_bytes)
+        scene.image_asset.selected_id = "manual-image"
+        scene.image_url = "assets/scenes/manual.png"
+
+    monkeypatch.setattr("src.models.jiucaihezi._download", download_existing)
+    queued = production_pipeline.queue_asset_image_recovery(script.id, task_id)
+    assert queued["reused"] is False
+    assert production_pipeline.queue_asset_image_recovery(script.id, task_id)["reused"] is True
+    production_pipeline.process_asset_image_recovery(task_id)
+
+    assert len(generation_calls) == 1
+    assert scene.production_image_task["phase"] == "completed"
+    assert scene.image_asset.selected_id == "manual-image"
+    assert [item.id for item in scene.image_asset.variants] == ["paid-variant-1", "manual-image"]
+    assert scene.image_url == "assets/scenes/manual.png"
+    assert scene.production_image_task["adoption"] == "candidate"
+    assert script.production_segments[0]["revision"] == segment_revision
 
 
 def test_production_image_task_does_not_call_provider_after_settings_change(production_pipeline, monkeypatch):
@@ -270,6 +341,25 @@ def test_engineering_job_cannot_overwrite_after_source_revision_changes(producti
     assert completed is False
     assert script.production_engineering_task["status"] == "stale"
     assert script.production_engineering_draft["text"] == "用户已有草稿"
+
+
+def test_generated_engineering_is_automatically_adopted_by_timecode(production_pipeline):
+    script = _segment_script()
+    script.art_direction = ArtDirection(selected_style_id="cinematic", style_config={"name": "电影感"})
+    script.production_style_revision = style_revision(script.art_direction)
+    script.production_settings["revision"] = production_settings_revision(script.production_settings, script.production_style_revision)
+    script.engineering_script = {}
+    script.production_segments = []
+    production_pipeline.scripts[script.id] = script
+    task = production_pipeline.queue_production_engineering(script.id)
+    assert production_pipeline.mark_production_engineering_running(script.id, task["task_id"])
+
+    text = "镜头二十五【00:00-00:03】\n角色在光芒中抬头。"
+    assert production_pipeline.complete_production_engineering(script.id, task["task_id"], text, "test-model")
+
+    assert script.production_engineering_task["status"] == "completed"
+    assert script.engineering_script["shots"][0]["number"] == 25
+    assert script.engineering_script["shots"][0]["camera_movement"] == "固定"
 
 
 def test_production_merge_requires_one_explicit_completed_task_per_segment(production_pipeline):

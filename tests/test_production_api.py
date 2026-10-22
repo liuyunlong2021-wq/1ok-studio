@@ -1,4 +1,5 @@
 import hashlib
+import json
 import time
 
 from fastapi.testclient import TestClient
@@ -69,14 +70,16 @@ def test_engineering_generation_is_queued_and_returns_202(monkeypatch):
     client = _client(monkeypatch, script)
     skill = {"id": "builtin-engineering", "name": "工程台本", "content": "保留剧情、原台词并按镜头输出"}
     monkeypatch.setattr(api_mod, "_read_script_skills", lambda kind: [skill] if kind == "script" else [])
-    monkeypatch.setattr(api_mod.LLMAdapter, "chat", lambda *args, **kwargs: "工程台本草稿")
+    screenplay = "镜头一【00:00-00:03】\n角色走进房间。"
+    monkeypatch.setattr(api_mod.LLMAdapter, "chat", lambda *args, **kwargs: screenplay)
 
     response = client.post(f"/projects/{script.id}/production/engineering/generate")
 
     assert response.status_code == 202
     assert response.json()["task_id"] == script.production_engineering_task["task_id"]
     assert script.production_engineering_task["status"] == "completed"
-    assert script.production_engineering_draft["text"] == "工程台本草稿"
+    assert script.production_engineering_draft["text"] == screenplay
+    assert script.engineering_script["shots"][0]["number"] == 1
 
 
 def test_asset_extraction_preview_is_queued_and_returns_202(monkeypatch):
@@ -126,3 +129,35 @@ def test_segment_prompt_generation_is_queued_and_returns_202(monkeypatch):
     assert response.json()["task_id"].startswith("production_prompt_")
     assert script.production_segments[0]["prompt_generation_status"] == "completed"
     assert script.production_segments[0]["prompt_draft"] == "段视频提示词"
+
+
+def test_asset_task_response_redacts_signed_artifact_location(monkeypatch):
+    monkeypatch.setattr(api_mod.pipeline, "_asset_image_artifact_resumable", lambda _artifact: True)
+    signed_url = "https://cdn.example/image.png?signature=signed-secret"
+    response = api_mod.signed_response({"asset": {"production_image_task": {
+        "task_id": "image-task", "phase": "download_pending",
+        "artifacts": [{"variant_id": "v1", "status": "pending_download", "content_type": "image/png",
+                       "url": signed_url, "path": "/private/assets/image.png"}],
+    }}})
+
+    body = response.body.decode()
+    task = json.loads(body)["asset"]["production_image_task"]
+    assert task["can_resume"] is True
+    assert task["artifacts"] == [{"variant_id": "v1", "status": "pending_download", "content_type": "image/png"}]
+    assert "signed-secret" not in body
+    assert "/private/assets/image.png" not in body
+
+
+def test_resume_asset_image_endpoint_only_queues_existing_task(monkeypatch):
+    script = _production_script()
+    client = _client(monkeypatch, script)
+    queued = {"task_id": "image-task", "status": "processing", "phase": "downloading", "reused": False, "can_resume": False}
+    calls = []
+    monkeypatch.setattr(api_mod.pipeline, "queue_asset_image_recovery", lambda script_id, task_id: queued)
+    monkeypatch.setattr(api_mod.pipeline, "process_asset_image_recovery", lambda task_id: calls.append(task_id))
+
+    response = client.post(f"/projects/{script.id}/asset_tasks/image-task/resume")
+
+    assert response.status_code == 200
+    assert response.json() == {key: queued[key] for key in ("task_id", "status", "phase", "reused", "can_resume")}
+    assert calls == ["image-task"]

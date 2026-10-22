@@ -41,13 +41,14 @@ from .storyboard_contract import storyboard_duration
 from .production_workflow import (
     PRODUCTION_WORKFLOW_ID,
     plan_production_segments,
-    segment_duration_choices,
     production_segment_revision,
     render_production_segment,
     source_revision,
     style_revision,
     production_settings_revision,
+    validate_production_video_model,
     validate_segment_maximum,
+    validate_production_episode_duration,
     VOICE_DESIGN_KEYS,
 )
 from ...utils import get_logger
@@ -238,6 +239,8 @@ class ComicGenPipeline:
         # Task management for async asset generation
         # Format: { task_id: { status: str, progress: int, error: str, script_id: str, asset_id: str, created_at: float } }
         self.asset_generation_tasks: Dict[str, Dict[str, Any]] = {}
+        self._asset_image_recovery_tasks: set[str] = set()
+        self._asset_image_recovery_lock = threading.Lock()
         self.video_generation_tasks: Dict[str, Dict[str, Any]] = {}
         self.prompt_generation_tasks: Dict[str, Dict[str, Any]] = {}
         self._prompt_generation_slots = threading.BoundedSemaphore(2)
@@ -321,12 +324,23 @@ class ComicGenPipeline:
                     except Exception:
                         pass
             for collection in (script.characters, script.scenes, script.props):
-                for asset in collection:
-                    image_task = getattr(asset, "production_image_task", {})
-                    if image_task.get("status") in STUCK:
-                        image_task.update(status="failed", error=self._ORPHAN_RECOVERY_REASON, finished_at=time.time())
-                        asset.status = GenerationStatus.FAILED
-                        recovered += 1
+                for asset in [item for root in collection for item in [root, *getattr(root, "looks", [])]]:
+                    image_tasks = [getattr(asset, "production_image_task", {})]
+                    image_tasks.extend(getattr(asset, "production_image_task_history", []))
+                    for image_task in image_tasks:
+                        if image_task.get("status") in STUCK:
+                            recoverable = any(self._asset_image_artifact_resumable(item) for item in image_task.get("artifacts", []))
+                            phase = "download_pending" if recoverable else ("unconfirmed" if image_task.get("phase") == "generating" else "failed")
+                            message = (
+                                "图片已生成并保存了取回地址；后端重启中断下载，可继续取回原图。"
+                                if recoverable else
+                                "请求中断，是否已生成无法确认。系统没有重复提交；请先核对后台任务，再决定是否重新生成。"
+                                if phase == "unconfirmed" else self._ORPHAN_RECOVERY_REASON
+                            )
+                            image_task.update(status="failed", phase=phase, error=message, finished_at=time.time())
+                            if not recoverable:
+                                asset.status = GenerationStatus.FAILED
+                            recovered += 1
                     if getattr(asset, "prompt_generation_status", None) in STUCK:
                         asset.prompt_generation_status = "failed"
                         asset.prompt_generation_error = self._ORPHAN_RECOVERY_REASON
@@ -366,13 +380,24 @@ class ComicGenPipeline:
 
         for series in self.series_store.values():
             for collection in (series.characters, series.scenes, series.props):
-                for asset in collection:
-                    image_task = getattr(asset, "production_image_task", {})
-                    if image_task.get("status") in STUCK:
-                        image_task.update(status="failed", error=self._ORPHAN_RECOVERY_REASON, finished_at=time.time())
-                        asset.status = GenerationStatus.FAILED
-                        recovered += 1
-                        recovered_series += 1
+                for asset in [item for root in collection for item in [root, *getattr(root, "looks", [])]]:
+                    image_tasks = [getattr(asset, "production_image_task", {})]
+                    image_tasks.extend(getattr(asset, "production_image_task_history", []))
+                    for image_task in image_tasks:
+                        if image_task.get("status") in STUCK:
+                            recoverable = any(self._asset_image_artifact_resumable(item) for item in image_task.get("artifacts", []))
+                            phase = "download_pending" if recoverable else ("unconfirmed" if image_task.get("phase") == "generating" else "failed")
+                            message = (
+                                "图片已生成并保存了取回地址；后端重启中断下载，可继续取回原图。"
+                                if recoverable else
+                                "请求中断，是否已生成无法确认。系统没有重复提交；请先核对后台任务，再决定是否重新生成。"
+                                if phase == "unconfirmed" else self._ORPHAN_RECOVERY_REASON
+                            )
+                            image_task.update(status="failed", phase=phase, error=message, finished_at=time.time())
+                            if not recoverable:
+                                asset.status = GenerationStatus.FAILED
+                            recovered += 1
+                            recovered_series += 1
                     if isinstance(asset, Character) and asset.voice_design_task.get("status") in STUCK:
                         asset.voice_design_task.update(status="failed", error=self._ORPHAN_RECOVERY_REASON, finished_at=time.time())
                         recovered += 1
@@ -912,7 +937,7 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def generate_asset(self, script_id: str, asset_id: str, asset_type: str, style_preset: str = None, reference_image_url: str = None, style_prompt: str = None, generation_type: str = "all", prompt: str = None, apply_style: bool = True, negative_prompt: str = None, batch_size: int = 1, model_name: str = None, aspect_ratio: str = None) -> Script:
+    def generate_asset(self, script_id: str, asset_id: str, asset_type: str, style_preset: str = None, reference_image_url: str = None, style_prompt: str = None, generation_type: str = "all", prompt: str = None, apply_style: bool = True, negative_prompt: str = None, batch_size: int = 1, model_name: str = None, aspect_ratio: str = None, on_artifact=None) -> Script:
         """Step 2: Generate a specific asset (character/scene/prop).
         If style_preset is None, uses the project's global style."""
         script = self.scripts.get(script_id)
@@ -1032,12 +1057,13 @@ class ComicGenPipeline:
                     batch_size=batch_size,
                     model_name=t2i_model,
                     i2i_model_name=i2i_model,
-                    size=effective_size
+                    size=effective_size,
+                    **({"on_artifact": on_artifact} if on_artifact else {})
                 )
             elif asset_type == "scene":
-                self.asset_generator.generate_scene(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "")
+                self.asset_generator.generate_scene(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "", **({"on_artifact": on_artifact} if on_artifact else {}))
             elif asset_type == "prop":
-                self.asset_generator.generate_prop(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "")
+                self.asset_generator.generate_prop(target_asset, effective_positive_prompt, effective_negative_prompt, batch_size=batch_size, model_name=t2i_model, size=effective_size, prompt=prompt or "", **({"on_artifact": on_artifact} if on_artifact else {}))
                 
             target_asset.status = GenerationStatus.COMPLETED
         except Exception as e:
@@ -1053,13 +1079,272 @@ class ComicGenPipeline:
 
         return script
 
+    @staticmethod
+    def _archive_production_image_task(asset: Any) -> None:
+        previous = getattr(asset, "production_image_task", {})
+        if previous.get("task_id"):
+            history = getattr(asset, "production_image_task_history", None)
+            if history is not None and not any(item.get("task_id") == previous["task_id"] for item in history):
+                history.append(copy.deepcopy(previous))
+
+    def _find_production_image_task(self, task_id: str):
+        for script in self.scripts.values():
+            for asset_type in ("character", "scene", "prop"):
+                for owner in getattr(script, {"character": "characters", "scene": "scenes", "prop": "props"}[asset_type]):
+                    targets = [owner, *getattr(owner, "looks", [])]
+                    for target in targets:
+                        jobs = [getattr(target, "production_image_task", {})]
+                        jobs.extend(getattr(target, "production_image_task_history", []))
+                        for job in jobs:
+                            if job.get("task_id") == task_id:
+                                look = target if target is not owner else None
+                                return script, owner, look, "script", job
+        for series in self.series_store.values():
+            for asset_type in ("character", "scene", "prop"):
+                for owner in getattr(series, {"character": "characters", "scene": "scenes", "prop": "props"}[asset_type]):
+                    for target in [owner, *getattr(owner, "looks", [])]:
+                        jobs = [getattr(target, "production_image_task", {})]
+                        jobs.extend(getattr(target, "production_image_task_history", []))
+                        for job in jobs:
+                            if job.get("task_id") == task_id:
+                                look = target if target is not owner else None
+                                return self.scripts.get(job.get("script_id")), owner, look, "series", job
+        return None
+
+    def _asset_image_task_view(self, job: Dict[str, Any]) -> Dict[str, Any]:
+        phase = job.get("phase") or job.get("status") or "failed"
+        artifacts = job.get("artifacts") or []
+        return {
+            **{key: copy.deepcopy(job[key]) for key in (
+                "task_id", "status", "phase", "error", "script_id", "asset_id", "asset_type",
+                "look_id", "created_at", "finished_at", "provider_task_id", "provider_request_id",
+                "client_request_id", "adoption",
+            ) if key in job},
+            "phase": phase,
+            "artifacts": [{key: item[key] for key in ("variant_id", "status", "content_type") if key in item} for item in artifacts],
+            "can_resume": phase == "download_pending" and any(self._asset_image_artifact_resumable(item) for item in artifacts),
+        }
+
+    def _asset_image_artifact_path(self, artifact: Dict[str, Any]) -> Optional[str]:
+        output_root = os.path.realpath(self.asset_generator.output_dir)
+        path = os.path.realpath(os.path.join(output_root, str(artifact.get("path") or "")))
+        try:
+            if os.path.commonpath((output_root, path)) == output_root:
+                return path
+        except ValueError:
+            pass
+        return None
+
+    def _asset_image_artifact_resumable(self, artifact: Dict[str, Any]) -> bool:
+        return bool(artifact.get("url") or (
+            self._asset_image_artifact_path(artifact)
+            and self._is_valid_local_image(self._asset_image_artifact_path(artifact))
+        ))
+
+    @staticmethod
+    def _asset_image_error(exc: Exception) -> str:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status:
+            return f"图片产物取回失败（HTTP {status}）"
+        detail = str(exc)
+        return (detail if "://" not in detail and "?" not in detail else f"图片产物取回失败（{type(exc).__name__}）")[:1000]
+
+    def _record_asset_image_artifact(self, task_id: str, artifact: Dict[str, Any]) -> None:
+        found = self._find_production_image_task(task_id)
+        if not found:
+            raise ValueError("图片任务已不存在，未开始下载以免结果绑定到错误资产")
+        script, owner, look, source, job = found
+        if not script or (artifact.get("url") is not None and not isinstance(artifact.get("url"), str)):
+            raise ValueError("图片产物或所属项目无效")
+        output_root = os.path.realpath(self.asset_generator.output_dir)
+        output_path = os.path.realpath(str(artifact.get("output_path") or ""))
+        try:
+            in_asset_directory = os.path.commonpath((output_root, output_path)) == output_root
+        except ValueError:
+            in_asset_directory = False
+        if not in_asset_directory:
+            raise ValueError("图片产物目标路径超出资产目录")
+        variant_id = str(artifact.get("variant_id") or "")
+        if not variant_id:
+            raise ValueError("图片产物缺少资产版本编号")
+        artifacts = job.setdefault("artifacts", [])
+        entry = next((item for item in artifacts if item.get("variant_id") == variant_id), None)
+        if entry is None:
+            entry = {"variant_id": variant_id, "status": "pending_download", "created_at": time.time()}
+            artifacts.append(entry)
+        entry.update({
+            "path": os.path.relpath(output_path, output_root),
+            "content_type": artifact.get("content_type") or "",
+            "provider_request_id": artifact.get("provider_request_id") or "",
+        })
+        if artifact.get("url"):
+            entry["url"] = artifact["url"]
+            entry["status"] = "pending_download"
+        else:
+            entry.pop("url", None)
+            entry["status"] = "pending_local_validation"
+        job.update(phase="downloading", status="processing", provider_request_id=entry["provider_request_id"] or job.get("provider_request_id"))
+        task = self.asset_generation_tasks.get(task_id)
+        if task is not None:
+            task.update(phase="downloading", status="processing")
+        self._save_prompt_asset_mutation(script, source)
+
+    def queue_asset_image_recovery(self, script_id: str, task_id: str) -> Dict[str, Any]:
+        with self._asset_image_recovery_lock:
+            found = self._find_production_image_task(task_id)
+            if not found:
+                raise KeyError("图片任务不存在")
+            script, _owner, _look, source, job = found
+            if not script or script.id != script_id:
+                raise KeyError("图片任务不属于当前项目")
+            if task_id in self._asset_image_recovery_tasks:
+                return {**self._asset_image_task_view(job), "reused": True}
+            if job.get("phase") != "download_pending" or not any(self._asset_image_artifact_resumable(item) for item in job.get("artifacts", [])):
+                raise ValueError("该任务没有可继续取回的图片产物")
+            self._asset_image_recovery_tasks.add(task_id)
+            job.update(phase="downloading", status="processing", error="")
+            self._save_prompt_asset_mutation(script, source)
+            return {**self._asset_image_task_view(job), "reused": False}
+
+    def process_asset_image_recovery(self, task_id: str) -> None:
+        try:
+            found = self._find_production_image_task(task_id)
+            if not found:
+                return
+            script, owner, look, source, job = found
+            from .models import ImageVariant
+            from src.models.jiucaihezi import _download
+            from .models import AssetUnit
+
+            target = look or owner
+            is_look = look is not None
+            if look or job.get("asset_type") == "character":
+                if target.reference_sheet is None:
+                    target.reference_sheet = AssetUnit()
+                unit = target.reference_sheet
+                variants = unit.image_variants
+                selected_name = "selected_image_id"
+            else:
+                if target.image_asset is None:
+                    raise ValueError("资产图片单元已不存在，未自动重建资产")
+                unit = target.image_asset
+                variants = unit.variants
+                selected_name = "selected_id"
+
+            current_job = getattr(target, "production_image_task", {})
+            fresh_script = self.scripts.get(job.get("script_id", "")) or script
+            prompt_now = (unit.image_prompt if hasattr(unit, "image_prompt") else "")
+            if not prompt_now:
+                prompt_now = (getattr(target, "image_prompt", "") or getattr(target, "full_body_prompt", "") or "").strip()
+            if is_look:
+                prompt_now = (target.reference_sheet.image_prompt or "").strip()
+            snapshot_current = (
+                current_job.get("task_id") == task_id
+                and not getattr(owner, "locked", False)
+                and not getattr(target, "locked", False)
+                and job.get("prompt", "").strip() == prompt_now
+                and job.get("description_version") == target.description_version
+            )
+            if is_look:
+                snapshot_current = snapshot_current and job.get("identity_version") == owner.description_version
+            if fresh_script and fresh_script.production_workflow == PRODUCTION_WORKFLOW_ID:
+                snapshot_current = snapshot_current and (
+                    job.get("settings_revision") == fresh_script.production_settings.get("revision")
+                    and job.get("style_revision") == fresh_script.production_style_revision == style_revision(fresh_script.art_direction)
+                )
+
+            adopted = False
+            download_errors = []
+            for artifact in job.get("artifacts", []):
+                path = self._asset_image_artifact_path(artifact)
+                if not path:
+                    download_errors.append(f"{artifact.get('variant_id', '?')}: 图片产物路径无效")
+                    continue
+                try:
+                    if not self._is_valid_local_image(path):
+                        if not artifact.get("url"):
+                            raise ValueError("本地图片不存在或损坏，且没有可用下载地址")
+                        _download(artifact["url"], path, validate_image=True)
+                    artifact["status"] = "downloaded"
+                    rel_path = to_media_ref(os.path.relpath(path, "output"))
+                    if not any(item.id == artifact["variant_id"] for item in variants):
+                        variants.insert(0, ImageVariant(
+                            id=artifact["variant_id"], url=rel_path,
+                            created_at=artifact.get("created_at", time.time()), prompt_used=job.get("prompt", ""),
+                        ))
+                    selected_id = getattr(unit, selected_name)
+                    if not selected_id and snapshot_current and not adopted:
+                        setattr(unit, selected_name, artifact["variant_id"])
+                        selected_id = artifact["variant_id"]
+                        adopted = True
+                    self._save_prompt_asset_mutation(script, source)
+                except Exception as exc:
+                    artifact["status"] = "download_pending"
+                    download_errors.append(f"{artifact.get('variant_id', '?')}: {self._asset_image_error(exc)}")
+                    self._save_prompt_asset_mutation(script, source)
+
+            if download_errors:
+                raise RuntimeError("；".join(download_errors))
+
+            selected_id = getattr(unit, selected_name)
+            image_url = next((item.url for item in variants if item.id == selected_id), None)
+            if hasattr(target, "image_url"):
+                target.image_url = image_url
+            job.update(
+                phase="completed", status="completed" if snapshot_current else "stale",
+                adoption="adopted" if adopted else ("candidate" if snapshot_current else "stale_candidate"),
+                error="" if snapshot_current else "图片已取回为候选，资产版本已变化，未自动采用",
+                finished_at=time.time(),
+            )
+            if adopted:
+                owner.status = GenerationStatus.COMPLETED
+                self._persist_production_asset_update(script, source, owner.id, owner, look.id if look else None)
+            else:
+                self._save_prompt_asset_mutation(script, source)
+        except Exception as exc:
+            found = self._find_production_image_task(task_id)
+            if found:
+                script, _owner, _look, source, job = found
+                job.update(phase="download_pending", status="failed", error=self._asset_image_error(exc), finished_at=time.time())
+                self._save_prompt_asset_mutation(script, source)
+            logger.exception("Asset image recovery failed for %s", task_id)
+        finally:
+            with self._asset_image_recovery_lock:
+                self._asset_image_recovery_tasks.discard(task_id)
+
+    @staticmethod
+    def _is_valid_local_image(path: str) -> bool:
+        if not os.path.isfile(path) or os.path.getsize(path) == 0:
+            return False
+        try:
+            from PIL import Image
+            with Image.open(path) as image:
+                image.verify()
+            return True
+        except Exception:
+            return False
+
     def create_asset_generation_task(self, script_id: str, asset_id: str, asset_type: str,
                                       style_preset: str = None, reference_image_url: str = None,
                                       style_prompt: str = None, generation_type: str = "all",
                                       prompt: str = None, apply_style: bool = True,
                                       negative_prompt: str = None, batch_size: int = 1,
-                                      model_name: str = None, aspect_ratio: str = None) -> Tuple[Script, str]:
+                                      model_name: str = None, aspect_ratio: str = None, look_id: str = None) -> Tuple[Script, str]:
         """Creates an async asset generation task and returns (script, task_id) immediately."""
+        project = self.get_script(script_id)
+        if project and project.production_workflow == PRODUCTION_WORKFLOW_ID and asset_type == "character":
+            owner, _ = self._find_asset_with_source(project, asset_id, asset_type)
+            if owner and owner.looks:
+                from .production_assets import get_look
+                look_id = get_look(owner, look_id).id
+        if look_id:
+            from .production_assets import create_look_image_task
+            if asset_type != "character":
+                raise ValueError("只有角色可以指定造型")
+            return create_look_image_task(self, script_id, asset_id, look_id, {
+                "model_name": model_name, "aspect_ratio": aspect_ratio, "prompt": prompt,
+                "batch_size": batch_size, "negative_prompt": negative_prompt,
+            })
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
@@ -1118,14 +1403,20 @@ class ComicGenPipeline:
         
         # Create task
         task_id = str(uuid.uuid4())
+        client_request_id = str(uuid.uuid4())
         self.asset_generation_tasks[task_id] = {
             "status": "pending",  # pending -> processing -> completed/failed
+            "phase": "queued",
             "progress": 0,
             "error": None,
             "script_id": script_id,
             "asset_id": asset_id,
             "asset_type": asset_type,
             "created_at": time.time(),
+            "client_request_id": client_request_id,
+            "provider_task_id": None,
+            "provider_request_id": None,
+            "artifacts": [],
             # Store all params for later processing
             "params": {
                 "style_preset": style_preset,
@@ -1142,8 +1433,9 @@ class ComicGenPipeline:
         }
         
         if is_production:
+            self._archive_production_image_task(target_asset)
             target_asset.production_image_task = {
-                "task_id": task_id, "status": "queued", "error": "", "script_id": script_id,
+                "task_id": task_id, "status": "queued", "phase": "queued", "error": "", "script_id": script_id,
                 "asset_id": asset_id, "asset_type": asset_type, "prompt": prompt or "",
                 "model": model_name or "", "aspect_ratio": aspect_ratio or "",
                 "generation_type": generation_type, "negative_prompt": negative_prompt or "",
@@ -1151,6 +1443,8 @@ class ComicGenPipeline:
                 "style_revision": script.production_style_revision,
                 "previous_asset_status": previous_asset_status,
                 "settings_revision": script.production_settings["revision"], "created_at": time.time(),
+                "client_request_id": client_request_id, "provider_task_id": None,
+                "provider_request_id": None, "artifacts": [], "adoption": "pending",
             }
             self._save_prompt_asset_mutation(script, asset_source)
         else:
@@ -1165,9 +1459,14 @@ class ComicGenPipeline:
             return
 
         task["status"] = "processing"
+        task.setdefault("phase", "queued")
 
         try:
             params = task["params"]
+            if task.get("look_id"):
+                from .production_assets import process_look_image_task
+                process_look_image_task(self, task)
+                return
             if task.get("is_series"):
                 # Series asset generation — operate on series_store
                 self._process_series_asset_task(task, params)
@@ -1203,8 +1502,13 @@ class ComicGenPipeline:
                     else:
                         unit = getattr(asset, "image_asset", None)
                         original_selection = ("image", unit.selected_id if unit else None, asset.image_url)
-                    job.update(status="processing", started_at=time.time())
+                    job.update(status="processing", phase="generating", started_at=time.time())
+                    task.update(phase="generating", artifacts=job.setdefault("artifacts", []))
                     self._save_prompt_asset_mutation(script, source)
+
+                def on_artifact(artifact):
+                    self._record_asset_image_artifact(task_id, artifact)
+
                 self.generate_asset(
                     task["script_id"],
                     task["asset_id"],
@@ -1219,6 +1523,7 @@ class ComicGenPipeline:
                     params["batch_size"],
                     params["model_name"],
                     params.get("aspect_ratio"),
+                    on_artifact=on_artifact if script and script.production_workflow == PRODUCTION_WORKFLOW_ID and asset else None,
                 )
                 if script and script.production_workflow == PRODUCTION_WORKFLOW_ID and asset:
                     job = asset.production_image_task
@@ -1247,20 +1552,34 @@ class ComicGenPipeline:
                         task.update(status="stale", error=job["error"])
                         self._save_prompt_asset_mutation(script, source)
                         return
-                    asset.production_image_task.update(status="completed", error="", finished_at=time.time())
+                    job.update(status="completed", phase="completed", adoption="candidate", error="", finished_at=time.time())
+                    for artifact in job.get("artifacts", []):
+                        artifact["status"] = "downloaded"
                     self._persist_production_asset_update(script, source, task["asset_id"], asset)
             task["status"] = "completed"
+            task["phase"] = "completed"
             task["progress"] = 100
             logger.info(f"Task {task_id} completed successfully")
         except Exception as e:
             task["status"] = "failed"
-            task["error"] = str(e)
+            task["error"] = self._asset_image_error(e) if any(
+                item.get("url") or item.get("path") for item in task.get("artifacts", [])
+            ) else str(e)
+            task["phase"] = "unconfirmed" if task.get("phase") == "generating" else "failed"
             script = self.get_script(task.get("script_id", ""))
             asset, source = self._find_asset_with_source(script, task["asset_id"], task["asset_type"]) if script else (None, None)
             if script and script.production_workflow == PRODUCTION_WORKFLOW_ID and asset:
-                asset.production_image_task.update(status="failed", error=str(e)[:1000], finished_at=time.time())
+                job = asset.production_image_task
+                if task.get("look_id"):
+                    from .production_assets import get_look
+                    job = get_look(asset, task["look_id"]).production_image_task
+                if any(self._asset_image_artifact_resumable(item) for item in job.get("artifacts", [])):
+                    task["phase"] = job["phase"] = "download_pending"
+                else:
+                    job["phase"] = task["phase"]
+                job.update(status="failed", error=task["error"][:1000], finished_at=time.time())
                 self._save_prompt_asset_mutation(script, source)
-            logger.error(f"Task {task_id} failed: {e}")
+            logger.error("Asset image task %s failed: %s", task_id, task["error"])
 
     def _process_series_asset_task(self, task: Dict, params: Dict):
         """Process a Series asset generation task."""
@@ -1314,41 +1633,39 @@ class ComicGenPipeline:
 
     def get_asset_generation_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Returns the status of an asset generation task."""
-        # Check image tasks first
-        task = self.asset_generation_tasks.get(task_id)
-        if not task:
-            # Then check video tasks
-            task = self.video_generation_tasks.get(task_id)
-            
+        persisted = self._find_production_image_task(task_id)
+        if persisted:
+            script, owner, look, _source, job = persisted
+            view = self._asset_image_task_view(job)
+            view.update(
+                asset_id=owner.id,
+                asset_type=job.get("asset_type", "character" if look else ""),
+                look_id=look.id if look else None,
+                script_id=job.get("script_id", script.id if script else ""),
+            )
+            return view
+
+        task = self.asset_generation_tasks.get(task_id) or self.video_generation_tasks.get(task_id)
         if not task:
             for script in self.scripts.values():
                 for asset_type, collection in (("character", script.characters), ("scene", script.scenes), ("prop", script.props)):
                     for asset in collection:
-                        image_task = getattr(asset, "production_image_task", {})
-                        voice_task = getattr(asset, "voice_design_task", {}) if asset_type == "character" else {}
-                        for job in (image_task, voice_task):
-                            if job.get("task_id") == task_id:
-                                return {**copy.deepcopy(job), "asset_id": asset.id, "asset_type": asset_type, "script_id": job.get("script_id", script.id)}
-            for series in self.series_store.values():
-                for asset_type, collection in (("character", series.characters), ("scene", series.scenes), ("prop", series.props)):
-                    for asset in collection:
-                        jobs = [getattr(asset, "production_image_task", {})]
-                        if asset_type == "character":
-                            jobs.append(asset.voice_design_task)
-                        for job in jobs:
-                            if job.get("task_id") == task_id:
-                                return {**copy.deepcopy(job), "asset_id": asset.id, "asset_type": asset_type, "script_id": job.get("script_id", series.id)}
+                        if asset_type == "character" and asset.voice_design_task.get("task_id") == task_id:
+                            return {**copy.deepcopy(asset.voice_design_task), "asset_id": asset.id, "asset_type": asset_type, "script_id": script.id}
             return None
-        
+
         return {
             "task_id": task_id,
             "status": task["status"],
+            "phase": task.get("phase"),
             "progress": task.get("progress", 0),
             "error": task.get("error"),
             "asset_id": task.get("asset_id"),
             "asset_type": task.get("asset_type"),
+            "look_id": task.get("look_id"),
             "script_id": task.get("script_id"),
-            "created_at": task.get("created_at")
+            "created_at": task.get("created_at"),
+            "can_resume": task.get("phase") in ("downloading", "download_pending"),
         }
 
     def get_effective_asset_aspect_ratio(self, script: Script, asset_type: str) -> str:
@@ -1381,13 +1698,16 @@ class ComicGenPipeline:
     def create_prompt_generation_task(
         self, script_id: str, asset_id: str, asset_type: str,
         name: str, description: str, custom_prompt: str, model: str, style_prompt: str = "",
-        aspect_ratio: str = "", production_settings_revision_snapshot: Optional[str] = None,
+        aspect_ratio: str = "", production_settings_revision_snapshot: Optional[str] = None, look_id: str = None,
     ) -> str:
         """Persist a lightweight prompt job on its asset and return immediately."""
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Project not found")
-        asset, source = self._find_asset_with_source(script, asset_id, asset_type)
+        from .production_assets import resolve_target, require_editable
+        owner, asset, source = resolve_target(self, script, asset_id, asset_type, look_id)
+        if look_id:
+            require_editable(owner, asset, source)
         if not asset:
             raise ValueError("Asset not found")
         if production_settings_revision_snapshot is not None and (
@@ -1406,6 +1726,8 @@ class ComicGenPipeline:
             "custom_prompt": custom_prompt, "model": model, "style_prompt": style_prompt,
             "aspect_ratio": aspect_ratio,
             "production_settings_revision_snapshot": production_settings_revision_snapshot,
+            "look_id": look_id, "identity_version": getattr(owner, "description_version", 1),
+            "screenplay_revision": getattr(script, "engineering_script", {}).get("revision") if look_id else None,
             "status": "queued", "error": None, "created_at": time.time(),
         }
         self.prompt_generation_tasks[task_id] = task
@@ -1424,13 +1746,15 @@ class ComicGenPipeline:
             script = self.scripts.get(task["script_id"])
             if not script:
                 return
-            asset, source = self._find_asset_with_source(script, task["asset_id"], task["asset_type"])
+            from .production_assets import resolve_target
+            owner, asset, source = resolve_target(self, script, task["asset_id"], task["asset_type"], task.get("look_id"))
             if not asset or getattr(asset, "prompt_generation_task_id", None) != task_id:
                 return
             production_revision = task.get("production_settings_revision_snapshot")
             if production_revision is not None and (
                 script.production_workflow != PRODUCTION_WORKFLOW_ID
                 or script.production_settings.get("revision") != production_revision
+                or (task.get("screenplay_revision") and script.engineering_script.get("revision") != task["screenplay_revision"])
             ):
                 task.update(status="stale", error="风格或制作设置已变化，请重新生成资产提示词")
                 asset.prompt_generation_status = "stale"
@@ -1446,13 +1770,19 @@ class ComicGenPipeline:
                     task["custom_prompt"], task["model"], task["style_prompt"],
                     task.get("aspect_ratio", ""),
                 )
+                if task.get("look_id"):
+                    script = self.get_script(task["script_id"])
+                    owner, asset, source = resolve_target(self, script, task["asset_id"], task["asset_type"], task["look_id"])
+                    if asset.prompt_generation_task_id != task_id:
+                        task.update(status="stale", error="造型提示词任务已变化")
+                        return
                 # Do not overwrite a prompt generated for an older description.
-                settings_changed = production_revision is not None and script.production_settings.get("revision") != production_revision
+                settings_changed = production_revision is not None and (script.production_settings.get("revision") != production_revision or (task.get("screenplay_revision") and script.engineering_script.get("revision") != task["screenplay_revision"]))
                 if settings_changed:
                     asset.prompt_generation_status = "stale"
                     asset.prompt_generation_error = "风格或制作设置已变化，请重新生成资产提示词"
                     task.update(status="stale", error=asset.prompt_generation_error)
-                elif int(getattr(asset, "description_version", 1) or 1) != task["description_version"]:
+                elif int(getattr(asset, "description_version", 1) or 1) != task["description_version"] or (task.get("look_id") and owner.description_version != task["identity_version"]):
                     asset.prompt_generation_status = "stale"
                     asset.prompt_generation_error = "描述已变更，请重新生成提示词"
                     task["status"] = "stale"
@@ -1818,8 +2148,21 @@ class ComicGenPipeline:
         self._save_after_asset_mutation(source)
         return script
 
-    def update_asset_description(self, script_id: str, asset_id: str, asset_type: str, description: str) -> Script:
+    def update_asset_description(self, script_id: str, asset_id: str, asset_type: str, description: str, look_id: str = None) -> Script:
         """Updates the description of an asset."""
+        script = self.get_script(script_id)
+        if script and script.production_workflow == PRODUCTION_WORKFLOW_ID:
+            from .production_assets import resolve_target, require_editable
+            owner, target, source = resolve_target(self, script, asset_id, asset_type, look_id)
+            require_editable(owner, target, source)
+            if target.description != description:
+                target.description = description
+                target.description_source = "manual"
+                target.description_version += 1
+                for item in ([target] if look_id else [target, *getattr(target, "looks", [])]):
+                    item.prompt_generation_status = "stale"
+                self._persist_production_asset_update(script, source, asset_id, owner, look_id)
+            return script
         target, _ = self._find_asset_with_source(self.scripts.get(script_id), asset_id, asset_type)
         version = int(getattr(target, "description_version", 1) or 1) + 1 if target else 1
         return self.update_asset_attributes(script_id, asset_id, asset_type, {"description": description, "description_source": "manual", "description_updated_at": time.time(), "description_version": version})
@@ -1853,7 +2196,8 @@ class ComicGenPipeline:
         asset_id: str, 
         upload_type: str, 
         image_url: str, 
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        look_id: str = None,
     ) -> Script:
         """
         Adds an uploaded image as a new variant to an asset.
@@ -1872,6 +2216,10 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+
+        if asset_type == "character" and (look_id or script.production_workflow == PRODUCTION_WORKFLOW_ID):
+            from .production_assets import mutate_reference
+            return mutate_reference(self, script, asset_id, asset_type, look_id, "upload", value=image_url)
         
         target_asset, source = self._find_asset_with_source(script, asset_id, asset_type)
         if not target_asset:
@@ -2102,6 +2450,9 @@ class ComicGenPipeline:
             "model": model or "system-default", "source_revision": task["source_revision"],
             "style_revision": task["style_revision"], "updated_at": time.time(),
         }
+        self.adopt_production_engineering(script_id, value)
+        script = self.get_script(script_id)
+        task = script.production_engineering_task
         task.update(status="completed", error="", finished_at=time.time())
         script.updated_at = time.time()
         self.save_production_project(script_id)
@@ -2126,7 +2477,8 @@ class ComicGenPipeline:
         model_id = settings.get("video_model") or script.model_settings.r2v_model
         image_model = settings.get("image_model") or script.model_settings.image_model
         maximum = settings.get("max_segment_seconds")
-        validate_segment_maximum(model_id, maximum)
+        validate_production_video_model(model_id)
+        validate_segment_maximum(maximum)
         if not settings.get("motion_skill_id"):
             raise ValueError("请选择本项目使用的视频提示词 Skill")
 
@@ -2196,7 +2548,7 @@ class ComicGenPipeline:
         draft = script.production_engineering_draft
         if draft.get("source_revision") != source_revision(script.original_text) or draft.get("style_revision") != script.production_style_revision:
             raise ValueError("原始剧本或风格版本已变化，请重新生成工程剧本")
-        plan = parse_engineering_script(text)
+        plan = parse_engineering_script(text, validate_specs=False)
         if script.engineering_script:
             script.production_engineering_archives.append({
                 "archived_at": time.time(),
@@ -2246,13 +2598,13 @@ class ComicGenPipeline:
         settings_rev = script.production_settings.get("revision")
         screenplay_text = plan["text"]
         series = self.get_series(script.series_id) if script.series_id else None
-        custom = self.get_effective_prompt("entity_extraction", script, series)
         model = self.get_effective_polish_model(script)
-        parsed = self.script_processor.parse_novel(
-            script.title, screenplay_text, custom, model,
-            known_entities=self._known_entity_roster(script),
+        parsed = self.script_processor.extract_production_assets(
+            screenplay_text, model,
+            known_entities=[{"type": field, "id": item.id, "name": item.name, "aliases": item.aliases,
+                             "looks": [{"id": look.id, "name": look.name} for look in getattr(item, "looks", [])]}
+                            for field, collection in self.resolve_episode_assets(script, series).items() for item in collection],
         )
-        self._stamp_extracted_descriptions(parsed)
         current = self.get_script(script_id)
         if (
             not current or source_revision(current.original_text) != source_rev
@@ -2285,6 +2637,8 @@ class ComicGenPipeline:
             source_revision=source_rev, screenplay_revision=screenplay_rev,
             style_revision=confirmed_style_rev, settings_revision=settings_rev,
             extraction_task_id=task_id, created_at=time.time(),
+            shot_bindings=[row.model_dump() for row in parsed.shot_bindings],
+            extraction_contract="engineering-assets-looks-v1", model=model,
         )
         script.production_asset_preview = copy.deepcopy(result)
         script.updated_at = time.time()
@@ -2377,7 +2731,7 @@ class ComicGenPipeline:
             logger.exception("Production asset extraction task %s failed", task_id)
             self.fail_production_asset_extraction(script_id, task_id, str(error))
 
-    def apply_production_assets(self, script_id: str, source_rev: str, screenplay_rev: str) -> Script:
+    def apply_production_assets(self, script_id: str, source_rev: str, screenplay_rev: str, shot_bindings: Optional[List[Dict[str, Any]]] = None) -> Script:
         from .engineering_script import apply_engineering_sync, engineering_status, preview_engineering_sync
 
         with self._save_lock:
@@ -2403,6 +2757,28 @@ class ComicGenPipeline:
             ):
                 raise ValueError("原文、风格或工程剧本已变化，请重新提取资产")
             series = self.get_series(script.series_id) if script.series_id else None
+            if "shot_bindings" in preview_data:
+                from .production_assets import ProductionAssetExtraction, merge_extraction
+
+                if shot_bindings is not None:
+                    preview_data = {**preview_data, "shot_bindings": shot_bindings}
+                    ProductionAssetExtraction.model_validate(preview_data).validate_screenplay(script.engineering_script["text"])
+
+                staged, staged_series = merge_extraction(self, script.model_copy(deep=True), series.model_copy(deep=True) if series else None, preview_data)
+                self.scripts[script_id] = staged
+                if staged_series:
+                    self.series_store[staged_series.id] = staged_series
+                try:
+                    if staged_series:
+                        self.save_production_series(staged_series.id)
+                    self.save_production_project(script_id)
+                except Exception:
+                    self.scripts[script_id] = script
+                    if series:
+                        self.series_store[series.id] = series
+                        self.save_production_series(series.id)
+                    raise
+                return staged
             existing = self.resolve_episode_assets(script, series)
             add_to_series = {field: [] for field in self._ASSET_LAYER_KEYS}
             add_to_script = {field: [] for field in self._ASSET_LAYER_KEYS}
@@ -2455,11 +2831,13 @@ class ComicGenPipeline:
                 return match.url
         return getattr(asset, "image_url", None)
 
-    def save_production_asset_prompt(self, script_id: str, asset_id: str, asset_type: str, prompt: str, model: str = "") -> Dict[str, Any]:
+    def save_production_asset_prompt(self, script_id: str, asset_id: str, asset_type: str, prompt: str, model: str = "", look_id: str = None) -> Dict[str, Any]:
         script = self.get_script(script_id)
         if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
             raise ValueError("新制作流程项目不存在")
-        asset, source = self._find_asset_with_source(script, asset_id, asset_type)
+        from .production_assets import resolve_target, require_editable
+        owner, asset, source = resolve_target(self, script, asset_id, asset_type, look_id)
+        require_editable(owner, asset, source)
         if not asset:
             raise ValueError("资产不存在")
         if source == "global":
@@ -2478,10 +2856,10 @@ class ComicGenPipeline:
                 asset.reference_sheet.image_prompt_description_version = asset.description_version
         else:
             asset.image_prompt = value
-        self._persist_production_asset_update(script, source, asset_id, asset)
+        self._persist_production_asset_update(script, source, asset_id, owner, look_id)
         return {"id": asset.id, "asset_type": asset_type, "image_prompt": value, "source": source}
 
-    def _refresh_production_asset_segments(self, script: Script, asset_id: str, asset: Any, source: str) -> List[Script]:
+    def _refresh_production_asset_segments(self, script: Script, asset_id: str, asset: Any, source: str, look_id: str = None) -> List[Script]:
         if script.production_workflow != PRODUCTION_WORKFLOW_ID:
             return []
         targets = [script] if source != "series" else [
@@ -2492,13 +2870,16 @@ class ComicGenPipeline:
         for target in targets:
             changed = False
             for segment in target.production_segments:
-                reference = next((item for item in segment.get("asset_refs", []) if item.get("id") == asset_id), None)
-                if not reference:
+                references = [item for item in segment.get("asset_refs", []) if item.get("id") == asset_id and (look_id is None or item.get("look_id") == look_id)]
+                if not references:
                     continue
-                reference["description"] = (getattr(asset, "image_prompt", None) or getattr(asset, "full_body_prompt", None) or asset.description or asset.extracted_description or "")[:240]
-                reference["image_url"] = self._production_asset_image(asset, reference["kind"])
-                if reference["kind"] == "characters":
-                    reference["voice_design"] = copy.deepcopy(asset.voice_design or {})
+                for reference in references:
+                    if reference["kind"] == "characters":
+                        from .production_assets import character_reference
+                        reference.update(character_reference(asset, reference.get("look_id")))
+                    else:
+                        reference["description"] = (getattr(asset, "image_prompt", None) or asset.description or "")[:240]
+                        reference["image_url"] = self._production_asset_image(asset, reference["kind"])
                 segment["screenplay_text"] = render_production_segment(segment)
                 segment["revision"] = production_segment_revision(segment)
                 for key in ("adopted_at", "prompt_adopted_at", "adopted_prompt_revision", "prompt_draft_revision", "prompt_task_snapshot", "prompt_task_id"):
@@ -2516,8 +2897,8 @@ class ComicGenPipeline:
                 changed_targets.append(target)
         return changed_targets
 
-    def _persist_production_asset_update(self, script: Script, source: str, asset_id: str, asset: Any) -> None:
-        changed_projects = self._refresh_production_asset_segments(script, asset_id, asset, source)
+    def _persist_production_asset_update(self, script: Script, source: str, asset_id: str, asset: Any, look_id: str = None) -> None:
+        changed_projects = self._refresh_production_asset_segments(script, asset_id, asset, source, look_id)
         self._save_prompt_asset_mutation(script, source)
         if source == "series":
             for project in changed_projects:
@@ -2631,43 +3012,34 @@ class ComicGenPipeline:
         if script.production_settings.get("assets_screenplay_revision") != script.engineering_script["revision"] or script.storyboard_source_revision != script.engineering_script["revision"]:
             raise ValueError("请先从当前工程剧本提取并采用资产，完成镜头绑定")
         maximum = script.production_settings.get("max_segment_seconds")
-        validate_segment_maximum(script.production_settings.get("video_model"), maximum)
+        validate_segment_maximum(maximum)
         planned = plan_production_segments(script.engineering_script["shots"], maximum, 1)
+        validate_production_episode_duration(script.series_id, planned)
         frames_by_number = {frame.source_shot_number: frame for frame in script.frames if frame.source_shot_number is not None}
         all_assets = self.resolve_episode_assets(script)
         assets_by_id = {asset.id: asset for group in all_assets.values() for asset in group}
-        numbers: Dict[str, int] = {}
+        from .production_assets import frame_references, reference_key
+
+        references_by_shot = {frame.source_shot_number: frame_references(self, frame, assets_by_id) for frame in script.frames}
+        numbers = {}
         for frame in script.frames:
-            ordered = [*frame.character_ids, *([frame.scene_id] if frame.scene_id else []), *frame.prop_ids]
-            for asset_id in ordered:
-                if asset_id in assets_by_id and asset_id not in numbers:
-                    numbers[asset_id] = len(numbers) + 1
+            for reference in references_by_shot[frame.source_shot_number]:
+                key = reference_key(reference)
+                if key not in numbers:
+                    numbers[key] = len(numbers) + 1
         style = script.art_direction.style_config
         previous_exit = "首段：按工程剧本首镜开场，明确初始站位、朝向、距离、视线与持物。"
         for segment in planned:
             frame_group = [frames_by_number[number] for number in segment["source_shot_numbers"] if number in frames_by_number]
             if len(frame_group) != len(segment["source_shot_numbers"]):
                 raise ValueError("工程镜头尚未全部同步，请回资产页重新采用")
-            ordered_ids = []
+            references = {}
             for frame in frame_group:
-                ordered_ids.extend(frame.character_ids)
-                if frame.scene_id:
-                    ordered_ids.append(frame.scene_id)
-                ordered_ids.extend(frame.prop_ids)
-            unique_ids = list(dict.fromkeys(asset_id for asset_id in ordered_ids if asset_id in assets_by_id))
-            asset_refs = []
-            for asset_id in unique_ids:
-                asset = assets_by_id[asset_id]
-                kind = next(key for key in self._ASSET_LAYER_KEYS if any(item.id == asset_id for item in all_assets[key]))
-                asset_refs.append({
-                    "kind": kind,
-                    "id": asset_id,
-                    "number": numbers[asset_id],
-                    "name": asset.name,
-                    "description": (getattr(asset, "image_prompt", None) or getattr(asset, "full_body_prompt", None) or asset.description or asset.extracted_description or "")[:240],
-                    "voice_design": copy.deepcopy(getattr(asset, "voice_design", {}) or {}) if kind == "characters" else {},
-                    "image_url": self._production_asset_image(asset, kind),
-                })
+                for reference in references_by_shot[frame.source_shot_number]:
+                    references[reference_key(reference)] = {**reference, "number": numbers[reference_key(reference)]}
+            asset_refs = list(references.values())
+            for shot in segment["shots"]:
+                shot["asset_reference_numbers"] = [numbers[reference_key(reference)] for reference in references_by_shot[shot["number"]]]
             segment.update(
                 source_frame_ids=[frame.id for frame in frame_group],
                 source_revision=script.engineering_script["revision"],
@@ -2675,6 +3047,7 @@ class ComicGenPipeline:
                 settings_revision=script.production_settings.get("revision"),
                 asset_refs=asset_refs,
                 tail_character_ids=list(dict.fromkeys(asset_id for asset_id in frame_group[-1].character_ids if asset_id in assets_by_id)),
+                tail_character_looks={reference["id"]: reference.get("look_id") for reference in references_by_shot[frame_group[-1].source_shot_number] if reference["kind"] == "characters"},
                 style={key: style.get(key, "") for key in ("name", "positive_prompt", "negative_prompt")},
                 entry_state=previous_exit,
                 exit_state="",
@@ -2742,6 +3115,7 @@ class ComicGenPipeline:
         actual = [number for segment in script.production_segments for number in segment.get("source_shot_numbers", [])]
         if actual != expected:
             raise ValueError("分段镜头必须按顺序完整覆盖工程剧本，不能遗漏、重复或换序")
+        validate_production_episode_duration(script.series_id, script.production_segments)
         maximum = script.production_settings.get("max_segment_seconds")
         for segment in script.production_segments:
             if segment.get("duration_total") > maximum:
@@ -3023,6 +3397,34 @@ class ComicGenPipeline:
         frame = next((f for f in script.frames if f.id == frame_id), None)
         if not frame:
             raise ValueError(f"Frame {frame_id} not found")
+
+        if kwargs.get("character_look_ids") is not None:
+            from .engineering_script import require_synced_engineering
+            from .production_assets import get_look, refresh_bound_segments
+            require_synced_engineering(script)
+            if kwargs.get("source_revision") != frame.source_revision:
+                raise ValueError("工程镜头已变化，请刷新后修改造型")
+            bindings = kwargs["character_look_ids"]
+            for character_id, look_id in bindings.items():
+                character, _ = self._find_asset_with_source(script, character_id, "character")
+                if character_id not in frame.character_ids or not character or not look_id:
+                    raise ValueError("造型必须绑定当前镜头可见的人物")
+                get_look(character, look_id)
+            previous = copy.deepcopy(frame.character_look_ids)
+            old_segments = copy.deepcopy(script.production_segments)
+            old_settings = copy.deepcopy(script.production_settings)
+            old_selected = copy.deepcopy(script.production_selected_video_tasks)
+            try:
+                frame.character_look_ids = dict(bindings)
+                refresh_bound_segments(self, script, frame_id)
+                self.save_production_project(script_id)
+            except Exception:
+                frame.character_look_ids = previous
+                script.production_segments = old_segments
+                script.production_settings = old_settings
+                script.production_selected_video_tasks = old_selected
+                raise
+            return script
         
         if frame.source_shot_number is not None:
             protected = {"action_description", "dialogue", "camera_angle", "duration", "shot_size"}
@@ -3462,8 +3864,11 @@ class ComicGenPipeline:
                 raise ValueError("提交模型或 Motion Skill 与已确认制作设置不一致")
             if duration != production_segment.get("duration_total") or duration > settings.get("max_segment_seconds", 0):
                 raise ValueError("提交时长必须等于当前分段总时长且不超过用户设置")
-            validate_segment_maximum(model, duration)
+            validate_segment_maximum(duration)
             expected_refs = list(dict.fromkeys(ref.get("image_url") for ref in production_segment.get("asset_refs", []) if ref.get("image_url")))
+            missing = [ref for ref in production_segment.get("asset_refs", []) if not ref.get("image_url")]
+            if missing:
+                raise ValueError("参考图缺失：" + "、".join(f"{ref.get('name', '')} {ref.get('look_name', '')}" for ref in missing))
             if list(dict.fromkeys(reference_image_urls or [])) != expected_refs:
                 raise ValueError("参考图与当前分段已采用资产不一致，请重新生成")
             if list(source_frame_ids or []) != list(production_segment.get("source_frame_ids") or []):
@@ -3662,6 +4067,7 @@ class ComicGenPipeline:
             segment_id=segment_id,
             segment_revision=segment_revision,
             input_snapshot_revision=input_snapshot_revision,
+            reference_assets_snapshot=copy.deepcopy(production_segment.get("asset_refs", [])) if production_segment else [],
             created_at=time.time()
         )
 
@@ -4612,6 +5018,7 @@ class ComicGenPipeline:
     def _merge_production_segments(self, script: Script) -> Script:
         if not script.production_settings.get("segments_adopted_at") or not script.production_segments:
             raise ValueError("请先采用分段工程剧本")
+        validate_production_episode_duration(script.series_id, script.production_segments)
         selected = script.production_selected_video_tasks or {}
         paths = []
         for segment in script.production_segments:
@@ -5216,11 +5623,15 @@ class ComicGenPipeline:
             return True
         return False
 
-    def select_asset_variant(self, script_id: str, asset_id: str, asset_type: str, variant_id: str, generation_type: str = None) -> Script:
+    def select_asset_variant(self, script_id: str, asset_id: str, asset_type: str, variant_id: str, generation_type: str = None, look_id: str = None) -> Script:
         """Selects a specific variant for an asset."""
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+
+        if asset_type == "character" and (look_id or (script.production_workflow == PRODUCTION_WORKFLOW_ID and generation_type == "reference_sheet")):
+            from .production_assets import mutate_reference
+            return mutate_reference(self, script, asset_id, asset_type, look_id, "select", variant_id)
             
         target_asset = None
         variant = None
@@ -5327,11 +5738,15 @@ class ComicGenPipeline:
                 self._save_series_data()
         return script
 
-    def delete_asset_variant(self, script_id: str, asset_id: str, asset_type: str, variant_id: str) -> Script:
+    def delete_asset_variant(self, script_id: str, asset_id: str, asset_type: str, variant_id: str, look_id: str = None) -> Script:
         """Deletes a specific variant from an asset."""
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+
+        if asset_type == "character" and (look_id or script.production_workflow == PRODUCTION_WORKFLOW_ID):
+            from .production_assets import mutate_reference
+            return mutate_reference(self, script, asset_id, asset_type, look_id, "delete", variant_id)
             
         target_asset = None
         if asset_type == "character":
@@ -5445,11 +5860,15 @@ class ComicGenPipeline:
                 return True
         return False
 
-    def toggle_variant_favorite(self, script_id: str, asset_id: str, asset_type: str, variant_id: str, is_favorited: bool, generation_type: str = None) -> Script:
+    def toggle_variant_favorite(self, script_id: str, asset_id: str, asset_type: str, variant_id: str, is_favorited: bool, generation_type: str = None, look_id: str = None) -> Script:
         """Toggles the favorite status of a variant."""
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
+
+        if asset_type == "character" and (look_id or script.production_workflow == PRODUCTION_WORKFLOW_ID):
+            from .production_assets import mutate_reference
+            return mutate_reference(self, script, asset_id, asset_type, look_id, "favorite", variant_id, is_favorited)
         
         found = False
         if asset_type == "character":
@@ -7346,6 +7765,13 @@ class ComicGenPipeline:
         overridden = bool(resolved)
         if not resolved and prompt_type == "storyboard_extraction":
             resolved = self.skill_packages.compile(DEFAULT_STORYBOARD_SKILL_ID)
+        elif not resolved and prompt_type in {"character_prompt", "scene_prompt", "prop_prompt"}:
+            builtin_asset_skills = {
+                "character_prompt": "builtin:jc-character-prompt",
+                "scene_prompt": "builtin:jc-scene-prompt",
+                "prop_prompt": "builtin:jc-prop-prompt",
+            }
+            resolved = self.skill_packages.compile(builtin_asset_skills[prompt_type])
         resolved = resolved or defaults.get(prompt_type, "")
         if overridden and prompt_type == "audio_plan":
             resolved += AUDIO_PLAN_OUTPUT_CONTRACT

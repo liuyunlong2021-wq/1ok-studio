@@ -2,13 +2,14 @@
 
 import hashlib
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 from ...utils.model_catalog import load_generated_model_catalog
 from .engineering_script import BEAT, _seconds
 
 PRODUCTION_WORKFLOW_ID = "engineering_segments_v1"
 TAIL_SECONDS = 1
+MAX_STANDALONE_EPISODE_SECONDS = 30
 VOICE_DESIGN_KEYS = ("年龄感", "音高", "明暗", "厚薄", "共鸣", "气息", "颗粒感", "口音", "稳定表达习惯")
 
 
@@ -29,67 +30,30 @@ def production_settings_revision(settings: dict, confirmed_style_revision: str) 
     payload["style_revision"] = confirmed_style_revision
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
-def _model_id(value: Optional[str]) -> str:
-    return (value or "").split("#", 1)[0].split("/", 1)[-1]
-
-
-def video_duration_contract(model_id: str) -> Tuple[int, int, int, Optional[set[int]]]:
-    """Return minimum, maximum, step, and optional exact duration choices."""
+def validate_production_video_model(model_id: str) -> None:
     models = load_generated_model_catalog().get("models", {})
-    key = _model_id(model_id)
+    key = (model_id or "").split("#", 1)[0].split("/", 1)[-1]
     model = models.get(key)
     if not model or "r2v" not in (model.get("capabilities") or []):
         raise ValueError("请选择目录中可用的参考生视频通道")
-    timing = model.get("duration") or {}
-    kind = timing.get("type")
-    if kind == "slider":
-        minimum, maximum = int(timing["min"]), int(timing["max"])
-        step = max(1, int(timing.get("step", 1)))
-        allowed = None
-    elif kind == "buttons":
-        allowed = {int(item) for item in timing.get("options") or []}
-        if not allowed:
-            raise ValueError("所选视频通道没有可用时长")
-        minimum, maximum, step = min(allowed), max(allowed), 1
-    elif kind == "fixed":
-        minimum = maximum = int(timing.get("value") or 0)
-        step, allowed = 1, {minimum}
-    else:
-        raise ValueError("所选视频通道未声明时长能力")
-    model_name = key.lower()
-    product_cap = 27 if "h3" in model_name else 29 if "seedance" in model_name else maximum
-    maximum = min(maximum, product_cap)
-    if allowed is not None:
-        allowed = {value for value in allowed if minimum <= value <= maximum}
-    return minimum, maximum, step, allowed
 
 
-def segment_duration_choices(model_id: str) -> list[int]:
-    minimum, maximum, step, allowed = video_duration_contract(model_id)
-    if minimum > maximum:
-        return []
-    if allowed is not None:
-        return sorted(value for value in allowed if value >= 2)
-    base_minimum = minimum
-    minimum = max(2, minimum)
-    first = base_minimum + max(0, (minimum - base_minimum + step - 1) // step) * step
-    return list(range(first, maximum + 1, step))
+def segment_duration_choices() -> list[int]:
+    return list(range(2, 31))
 
 
-def validate_segment_maximum(model_id: str, duration: int) -> None:
+def validate_segment_maximum(duration: int) -> None:
     if type(duration) is not int:
         raise ValueError("分段总时长必须为整数秒")
-    minimum, maximum, step, allowed = video_duration_contract(model_id)
-    if minimum > maximum or (allowed is not None and not allowed):
-        raise ValueError("所选通道时长不符合本流程上限，请更换支持可变时长的通道")
     if duration < 2:
         raise ValueError("分段总时长至少为2秒，其中最后1秒固定留给全景尾镜")
-    if duration < minimum or duration > maximum:
-        raise ValueError(f"所选通道允许的分段总时长为 {minimum}–{maximum} 秒（含末尾全景）")
-    if allowed is not None and duration not in allowed:
-        raise ValueError(f"所选通道不支持 {duration} 秒；可选时长：{', '.join(map(str, sorted(allowed)))}")
-    if allowed is None and (duration - minimum) % step:
-        raise ValueError(f"所选通道时长步长为 {step} 秒")
+    if duration > 30:
+        raise ValueError("本流程单段总时长上限为30秒（含末尾全景）")
+
+
+def validate_production_episode_duration(series_id: Optional[str], segments: list[dict]) -> None:
+    if not series_id and sum(segment.get("duration_total", 0) for segment in segments) > MAX_STANDALONE_EPISODE_SECONDS:
+        raise ValueError("单集剧成片总时长不能超过30秒（含每段结尾全景）")
 
 
 def _timecode(seconds: int) -> str:
@@ -176,7 +140,8 @@ def render_production_segment(segment: dict) -> str:
             continue
         values = []
         for asset in assets:
-            value = f"图{asset['number']} {asset['name']}：{asset.get('description') or '无描述'}"
+            look_label = f" · {asset['look_name']}" if asset.get("look_name") else ""
+            value = f"图{asset['number']} {asset['name']}{look_label}：{asset.get('description') or '无描述'}"
             if kind == "characters":
                 voice = asset.get("voice_design") or {}
                 value += "；九维声音：" + "，".join(f"{key}{voice.get(key, '未设计')}" for key in (
@@ -193,6 +158,7 @@ def render_production_segment(segment: dict) -> str:
             screenplay.append(scene)
         screenplay.extend([
             f"镜头{shot['local_number']}【{_timecode(shot['start'])}-{_timecode(shot['end'])}】",
+            *( ["本镜参考：" + "、".join(f"图{number}" for number in shot["asset_reference_numbers"])] if shot.get("asset_reference_numbers") else []),
             shot["body"],
         ])
     final_number = len(segment.get("shots", [])) + 1
@@ -200,9 +166,14 @@ def render_production_segment(segment: dict) -> str:
     character_count = len(set(segment.get("tail_character_ids") or []))
     scale = {0: "空场景全景", 1: "单人全景", 2: "双人全景", 3: "三人全景"}.get(character_count, "多人全景")
     positions = segment.get("exit_state") or "请填写结尾全景中每个人物的左右、前后、朝向及持物关系"
+    tail_looks = segment.get("tail_character_looks") or {}
+    tail_references = [f"图{ref['number']}（{ref['name']} · {ref.get('look_name') or '默认造型'}）"
+                       for ref in segment.get("asset_refs", [])
+                       if ref.get("kind") == "characters" and ref.get("id") in tail_looks and ref.get("look_id") == tail_looks[ref["id"]]]
     screenplay.extend([
         f"镜头{final_number}【{_timecode(start)}-{_timecode(end)}】",
         f"【{scale}，固定镜头，平视机位，构图：{positions}】",
+        *(["尾镜造型参考：" + "、".join(tail_references)] if tail_references else []),
         "△最后1秒保持人物空间关系与场景地标，不新增对白或动作。",
     ])
     return "\n".join([
@@ -225,7 +196,7 @@ def render_production_segment(segment: dict) -> str:
 def production_segment_revision(segment: dict) -> str:
     keys = (
         "id", "source_revision", "style_revision", "settings_revision", "source_shot_numbers", "duration_total",
-        "synopsis", "entry_state", "exit_state", "asset_refs", "tail_character_ids", "style", "shots",
+        "synopsis", "entry_state", "exit_state", "asset_refs", "tail_character_ids", "tail_character_looks", "style", "shots",
     )
     payload = {key: segment.get(key) for key in keys}
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

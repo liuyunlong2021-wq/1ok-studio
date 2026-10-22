@@ -424,6 +424,22 @@ class ScriptProcessor:
     def is_configured(self):
         return self.llm.is_configured
 
+    def extract_production_assets(self, screenplay: str, model: str = "", known_entities=None):
+        from .production_assets import ProductionAssetExtraction
+
+        if not screenplay.strip():
+            raise ValueError("工程剧本为空，无法提取资产")
+        rules = SkillPackageStore().compile("builtin:production-asset-extraction")
+        roster = [{key: item[key] for key in ("id", "type", "name", "aliases", "looks") if key in item} for item in (known_entities or [])]
+        if roster:
+            rules += "\n已有名称名册（仅用于认名）：\n" + json.dumps(roster, ensure_ascii=False)
+        content = self.llm.chat(messages=[{"role": "system", "content": rules}, {"role": "user", "content": screenplay}], model=model or None)
+        try:
+            result = ProductionAssetExtraction.model_validate_json(_strip_markdown_json(content))
+            return result.validate_screenplay(screenplay)
+        except (ValueError, TypeError) as error:
+            raise ValueError(f"工程资产提取结果不完整或引用无效：{error}") from error
+
     def parse_novel(
         self,
         title: str,
