@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Video, AlertCircle } from 'lucide-react';
+import { Video, AlertCircle, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL } from '@/lib/api';
 import type { PlaygroundGeneration } from './usePlaygroundStore';
@@ -16,6 +16,7 @@ interface GalleryViewProps {
   onVisibilityChange?: (gen: PlaygroundGeneration, outputId: string, hidden: boolean) => void;
   visibilityBusy?: boolean;
   onRetry?: (gen: PlaygroundGeneration) => void;
+  onDelete?: (gen: PlaygroundGeneration) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ export default function GalleryView({
   generations,
   onOpenDetail,
   onRetry,
+  onDelete,
   onVisibilityChange,
   visibilityBusy,
 }: GalleryViewProps) {
@@ -110,11 +112,15 @@ export default function GalleryView({
 
   return (
     <div className="flex flex-col h-full">
-      {output && onVisibilityChange && <div className="flex justify-end px-6 py-2">
-        <button type="button" disabled={visibilityBusy} className="rounded-full bg-surface-inset px-3 py-2 text-xs disabled:opacity-50"
+      {((output && onVisibilityChange) || (onDelete && current.status !== 'completed')) && <div className="flex justify-end gap-2 px-6 py-2">
+        {onDelete && current.status !== 'completed' && <button type="button" className="inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-2 text-xs text-status-failed-fg hover:bg-status-failed-bg"
+          onClick={() => onDelete(current)}>
+          <Trash2 size={13} />{t('card.delete')}
+        </button>}
+        {output && onVisibilityChange && <button type="button" disabled={visibilityBusy} className="rounded-full bg-surface-inset px-3 py-2 text-xs disabled:opacity-50"
           onClick={() => onVisibilityChange(current, output.id, !output.hidden)}>
           {output.hidden ? '恢复到创作台' : '从创作台移除'}
-        </button>
+        </button>}
       </div>}
       {/* Main media area */}
       <div

@@ -29,21 +29,23 @@ import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import PreviewImage from "@/components/shared/preview/PreviewImage";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 import { toast } from "@/store/toastStore";
-import CastWorkbenchModal, { activePolls, startAssetPoll } from "./cast/CastWorkbenchModal";
+import CastWorkbenchModal, { activePolls, assetTaskKey, startAssetPoll } from "./cast/CastWorkbenchModal";
 import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
 import ReconcileAction from "./ReconcileAction";
+import ProductionExtractionPreview from "./cast/ProductionExtractionPreview";
 
 type AssetKind = "character" | "scene" | "prop";
 const VOICE_KEYS = ["年龄感", "音高", "明暗", "厚薄", "共鸣", "气息", "颗粒感", "口音", "稳定表达习惯"] as const;
 
-async function waitForProductionAssetPrompt(projectId: string, assetId: string, kind: AssetKind, update: (id: string, project: any) => void) {
+async function waitForProductionAssetPrompt(projectId: string, assetId: string, kind: AssetKind, update: (id: string, project: any) => void, lookId?: string) {
     const deadline = Date.now() + 120_000;
     while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         const project = await api.getProject(projectId);
         update(projectId, project);
         const pool = kind === "character" ? project.characters : kind === "scene" ? project.scenes : project.props;
-        const asset = (pool || []).find((item: any) => item.id === assetId);
+        const owner = (pool || []).find((item: any) => item.id === assetId);
+        const asset = lookId ? owner?.looks?.find((look: any) => look.id === lookId) : owner;
         if (asset?.prompt_generation_status === "completed") return;
         if (["failed", "stale"].includes(asset?.prompt_generation_status)) {
             throw new Error(asset.prompt_generation_error || "资产提示词生成失败，请重试");
@@ -91,6 +93,9 @@ interface CastItem {
     referenceImageUrl?: string;     // 参考图（优先 reference_sheet → full_body fallback）
     status: "ready" | "pending" | "new";
     persona?: string;               // R2V v2 P1-a — characters only; groups visual variants of same person
+    description?: string;
+    looksCount?: number;
+    source?: string;
 }
 
 /**
@@ -154,9 +159,15 @@ export default function Cast() {
                 propCounts.set(pid, (propCounts.get(pid) ?? 0) + 1);
             }
         }
-        const characterPool: any[] = currentProject?.characters ?? [];
-        const scenePool: any[] = currentProject?.scenes ?? [];
-        const propPool: any[] = currentProject?.props ?? [];
+        const production = currentProject?.production_workflow === "engineering_segments_v1";
+        // Project GET merges every series/global asset for legacy library workflows.
+        // In production, only show shared assets actually referenced by this episode;
+        // keep all episode-local extraction results, including not-yet-bound assets.
+        const relevant = (asset: any, counts: Map<string, number>) =>
+            !production || asset.source === "episode" || (counts.get(asset.id) ?? 0) > 0;
+        const characterPool: any[] = (currentProject?.characters ?? []).filter((asset: any) => relevant(asset, characterCounts));
+        const scenePool: any[] = (currentProject?.scenes ?? []).filter((asset: any) => relevant(asset, sceneCounts));
+        const propPool: any[] = (currentProject?.props ?? []).filter((asset: any) => relevant(asset, propCounts));
 
         const characters: CastItem[] = characterPool.map((c: any) => {
             const imageUrl = characterImageUrl(c);
@@ -165,9 +176,12 @@ export default function Cast() {
                 name: c.name ?? c.id,
                 kind: "character" as const,
                 appearances: characterCounts.get(c.id) ?? 0,
+                looksCount: c.looks?.length || 0,
                 referenceImageUrl: imageUrl,
                 status: (imageUrl ? "ready" : "pending") as "ready" | "pending",
                 persona: c.persona ?? "",
+                description: c.description ?? "",
+                source: c.source,
             };
         }).sort((a, b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
 
@@ -180,6 +194,8 @@ export default function Cast() {
                 appearances: sceneCounts.get(s.id) ?? 0,
                 referenceImageUrl: imageUrl,
                 status: (imageUrl ? "ready" : "pending") as "ready" | "pending",
+                description: s.description ?? "",
+                source: s.source,
             };
         }).sort((a, b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
 
@@ -192,6 +208,8 @@ export default function Cast() {
                 appearances: propCounts.get(p.id) ?? 0,
                 referenceImageUrl: imageUrl,
                 status: (imageUrl ? "ready" : "pending") as "ready" | "pending",
+                description: p.description ?? "",
+                source: p.source,
             };
         }).sort((a, b) => b.appearances - a.appearances || a.name.localeCompare(b.name));
 
@@ -200,10 +218,16 @@ export default function Cast() {
 
     const totalCast = characters.length + scenes.length + props.length;
     const production = currentProject?.production_workflow === "engineering_segments_v1";
+    const visibleTab = production && activeTab === "all" ? "character" : activeTab;
+    const visibleProductionAssetIds = new Set([...characters, ...scenes, ...props].map((item) => item.id));
     const productionAssets = [
-        ...(currentProject?.characters || []).map((item: any) => ({ id: item.id, name: item.name, kind: "character" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.reference_sheet?.image_prompt || item.full_body_prompt || "", hasImage: !!characterImageUrl(item), voice: item.voice_design || {} })),
-        ...(currentProject?.scenes || []).map((item: any) => ({ id: item.id, name: item.name, kind: "scene" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
-        ...(currentProject?.props || []).map((item: any) => ({ id: item.id, name: item.name, kind: "prop" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
+        ...(currentProject?.characters || []).filter((item: any) => !production || visibleProductionAssetIds.has(item.id)).flatMap((item: any) => {
+            const used = new Set((currentProject?.frames || []).filter((frame: any) => frame.character_ids?.includes(item.id)).map((frame: any) => frame.character_look_ids?.[item.id]).filter(Boolean));
+            const looks = item.looks?.length ? item.looks.filter((look: any) => !used.size || used.has(look.id)) : [undefined];
+            return looks.map((look: any) => ({ id: item.id, lookId: look?.id as string | undefined, key: assetTaskKey(currentProject!.id, item.id, look?.id), name: look ? `${item.name} · ${look.name}` : item.name, kind: "character" as const, description: item.description || "", source: item.source, locked: !!item.locked || !!look?.locked, imagePrompt: (look || item).prompt_generation_status === "stale" && (look || item).reference_sheet?.image_prompt_source !== "manual" ? "" : look ? look.reference_sheet?.image_prompt || "" : item.reference_sheet?.image_prompt || item.full_body_prompt || "", hasImage: !!characterImageUrl(item, look?.id), voice: item.voice_design || {} }));
+        }),
+        ...(currentProject?.scenes || []).filter((item: any) => !production || visibleProductionAssetIds.has(item.id)).map((item: any) => ({ id: item.id, key: item.id, lookId: undefined as string | undefined, name: item.name, kind: "scene" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
+        ...(currentProject?.props || []).filter((item: any) => !production || visibleProductionAssetIds.has(item.id)).map((item: any) => ({ id: item.id, key: item.id, lookId: undefined as string | undefined, name: item.name, kind: "prop" as const, description: item.description || "", source: item.source, locked: !!item.locked, imagePrompt: item.image_prompt || "", hasImage: !!scenePropImageUrl(item), voice: {} })),
     ];
     const previewProductionAssets = async () => {
         if (!currentProject) return;
@@ -221,7 +245,7 @@ export default function Cast() {
         if (!currentProject || !productionPreview) return;
         setProductionAssetBusy("apply");
         try {
-            await api.applyProductionAssets(currentProject.id, productionPreview.source_revision, productionPreview.screenplay_revision);
+            await api.applyProductionAssets(currentProject.id, productionPreview.source_revision, productionPreview.screenplay_revision, productionPreview.shot_bindings);
             useProjectStore.getState().updateProject(currentProject.id, await api.getProject(currentProject.id));
             setProductionPreview(null);
             toast.success("资产与工程镜头已绑定", { body: "角色的九维声音档案可在角色工作台中补充。" });
@@ -232,25 +256,29 @@ export default function Cast() {
     };
     const generateSelectedPrompts = async () => {
         if (!currentProject) return;
-        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.id) && !item.locked);
+        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.key) && !item.locked);
         if (!selected.length) return;
         const remapped: Record<string, string> = {};
         setBulkProductionBusy("prompts");
+        const voiceDone = new Set<string>();
+        const forks = new Map<string, any>();
         try {
             for (const initial of selected) {
                 let asset = initial;
                 if (asset.source === "global") {
-                    const forked = await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    const forked = forks.get(asset.id) || await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    forks.set(asset.id, forked);
                     asset = { ...asset, id: forked.id, source: "episode", imagePrompt: forked.image_prompt || "", voice: forked.voice_design || {} };
-                    remapped[initial.id] = asset.id;
+                    remapped[initial.key] = assetTaskKey(currentProject.id, asset.id, asset.lookId);
                 }
                 if (!asset.imagePrompt) {
-                    await api.generateProductionAssetPrompt(currentProject.id, asset.id);
-                    await waitForProductionAssetPrompt(currentProject.id, asset.id, asset.kind, updateProject);
+                    await api.generateProductionAssetPrompt(currentProject.id, asset.id, asset.lookId);
+                    await waitForProductionAssetPrompt(currentProject.id, asset.id, asset.kind, updateProject, asset.lookId);
                 }
-                if (asset.kind === "character" && !VOICE_KEYS.every((key) => asset.voice?.[key]?.trim())) {
+                if (asset.kind === "character" && !voiceDone.has(asset.id) && !VOICE_KEYS.every((key) => asset.voice?.[key]?.trim())) {
                     const task = await api.generateProductionVoiceDesign(currentProject.id, asset.id);
                     await waitForProductionVoiceDesign(currentProject.id, asset.id, task.task_id, updateProject);
+                    voiceDone.add(asset.id);
                 }
             }
             updateProject(currentProject.id, await api.getProject(currentProject.id));
@@ -265,18 +293,20 @@ export default function Cast() {
     };
     const generateSelectedImages = async () => {
         if (!currentProject) return;
-        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.id) && !item.locked && !item.hasImage);
+        const selected = productionAssets.filter((item) => selectedProductionAssets.includes(item.key) && !item.locked && !item.hasImage);
         if (!selected.length) { toast.warning("所选资产均已有参考图或已锁定"); return; }
         const remapped: Record<string, string> = {};
         setBulkProductionBusy("images");
         let queued = 0;
+        const forks = new Map<string, any>();
         try {
             for (let asset of selected) {
                 if (asset.source === "global") {
-                    const originalId = asset.id;
-                    const forked = await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    const originalId = asset.key;
+                    const forked = forks.get(asset.id) || await api.forkAssetFromLibrary(currentProject.id, asset.kind, asset.id);
+                    forks.set(asset.id, forked);
                     asset = { ...asset, id: forked.id, source: "episode", imagePrompt: forked.image_prompt || "" };
-                    remapped[originalId] = asset.id;
+                    remapped[originalId] = assetTaskKey(currentProject.id, asset.id, asset.lookId);
                 }
                 if (!asset.imagePrompt.trim()) throw new Error(`请先为“${asset.name}”生成资产提示词`);
                 const result = await api.generateAsset(
@@ -285,14 +315,15 @@ export default function Cast() {
                     asset.kind === "character" ? "reference_sheet" : "all", asset.imagePrompt, true,
                     currentProject.art_direction?.style_config?.negative_prompt || "", 1,
                     currentProject.production_settings?.image_model, currentProject.production_settings?.aspect_ratio,
+                    asset.lookId,
                 );
                 const taskId = result?._task_id;
                 if (!taskId) throw new Error(`“${asset.name}”没有返回图片任务编号`);
-                addGeneratingTask(asset.id, asset.kind === "character" ? "reference_sheet" : "all", 1);
+                addGeneratingTask(assetTaskKey(currentProject.id, asset.id, asset.lookId), asset.kind === "character" ? "reference_sheet" : "all", 1);
                 startAssetPoll(asset.id, taskId, currentProject.id, asset.kind, asset.kind === "character" ? "reference_sheet" : "all", tWorkbench, () => ({
                     updateProject: useProjectStore.getState().updateProject,
                     removeGeneratingTask: useProjectStore.getState().removeGeneratingTask,
-                }));
+                }), undefined, asset.lookId);
                 queued += 1;
             }
             if (queued) toast.success(`已提交 ${queued} 个资产图片任务`, { body: "每个任务完成后会保留候选图，人工确认后再进入分段。" });
@@ -304,15 +335,24 @@ export default function Cast() {
             setBulkProductionBusy("");
         }
     };
+    const syncDescriptions = async () => {
+        if (!currentProject || !window.confirm("将剧本实体描述同步到本项目资产；不会覆盖参考图和视频。继续吗？")) return;
+        try {
+            updateProject(currentProject.id, await api.syncDescriptions(currentProject.id));
+            toast.success("资产描述已同步");
+        } catch (error) {
+            toast.error("描述同步失败", { body: error instanceof Error ? error.message : String(error) });
+        }
+    };
 
     return (
         <div className="flex h-full w-full flex-col overflow-hidden">
             <StepPageHeader
                 stepNumber={3}
                 englishName="CAST"
-                title={tStep("castTitle")}
-                subtitle={tStep("castSubtitle")}
-                pills={totalCast > 0 ? (
+                title={production ? "资产库" : tStep("castTitle")}
+                subtitle={production ? "管理本项目的角色、场景与道具" : tStep("castSubtitle")}
+                pills={!production && totalCast > 0 ? (
                     <>
                         <StepPill label={t("charactersLabel")} value={characters.length} />
                         <StepPill
@@ -321,19 +361,20 @@ export default function Cast() {
                         />
                     </>
                 ) : null}
-                trailing={<div className="flex items-center gap-2">{production && <WorkflowActionButton size="sm" variant="secondary" loading={productionAssetBusy === "preview"} onClick={() => void previewProductionAssets()}>从已采用工程剧本提取资产</WorkflowActionButton>}{!production && <ReconcileAction scriptId={currentProject?.id ?? null} />}</div>}
+                trailing={<div className="flex items-center gap-2">{production && <WorkflowActionButton size="sm" variant="secondary" loading={productionAssetBusy === "preview"} onClick={() => void previewProductionAssets()}>从工程剧本提取</WorkflowActionButton>}{production && currentProject?.series_id && <ReconcileAction scriptId={currentProject.id} onApplied={() => { void api.getProject(currentProject.id).then((fresh) => updateProject(currentProject.id, fresh)); }} />}{production && <WorkflowActionButton size="sm" variant="secondary" onClick={() => void syncDescriptions()}>同步描述</WorkflowActionButton>}{!production && <ReconcileAction scriptId={currentProject?.id ?? null} />}</div>}
             />
 
             {productionPreview && <div className="mx-6 mt-4 rounded-xl border border-primary/25 bg-primary/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">资产提取预览</h2><p className="mt-1 text-xs text-text-muted">确认后只新增或复用资产并同步镜头绑定；不会覆盖你已有的系列资产。</p></div><div className="flex gap-2"><WorkflowActionButton size="sm" variant="secondary" onClick={() => setProductionPreview(null)}>取消</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" loading={productionAssetBusy === "apply"} onClick={() => void applyProductionAssets()}>确认采用</WorkflowActionButton></div></div>
-                <div className="mt-3 grid gap-3 md:grid-cols-3">{([['characters', '角色'], ['scenes', '场景'], ['props', '道具']] as const).map(([key, label]) => <div key={key} className="rounded-lg border border-glass-border bg-black/10 p-3"><h3 className="mb-2 text-xs font-medium">{label} · {productionPreview[key]?.length || 0}</h3><ul className="space-y-1 text-xs text-text-secondary">{(productionPreview[key] || []).map((item: any) => <li key={item.id}>{item.name}{item.match_ambiguous ? " · 同名有歧义" : item.match_id ? " · 将复用" : " · 新增"}</li>)}</ul></div>)}</div>
+                <ProductionExtractionPreview preview={productionPreview} onChange={setProductionPreview} />
             </div>}
 
-            {production && productionAssets.length > 0 && <section className="mx-6 mt-4 rounded-xl border border-glass-border bg-glass p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">所选资产：提示词、九维声音与参考图</h2><p className="mt-1 text-xs text-text-muted">批量动作只补缺失项，不覆盖锁定资产和已采用参考图；图片生成任务完成后保留候选供人工确认。</p></div><div className="flex flex-wrap gap-2"><WorkflowActionButton size="sm" variant="secondary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "prompts"} onClick={() => void generateSelectedPrompts()}>生成所选提示词与角色声音</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "images"} onClick={() => void generateSelectedImages()}>生成所选缺失资产图</WorkflowActionButton></div></div>
-                <div className="mt-3 flex items-center gap-3"><button className="text-xs text-primary hover:underline" onClick={() => setSelectedProductionAssets(productionAssets.filter((item) => !item.locked && (!item.imagePrompt || (item.kind === "character" && !VOICE_KEYS.every((key) => (item.voice as any)?.[key]?.trim())))).map((item) => item.id))}>选择缺失提示词／声音的资产</button><span className="text-xs text-text-muted">已选 {selectedProductionAssets.length} / {productionAssets.length}</span></div>
-                <div className="mt-2 grid max-h-44 gap-1 overflow-auto sm:grid-cols-2 xl:grid-cols-3">{productionAssets.map((item) => <label key={item.id} className="flex min-w-0 items-center gap-2 rounded px-2 py-1.5 text-xs text-text-secondary hover:bg-hover-bg"><input type="checkbox" checked={selectedProductionAssets.includes(item.id)} onChange={(event) => setSelectedProductionAssets((ids) => event.target.checked ? (ids.includes(item.id) ? ids : ids.concat(item.id)) : ids.filter((id) => id !== item.id))} /><span className="truncate">{item.kind === "character" ? "角色" : item.kind === "scene" ? "场景" : "道具"} · {item.name}</span><span className="ml-auto shrink-0 text-text-muted">{item.locked ? "锁定" : item.hasImage ? "有图" : "缺图"}</span></label>)}</div>
-            </section>}
+            {production && productionAssets.length > 0 && <details className="mx-6 mt-4 rounded-xl border border-glass-border bg-glass px-4 py-3">
+                <summary className="cursor-pointer list-none text-xs font-medium text-text-secondary">批量生成与管理 <span className="ml-2 text-text-muted">已选 {selectedProductionAssets.length} / {productionAssets.length}</span></summary>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-text-muted">只补充缺失项，不覆盖锁定资产和已采用参考图。</p><div className="flex flex-wrap gap-2"><WorkflowActionButton size="sm" variant="secondary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "prompts"} onClick={() => void generateSelectedPrompts()}>生成提示词与角色声音</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" disabled={!!bulkProductionBusy || !selectedProductionAssets.length} loading={bulkProductionBusy === "images"} onClick={() => void generateSelectedImages()}>生成缺失资产图</WorkflowActionButton></div></div>
+                <div className="mt-3 flex items-center gap-3"><button className="text-xs text-primary hover:underline" onClick={() => setSelectedProductionAssets(productionAssets.filter((item) => !item.locked && (!item.imagePrompt || (item.kind === "character" && !VOICE_KEYS.every((key) => (item.voice as any)?.[key]?.trim())))).map((item) => item.key))}>选择缺失提示词／声音的资产</button></div>
+                <div className="mt-2 grid max-h-44 gap-1 overflow-auto sm:grid-cols-2 xl:grid-cols-3">{productionAssets.map((item) => <label key={item.key} className="flex min-w-0 items-center gap-2 rounded px-2 py-1.5 text-xs text-text-secondary hover:bg-hover-bg"><input type="checkbox" checked={selectedProductionAssets.includes(item.key)} onChange={(event) => setSelectedProductionAssets((ids) => event.target.checked ? (ids.includes(item.key) ? ids : ids.concat(item.key)) : ids.filter((id) => id !== item.key))} /><span className="truncate">{item.kind === "character" ? "角色" : item.kind === "scene" ? "场景" : "道具"} · {item.name}</span><span className="ml-auto shrink-0 text-text-muted">{item.locked ? "锁定" : item.hasImage ? "有图" : "缺图"}</span></label>)}</div>
+            </details>}
 
             {/* Empty state — no entities extracted yet */}
             {totalCast === 0 ? (
@@ -361,22 +402,22 @@ export default function Cast() {
                             { id: "character" as const, label: t("tabCharacters"), icon: <Users size={11} />, count: characters.length },
                             { id: "scene" as const, label: t("tabScenes"), icon: <MapPin size={11} />, count: scenes.length },
                             { id: "prop" as const, label: t("tabProps"), icon: <Box size={11} />, count: props.length },
-                        ]).map((tab) => (
+                        ]).filter((tab) => !production || tab.id !== "all").map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`relative inline-flex items-center gap-1.5 px-3 pb-2 font-mono text-[0.6875rem] uppercase tracking-[0.16em] transition-colors ${
-                                    activeTab === tab.id
+                                    visibleTab === tab.id
                                         ? "text-foreground"
                                         : "text-text-muted hover:text-text-secondary"
                                 }`}
                             >
                                 {tab.icon}
                                 {tab.label}
-                                <span className={`ml-0.5 ${activeTab === tab.id ? "text-foreground" : "text-text-muted/60"}`}>
+                                <span className={`ml-0.5 ${visibleTab === tab.id ? "text-foreground" : "text-text-muted/60"}`}>
                                     ({tab.count})
                                 </span>
-                                {activeTab === tab.id && (
+                                {visibleTab === tab.id && (
                                     <span className="absolute bottom-0 left-2 right-2 h-px bg-primary" aria-hidden="true" />
                                 )}
                             </button>
@@ -384,7 +425,7 @@ export default function Cast() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto bg-surface px-8 py-6 space-y-10 custom-scrollbar">
-                        {(activeTab === "all" || activeTab === "character") && (
+                        {(visibleTab === "all" || visibleTab === "character") && (
                             <CastSection
                                 kind="character"
                                 icon={<Users size={14} />}
@@ -395,10 +436,11 @@ export default function Cast() {
                                 addLabel={t("addCharacter")}
                                 groupByPersona
                                 onOpenWorkbench={(id) => setWorkbench({ kind: "character", entityId: id })}
-                                hideHeader={activeTab === "character"}
+                                hideHeader={visibleTab === "character"}
+                                production={production}
                             />
                         )}
-                        {(activeTab === "all" || activeTab === "scene") && (
+                        {(visibleTab === "all" || visibleTab === "scene") && (
                             <CastSection
                                 kind="scene"
                                 icon={<MapPin size={14} />}
@@ -408,10 +450,11 @@ export default function Cast() {
                                 onAddNew={() => setAddModalOpen("scene")}
                                 addLabel={t("addScene")}
                                 onOpenWorkbench={(id) => setWorkbench({ kind: "scene", entityId: id })}
-                                hideHeader={activeTab === "scene"}
+                                hideHeader={visibleTab === "scene"}
+                                production={production}
                             />
                         )}
-                        {(activeTab === "all" || activeTab === "prop") && (
+                        {(visibleTab === "all" || visibleTab === "prop") && (
                             <CastSection
                                 kind="prop"
                                 icon={<Box size={14} />}
@@ -421,7 +464,8 @@ export default function Cast() {
                                 onAddNew={() => setAddModalOpen("prop")}
                                 addLabel={t("addProp")}
                                 onOpenWorkbench={(id) => setWorkbench({ kind: "prop", entityId: id })}
-                                hideHeader={activeTab === "prop"}
+                                hideHeader={visibleTab === "prop"}
+                                production={production}
                             />
                         )}
                     </div>
@@ -712,9 +756,10 @@ interface CastSectionProps {
     /** When the parent's tab filter is already focused on this kind,
      *  the section's own header becomes redundant — hide it. */
     hideHeader?: boolean;
+    production?: boolean;
 }
 
-function CastSection({ kind, icon, title, items, emptyLabel, onAddNew, addLabel, groupByPersona, onOpenWorkbench, hideHeader }: CastSectionProps) {
+function CastSection({ kind, icon, title, items, emptyLabel, onAddNew, addLabel, groupByPersona, onOpenWorkbench, hideHeader, production }: CastSectionProps) {
     const t = useTranslations("cast");
     // R2V v2 P1-a — persona grouping (characters only)
     const groups = useMemo(() => {
@@ -800,21 +845,21 @@ function CastSection({ kind, icon, title, items, emptyLabel, onAddNew, addLabel,
                                 </div>
                             )}
                             <div className={`grid gap-3 ${gridCols}`}>
-                                {group.items.map(item => <CastCard key={item.id} item={item} onOpenWorkbench={() => onOpenWorkbench?.(item.id)} />)}
+                                {group.items.map(item => <CastCard key={item.id} item={item} production={production} onOpenWorkbench={() => onOpenWorkbench?.(item.id)} />)}
                             </div>
                         </div>
                     ))}
                 </div>
             ) : (
                 <div className={`grid gap-3 ${gridCols}`}>
-                    {items.map(item => <CastCard key={item.id} item={item} onOpenWorkbench={() => onOpenWorkbench?.(item.id)} />)}
+                    {items.map(item => <CastCard key={item.id} item={item} production={production} onOpenWorkbench={() => onOpenWorkbench?.(item.id)} />)}
                 </div>
             )}
         </section>
     );
 }
 
-function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?: () => void }) {
+function CastCard({ item, onOpenWorkbench, production }: { item: CastItem; onOpenWorkbench?: () => void; production?: boolean }) {
     const t = useTranslations("cast");
     const { open: openLightbox } = useLightbox();
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -850,7 +895,7 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
         ctaLabel: string;
     }> = {
         character: {
-            aspect: "aspect-[4/3]",
+            aspect: production ? "aspect-[3/4]" : "aspect-[4/3]",
             emptyPattern: {
                 backgroundImage:
                     "repeating-linear-gradient(0deg, transparent 0, transparent 23px, rgba(255,255,255,0.025) 23px, rgba(255,255,255,0.025) 24px)",
@@ -905,6 +950,7 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
                 <span className="absolute top-2.5 right-2.5 z-10 pointer-events-none inline-flex items-center rounded-sm border border-glass-border bg-black/40 px-1.5 py-[1px] font-mono text-[0.53125rem] uppercase tracking-[0.18em] text-text-muted backdrop-blur-sm">
                     {k.chipLabel}
                 </span>
+                {production && (item.source === "series" || item.source === "global") && <span className="absolute left-2.5 top-2.5 z-10 rounded-full border border-primary/30 bg-black/55 px-2 py-0.5 text-[0.625rem] text-primary backdrop-blur">{item.source === "series" ? "系列共享" : "全局共享"}</span>}
                 {/* Hover hairline accent — single top edge, animated on group-hover */}
                 <span
                     aria-hidden="true"
@@ -962,6 +1008,8 @@ function CastCard({ item, onOpenWorkbench }: { item: CastItem; onOpenWorkbench?:
                     <p className="truncate font-sans text-[0.8125rem] font-medium text-foreground" title={item.name}>
                         {item.name}
                     </p>
+                    {production && item.description && <p className="line-clamp-2 text-xs leading-5 text-text-muted">{item.description}</p>}
+                    {production && !!item.looksCount && <p className="text-xs text-primary">{item.looksCount} 套造型</p>}
                     <div className="flex items-center justify-between gap-1">
                         <span className="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-text-muted">
                             {t("appearancesCount", { count: item.appearances })}

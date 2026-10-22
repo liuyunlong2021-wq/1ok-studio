@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useId, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Plus, RefreshCw, Library, FileUp, X, ChevronDown, FileText, Trash2,
-  Film, Sparkles, Search, Clock, MoreVertical,
+  Film, Search, Clock, MoreVertical,
 } from "lucide-react";
 import { useProjectStore, Project, Series } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
@@ -707,7 +707,7 @@ export default function Home() {
                     className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
                   >
                     <Library size={16} className="text-primary" />
-                    {t("newSeries")}
+                    {t("multiEpisodeDrama")}
                   </button>
                   <button
                     onClick={() => { openProjectCreation(); setShowCreateDropdown(false); }}
@@ -715,15 +715,7 @@ export default function Home() {
                     className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
                   >
                     <FileText size={16} className="text-text-muted" />
-                    {t("newProject")}
-                  </button>
-                  <div className="border-t border-glass-border" />
-                  <button
-                    onClick={() => { window.location.hash = '#/playground'; setShowCreateDropdown(false); }}
-                    className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
-                  >
-                    <Sparkles size={16} className="text-accent" />
-                    Playground
+                    {t("singleEpisodeDrama")}
                   </button>
                 </motion.div>
               )}

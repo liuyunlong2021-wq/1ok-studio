@@ -41,6 +41,8 @@ export default function ProductionEngineeringWorkbench() {
 
     if (!project) return null;
     const currentPlan = project.engineering_script;
+    const draftText = project.production_engineering_draft?.text || "";
+    const hasManualEdits = !!screenplay.trim() && screenplay !== draftText;
     const isAdopted = !!currentPlan
         && project.production_engineering_source_revision === project.production_source_revision
         && project.production_engineering_style_revision === project.production_style_revision;
@@ -65,11 +67,14 @@ export default function ProductionEngineeringWorkbench() {
             const saved = await api.updateScriptText(project.id, source);
             updateProject(project.id, saved);
             const task = await api.generateProductionEngineering(project.id);
-            setScreenplay(await waitForEngineeringTask(project.id, task.task_id));
-            const latest = await api.getProject(project.id);
-            updateProject(project.id, latest);
+            const generated = await waitForEngineeringTask(project.id, task.task_id);
+            setScreenplay(generated);
+            const updated = await api.adoptProductionEngineering(project.id, generated);
+            updateProject(project.id, updated);
+            toast.success("工程剧本已生成并按时间码解析", { body: "下一步进入资产提取；可在需要时手动修改并重新应用。" });
+            document.dispatchEvent(new CustomEvent("1okstudio:navigateStep", { detail: "cast" }));
         } catch (error) {
-            toast.error("工程剧本生成失败", { body: detailOf(error) });
+            toast.error("生成或解析工程剧本失败", { body: detailOf(error) });
         } finally {
             setBusy("");
         }
@@ -103,13 +108,13 @@ export default function ProductionEngineeringWorkbench() {
                 </section>
                 <section className="flex min-h-0 flex-col rounded-xl border border-glass-border bg-glass p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
-                        <div><h2 className="text-sm font-semibold text-foreground">工程剧本草稿</h2><p className="mt-1 text-xs text-text-muted">可以手工修改；采用前校验镜头、时间码、对白与摄影规格。</p></div>
-                        <WorkflowActionButton size="sm" variant="secondary" loading={busy === "generate" || ["queued", "processing"].includes(project.production_engineering_task?.status ?? "")} disabled={!source.trim() || busy !== ""} onClick={() => void generate()}>按确认风格生成</WorkflowActionButton>
+                        <div><h2 className="text-sm font-semibold text-foreground">工程剧本</h2><p className="mt-1 text-xs text-text-muted">生成后自动按镜头时间码解析；可直接作为后续分段依据。</p></div>
+                        <WorkflowActionButton size="sm" variant="secondary" loading={busy === "generate" || ["queued", "processing"].includes(project.production_engineering_task?.status ?? "")} disabled={!source.trim() || busy !== ""} onClick={() => void generate()}>生成并继续</WorkflowActionButton>
                     </div>
                     <textarea value={screenplay} onChange={(event) => setScreenplay(event.target.value)} disabled={busy === "generate"} placeholder="点击“按确认风格生成”，或粘贴已有工程台本后校验采用…" className="min-h-0 flex-1 resize-none rounded-lg border border-glass-border bg-input-bg p-4 font-mono text-xs leading-6 text-foreground outline-none focus:border-primary/60 disabled:opacity-60" />
                     <div className="mt-3 flex items-center justify-between gap-3">
-                        <span className={`text-xs ${isAdopted ? "text-emerald-300" : "text-text-muted"}`}>{isAdopted ? `已采用 · ${currentPlan?.shots?.length || 0} 镜 · ${currentPlan?.duration || 0} 秒` : currentPlan ? "原版本保留；当前草稿尚未采用" : "尚无已采用工程剧本"}</span>
-                        <WorkflowActionButton size="sm" variant="primary" loading={busy === "adopt"} disabled={!screenplay.trim() || busy !== ""} onClick={() => void adopt()}>校验并采用</WorkflowActionButton>
+                        <span className={`text-xs ${isAdopted ? "text-emerald-300" : "text-text-muted"}`}>{isAdopted ? `已解析 · ${currentPlan?.shots?.length || 0} 镜 · ${currentPlan?.duration || 0} 秒` : currentPlan ? "原文或风格已变化，请重新解析" : "当前草稿尚未解析，解析后才能提取资产"}</span>
+                        {(!isAdopted || hasManualEdits) && <WorkflowActionButton size="sm" variant="primary" loading={busy === "adopt"} disabled={busy !== ""} onClick={() => void adopt()}>{hasManualEdits ? "应用修改并继续" : "采用并继续"}</WorkflowActionButton>}
                     </div>
                 </section>
             </div>

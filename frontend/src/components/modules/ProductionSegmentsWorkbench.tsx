@@ -19,6 +19,7 @@ export default function ProductionSegmentsWorkbench() {
     const [busy, setBusy] = useState("");
     if (!project) return null;
     const segments = project.production_segments || [];
+    const plannedSeconds = segments.reduce((total: number, segment: any) => total + (segment.duration_total || 0), 0);
     const refresh = async () => updateProject(project.id, await api.getProject(project.id));
     const run = async (key: string, action: () => Promise<unknown>, message: string) => {
         setBusy(key);
@@ -28,7 +29,7 @@ export default function ProductionSegmentsWorkbench() {
     };
 
     return <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <StepPageHeader stepNumber={4} englishName="SEGMENTED SCREENPLAY" title="分段工程剧本" subtitle={`每段总长不超过 ${project.production_settings?.max_segment_seconds || "用户设置"} 秒，含最后 1 秒空间关系全景；镜头不会被切开。`} />
+        <StepPageHeader stepNumber={4} englishName="SEGMENTED SCREENPLAY" title="分段工程剧本" subtitle={`${!project.series_id ? `单集剧合成总时长上限 30 秒（当前规划 ${plannedSeconds} 秒）；` : ""}每段总长不超过 ${project.production_settings?.max_segment_seconds || "用户设置"} 秒，含最后 1 秒空间关系全景；镜头不会被切开。`} />
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-surface p-6">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-text-secondary">检查每段简介、开场承接与结尾全景站位；保存后可采用整套分段。</p>
@@ -65,7 +66,7 @@ function SegmentCard({ segment, projectId, busy, onSaved }: { segment: any; proj
             {field("本段开场承接状态", entry, setEntry, "人物站位、朝向、距离、视线、持物与机位关系")}
             {field("结尾 1 秒全景的相对位置", exit, setExit, "明确每个人相对位置，供下一段延续空间关系")}
         </div>
-        {segment.asset_refs?.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{segment.asset_refs.map((asset: any) => <div key={asset.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-glass-border p-2 text-xs"><div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/20">{asset.image_url && <img src={getAssetUrl(asset.image_url)} alt={asset.name} className="h-full w-full object-cover" />}</div><div className="min-w-0"><p className="truncate font-medium">图{asset.number} · {asset.name}</p><p className="line-clamp-2 text-text-muted">{asset.description || "尚无资产提示词描述"}</p></div></div>)}</div>}
+        {segment.asset_refs?.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{segment.asset_refs.map((asset: any) => <div key={`${asset.id}:${asset.look_id || ""}`} className="flex min-w-0 items-center gap-2 rounded-lg border border-glass-border p-2 text-xs"><div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-black/20">{asset.image_url && <img src={getAssetUrl(asset.image_url)} alt={asset.name} className="h-full w-full object-cover" />}</div><div className="min-w-0"><p className="truncate font-medium">图{asset.number} · {asset.name}{asset.look_name ? ` · ${asset.look_name}` : ""}</p><p className="line-clamp-2 text-text-muted">{asset.description || "尚无资产提示词描述"}</p></div></div>)}</div>}
         <details className="mt-3"><summary className="cursor-pointer text-xs text-text-muted">查看四段式工程剧本与参考资产</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-black/20 p-3 text-xs leading-5 text-text-secondary">{segment.screenplay_text}</pre></details>
         <div className="mt-3 flex justify-end"><WorkflowActionButton size="sm" variant="secondary" loading={saving} disabled={busy} onClick={() => void update()}>保存本段</WorkflowActionButton></div>
     </section>;

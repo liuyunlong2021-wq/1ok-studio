@@ -67,6 +67,22 @@ export interface ReferenceAudioVariant {
     created_at?: number;
 }
 
+export interface CharacterLook {
+    id: string;
+    name: string;
+    description: string;
+    extracted_description?: string;
+    description_version?: number;
+    reference_sheet?: AssetUnit;
+    image_url?: string;
+    locked?: boolean;
+    prompt_generation_status?: string;
+    prompt_generation_error?: string;
+    production_image_task?: { status?: string; task_id?: string; error?: string };
+    extraction_evidence?: { shot_number?: number | null; quote: string }[];
+    extraction_unknowns?: string[];
+}
+
 export interface Character {
     id: string;
     name: string;
@@ -74,6 +90,7 @@ export interface Character {
     age?: string;
     gender?: string;
     clothing?: string;
+    looks?: CharacterLook[];
     visual_weight?: number;
 
     // Legacy fields

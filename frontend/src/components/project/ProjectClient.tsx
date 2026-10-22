@@ -29,8 +29,9 @@ import PromptConfigModal from "@/components/project/PromptConfigModal";
 import StoryboardR2V from "@/components/modules/StoryboardR2V";
 import EntityConfirmModal from "@/components/modules/EntityConfirmModal";
 import dynamic from "next/dynamic";
-import { api } from "@/lib/api";
+import { api, getGlobalTextModel, setGlobalTextModel as persistGlobalTextModel } from "@/lib/api";
 import { toast } from "@/store/toastStore";
+import { GLOBAL_TEXT_MODELS } from "@/lib/modelCatalog";
 
 const CreativeCanvas = dynamic(() => import("@/components/canvas/CreativeCanvas"), { ssr: false });
 
@@ -39,6 +40,8 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
     const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
     const [envDialogOpen, setEnvDialogOpen] = useState(false);
     const [promptConfigOpen, setPromptConfigOpen] = useState(false);
+    const [globalTextModel, setGlobalTextModel] = useState<string | null>(null);
+    const [textModelSaving, setTextModelSaving] = useState(false);
     const t = useTranslations("project");
     const tp = useTranslations("pipeline");
     const ts = useTranslations("script");
@@ -161,6 +164,29 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
     }, [id]);
 
     useEffect(() => {
+        let cancelled = false;
+        getGlobalTextModel()
+            .then((model) => { if (!cancelled) setGlobalTextModel(model); })
+            .catch(() => { if (!cancelled) toast.error("读取全局文本模型失败"); });
+        return () => { cancelled = true; };
+    }, [id]);
+
+    const handleTextModelChange = async (model: string) => {
+        const previous = globalTextModel;
+        setGlobalTextModel(model);
+        setTextModelSaving(true);
+        try {
+            setGlobalTextModel(await persistGlobalTextModel(model));
+            toast.success("全局文本模型已更新");
+        } catch {
+            setGlobalTextModel(previous);
+            toast.error("保存全局文本模型失败");
+        } finally {
+            setTextModelSaving(false);
+        }
+    };
+
+    useEffect(() => {
         if (currentProject?.id === id) {
             setActiveStep(currentProject.production_workflow === "engineering_segments_v1" ? "art_direction" : "script");
         }
@@ -193,20 +219,42 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
             >
                 <Key size={16} className="text-text-secondary group-hover:text-green-400 transition-colors" />
             </button>
-            <button
-                onClick={() => setPromptConfigOpen(true)}
-                className="p-2 hover:bg-hover-bg rounded-lg transition-colors group"
-                title="Prompt Configuration"
-            >
-                <MessageSquareCode size={16} className="text-text-secondary group-hover:text-purple-400 transition-colors" />
-            </button>
-            <button
-                onClick={() => setModelSettingsOpen(true)}
-                className="p-2 hover:bg-hover-bg rounded-lg transition-colors group"
-                title="Model Settings"
-            >
-                <Settings size={16} className="text-text-secondary group-hover:text-foreground transition-colors" />
-            </button>
+            {currentProject?.production_workflow === "engineering_segments_v1" && (
+                <select
+                    aria-label="全局文本模型（所有项目共用）"
+                    title="全局文本模型：更改后对所有项目生效"
+                    value={globalTextModel ?? ""}
+                    disabled={!globalTextModel || textModelSaving}
+                    onChange={(event) => void handleTextModelChange(event.target.value)}
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-glass-border bg-surface px-2 text-xs text-text-secondary disabled:opacity-60"
+                >
+                    {!globalTextModel && <option value="">加载文本模型…</option>}
+                    {globalTextModel && !GLOBAL_TEXT_MODELS.some((model) => model.id === globalTextModel) && (
+                        <option value={globalTextModel}>{globalTextModel}</option>
+                    )}
+                    {GLOBAL_TEXT_MODELS.map((model) => (
+                        <option key={model.id} value={model.id}>{model.name}</option>
+                    ))}
+                </select>
+            )}
+            {currentProject?.production_workflow !== "engineering_segments_v1" && (
+                <button
+                    onClick={() => setPromptConfigOpen(true)}
+                    className="p-2 hover:bg-hover-bg rounded-lg transition-colors group"
+                    title="Prompt Configuration"
+                >
+                    <MessageSquareCode size={16} className="text-text-secondary group-hover:text-purple-400 transition-colors" />
+                </button>
+            )}
+            {currentProject?.production_workflow !== "engineering_segments_v1" && (
+                <button
+                    onClick={() => setModelSettingsOpen(true)}
+                    className="p-2 hover:bg-hover-bg rounded-lg transition-colors group"
+                    title="Model Settings"
+                >
+                    <Settings size={16} className="text-text-secondary group-hover:text-foreground transition-colors" />
+                </button>
+            )}
         </>
     );
 
@@ -240,13 +288,13 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
 
             {/* Model Settings Modal */}
             <ModelSettingsModal
-                isOpen={modelSettingsOpen}
+                isOpen={modelSettingsOpen && currentProject.production_workflow !== "engineering_segments_v1"}
                 onClose={() => setModelSettingsOpen(false)}
             />
 
             {/* Prompt Config Modal */}
             <PromptConfigModal
-                isOpen={promptConfigOpen}
+                isOpen={promptConfigOpen && currentProject.production_workflow !== "engineering_segments_v1"}
                 onClose={() => setPromptConfigOpen(false)}
             />
 

@@ -45,7 +45,7 @@ function formatSessionLabel(
   return `${month}/${day} · ${hh}:${mm}`;
 }
 
-export default function ResultGallery() {
+export default function ResultGallery({ onDelete }: { onDelete: (generation: PlaygroundGeneration) => void }) {
   const { history, startGeneration, updateGeneration, useResultAsReference: setResultAsReference } = usePlaygroundStore();
   const t = useTranslations('playground');
   const [showRemoved, setShowRemoved] = useState(false);
@@ -140,15 +140,6 @@ export default function ResultGallery() {
       toast.error(errorMessage(err));
     }
   }, [startGeneration, updateGeneration]);
-
-  const handleDelete = useCallback(async (gen: PlaygroundGeneration) => {
-    try {
-      await playgroundApi.deleteGeneration(gen.id);
-      usePlaygroundStore.getState().removeGeneration(gen.id);
-    } catch (err) {
-      console.error('[Playground] Delete failed:', err);
-    }
-  }, []);
 
   // Image result → "Generate video": set the image as i2v reference and switch mode.
   const handleGenerateVideo = useCallback(
@@ -351,6 +342,7 @@ export default function ResultGallery() {
             generations={dataItems.flatMap((gen) => gen.outputs.length ? gen.outputs.map((output) => ({ ...gen, outputs: [output] })) : [gen])}
             onOpenDetail={(gen) => handleOpenDetail(gen, gen.outputs[0]?.id)}
             onRetry={handleRetry}
+            onDelete={onDelete}
             visibilityBusy={visibilityBusy}
             onVisibilityChange={(gen, outputId, hidden) => { void changeVisibility([{ generation_id: gen.id, output_id: outputId }], hidden); }}
           />
@@ -388,7 +380,7 @@ export default function ResultGallery() {
                       generation={it.gen}
                       outputIndex={it.outputIndex}
                       onRetry={handleRetry}
-                      onDelete={handleDelete}
+                      onDelete={onDelete}
                       onGenerateVideo={handleGenerateVideo}
                       onOpenDetail={handleOpenDetail}
                       visibilityBusy={visibilityBusy}
@@ -402,7 +394,7 @@ export default function ResultGallery() {
                   key={it.gen.id}
                   generation={it.gen}
                   onRetry={handleRetry}
-                  onDelete={handleDelete}
+                  onDelete={onDelete}
                   onGenerateVideo={handleGenerateVideo}
                   onOpenDetail={handleOpenDetail}
                 />

@@ -3,7 +3,7 @@
 import { getModelDisplayInfo } from './playgroundModels';
 
 import { useState, useCallback } from 'react';
-import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen, MoreHorizontal } from 'lucide-react';
+import { Download, Video, Copy, Check, Replace, Crown, Bookmark, Music, FolderOpen, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { saveMedia, revealMedia } from '@/lib/mediaActions';
@@ -403,6 +403,18 @@ export default function ResultCard({ generation, outputIndex = 0, onGenerateVide
               }}
             />
           </div>
+
+          {onDelete && (
+            <button
+              type="button"
+              aria-label={t('card.delete')}
+              title={t('card.delete')}
+              onClick={(e) => { e.stopPropagation(); onDelete(generation); }}
+              className="absolute right-2 top-2 z-10 rounded-full bg-surface/90 p-2 text-text-secondary shadow transition hover:bg-status-failed-bg hover:text-status-failed-fg focus:opacity-100"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
 
           {/* Centered spinner + text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">

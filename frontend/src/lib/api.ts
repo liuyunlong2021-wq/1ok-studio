@@ -599,7 +599,8 @@ export const api = {
         assetId: string,
         file: File,
         uploadType: string,
-        description?: string
+        description?: string,
+        lookId?: string,
     ) => {
         const formData = new FormData();
         formData.append("file", file);
@@ -607,6 +608,7 @@ export const api = {
         const params = new URLSearchParams({
             upload_type: uploadType,
         });
+        if (lookId) params.set("look_id", lookId);
         if (description) {
             params.append("description", description);
         }
@@ -627,7 +629,7 @@ export const api = {
         return response.json();
     },
 
-    generateAsset: async (scriptId: string, assetId: string, assetType: string, stylePreset: string, stylePrompt?: string, generationType: string = "all", prompt: string = "", applyStyle: boolean = true, negativePrompt: string = "", batchSize: number = 1, modelName?: string, aspectRatio?: string) => {
+    generateAsset: async (scriptId: string, assetId: string, assetType: string, stylePreset: string, stylePrompt?: string, generationType: string = "all", prompt: string = "", applyStyle: boolean = true, negativePrompt: string = "", batchSize: number = 1, modelName?: string, aspectRatio?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/generate`, {
             asset_id: assetId,
             asset_type: assetType,
@@ -640,6 +642,7 @@ export const api = {
             batch_size: batchSize,
             model_name: modelName,
             aspect_ratio: aspectRatio,
+            look_id: lookId,
         });
         return res.data;
     },
@@ -648,6 +651,11 @@ export const api = {
 
     getTaskStatus: async (taskId: string) => {
         const res = await axios.get(`${API_URL}/tasks/${taskId}`);
+        return res.data;
+    },
+
+    resumeAssetImage: async (scriptId: string, taskId: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/asset_tasks/${taskId}/resume`);
         return res.data;
     },
 
@@ -718,31 +726,34 @@ export const api = {
         return res.data;
     },
 
-    selectAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, generationType?: string) => {
+    selectAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, generationType?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/select`, {
             asset_id: assetId,
             asset_type: assetType,
             variant_id: variantId,
-            generation_type: generationType
+            generation_type: generationType,
+            look_id: lookId
         });
         return res.data;
     },
 
-    deleteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string) => {
+    deleteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/delete`, {
             asset_id: assetId,
             asset_type: assetType,
-            variant_id: variantId
+            variant_id: variantId,
+            look_id: lookId
         });
         return res.data;
     },
 
-    favoriteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, isFavorited: boolean, generationType?: string) => {
+    favoriteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, isFavorited: boolean, generationType?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/favorite`, {
             asset_id: assetId,
             asset_type: assetType,
             variant_id: variantId,
             is_favorited: isFavorited,
+            look_id: lookId,
             generation_type: generationType
         });
         return res.data;
@@ -911,10 +922,10 @@ export const api = {
         (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/voice-design/generate`)).data as { task_id: string; status: string },
     saveProductionVoiceDesign: async (scriptId: string, assetId: string, voice_design: Record<string, string>) =>
         (await axios.put(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/voice-design`, { voice_design })).data as { voice_design: Record<string, string>; voice_design_version: number },
-    generateProductionAssetPrompt: async (scriptId: string, assetId: string) =>
-        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt/generate`)).data as { task_id: string; status: string; asset_id: string; asset_type: string },
-    saveProductionAssetPrompt: async (scriptId: string, assetId: string, prompt: string) =>
-        (await axios.put(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt`, { prompt })).data as { id: string; asset_type: string; image_prompt: string; source: string },
+    generateProductionAssetPrompt: async (scriptId: string, assetId: string, lookId?: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt/generate`, undefined, { params: { look_id: lookId } })).data as { task_id: string; status: string; asset_id: string; asset_type: string },
+    saveProductionAssetPrompt: async (scriptId: string, assetId: string, prompt: string, lookId?: string) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt`, { prompt, look_id: lookId })).data as { id: string; asset_type: string; image_prompt: string; source: string },
     generateProductionEngineering: async (scriptId: string) =>
         (await axios.post(`${API_URL}/projects/${scriptId}/production/engineering/generate`)).data as { task_id: string; status: string },
     saveProductionEngineeringDraft: async (scriptId: string, text: string) =>
@@ -923,8 +934,8 @@ export const api = {
         (await axios.post(`${API_URL}/projects/${scriptId}/production/engineering/adopt`, { text })).data,
     previewProductionAssets: async (scriptId: string) =>
         (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/preview`)).data as { task_id: string; status: string },
-    applyProductionAssets: async (scriptId: string, source_revision: string, screenplay_revision: string) =>
-        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/apply`, { source_revision, screenplay_revision })).data,
+    applyProductionAssets: async (scriptId: string, source_revision: string, screenplay_revision: string, shot_bindings?: any[]) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/apply`, { source_revision, screenplay_revision, shot_bindings })).data,
     planProductionSegments: async (scriptId: string) =>
         (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/plan`)).data as Array<Record<string, any>>,
     updateProductionSegment: async (scriptId: string, segmentId: string, data: { synopsis: string; entry_state: string; exit_state: string; segment_revision: string }) =>
@@ -995,11 +1006,12 @@ export const api = {
         });
         return res.data;
     },
-    updateAssetDescription: async (scriptId: string, assetId: string, assetType: string, description: string) => {
+    updateAssetDescription: async (scriptId: string, assetId: string, assetType: string, description: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/update_description`, {
             asset_id: assetId,
             asset_type: assetType,
-            description: description
+            description: description,
+            look_id: lookId
         });
         return res.data;
     },
@@ -1033,6 +1045,8 @@ export const api = {
         camera_angle?: string;
         scene_id?: string;
         character_ids?: string[];
+        character_look_ids?: Record<string, string>;
+        source_revision?: string;
         duration?: number;
         shot_size?: string;
         camera_movement_description?: string;

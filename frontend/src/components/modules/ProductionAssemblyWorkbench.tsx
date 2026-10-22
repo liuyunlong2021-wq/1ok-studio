@@ -14,6 +14,7 @@ export default function ProductionAssemblyWorkbench() {
     const [busy, setBusy] = useState(false);
     if (!project) return null;
     const segments = project.production_segments || [];
+    const plannedSeconds = segments.reduce((total: number, segment: any) => total + (segment.duration_total || 0), 0);
     const selected = project.production_selected_video_tasks || {};
     const ready = segments.length > 0 && segments.every((segment: any) => {
         const task = (project.video_tasks || []).find((item: any) => item.id === selected[segment.id]);
@@ -31,7 +32,7 @@ export default function ProductionAssemblyWorkbench() {
         } finally { setBusy(false); }
     };
     return <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <StepPageHeader stepNumber={6} englishName="FINAL ASSEMBLY" title="整集合成" subtitle="严格按分段顺序，只使用每段明确选中的成片；本流程不混入 BGM。" />
+        <StepPageHeader stepNumber={6} englishName="FINAL ASSEMBLY" title="整集合成" subtitle={`${!project.series_id ? `单集剧总时长上限 30 秒（当前 ${plannedSeconds} 秒）；` : ""}严格按分段顺序，只使用每段明确选中的成片；本流程不混入 BGM。`} />
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-surface p-6">
             {segments.map((segment: any) => {
                 const task = (project.video_tasks || []).find((item: any) => item.id === selected[segment.id]);

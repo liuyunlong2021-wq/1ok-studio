@@ -400,6 +400,7 @@ describe('SeriesDetailPage', () => {
                     3,
                     // 第 4 个参数是系列的 workflow_mode；mockSeries 未设置，走默认值。
                     'i2v_legacy',
+                    undefined,
                 );
             });
         });
