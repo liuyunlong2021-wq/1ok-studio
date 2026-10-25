@@ -33,6 +33,7 @@ import CastWorkbenchModal, { activePolls, assetTaskKey, startAssetPoll } from ".
 import { characterImageUrl, scenePropImageUrl } from "@/lib/characterImage";
 import ReconcileAction from "./ReconcileAction";
 import ProductionExtractionPreview from "./cast/ProductionExtractionPreview";
+import ProductionAssetActions from "./cast/ProductionAssetActions";
 import { oneClickTargets, runOneClickAssets, VOICE_KEYS, type BatchAsset } from "@/lib/productionAssetBatch";
 
 type AssetKind = "character" | "scene" | "prop";
@@ -1068,6 +1069,7 @@ function CastCard({ item, onOpenWorkbench, production }: { item: CastItem; onOpe
                         <StatusBadge status={item.status} />
                     </div>
                 </div>
+                {production && item.source !== "series" && item.source !== "global" && <ProductionAssetActions kind={item.kind} id={item.id} name={item.name} />}
                 {/* P1-c — history (cross-episode appearances) trigger.
                     Only for characters in series-affiliated episodes. */}
                 {item.kind === "character" && currentProject?.series_id && (
