@@ -13,6 +13,20 @@ const errorText = (error: unknown) => {
     return typeof detail === "string" ? detail : error instanceof Error ? error.message : "操作失败，请重试。";
 };
 
+async function waitForDraftTask(projectId: string, taskId: string) {
+    const deadline = Date.now() + 180_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        useProjectStore.getState().updateProject(projectId, project);
+        const task = project.production_segment_draft_task;
+        if (task?.task_id !== taskId) throw new Error("草稿任务已被新的任务替换，请刷新后检查");
+        if (task.status === "completed") return;
+        if (["failed", "stale"].includes(task.status)) throw new Error(task.error || "分段草稿生成失败");
+    }
+    throw new Error("草稿仍在后台生成；稍后重新打开项目查看");
+}
+
 export default function ProductionSegmentsWorkbench() {
     const project = useProjectStore((state) => state.currentProject);
     const updateProject = useProjectStore((state) => state.updateProject);
@@ -21,6 +35,15 @@ export default function ProductionSegmentsWorkbench() {
     const segments = project.production_segments || [];
     const plannedSeconds = segments.reduce((total: number, segment: any) => total + (segment.duration_total || 0), 0);
     const refresh = async () => updateProject(project.id, await api.getProject(project.id));
+    const drafting = busy === "drafts" || ["queued", "processing"].includes(project.production_segment_draft_task?.status ?? "");
+    const draft = () => {
+        const written = segments.some((segment: any) => segment.synopsis?.trim() || segment.exit_state?.trim());
+        if (written && !window.confirm("会用 AI 草稿覆盖所有分段已填写的简介和结尾站位，继续吗？")) return;
+        void run("drafts", async () => {
+            const task = await api.generateProductionSegmentDrafts(project.id);
+            await waitForDraftTask(project.id, task.task_id);
+        }, "简介与站位草稿已生成，请检查修改后采用");
+    };
     const run = async (key: string, action: () => Promise<unknown>, message: string) => {
         setBusy(key);
         try { await action(); await refresh(); toast.success(message); }
@@ -33,13 +56,16 @@ export default function ProductionSegmentsWorkbench() {
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-surface p-6">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-text-secondary">检查每段简介、开场承接与结尾全景站位；保存后可采用整套分段。</p>
-                <WorkflowActionButton size="sm" variant="secondary" loading={busy === "plan"} disabled={!!busy || !project.engineering_script} onClick={() => void run("plan", () => api.planProductionSegments(project.id), "分段方案已生成")}>重新按镜头分段</WorkflowActionButton>
+                <div className="flex items-center gap-2">
+                    {segments.length > 0 && <WorkflowActionButton size="sm" variant="secondary" loading={drafting} disabled={!!busy || drafting} onClick={draft}>AI 生成简介与站位</WorkflowActionButton>}
+                    <WorkflowActionButton size="sm" variant="secondary" loading={busy === "plan"} disabled={!!busy || drafting || !project.engineering_script} onClick={() => void run("plan", () => api.planProductionSegments(project.id), "分段方案已生成")}>{segments.length > 0 ? "重新按镜头分段" : "生成分段方案"}</WorkflowActionButton>
+                </div>
             </div>
-            {segments.length === 0 ? <p className="rounded-xl border border-glass-border p-8 text-center text-text-muted">先确认工程剧本并完成资产提取，再生成分段方案。</p> : <div className="space-y-4">
-                {segments.map((segment: any) => <SegmentCard key={segment.id} segment={segment} projectId={project.id} busy={!!busy} onSaved={refresh} />)}
+            {segments.length === 0 ? <p className="rounded-xl border border-glass-border p-8 text-center text-text-muted">还没有分段方案。确认工程剧本并完成资产提取后，点击右上角「生成分段方案」。</p> : <div className="space-y-4">
+                {segments.map((segment: any) => <SegmentCard key={`${segment.id}:${segment.revision}`} segment={segment} projectId={project.id} busy={!!busy || drafting} onSaved={refresh} />)}
             </div>}
             {segments.length > 0 && <div className="flex justify-end">
-                <WorkflowActionButton variant="primary" loading={busy === "adopt"} disabled={!!busy} onClick={() => void run("adopt", () => api.adoptProductionSegments(project.id), "全部分段已采用")}>校验并采用全部分段</WorkflowActionButton>
+                <WorkflowActionButton variant="primary" loading={busy === "adopt"} disabled={!!busy || drafting} onClick={() => void run("adopt", () => api.adoptProductionSegments(project.id), "全部分段已采用")}>校验并采用全部分段</WorkflowActionButton>
             </div>}
         </div>
     </div>;

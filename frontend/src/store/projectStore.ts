@@ -327,6 +327,7 @@ export interface Project {
     production_engineering_style_revision?: string | null;
     production_engineering_draft?: { text?: string; source_revision?: string; style_revision?: string; [key: string]: any };
     production_engineering_task?: { task_id?: string; status?: string; error?: string };
+    production_segment_draft_task?: { task_id?: string; status?: string; error?: string };
     production_asset_extraction_task?: { task_id?: string; status?: string; error?: string };
     production_asset_preview?: Record<string, any>;
     production_segments?: Array<Record<string, any>>;

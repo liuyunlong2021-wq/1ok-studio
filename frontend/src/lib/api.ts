@@ -940,6 +940,8 @@ export const api = {
         (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/plan`)).data as Array<Record<string, any>>,
     updateProductionSegment: async (scriptId: string, segmentId: string, data: { synopsis: string; entry_state: string; exit_state: string; segment_revision: string }) =>
         (await axios.put(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}`, data)).data,
+    generateProductionSegmentDrafts: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/drafts/generate`)).data as { task_id: string; status: string },
     adoptProductionSegments: async (scriptId: string) =>
         (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/adopt`)).data,
     generateProductionSegmentPrompt: async (scriptId: string, segmentId: string, segment_revision: string) =>
