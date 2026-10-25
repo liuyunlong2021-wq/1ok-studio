@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, Optional
 
 from ...utils.model_catalog import load_generated_model_catalog
 from .engineering_script import BEAT, _seconds
@@ -37,6 +37,13 @@ def validate_production_video_model(model_id: str) -> None:
         raise ValueError("请选择目录中可用的参考生视频通道")
 
 
+def model_reference_image_limit(model_id: str) -> Optional[int]:
+    models = load_generated_model_catalog().get("models", {})
+    model = models.get((model_id or "").split("#", 1)[0].split("/", 1)[-1]) or {}
+    limit = ((model.get("inputs") or {}).get("reference_images") or {}).get("max")
+    return limit if type(limit) is int and limit > 0 else None
+
+
 def segment_duration_choices() -> list[int]:
     return list(range(2, 31))
 
@@ -54,8 +61,15 @@ def _timecode(seconds: int) -> str:
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
 
-def plan_production_segments(shots: list[dict], max_total_seconds: int, tail_seconds: int = TAIL_SECONDS) -> list[dict]:
-    """Split confirmed engineering shots without cutting a shot or adding tail to its source."""
+def plan_production_segments(
+    shots: list[dict], max_total_seconds: int, tail_seconds: int = TAIL_SECONDS,
+    shot_reference_keys: Optional[dict] = None, max_references: Optional[int] = None,
+) -> list[dict]:
+    """Split confirmed engineering shots without cutting a shot or adding tail to its source.
+
+    With ``max_references`` a segment also never needs more distinct reference images
+    than the video channel accepts in one request.
+    """
     if type(max_total_seconds) is not int or type(tail_seconds) is not int or tail_seconds < 1:
         raise ValueError("分段时长设置无效")
     budget = max_total_seconds - tail_seconds
@@ -68,17 +82,23 @@ def plan_production_segments(shots: list[dict], max_total_seconds: int, tail_sec
     current: list[dict] = []
     current_duration = 0
     current_scene = None
+    current_keys: set = set()
     for shot in shots:
         duration = shot["end"] - shot["start"]
         if duration <= 0 or duration > budget:
             raise ValueError(f"镜头{shot['number']}时长超过剧情预算{budget}秒；请先回工程剧本拆镜")
+        keys = set((shot_reference_keys or {}).get(shot["number"], ()))
+        if max_references and len(keys) > max_references:
+            raise ValueError(f"镜头{shot['number']}需要{len(keys)}张参考图，超过视频通道上限{max_references}张；请先回资产页减少该镜绑定")
         scene = shot.get("scene") or ""
         scene_changed = bool(current and scene and current_scene and scene != current_scene)
-        if current and (scene_changed or current_duration + duration > budget):
+        too_many_references = bool(max_references and len(current_keys | keys) > max_references)
+        if current and (scene_changed or current_duration + duration > budget or too_many_references):
             groups.append(current)
-            current, current_duration = [], 0
+            current, current_duration, current_keys = [], 0, set()
         current.append(shot)
         current_duration += duration
+        current_keys |= keys
         current_scene = scene
     if current:
         groups.append(current)
@@ -126,6 +146,21 @@ def plan_production_segments(shots: list[dict], max_total_seconds: int, tail_sec
     return result
 
 
+def number_segment_references(shot_numbers: list, references_by_shot: dict) -> tuple[list[dict], dict]:
+    """Number references 1..N in first-use order, which is also the upload order of the segment."""
+    numbers: dict = {}
+    asset_refs = []
+    numbers_by_shot = {}
+    for shot_number in shot_numbers:
+        for reference in references_by_shot.get(shot_number, []):
+            key = (reference["id"], reference.get("look_id"))
+            if key not in numbers:
+                numbers[key] = len(numbers) + 1
+                asset_refs.append({**reference, "number": numbers[key]})
+        numbers_by_shot[shot_number] = [numbers[(reference["id"], reference.get("look_id"))] for reference in references_by_shot.get(shot_number, [])]
+    return asset_refs, numbers_by_shot
+
+
 def render_production_segment(segment: dict) -> str:
     asset_lines = []
     for kind, label in (("characters", "角色"), ("scenes", "场景"), ("props", "道具")):
@@ -146,10 +181,12 @@ def render_production_segment(segment: dict) -> str:
 
     style = segment.get("style") or {}
     screenplay = []
+    last_scene = None
     for shot in segment.get("shots", []):
         scene = shot.get("scene")
-        if scene and (not screenplay or screenplay[-1] != scene):
+        if scene and scene != last_scene:
             screenplay.append(scene)
+        last_scene = scene or last_scene
         screenplay.extend([
             f"镜头{shot['local_number']}【{_timecode(shot['start'])}-{_timecode(shot['end'])}】",
             *( ["本镜参考：" + "、".join(f"图{number}" for number in shot["asset_reference_numbers"])] if shot.get("asset_reference_numbers") else []),

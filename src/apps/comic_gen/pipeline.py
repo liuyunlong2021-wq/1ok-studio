@@ -40,6 +40,8 @@ from .skill_packages import SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
 from .storyboard_contract import storyboard_duration
 from .production_workflow import (
     PRODUCTION_WORKFLOW_ID,
+    model_reference_image_limit,
+    number_segment_references,
     plan_production_segments,
     production_segment_revision,
     render_production_segment,
@@ -3012,32 +3014,26 @@ class ComicGenPipeline:
             raise ValueError("请先从当前工程剧本提取并采用资产，完成镜头绑定")
         maximum = script.production_settings.get("max_segment_seconds")
         validate_segment_maximum(maximum)
-        planned = plan_production_segments(script.engineering_script["shots"], maximum, 1)
         frames_by_number = {frame.source_shot_number: frame for frame in script.frames if frame.source_shot_number is not None}
         all_assets = self.resolve_episode_assets(script)
         assets_by_id = {asset.id: asset for group in all_assets.values() for asset in group}
         from .production_assets import frame_references, reference_key
 
         references_by_shot = {frame.source_shot_number: frame_references(self, frame, assets_by_id) for frame in script.frames}
-        numbers = {}
-        for frame in script.frames:
-            for reference in references_by_shot[frame.source_shot_number]:
-                key = reference_key(reference)
-                if key not in numbers:
-                    numbers[key] = len(numbers) + 1
+        planned = plan_production_segments(
+            script.engineering_script["shots"], maximum, 1,
+            shot_reference_keys={number: {reference_key(reference) for reference in references} for number, references in references_by_shot.items()},
+            max_references=model_reference_image_limit(script.production_settings.get("video_model")),
+        )
         style = script.art_direction.style_config
         previous_exit = "首段：按工程剧本首镜开场，明确初始站位、朝向、距离、视线与持物。"
         for segment in planned:
             frame_group = [frames_by_number[number] for number in segment["source_shot_numbers"] if number in frames_by_number]
             if len(frame_group) != len(segment["source_shot_numbers"]):
                 raise ValueError("工程镜头尚未全部同步，请回资产页重新采用")
-            references = {}
-            for frame in frame_group:
-                for reference in references_by_shot[frame.source_shot_number]:
-                    references[reference_key(reference)] = {**reference, "number": numbers[reference_key(reference)]}
-            asset_refs = list(references.values())
+            asset_refs, numbers_by_shot = number_segment_references(segment["source_shot_numbers"], references_by_shot)
             for shot in segment["shots"]:
-                shot["asset_reference_numbers"] = [numbers[reference_key(reference)] for reference in references_by_shot[shot["number"]]]
+                shot["asset_reference_numbers"] = numbers_by_shot[shot["number"]]
             segment.update(
                 source_frame_ids=[frame.id for frame in frame_group],
                 source_revision=script.engineering_script["revision"],

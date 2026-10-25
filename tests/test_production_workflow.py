@@ -1,6 +1,8 @@
 import pytest
 
 from src.apps.comic_gen.production_workflow import (
+    model_reference_image_limit,
+    number_segment_references,
     plan_production_segments,
     render_production_segment,
     segment_duration_choices,
@@ -65,6 +67,45 @@ def test_long_episode_splits_into_segments_within_the_per_segment_limit():
     segments = plan_production_segments(shots, max_total_seconds=28)
     assert sum(segment["duration_story"] for segment in segments) == 192
     assert all(segment["duration_total"] <= 28 for segment in segments)
+
+
+def test_segment_planner_splits_before_exceeding_the_reference_image_limit():
+    shots = [_shot(number, number - 1, number) for number in range(1, 5)]
+    keys = {1: {"a", "b"}, 2: {"b", "c"}, 3: {"d"}, 4: {"a"}}
+    segments = plan_production_segments(shots, max_total_seconds=28, shot_reference_keys=keys, max_references=3)
+    assert [segment["source_shot_numbers"] for segment in segments] == [[1, 2], [3, 4]]
+
+
+def test_segment_planner_rejects_a_shot_with_more_references_than_the_channel_accepts():
+    with pytest.raises(ValueError, match="镜头1.*参考图"):
+        plan_production_segments([_shot(1, 0, 2)], max_total_seconds=28, shot_reference_keys={1: {"a", "b", "c"}}, max_references=2)
+
+
+def test_segment_reference_numbers_follow_the_upload_order_of_each_segment():
+    def ref(asset_id, kind):
+        return {"id": asset_id, "kind": kind, "name": asset_id}
+    references_by_shot = {9: [ref("selis", "characters"), ref("plaza", "scenes")], 10: [ref("laila", "characters"), ref("plaza", "scenes")]}
+
+    asset_refs, numbers_by_shot = number_segment_references([9, 10], references_by_shot)
+
+    assert [(item["id"], item["number"]) for item in asset_refs] == [("selis", 1), ("plaza", 2), ("laila", 3)]
+    assert numbers_by_shot == {9: [1, 2], 10: [3, 2]}
+
+
+def test_reference_image_limit_comes_from_the_model_catalog():
+    assert model_reference_image_limit("jc-minimax-h3-ref2v") == 6
+    assert model_reference_image_limit("missing-model") is None
+
+
+def test_rendered_segment_prints_each_scene_heading_once_per_run():
+    segment = {
+        "duration_story": 4, "duration_total": 5, "asset_refs": [],
+        "shots": [
+            {"local_number": 1, "scene": "场1-1", "start": 0, "end": 2, "body": "甲"},
+            {"local_number": 2, "scene": "场1-1", "start": 2, "end": 4, "body": "乙"},
+        ],
+    }
+    assert render_production_segment(segment).count("场1-1") == 1
 
 
 @pytest.mark.parametrize(
