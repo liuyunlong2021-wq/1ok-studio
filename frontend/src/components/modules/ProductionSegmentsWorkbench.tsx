@@ -29,7 +29,7 @@ export default function ProductionSegmentsWorkbench() {
     };
 
     return <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <StepPageHeader stepNumber={4} englishName="SEGMENTED SCREENPLAY" title="分段工程剧本" subtitle={`${!project.series_id ? `单集剧合成总时长上限 30 秒（当前规划 ${plannedSeconds} 秒）；` : ""}每段总长不超过 ${project.production_settings?.max_segment_seconds || "用户设置"} 秒，含最后 1 秒空间关系全景；镜头不会被切开。`} />
+        <StepPageHeader stepNumber={4} englishName="SEGMENTED SCREENPLAY" title="分段工程剧本" subtitle={`当前规划 ${segments.length} 段共 ${plannedSeconds} 秒；每段总长不超过 ${project.production_settings?.max_segment_seconds || "用户设置"} 秒，含最后 1 秒空间关系全景；镜头不会被切开。`} />
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto bg-surface p-6">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-text-secondary">检查每段简介、开场承接与结尾全景站位；保存后可采用整套分段。</p>

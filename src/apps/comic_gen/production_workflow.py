@@ -2,14 +2,13 @@
 
 import hashlib
 import json
-from typing import Any, Optional
+from typing import Any
 
 from ...utils.model_catalog import load_generated_model_catalog
 from .engineering_script import BEAT, _seconds
 
 PRODUCTION_WORKFLOW_ID = "engineering_segments_v1"
 TAIL_SECONDS = 1
-MAX_STANDALONE_EPISODE_SECONDS = 30
 VOICE_DESIGN_KEYS = ("年龄感", "音高", "明暗", "厚薄", "共鸣", "气息", "颗粒感", "口音", "稳定表达习惯")
 
 
@@ -49,11 +48,6 @@ def validate_segment_maximum(duration: int) -> None:
         raise ValueError("分段总时长至少为2秒，其中最后1秒固定留给全景尾镜")
     if duration > 30:
         raise ValueError("本流程单段总时长上限为30秒（含末尾全景）")
-
-
-def validate_production_episode_duration(series_id: Optional[str], segments: list[dict]) -> None:
-    if not series_id and sum(segment.get("duration_total", 0) for segment in segments) > MAX_STANDALONE_EPISODE_SECONDS:
-        raise ValueError("单集剧成片总时长不能超过30秒（含每段结尾全景）")
 
 
 def _timecode(seconds: int) -> str:

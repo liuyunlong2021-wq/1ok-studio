@@ -99,12 +99,14 @@ def test_segment_video_task_rejects_prompt_or_segment_revision_drift(production_
         )
 
 
-def test_standalone_episode_cannot_merge_over_30_seconds(production_pipeline):
+def test_standalone_episode_has_no_total_duration_cap(production_pipeline):
     script = _segment_script()
-    script.production_segments[0]["duration_total"] = 31
+    script.series_id = None
+    script.production_segments[0]["duration_total"] = 193
     production_pipeline.scripts[script.id] = script
 
-    with pytest.raises(ValueError, match="单集剧成片总时长不能超过30秒"):
+    # Only per-segment limits apply; a long standalone episode reaches the selection check.
+    with pytest.raises(ValueError, match="每个分段都必须明确选择"):
         production_pipeline._merge_production_segments(script)
 
 

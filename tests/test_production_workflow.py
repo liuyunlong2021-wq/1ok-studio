@@ -4,7 +4,6 @@ from src.apps.comic_gen.production_workflow import (
     plan_production_segments,
     render_production_segment,
     segment_duration_choices,
-    validate_production_episode_duration,
     validate_production_video_model,
     validate_segment_maximum,
 )
@@ -61,11 +60,11 @@ def test_segment_planner_rejects_a_shot_that_cannot_fit_without_cutting_it():
         plan_production_segments([_shot(1, 0, 6)], max_total_seconds=6)
 
 
-def test_standalone_episode_is_limited_to_30_seconds_including_segment_tails():
-    validate_production_episode_duration(None, [{"duration_total": 30}])
-    with pytest.raises(ValueError, match="单集剧成片总时长不能超过30秒"):
-        validate_production_episode_duration(None, [{"duration_total": 20}, {"duration_total": 11}])
-    validate_production_episode_duration("series-1", [{"duration_total": 31}])
+def test_long_episode_splits_into_segments_within_the_per_segment_limit():
+    shots = [_shot(number, (number - 1) * 4, number * 4) for number in range(1, 49)]
+    segments = plan_production_segments(shots, max_total_seconds=28)
+    assert sum(segment["duration_story"] for segment in segments) == 192
+    assert all(segment["duration_total"] <= 28 for segment in segments)
 
 
 @pytest.mark.parametrize(

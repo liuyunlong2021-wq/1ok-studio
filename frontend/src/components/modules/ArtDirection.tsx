@@ -382,7 +382,7 @@ export default function ArtDirection() {
                     <section className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-5 space-y-4">
                         <div>
                             <h3 className="text-sm font-semibold text-foreground">制作设置（确认后作为全流程准则）</h3>
-                            <p className="mt-1 text-xs text-text-secondary">单段时长由你设置，与视频模型选择无关；每段结尾固定保留 1 秒全景。{!currentProject?.series_id && "单集剧最终合成总长最多 30 秒，按所有分段相加计算。"}</p>
+                            <p className="mt-1 text-xs text-text-secondary">单段时长由你设置，与视频模型选择无关；每段结尾固定保留 1 秒全景。整集时长不设上限，按镜头自动分成多段。</p>
                         </div>
                         <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
                             <label className="text-xs text-text-secondary">画幅

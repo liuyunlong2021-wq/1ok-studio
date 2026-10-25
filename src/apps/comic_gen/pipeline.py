@@ -48,7 +48,6 @@ from .production_workflow import (
     production_settings_revision,
     validate_production_video_model,
     validate_segment_maximum,
-    validate_production_episode_duration,
     VOICE_DESIGN_KEYS,
 )
 from ...utils import get_logger
@@ -3014,7 +3013,6 @@ class ComicGenPipeline:
         maximum = script.production_settings.get("max_segment_seconds")
         validate_segment_maximum(maximum)
         planned = plan_production_segments(script.engineering_script["shots"], maximum, 1)
-        validate_production_episode_duration(script.series_id, planned)
         frames_by_number = {frame.source_shot_number: frame for frame in script.frames if frame.source_shot_number is not None}
         all_assets = self.resolve_episode_assets(script)
         assets_by_id = {asset.id: asset for group in all_assets.values() for asset in group}
@@ -3115,7 +3113,6 @@ class ComicGenPipeline:
         actual = [number for segment in script.production_segments for number in segment.get("source_shot_numbers", [])]
         if actual != expected:
             raise ValueError("分段镜头必须按顺序完整覆盖工程剧本，不能遗漏、重复或换序")
-        validate_production_episode_duration(script.series_id, script.production_segments)
         maximum = script.production_settings.get("max_segment_seconds")
         for segment in script.production_segments:
             if segment.get("duration_total") > maximum:
@@ -5018,7 +5015,6 @@ class ComicGenPipeline:
     def _merge_production_segments(self, script: Script) -> Script:
         if not script.production_settings.get("segments_adopted_at") or not script.production_segments:
             raise ValueError("请先采用分段工程剧本")
-        validate_production_episode_duration(script.series_id, script.production_segments)
         selected = script.production_selected_video_tasks or {}
         paths = []
         for segment in script.production_segments:
