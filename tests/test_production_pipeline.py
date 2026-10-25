@@ -479,3 +479,66 @@ def test_segment_drafts_reject_incomplete_model_output(production_pipeline):
         production_pipeline.complete_production_segment_drafts(script.id, task["task_id"], _drafts()[:1])
     with pytest.raises(ValueError, match="已在后台生成"):
         production_pipeline.queue_production_segment_drafts(script.id)
+
+
+def _fold_script():
+    from src.apps.comic_gen.models import CharacterLook, Prop
+
+    script = _segment_script()
+    script.characters = [
+        Character(id="laila", name="莱拉", description="流亡皇女", looks=[CharacterLook(id="work", name="工装", description="补丁工装")]),
+        Character(id="selis", name="塞莉丝", description="太后"),
+    ]
+    script.scenes = [Scene(id="scene-1", name="中央广场", description="高台与纪念墙")]
+    script.props = [
+        Prop(id="crown", name="帝国皇冠", description="镶嵌晶石的华美王冠"),
+        Prop(id="ship", name="破旧采矿船", description="锈蚀的小型采矿飞船"),
+    ]
+    script.frames[0].prop_ids = ["crown", "ship"]
+    return script
+
+
+def test_folding_a_prop_into_a_character_look_moves_its_description_and_removes_the_prop(production_pipeline):
+    script = _fold_script()
+    production_pipeline.scripts[script.id] = script
+
+    production_pipeline.fold_production_prop(script.id, "crown", "character", "laila", "work")
+
+    look = script.characters[0].looks[0]
+    assert "帝国皇冠：镶嵌晶石的华美王冠" in look.description and look.description.startswith("补丁工装")
+    assert look.description_version == 2 and look.prompt_generation_status == "stale"
+    assert [prop.id for prop in script.props] == ["ship"]
+    assert script.frames[0].prop_ids == ["ship"]
+
+
+def test_folding_into_a_character_with_looks_requires_choosing_the_look(production_pipeline):
+    script = _fold_script()
+    production_pipeline.scripts[script.id] = script
+
+    with pytest.raises(ValueError, match="请选择造型"):
+        production_pipeline.fold_production_prop(script.id, "crown", "character", "laila")
+    production_pipeline.fold_production_prop(script.id, "crown", "character", "selis")
+    assert "帝国皇冠" in script.characters[1].description
+
+
+def test_folding_a_prop_into_the_scene_adds_it_as_a_fixture(production_pipeline):
+    script = _fold_script()
+    production_pipeline.scripts[script.id] = script
+
+    production_pipeline.fold_production_prop(script.id, "ship", "scene", "scene-1")
+
+    assert "破旧采矿船：锈蚀的小型采矿飞船" in script.scenes[0].description
+    assert [prop.id for prop in script.props] == ["crown"]
+
+
+def test_deleting_an_asset_used_by_adopted_segments_forces_replanning(production_pipeline):
+    script = _fold_script()
+    script.production_segments[0]["asset_refs"] = [{"id": "ship", "kind": "props", "number": 1, "name": "破旧采矿船", "image_url": "x.png"}]
+    production_pipeline.scripts[script.id] = script
+
+    production_pipeline.delete_prop(script.id, "ship")
+
+    assert not script.production_segments[0].get("adopted_at")
+    assert "segments_adopted_at" not in script.production_settings
+    with pytest.raises(ValueError, match="资产已变化"):
+        production_pipeline.adopt_production_segments(script.id)

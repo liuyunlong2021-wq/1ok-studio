@@ -24,7 +24,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Literal, Tuple
 import asyncio
 import copy
 import time
@@ -2949,6 +2949,20 @@ def _run_production_voice_design_task(script_id: str, asset_id: str, task_id: st
     except Exception as error:
         logger.exception("Production voice design generation failed")
         pipeline.fail_production_voice_design(script_id, asset_id, task_id, str(error))
+
+
+class FoldProductionPropRequest(BaseModel):
+    target_type: Literal["character", "scene"]
+    target_id: str
+    look_id: Optional[str] = None
+
+
+@app.post("/projects/{script_id}/production/props/{prop_id}/fold")
+def fold_production_prop(script_id: str, prop_id: str, request: FoldProductionPropRequest):
+    try:
+        return signed_response(pipeline.fold_production_prop(script_id, prop_id, request.target_type, request.target_id, request.look_id))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @app.post("/projects/{script_id}/production/assets/{asset_id}/voice-design/generate", status_code=202)

@@ -1938,6 +1938,29 @@ class ComicGenPipeline:
     def delete_prop(self, script_id: str, prop_id: str) -> Script:
         return self._delete_asset(script_id, "prop", prop_id)
 
+    def fold_production_prop(self, script_id: str, prop_id: str, target_type: str, target_id: str, look_id: Optional[str] = None) -> Script:
+        """Move a prop that is really costume or set dressing into the character look or scene, then delete it."""
+        from .production_assets import require_editable, resolve_target
+
+        script = self.get_script(script_id)
+        if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+            raise ValueError("新制作流程项目不存在")
+        if target_type not in ("character", "scene"):
+            raise ValueError("道具只能并入角色造型或场景")
+        prop, prop_source = self._find_asset_with_source(script, prop_id, "prop")
+        if not prop:
+            raise ValueError("道具不存在")
+        require_editable(prop, prop, prop_source)
+        owner, target, source = resolve_target(self, script, target_id, target_type, look_id)
+        require_editable(owner, target, source)
+        if target_type == "character" and not look_id and owner.looks:
+            raise ValueError(f"“{owner.name}”有多套造型，请选择造型")
+        label = "随身物品" if target_type == "character" else "陈设与地标"
+        line = f"{label}——{prop.name}：{prop.description.strip()}" if prop.description.strip() else f"{label}——{prop.name}"
+        description = f"{target.description.rstrip()}\n{line}" if target.description.strip() else line
+        self.update_asset_description(script_id, target_id, target_type, description, look_id)
+        return self._delete_asset(script_id, "prop", prop_id)
+
     def delete_series_asset(self, series_id: str, asset_type: str, asset_id: str) -> Script:
         series = self.series_store.get(series_id)
         if not series:
@@ -1999,6 +2022,12 @@ class ComicGenPipeline:
                     frame.character_ids.remove(asset_id)
                 elif asset_type == "prop" and asset_id in frame.prop_ids:
                     frame.prop_ids.remove(asset_id)
+            # Segments still carry the deleted asset as a reference image; they must be re-planned.
+            used = [segment for segment in item.production_segments if any(ref.get("id") == asset_id for ref in segment.get("asset_refs", []))]
+            for segment in used:
+                segment.pop("adopted_at", None)
+            if used:
+                item.production_settings.pop("segments_adopted_at", None)
 
         self._save_after_asset_mutation(source)
         if source == "series":
@@ -3182,6 +3211,9 @@ class ComicGenPipeline:
         script = self.get_script(script_id)
         if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
             raise ValueError("新制作流程项目不存在")
+        known = {asset.id for group in self.resolve_episode_assets(script).values() for asset in group}
+        if any(ref.get("id") not in known for segment in script.production_segments for ref in segment.get("asset_refs", [])):
+            raise ValueError("分段引用的资产已变化（删除或合并），请重新按镜头分段")
         if not engineering_status(script)["current"] or script.production_settings.get("segments_source_revision") != script.engineering_script["revision"]:
             raise ValueError("工程剧本或分段方案已过期，请重新分段")
         if any(segment.get("settings_revision") != script.production_settings.get("revision") for segment in script.production_segments):

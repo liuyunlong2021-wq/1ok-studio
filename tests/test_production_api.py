@@ -183,3 +183,19 @@ def test_segment_drafts_are_generated_in_background_from_one_text_model_call(mon
     assert "剧情镜头" in calls[0][0][-1]["content"]
     assert script.production_segments[0]["synopsis"] == "甲愤怒地质问妻子乙，乙沉默承受"
     assert script.production_segment_draft_task["status"] == "completed"
+
+
+def test_fold_prop_endpoint_moves_prop_into_scene(monkeypatch):
+    from src.apps.comic_gen.models import Prop
+
+    script = _production_script()
+    script.props = [Prop(id="ship", name="破旧采矿船", description="锈蚀的小型采矿飞船")]
+    client = _client(monkeypatch, script)
+    monkeypatch.setattr(api_mod.pipeline, "_save_after_asset_mutation", lambda _source: None)
+
+    response = client.post(f"/projects/{script.id}/production/props/ship/fold", json={"target_type": "scene", "target_id": "scene-1"})
+
+    assert response.status_code == 200
+    assert script.props == [] and "破旧采矿船" in script.scenes[0].description
+    rejected = client.post(f"/projects/{script.id}/production/props/missing/fold", json={"target_type": "scene", "target_id": "scene-1"})
+    assert rejected.status_code == 409
