@@ -417,3 +417,65 @@ def test_production_merge_save_failure_preserves_previous_result_and_removes_par
     assert script.merged_video_url == "videos/previous.mp4"
     assert previous.read_bytes() == b"old-merged"
     assert list(input_dir.glob("merged_*.mp4")) == []
+
+
+def _two_segment_script():
+    script = _segment_script()
+    second = {**script.production_segments[0], "id": "segment-002-2-2", "index": 2, "source_shot_numbers": [2], "synopsis": "", "exit_state": "", "entry_state": ""}
+    first = script.production_segments[0]
+    first.update(synopsis="", exit_state="")
+    for segment in (first, second):
+        segment["revision"] = production_segment_revision(segment)
+    script.production_segments = [first, second]
+    return script
+
+
+def _drafts():
+    return [
+        {"id": "segment-001-1-1", "synopsis": "甲愤怒地质问妻子乙，乙沉默承受", "exit_state": "甲在画左面向右，乙在画右背对窗户，相距两米"},
+        {"id": "segment-002-2-2", "synopsis": "乙终于开口反驳，甲愣在原地", "exit_state": "乙走到画面中央，甲仍在画左，两人侧身相对"},
+    ]
+
+
+def test_segment_drafts_fill_synopsis_and_tail_positions_and_chain_entries(production_pipeline):
+    script = _two_segment_script()
+    production_pipeline.scripts[script.id] = script
+    task = production_pipeline.queue_production_segment_drafts(script.id)
+    assert production_pipeline.mark_production_segment_drafts_running(script.id, task["task_id"])
+
+    assert production_pipeline.complete_production_segment_drafts(script.id, task["task_id"], _drafts())
+
+    first, second = production_pipeline.get_script(script.id).production_segments
+    assert first["synopsis"] == "甲愤怒地质问妻子乙，乙沉默承受"
+    assert first["entry_state"] == "甲位于门口，面向房间内的乙"
+    assert second["entry_state"] == first["exit_state"]
+    assert "乙走到画面中央" in second["screenplay_text"]
+    assert not first.get("adopted_at") and first["revision"] == production_segment_revision(first)
+    assert "segments_adopted_at" not in script.production_settings
+    assert script.production_segment_draft_task["status"] == "completed"
+
+
+def test_segment_drafts_do_not_overwrite_segments_edited_while_generating(production_pipeline):
+    script = _two_segment_script()
+    production_pipeline.scripts[script.id] = script
+    task = production_pipeline.queue_production_segment_drafts(script.id)
+    production_pipeline.mark_production_segment_drafts_running(script.id, task["task_id"])
+    production_pipeline.update_production_segment(script.id, "segment-002-2-2", "用户自己写的简介内容", "", "用户自己写的结尾站位")
+
+    assert not production_pipeline.complete_production_segment_drafts(script.id, task["task_id"], _drafts())
+
+    second = script.production_segments[1]
+    assert second["synopsis"] == "用户自己写的简介内容"
+    assert script.production_segment_draft_task["status"] == "stale"
+
+
+def test_segment_drafts_reject_incomplete_model_output(production_pipeline):
+    script = _two_segment_script()
+    production_pipeline.scripts[script.id] = script
+    task = production_pipeline.queue_production_segment_drafts(script.id)
+    production_pipeline.mark_production_segment_drafts_running(script.id, task["task_id"])
+
+    with pytest.raises(ValueError, match="第2段"):
+        production_pipeline.complete_production_segment_drafts(script.id, task["task_id"], _drafts()[:1])
+    with pytest.raises(ValueError, match="已在后台生成"):
+        production_pipeline.queue_production_segment_drafts(script.id)

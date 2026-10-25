@@ -161,3 +161,25 @@ def test_resume_asset_image_endpoint_only_queues_existing_task(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {key: queued[key] for key in ("task_id", "status", "phase", "reused", "can_resume")}
     assert calls == ["image-task"]
+
+
+def test_segment_drafts_are_generated_in_background_from_one_text_model_call(monkeypatch):
+    script = _production_script()
+    script.production_segments[0].update(synopsis="", exit_state="")
+    script.production_segments[0]["revision"] = production_segment_revision(script.production_segments[0])
+    client = _client(monkeypatch, script)
+    calls = []
+
+    class FakeAdapter:
+        def chat(self, messages, model=None, response_format=None):
+            calls.append((messages, model))
+            return json.dumps({"segments": [{"id": "segment-1", "synopsis": "甲愤怒地质问妻子乙，乙沉默承受", "exit_state": "甲在画左面向右，乙在画右，相距两米"}]}, ensure_ascii=False)
+
+    monkeypatch.setattr(api_mod, "LLMAdapter", FakeAdapter)
+    response = client.post(f"/projects/{script.id}/production/segments/drafts/generate")
+
+    assert response.status_code == 202
+    assert len(calls) == 1 and calls[0][1] == "test-text"
+    assert "剧情镜头" in calls[0][0][-1]["content"]
+    assert script.production_segments[0]["synopsis"] == "甲愤怒地质问妻子乙，乙沉默承受"
+    assert script.production_segment_draft_task["status"] == "completed"

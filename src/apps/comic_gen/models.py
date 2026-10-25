@@ -721,6 +721,7 @@ class Script(BaseModel):
     production_engineering_archives: List[Dict[str, Any]] = Field(default_factory=list)
     production_segments: List[Dict[str, Any]] = Field(default_factory=list)
     production_segment_archives: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segment_draft_task: Dict[str, Any] = Field(default_factory=dict)
     production_selected_video_tasks: Dict[str, str] = Field(default_factory=dict)
     engineering_script: Optional[Dict[str, Any]] = None
     storyboard_source_revision: Optional[str] = None

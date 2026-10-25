@@ -3066,6 +3066,56 @@ def adopt_production_segments(script_id: str):
         raise HTTPException(status_code=409, detail=str(error)) from error
 
 
+def _production_segment_draft_input(segments: List[Dict[str, Any]]) -> str:
+    blocks = []
+    for segment in segments:
+        names = {ref["id"]: ref["name"] for ref in segment.get("asset_refs", []) if ref.get("kind") == "characters"}
+        tail = "、".join(dict.fromkeys(names[item] for item in segment.get("tail_character_ids") or [] if item in names)) or "无人（空场景）"
+        shots = "\n".join(f"{shot.get('scene') or ''} 镜头{shot['local_number']}：{shot['body']}" for shot in segment.get("shots", []))
+        blocks.append(f"### 分段 id={segment['id']}（第{segment['index']}段）\n结尾全景在场人物：{tail}\n{shots}")
+    return "\n\n".join(blocks)
+
+
+def _run_production_segment_draft_task(script_id: str, task_id: str, segments: List[Dict[str, Any]], model: str) -> None:
+    if not pipeline.mark_production_segment_drafts_running(script_id, task_id):
+        return
+    system = (
+        "你是短剧分段编辑。为每个分段写两项草稿，只返回 JSON 对象："
+        '{"segments":[{"id":"分段id","synopsis":"…","exit_state":"…"}]}，必须覆盖输入的全部分段并原样保留 id。\n'
+        "synopsis：一句话（不超过60字），写清主体、人物关系、情绪与本段内容；不是旁白，不新增剧情。\n"
+        "exit_state：本段最后1秒全景里，仅限“结尾全景在场人物”，逐个写出画面左右、前后、朝向、视线和持物，"
+        "并点出一个场景地标；以本段最后一个镜头结束时的实际状态为准，不召回已离场的人，不新增动作。"
+        "无人时只写空场景的地标与机位关系。下一段会直接从这个站位开场。"
+    )
+    try:
+        raw = LLMAdapter().chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": _production_segment_draft_input(segments)},
+        ], model=model or None, response_format={"type": "json_object"})
+        data = json.loads(_strip_markdown_json(raw))
+        drafts = data.get("segments") if isinstance(data, dict) else data
+        if not isinstance(drafts, list):
+            raise ValueError("模型没有返回分段草稿列表，请重试")
+        pipeline.complete_production_segment_drafts(script_id, task_id, drafts)
+    except Exception as error:
+        logger.exception("Production segment draft task %s failed", task_id)
+        pipeline.fail_production_segment_drafts(script_id, task_id, str(error))
+
+
+@app.post("/projects/{script_id}/production/segments/drafts/generate", status_code=202)
+def generate_production_segment_drafts(script_id: str, background_tasks: BackgroundTasks):
+    try:
+        task = pipeline.queue_production_segment_drafts(script_id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    script = pipeline.get_script(script_id)
+    background_tasks.add_task(
+        _run_production_segment_draft_task, script_id, task["task_id"],
+        copy.deepcopy(script.production_segments), pipeline.get_effective_polish_model(script) or "",
+    )
+    return {"task_id": task["task_id"], "status": task["status"]}
+
+
 def _production_segment_and_motion_skill(script_id: str, segment_id: str):
     script = pipeline.get_script(script_id)
     segment = next((item for item in script.production_segments if item.get("id") == segment_id), None) if script else None

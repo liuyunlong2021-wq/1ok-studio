@@ -359,6 +359,10 @@ class ComicGenPipeline:
                 script.production_engineering_task["status"] = "failed"
                 script.production_engineering_task["error"] = self._ORPHAN_RECOVERY_REASON
                 recovered += 1
+            if getattr(script, "production_segment_draft_task", {}).get("status") in STUCK:
+                script.production_segment_draft_task["status"] = "failed"
+                script.production_segment_draft_task["error"] = self._ORPHAN_RECOVERY_REASON
+                recovered += 1
             if getattr(script, "production_asset_extraction_task", {}).get("status") in STUCK:
                 script.production_asset_extraction_task["status"] = "failed"
                 script.production_asset_extraction_task["error"] = self._ORPHAN_RECOVERY_REASON
@@ -3077,23 +3081,100 @@ class ComicGenPipeline:
         if index + 1 < len(segments):
             segments[index + 1]["entry_state"] = segment["exit_state"]
         for item in segments[index:index + 2]:
-            item.pop("adopted_at", None)
-            item.pop("prompt_adopted_at", None)
-            item.pop("adopted_prompt_revision", None)
-            item.pop("prompt_draft_revision", None)
-            item.pop("prompt_task_snapshot", None)
-            item.pop("prompt_task_id", None)
-            item["prompt_generation_status"] = "stale"
-            item["prompt_generation_error"] = "分段内容已变化，请重新生成提示词"
-            item["adopted_prompt"] = ""
-            item["prompt_draft"] = ""
-            item["screenplay_text"] = render_production_segment(item)
-            item["revision"] = production_segment_revision(item)
-            script.production_selected_video_tasks.pop(item["id"], None)
+            self._reset_production_segment_derived(script, item)
         script.production_settings.pop("segments_adopted_at", None)
         script.updated_at = time.time()
         self.save_production_project(script_id)
         return segment
+
+    @staticmethod
+    def _reset_production_segment_derived(script: Script, item: Dict[str, Any]) -> None:
+        """Segment text changed: drop adoption, prompts and selected video, then re-render."""
+        item.pop("adopted_at", None)
+        item.pop("prompt_adopted_at", None)
+        item.pop("adopted_prompt_revision", None)
+        item.pop("prompt_draft_revision", None)
+        item.pop("prompt_task_snapshot", None)
+        item.pop("prompt_task_id", None)
+        item["prompt_generation_status"] = "stale"
+        item["prompt_generation_error"] = "分段内容已变化，请重新生成提示词"
+        item["adopted_prompt"] = ""
+        item["prompt_draft"] = ""
+        item["screenplay_text"] = render_production_segment(item)
+        item["revision"] = production_segment_revision(item)
+        script.production_selected_video_tasks.pop(item["id"], None)
+
+    def queue_production_segment_drafts(self, script_id: str) -> Dict[str, Any]:
+        script = self.get_script(script_id)
+        if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+            raise ValueError("新制作流程项目不存在")
+        if not script.production_segments:
+            raise ValueError("请先生成分段方案")
+        if script.production_segment_draft_task.get("status") in ("queued", "processing"):
+            raise ValueError("分段简介与站位草稿已在后台生成")
+        task = {
+            "task_id": str(uuid.uuid4()), "status": "queued", "error": "",
+            "segment_revisions": {segment["id"]: segment.get("revision") for segment in script.production_segments},
+            "created_at": time.time(),
+        }
+        script.production_segment_draft_task = task
+        script.updated_at = time.time()
+        self.save_production_project(script_id)
+        return copy.deepcopy(task)
+
+    @staticmethod
+    def _production_segment_drafts_current(script: Script, task: Dict[str, Any]) -> bool:
+        return task.get("segment_revisions") == {segment["id"]: segment.get("revision") for segment in script.production_segments}
+
+    def mark_production_segment_drafts_running(self, script_id: str, task_id: str) -> bool:
+        script = self.get_script(script_id)
+        task = script.production_segment_draft_task if script else {}
+        if not script or task.get("task_id") != task_id or task.get("status") != "queued":
+            return False
+        if not self._production_segment_drafts_current(script, task):
+            task.update(status="stale", error="分段方案已变化，请重新生成草稿", finished_at=time.time())
+            self.save_production_project(script_id)
+            return False
+        task.update(status="processing", started_at=time.time())
+        self.save_production_project(script_id)
+        return True
+
+    def complete_production_segment_drafts(self, script_id: str, task_id: str, drafts: List[Dict[str, Any]]) -> bool:
+        script = self.get_script(script_id)
+        task = script.production_segment_draft_task if script else {}
+        if not script or task.get("task_id") != task_id or task.get("status") != "processing":
+            return False
+        if not self._production_segment_drafts_current(script, task):
+            task.update(status="stale", error="分段在生成期间被修改，草稿未写入", finished_at=time.time())
+            self.save_production_project(script_id)
+            return False
+        by_id = {item.get("id"): item for item in drafts if isinstance(item, dict)}
+        segments = script.production_segments
+        for segment in segments:
+            draft = by_id.get(segment["id"]) or {}
+            synopsis, exit_state = draft.get("synopsis"), draft.get("exit_state")
+            if not isinstance(synopsis, str) or not 8 <= len(synopsis.strip()) <= 200 or not isinstance(exit_state, str) or not 8 <= len(exit_state.strip()) <= 400:
+                raise ValueError(f"模型返回的第{segment['index']}段简介或结尾站位不完整，请重试")
+        for index, segment in enumerate(segments):
+            draft = by_id[segment["id"]]
+            segment.update(synopsis=draft["synopsis"].strip(), exit_state=draft["exit_state"].strip())
+            if index > 0:
+                segment["entry_state"] = segments[index - 1]["exit_state"]
+            self._reset_production_segment_derived(script, segment)
+        script.production_settings.pop("segments_adopted_at", None)
+        task.update(status="completed", error="", finished_at=time.time())
+        script.updated_at = time.time()
+        self.save_production_project(script_id)
+        return True
+
+    def fail_production_segment_drafts(self, script_id: str, task_id: str, error: str) -> bool:
+        script = self.get_script(script_id)
+        task = script.production_segment_draft_task if script else {}
+        if not script or task.get("task_id") != task_id or task.get("status") not in ("queued", "processing"):
+            return False
+        task.update(status="failed", error=(error or "分段草稿生成失败")[:1000], finished_at=time.time())
+        self.save_production_project(script_id)
+        return True
 
     def adopt_production_segments(self, script_id: str) -> Script:
         from .engineering_script import engineering_status
