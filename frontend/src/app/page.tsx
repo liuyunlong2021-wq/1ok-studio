@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useId } from "react";
+import { useState, useEffect, useRef, useId, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Plus, RefreshCw, Library, FileUp, X, ChevronDown, FileText, Trash2,
-  Zap, Film, Sparkles, Search, Clock, MoreVertical,
+  Film, Search, Clock, MoreVertical,
 } from "lucide-react";
-import { useProjectStore, Project } from "@/store/projectStore";
+import { useProjectStore, Project, Series } from "@/store/projectStore";
 import { toast } from "@/store/toastStore";
 import { useOnline } from "@/lib/useOnline";
 import { rovingKeyDown } from "@/lib/a11y";
@@ -33,15 +33,9 @@ const PlaygroundPage = dynamic(() => import("@/components/modules/playground/Pla
 function CreateSeriesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [workflowMode, setWorkflowMode] = useState<"r2v" | "i2v_legacy">("r2v");
-  // R2V v2 Phase 6 — content_mode (scripted | freeform)
-  const [contentMode, setContentMode] = useState<"scripted" | "freeform">("scripted");
-  // PR-3e — default per-shot generation mode (r2v=节奏优先 / i2v=画面优先)
-  const [defaultGenerationMode, setDefaultGenerationMode] = useState<"r2v" | "i2v">("r2v");
   const [isCreating, setIsCreating] = useState(false);
   const t = useTranslations("workspace");
   const tc = useTranslations("common");
-  const tp = useTranslations("project");
 
   // a11y — dialog labelling + focus management
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -103,15 +97,13 @@ function CreateSeriesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () 
       const { api } = await import("@/lib/api");
       const series = await api.createSeriesV2(title.trim(), {
         description: description.trim() || undefined,
-        workflow_mode: workflowMode,
-        content_mode: contentMode,
-        default_generation_mode: defaultGenerationMode,
+        workflow_mode: "r2v",
+        content_mode: "scripted",
+        default_generation_mode: "r2v",
+        production_workflow: "engineering_segments_v1",
       });
       setTitle("");
       setDescription("");
-      setWorkflowMode("r2v");
-      setContentMode("scripted");
-      setDefaultGenerationMode("r2v");
       onClose();
       window.location.hash = `#/series/${series.id}`;
     } catch (error) {
@@ -150,132 +142,6 @@ function CreateSeriesDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () 
               placeholder={t("seriesTitlePlaceholder")}
               className="glass-input w-full"
             />
-          </div>
-
-          {/* Workflow Mode */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">{tp("workflowMode")}</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setWorkflowMode("r2v")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  workflowMode === "r2v"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Zap size={16} className={workflowMode === "r2v" ? "text-primary" : "text-text-secondary"} />
-                  <span className="font-semibold text-sm text-foreground">{tp("workflowR2V")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("workflowR2VDesc")}</p>
-                {workflowMode === "r2v" && (
-                  <span className="absolute top-2 right-2 text-[0.625rem] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded">
-                    {tc("recommended")}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkflowMode("i2v_legacy")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  workflowMode === "i2v_legacy"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Film size={16} className={workflowMode === "i2v_legacy" ? "text-primary" : "text-text-secondary"} />
-                  <span className="font-semibold text-sm text-foreground">{tp("workflowI2V")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("workflowI2VDesc")}</p>
-              </button>
-            </div>
-          </div>
-
-          {/* R2V v2 Phase 6 — Content mode picker */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">{tp("contentMode")}</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setContentMode("scripted")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  contentMode === "scripted"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="font-semibold text-sm text-foreground">{tp("contentScripted")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("contentScriptedDesc")}</p>
-                {contentMode === "scripted" && (
-                  <span className="absolute top-2 right-2 text-[0.625rem] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded">
-                    {tc("recommended")}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setContentMode("freeform")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  contentMode === "freeform"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="font-semibold text-sm text-foreground">{tp("contentFreeform")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("contentFreeformDesc")}</p>
-              </button>
-            </div>
-          </div>
-
-          {/* PR-3e · Visual Control Preference picker — decides new-shot default
-              tabMode (r2v=direct_r2v / i2v=t2i_i2v). Series-level setting,
-              episodes inherit, shots can override individually. */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">{tp("visualControlPref")}</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setDefaultGenerationMode("r2v")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  defaultGenerationMode === "r2v"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Zap size={16} className={defaultGenerationMode === "r2v" ? "text-primary" : "text-text-secondary"} />
-                  <span className="font-semibold text-sm text-foreground">{tp("visualControlR2V")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("visualControlR2VDesc")}</p>
-                {defaultGenerationMode === "r2v" && (
-                  <span className="absolute top-2 right-2 text-[0.625rem] font-medium text-primary bg-primary/20 px-1.5 py-0.5 rounded">
-                    {tc("recommended")}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDefaultGenerationMode("i2v")}
-                className={`relative p-4 rounded-xl border-2 text-left transition-all ${
-                  defaultGenerationMode === "i2v"
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface hover:border-text-muted"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Film size={16} className={defaultGenerationMode === "i2v" ? "text-primary" : "text-text-secondary"} />
-                  <span className="font-semibold text-sm text-foreground">{tp("visualControlI2V")}</span>
-                </div>
-                <p className="text-xs text-text-secondary leading-relaxed">{tp("visualControlI2VDesc")}</p>
-              </button>
-            </div>
           </div>
 
           <div>
@@ -461,6 +327,8 @@ export default function Home() {
   const [isSeriesDialogOpen, setIsSeriesDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const createProjectInFlight = useRef(false);
   const [showCreateDropdown, setShowCreateDropdown] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'project' | 'series' | 'series-episode' | 'library' | 'settings' | 'playground' | 'project-editor' | 'prompt-editor'>('home');
   const [promptEditorOpened, setPromptEditorOpened] = useState(false);
@@ -476,12 +344,43 @@ export default function Home() {
   const [, setEpisodesLoading] = useState(false);
   const projects = useProjectStore((state) => state.projects);
   const seriesList = useProjectStore((state) => state.seriesList);
+  const createProject = useProjectStore((state) => state.createProject);
   const deleteProject = useProjectStore((state) => state.deleteProject);
   const deleteSeries = useProjectStore((state) => state.deleteSeries);
   const setProjects = useProjectStore((state) => state.setProjects);
   const fetchSeriesList = useProjectStore((state) => state.fetchSeriesList);
   const t = useTranslations("workspace");
   const tc = useTranslations("common");
+
+  const createProductionProject = useCallback(async (series?: Series) => {
+    if (createProjectInFlight.current) return;
+    createProjectInFlight.current = true;
+    setIsCreatingProject(true);
+    try {
+      const project = await createProject(
+        "未命名项目", "", true, "r2v", series?.id, "engineering_segments_v1",
+      );
+      window.location.hash = series
+        ? `#/series/${series.id}/episode/${project.id}`
+        : `#/project/${project.id}`;
+    } catch (error) {
+      console.error("Failed to create production project:", error);
+      const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      toast.error(typeof detail === "string" ? detail : error instanceof Error ? error.message : "创建项目失败");
+    } finally {
+      createProjectInFlight.current = false;
+      setIsCreatingProject(false);
+    }
+  }, [createProject]);
+
+  const openProjectCreation = useCallback((series?: Series) => {
+    if (!series || series.production_workflow === "engineering_segments_v1") {
+      void createProductionProject(series);
+      return;
+    }
+    setDialogSeries({ id: series.id, title: series.title });
+    setIsDialogOpen(true);
+  }, [createProductionProject]);
 
   // Sync projects and series from backend on mount
   useEffect(() => {
@@ -654,16 +553,15 @@ export default function Home() {
         setEpisodeId(null);
         return;
       }
-      // Menu action: open new project dialog then land on workspace
+      // Menu action: create a blank production draft and open its first step.
       if (hash === '#/new-project') {
         setCurrentView('home');
         setActiveTab('workspace');
         setProjectId(null);
         setSeriesId(null);
         setEpisodeId(null);
-        setIsDialogOpen(true);
-        // Clean URL without triggering another hashchange
         history.replaceState(null, '', '#/');
+        void createProductionProject();
         return;
       }
       // Default: workspace
@@ -677,7 +575,7 @@ export default function Home() {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [createProductionProject]);
 
   // 项目详情页 — 全屏，无 GlobalSidebar
   if (currentView === 'project' && projectId) {
@@ -809,22 +707,15 @@ export default function Home() {
                     className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
                   >
                     <Library size={16} className="text-primary" />
-                    {t("newSeries")}
+                    {t("multiEpisodeDrama")}
                   </button>
                   <button
-                    onClick={() => { setIsDialogOpen(true); setShowCreateDropdown(false); }}
+                    onClick={() => { openProjectCreation(); setShowCreateDropdown(false); }}
+                    disabled={isCreatingProject}
                     className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
                   >
                     <FileText size={16} className="text-text-muted" />
-                    {t("newProject")}
-                  </button>
-                  <div className="border-t border-glass-border" />
-                  <button
-                    onClick={() => { window.location.hash = '#/playground'; setShowCreateDropdown(false); }}
-                    className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-hover-bg transition-colors flex items-center gap-2"
-                  >
-                    <Sparkles size={16} className="text-accent" />
-                    Playground
+                    {t("singleEpisodeDrama")}
                   </button>
                 </motion.div>
               )}
@@ -917,7 +808,8 @@ export default function Home() {
                       {t("createSeries")}
                     </button>
                     <button
-                      onClick={() => setIsDialogOpen(true)}
+                      onClick={() => openProjectCreation()}
+                      disabled={isCreatingProject}
                       className="glass-button flex items-center gap-2 text-[0.8125rem] font-semibold"
                     >
                       <FileText size={14} />
@@ -995,7 +887,8 @@ export default function Home() {
                         ))}
                         {!wsFiltering && (
                           <button
-                            onClick={() => { setDialogSeries({ id: s.id, title: s.title }); setIsDialogOpen(true); }}
+                            onClick={() => openProjectCreation(s)}
+                            disabled={isCreatingProject}
                             className="group flex items-center gap-3 rounded-xl border border-dashed border-border bg-transparent px-3 py-2.5 text-text-secondary hover:text-foreground hover:border-primary transition-colors"
                           >
                             <span className="w-8 h-8 rounded-lg grid place-items-center bg-surface group-hover:text-primary transition-colors flex-shrink-0">
@@ -1016,7 +909,7 @@ export default function Home() {
                             <ProjectCard project={ep} onDelete={deleteProject} />
                           </div>
                         ))}
-                        {!wsFiltering && <NewProjectTile episode onClick={() => { setDialogSeries({ id: s.id, title: s.title }); setIsDialogOpen(true); }} />}
+                        {!wsFiltering && <NewProjectTile episode onClick={() => openProjectCreation(s)} />}
                       </div>
                     )}
                   </section>
@@ -1052,7 +945,8 @@ export default function Home() {
                       ))}
                       {!wsFiltering && (
                         <button
-                          onClick={() => setIsDialogOpen(true)}
+                          onClick={() => openProjectCreation()}
+                          disabled={isCreatingProject}
                           className="group flex items-center gap-3 rounded-xl border border-dashed border-border bg-transparent px-3 py-2.5 text-text-secondary hover:text-foreground hover:border-primary transition-colors"
                         >
                           <span className="w-8 h-8 rounded-lg grid place-items-center bg-surface group-hover:text-primary transition-colors flex-shrink-0">
@@ -1073,7 +967,7 @@ export default function Home() {
                           <ProjectCard project={p} onDelete={deleteProject} />
                         </div>
                       ))}
-                      {!wsFiltering && <NewProjectTile onClick={() => setIsDialogOpen(true)} />}
+                      {!wsFiltering && <NewProjectTile onClick={() => openProjectCreation()} />}
                     </div>
                   )}
                 </section>
@@ -1136,7 +1030,7 @@ export default function Home() {
       />
 
       {/* Tauri native menu event listener */}
-      <TauriMenuListener onNewProject={() => setIsDialogOpen(true)} />
+      <TauriMenuListener onNewProject={() => { void createProductionProject(); }} />
     </main>
   );
 }

@@ -276,8 +276,8 @@ async function describeFailure(response: Response, fallback: string): Promise<st
 }
 
 export const api = {
-    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>) => {
-        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig }, {
+    createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, promptConfig?: Record<string, any>, productionWorkflow?: string, modelSettings?: Record<string, any>) => {
+        const res = await axios.post(`${API_URL}/projects`, { title, text, workflow_mode: workflowMode, series_id: seriesId, prompt_config: promptConfig, production_workflow: productionWorkflow, model_settings: modelSettings }, {
             params: { skip_analysis: skipAnalysis }
         });
         return { ...res.data, originalText: res.data.original_text };
@@ -599,7 +599,8 @@ export const api = {
         assetId: string,
         file: File,
         uploadType: string,
-        description?: string
+        description?: string,
+        lookId?: string,
     ) => {
         const formData = new FormData();
         formData.append("file", file);
@@ -607,6 +608,7 @@ export const api = {
         const params = new URLSearchParams({
             upload_type: uploadType,
         });
+        if (lookId) params.set("look_id", lookId);
         if (description) {
             params.append("description", description);
         }
@@ -627,7 +629,7 @@ export const api = {
         return response.json();
     },
 
-    generateAsset: async (scriptId: string, assetId: string, assetType: string, stylePreset: string, stylePrompt?: string, generationType: string = "all", prompt: string = "", applyStyle: boolean = true, negativePrompt: string = "", batchSize: number = 1, modelName?: string, aspectRatio?: string) => {
+    generateAsset: async (scriptId: string, assetId: string, assetType: string, stylePreset: string, stylePrompt?: string, generationType: string = "all", prompt: string = "", applyStyle: boolean = true, negativePrompt: string = "", batchSize: number = 1, modelName?: string, aspectRatio?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/generate`, {
             asset_id: assetId,
             asset_type: assetType,
@@ -640,12 +642,20 @@ export const api = {
             batch_size: batchSize,
             model_name: modelName,
             aspect_ratio: aspectRatio,
+            look_id: lookId,
         });
         return res.data;
     },
+    forkAssetFromLibrary: async (scriptId: string, assetType: string, libraryAssetId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/assets/fork_from_library`, { asset_type: assetType, library_asset_id: libraryAssetId })).data,
 
     getTaskStatus: async (taskId: string) => {
         const res = await axios.get(`${API_URL}/tasks/${taskId}`);
+        return res.data;
+    },
+
+    resumeAssetImage: async (scriptId: string, taskId: string) => {
+        const res = await axios.post(`${API_URL}/projects/${scriptId}/asset_tasks/${taskId}/resume`);
         return res.data;
     },
 
@@ -716,31 +726,34 @@ export const api = {
         return res.data;
     },
 
-    selectAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, generationType?: string) => {
+    selectAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, generationType?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/select`, {
             asset_id: assetId,
             asset_type: assetType,
             variant_id: variantId,
-            generation_type: generationType
+            generation_type: generationType,
+            look_id: lookId
         });
         return res.data;
     },
 
-    deleteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string) => {
+    deleteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/delete`, {
             asset_id: assetId,
             asset_type: assetType,
-            variant_id: variantId
+            variant_id: variantId,
+            look_id: lookId
         });
         return res.data;
     },
 
-    favoriteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, isFavorited: boolean, generationType?: string) => {
+    favoriteAssetVariant: async (scriptId: string, assetId: string, assetType: string, variantId: string, isFavorited: boolean, generationType?: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/variant/favorite`, {
             asset_id: assetId,
             asset_type: assetType,
             variant_id: variantId,
             is_favorited: isFavorited,
+            look_id: lookId,
             generation_type: generationType
         });
         return res.data;
@@ -811,9 +824,10 @@ export const api = {
         const res = await axios.put(`${API_URL}/projects/${scriptId}/prompt_config`, config);
         return res.data;
     },
-    uploadSkillPackage: async (file: File): Promise<SkillPackageSummary> => {
+    uploadSkillPackage: async (file: File, kind: "script" | "motion" = "script"): Promise<SkillPackageSummary> => {
         const body = new FormData();
         body.append("file", file);
+        body.append("kind", kind);
         const res = await axios.post(`${API_URL}/skill-packages`, body);
         return res.data;
     },
@@ -821,8 +835,9 @@ export const api = {
      *  逐个文件传比让用户自己去打 zip 省事，也不会漏掉引用文件。
      *  相对路径装成一条 JSON 字段与 `files` 同序 —— 重复表单字段各家客户端
      *  解析不一致，而路径错位的后果是生成一个“看起来成功”的乱包。 */
-    uploadSkillFolder: async (files: File[]): Promise<SkillPackageSummary> => {
+    uploadSkillFolder: async (files: File[], kind: "script" | "motion" = "script"): Promise<SkillPackageSummary> => {
         const body = new FormData();
+        body.append("kind", kind);
         body.append("paths", JSON.stringify(files.map((file) => file.webkitRelativePath || file.name)));
         files.forEach((file) => body.append("files", file, file.name));
         const res = await axios.post(`${API_URL}/skill-packages/folder`, body);
@@ -899,6 +914,49 @@ export const api = {
         return res.data;
     },
 
+    confirmProductionSettings: async (scriptId: string, settings: {
+        aspect_ratio: string; image_model: string; video_model: string;
+        motion_skill_id: string; max_segment_seconds: number;
+    }) => (await axios.post(`${API_URL}/projects/${scriptId}/production/settings/confirm`, settings)).data,
+    generateProductionVoiceDesign: async (scriptId: string, assetId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/voice-design/generate`)).data as { task_id: string; status: string },
+    saveProductionVoiceDesign: async (scriptId: string, assetId: string, voice_design: Record<string, string>) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/voice-design`, { voice_design })).data as { voice_design: Record<string, string>; voice_design_version: number },
+    generateProductionAssetPrompt: async (scriptId: string, assetId: string, lookId?: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt/generate`, undefined, { params: { look_id: lookId } })).data as { task_id: string; status: string; asset_id: string; asset_type: string },
+    saveProductionAssetPrompt: async (scriptId: string, assetId: string, prompt: string, lookId?: string) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/assets/${encodeURIComponent(assetId)}/image-prompt`, { prompt, look_id: lookId })).data as { id: string; asset_type: string; image_prompt: string; source: string },
+    generateProductionEngineering: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/engineering/generate`)).data as { task_id: string; status: string },
+    saveProductionEngineeringDraft: async (scriptId: string, text: string) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/engineering/draft`, { text })).data,
+    adoptProductionEngineering: async (scriptId: string, text: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/engineering/adopt`, { text })).data,
+    previewProductionAssets: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/preview`)).data as { task_id: string; status: string },
+    applyProductionAssets: async (scriptId: string, source_revision: string, screenplay_revision: string, shot_bindings?: any[]) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/assets/apply`, { source_revision, screenplay_revision, shot_bindings })).data,
+    planProductionSegments: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/plan`)).data as Array<Record<string, any>>,
+    updateProductionSegment: async (scriptId: string, segmentId: string, data: { synopsis: string; entry_state: string; exit_state: string; segment_revision: string }) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}`, data)).data,
+    foldProductionProp: async (scriptId: string, propId: string, data: { target_type: "character" | "scene"; target_id: string; look_id?: string }) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/props/${encodeURIComponent(propId)}/fold`, data)).data,
+    generateProductionSegmentDrafts: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/drafts/generate`)).data as { task_id: string; status: string },
+    adoptProductionSegments: async (scriptId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/adopt`)).data,
+    generateProductionSegmentPrompt: async (scriptId: string, segmentId: string, segment_revision: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}/prompt/generate`, { segment_revision })).data as { task_id: string; status: string; segment_revision: string; skill_name: string },
+    saveProductionSegmentPrompt: async (scriptId: string, segmentId: string, prompt: string, segment_revision: string) =>
+        (await axios.put(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}/prompt`, { prompt, segment_revision })).data,
+    adoptProductionSegmentPrompt: async (scriptId: string, segmentId: string, prompt: string, segment_revision: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}/prompt/adopt`, { prompt, segment_revision })).data,
+    createProductionSegmentVideo: async (scriptId: string, segmentId: string, segment_revision: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}/video`, { segment_revision })).data,
+    selectProductionSegmentVideo: async (scriptId: string, segmentId: string, taskId: string) =>
+        (await axios.post(`${API_URL}/projects/${scriptId}/production/segments/${encodeURIComponent(segmentId)}/video/select`, { task_id: taskId })).data,
+
     getStylePresets: async () => {
         const res = await axios.get(`${API_URL}/art_direction/presets`);
         return res.data;
@@ -952,11 +1010,12 @@ export const api = {
         });
         return res.data;
     },
-    updateAssetDescription: async (scriptId: string, assetId: string, assetType: string, description: string) => {
+    updateAssetDescription: async (scriptId: string, assetId: string, assetType: string, description: string, lookId?: string) => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/assets/update_description`, {
             asset_id: assetId,
             asset_type: assetType,
-            description: description
+            description: description,
+            look_id: lookId
         });
         return res.data;
     },
@@ -990,6 +1049,8 @@ export const api = {
         camera_angle?: string;
         scene_id?: string;
         character_ids?: string[];
+        character_look_ids?: Record<string, string>;
+        source_revision?: string;
         duration?: number;
         shot_size?: string;
         camera_movement_description?: string;
@@ -1388,7 +1449,7 @@ export const api = {
     // Series CRUD
     createSeriesV2: async (
         title: string,
-        opts: { description?: string; workflow_mode?: string; content_mode?: "scripted" | "freeform"; default_generation_mode?: "r2v" | "i2v" } = {},
+        opts: { description?: string; workflow_mode?: string; content_mode?: "scripted" | "freeform"; default_generation_mode?: "r2v" | "i2v"; production_workflow?: string } = {},
     ) => {
         const response = await axios.post(`${API_URL}/series`, {
             title,
@@ -1396,6 +1457,7 @@ export const api = {
             workflow_mode: opts.workflow_mode ?? "r2v",
             content_mode: opts.content_mode ?? "scripted",
             default_generation_mode: opts.default_generation_mode ?? "r2v",
+            production_workflow: opts.production_workflow,
         });
         return response.data;
     },
@@ -1699,11 +1761,13 @@ export const api = {
     },
 
     // Helper: create a project and add it as an episode to a series
-    createEpisodeForSeries: async (seriesId: string, title: string, episodeNumber: number, workflowMode: string = "r2v") => {
+    createEpisodeForSeries: async (seriesId: string, title: string, episodeNumber: number, workflowMode: string = "r2v", productionWorkflow?: string) => {
+        if (productionWorkflow === "engineering_segments_v1") {
+            return api.createProject(title, "", true, workflowMode, seriesId, undefined, productionWorkflow);
+        }
         const project = await api.createProject(title, "", true, workflowMode);
         await api.addEpisodeToSeries(seriesId, project.id, episodeNumber);
-        const refreshed = await api.getProject(project.id);
-        return refreshed;
+        return api.getProject(project.id);
     },
 
     // File Import

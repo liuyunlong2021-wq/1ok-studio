@@ -4,13 +4,10 @@ import { useState } from 'react';
 import { Copy, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePlaygroundStore } from './usePlaygroundStore';
-import { getPromptMaxLength } from './promptLimits';
 import PromptTemplateModal from './PromptTemplateModal';
 import PromptHistoryDrawer from './PromptHistoryDrawer';
 
 export default function PromptInput() {
-  const modelId = usePlaygroundStore((s) => s.modelId);
-  const maxLength = getPromptMaxLength(modelId);
   const prompt = usePlaygroundStore((s) => s.prompt);
   const negativePrompt = usePlaygroundStore((s) => s.negativePrompt);
   const setPrompt = usePlaygroundStore((s) => s.setPrompt);
@@ -51,7 +48,7 @@ export default function PromptInput() {
           {t('prompt.history')}
         </button>
         <span className="ml-auto font-mono text-[0.625rem] text-text-muted">
-          {prompt.length} / {maxLength}{prompt.length > maxLength ? ' · 超出限制，请精简' : ''}
+          {prompt.length}
         </span>
       </div>
 

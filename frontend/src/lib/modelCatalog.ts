@@ -28,6 +28,7 @@ export interface I2VModelConfig {
     description: string;
     duration: DurationConfig;
     params: ModelParamSupport;
+    videoContract?: string;
     badges?: string[];
     recommended?: boolean;
     family?: string;
@@ -298,6 +299,7 @@ function toI2VModel(model: CatalogModel): I2VModelConfig {
         description: model.description,
         duration: model.duration ?? { type: 'fixed', value: 5 },
         params: model.params ?? {},
+        videoContract: String(model.runtime?.jiucaihezi?.video_contract ?? ''),
         badges: model.ui.badges ?? [],
         recommended: !!model.ui.recommended,
         family: model.family,
@@ -524,6 +526,10 @@ for (const model of SORTED_MODEL_ENTRIES) {
 export const VIDEO_R2V_MODELS: I2VModelConfig[] = onlyAllowedModels(
     SORTED_MODEL_ENTRIES.filter((model) => model.ui.selection_group === 'r2v' && isVisibleModel(model, 'video_sidebar'))
 ).map(toI2VModel);
+export const PRODUCTION_R2V_MODELS = VIDEO_R2V_MODELS.filter((model) =>
+    /h3|seedance/i.test(`${model.id} ${model.name}`)
+    || ['lingdong_seedance25', 'fk_video'].includes(model.videoContract || '')
+);
 // 默认值取目录声明，避免随列表排序变化。
 export const DEFAULT_R2V_MODEL_ID =
     VIDEO_R2V_MODELS.find((model) => model.id === PREFERRED_R2V_MODEL_ID)?.id

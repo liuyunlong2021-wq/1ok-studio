@@ -211,7 +211,10 @@
     "toastVariantDoneBody": "Generated {count} variants",
     "toastPollErr": "Polling error",
     "toastPollErrBody": "Refresh the page to see the result",
-    "toastEntityGone": "This asset no longer exists (may have been deleted). Please refresh and retry."
+    "toastEntityGone": "This asset no longer exists (may have been deleted). Please refresh and retry.",
+    "resumingImageTask": "Fetching generated image",
+    "resumeImageTaskHint": "This only downloads the existing artifact; it does not submit another generation.",
+    "resumeImageTaskFailed": "Could not fetch the image"
   },
   "previousFramesRail": {
     "title": "Previous episode ending",
@@ -375,6 +378,8 @@
     "addEpisode": "Add Episode",
     "newSeries": "New Series",
     "newProject": "New Standalone Project",
+    "multiEpisodeDrama": "Multi-episode drama",
+    "singleEpisodeDrama": "Single-episode drama",
     "newEpisode": "New Episode",
     "seriesTitle": "Series Title",
     "seriesTitlePlaceholder": "e.g. My Comic Series",
@@ -1230,6 +1235,11 @@
     "noCharacterSelected": "Please select a character",
     "descriptionLabel": "Description",
     "generateImage": "Generate Image",
+    "imageDownloadInterrupted": "Image generated; download interrupted",
+    "resumeImageTaskHint": "This only downloads the existing artifact; it does not submit another generation.",
+    "resumeImageTask": "Fetch existing image",
+    "resumingImageTask": "Fetching...",
+    "regenerateImageTask": "Regenerate (may incur another charge)",
     "generating": "Generating...",
     "uploadRef": "Upload Reference",
     "viewLarger": "Click to view larger",
@@ -1652,6 +1662,7 @@
       "generateVideo": "Generate video",
       "retry": "Retry",
       "delete": "Delete",
+      "deleteInFlightConfirm": "Delete this task record? A submitted generation may keep running and incur charges.",
       "copyError": "Copy error",
       "copied": "Copied",
       "expand": "Expand",
@@ -1755,6 +1766,7 @@
       "tapToRemove": "Click to remove from references"
     },
     "parameters": {
+      "auto": "Auto",
       "imageSize": "Image size",
       "quality": "Quality",
       "aspectRatio": "Aspect ratio",

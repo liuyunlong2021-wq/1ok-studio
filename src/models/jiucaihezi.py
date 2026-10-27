@@ -2,11 +2,16 @@ import base64
 import logging
 import mimetypes
 import os
+import socket
+import tempfile
 import threading
 import time
 from typing import Any, Dict, Optional, Sequence, Tuple
+from urllib.parse import urljoin, urlparse
+import ipaddress
 
 import requests
+from PIL import Image
 
 from .fk_video import fk_video_payload, fk_video_spec
 from .base import VideoGenModel
@@ -18,6 +23,7 @@ from ..utils.model_catalog import (
     is_minimax_h3_model,
     resolve_local_h3_video_parameters,
     load_generated_model_catalog,
+    resolve_fk_image_parameters,
 )
 
 
@@ -67,11 +73,13 @@ def _log_image_request(endpoint: str, payload: Dict[str, Any]) -> None:
     n 这几个字段正是历史踩坑点（模型名带中文、size 格式、质量档）。
     """
     logger.info(
-        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s n=%s format=%s prompt_chars=%s transport=direct",
+        "Jiucaihezi image request -> %s | model=%s size=%s quality=%s imageSize=%s ratio=%s n=%s format=%s prompt_chars=%s transport=direct",
         endpoint,
         payload.get("model"),
         payload.get("size"),
         payload.get("quality"),
+        payload.get("imageSize"),
+        payload.get("ratio"),
         payload.get("n"),
         payload.get("response_format"),
         len(str(payload.get("prompt") or "")),
@@ -164,15 +172,24 @@ def _headers() -> Dict[str, str]:
     return {"Authorization": f"Bearer {key}"}
 
 
-def _image_request(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
-    """Use a per-request direct session for image submissions and media transfers.
+def _gateway_request(url: str, *, method: str = "GET", **kwargs) -> requests.Response:
+    """Use direct sessions for gateway submissions and media transfers.
 
-    requests otherwise discovers macOS system proxies even without proxy env vars.
-    Keep TLS verification enabled and avoid automatic retries of billed submissions.
+    requests discovers macOS system proxies even without proxy env variables.
+    Disable that discovery for every media route, retain TLS verification, and
+    do not automatically retry billed submissions whose responses may be lost.
     """
     with requests.Session() as session:
         session.trust_env = False
         return session.request(method, url, **kwargs)
+
+
+def _gateway_get(url: str, **kwargs) -> requests.Response:
+    return _gateway_request(url, method="GET", **kwargs)
+
+
+def _gateway_post(url: str, **kwargs) -> requests.Response:
+    return _gateway_request(url, method="POST", **kwargs)
 
 
 def _qwen_reference_data_url(ref: str) -> str:
@@ -189,7 +206,7 @@ def _qwen_reference_data_url(ref: str) -> str:
             raise ValueError("参考图 base64 数据无效") from exc
         mime = header[5:-7]
     elif ref.startswith(("http://", "https://")):
-        downloaded = _image_request(ref, timeout=180, stream=True)
+        downloaded = _gateway_request(ref, timeout=180, stream=True)
         try:
             _raise_for_status_with_body(downloaded, "下载参考图")
             mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
@@ -218,15 +235,140 @@ def _qwen_reference_data_url(ref: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(content).decode('ascii')}"
 
 
-def _download(url: str, output_path: str, *, direct: bool = False) -> None:
-    response = _image_request(url, timeout=300) if direct else requests.get(url, timeout=300)
-    _raise_for_status_with_body(response, url)
-    with open(output_path, "wb") as output:
-        output.write(response.content)
+def _download(url: str, output_path: str, *, validate_image: bool = True) -> None:
+    """有界重试并原子保存有效图片；下载失败不触碰旧文件。"""
+    retryable_statuses = {429, 500, 502, 503, 504, 520, 522, 524}
+    delays = (2, 5)
+    last_error: Optional[Exception] = None
+
+    def validate_url(candidate: str) -> str:
+        parsed = urlparse(candidate)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("图片产物地址必须是 HTTPS URL")
+        host = parsed.hostname.lower().rstrip(".")
+        if host in {"localhost", "localhost.localdomain"} or host.endswith(".local"):
+            raise ValueError("图片产物地址不能指向本机或局域网")
+        try:
+            addresses = [ipaddress.ip_address(host)]
+        except ValueError:
+            addresses = [ipaddress.ip_address(item[4][0]) for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)]
+        if not addresses or any(
+            address.is_private or address.is_loopback or address.is_link_local
+            or address.is_reserved or address.is_unspecified or address.is_multicast
+            for address in addresses
+        ):
+            raise ValueError("图片产物地址不能指向本机或内网")
+        return candidate
+
+    for attempt in range(3):
+        temp_path = None
+        response = None
+        try:
+            current_url = validate_url(url)
+            for redirect_count in range(4):
+                response = _gateway_get(current_url, timeout=(15, 120), stream=True, allow_redirects=False)
+                if response.status_code not in {301, 302, 303, 307, 308}:
+                    break
+                location = response.headers.get("Location")
+                response.close()
+                response = None
+                if not location or redirect_count == 3:
+                    raise RuntimeError("图片产物下载重定向无效或超过上限")
+                current_url = validate_url(urljoin(current_url, location))
+
+            if response is None:
+                raise RuntimeError("图片产物下载未返回响应")
+            if response.status_code in retryable_statuses:
+                _raise_for_status_with_body(response, current_url)
+            _raise_for_status_with_body(response, current_url)
+
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(prefix=".image-download-", suffix=".tmp", dir=os.path.dirname(os.path.abspath(output_path)))
+            written = 0
+            with os.fdopen(fd, "wb") as output:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    written += len(chunk)
+                    if written > 50 * 1024 * 1024:
+                        raise ValueError("图片产物超过 50 MB 上限")
+                    output.write(chunk)
+                output.flush()
+                os.fsync(output.fileno())
+
+            if written == 0:
+                raise ValueError("图片产物为空")
+            encoded_length = response.headers.get("Content-Length")
+            if encoded_length and not response.headers.get("Content-Encoding") and not response.headers.get("Transfer-Encoding"):
+                if encoded_length.isdigit() and int(encoded_length) != written:
+                    raise ValueError("图片产物传输不完整")
+
+            if validate_image:
+                with Image.open(temp_path) as image:
+                    image.load()
+                    if image.width < 1 or image.height < 1 or image.width * image.height > 100_000_000:
+                        raise ValueError("图片尺寸无效或超过像素上限")
+                    if image.format != "PNG" or not output_path.lower().endswith(".png"):
+                        image_format = "PNG" if output_path.lower().endswith(".png") else image.format
+                        image.save(temp_path + ".normalized", format=image_format)
+                        normalized_path = temp_path + ".normalized"
+                        os.replace(normalized_path, temp_path)
+            os.replace(temp_path, output_path)
+            temp_path = None
+            return
+        except Exception as exc:  # noqa: BLE001 — retry only transient fetch failures
+            last_error = exc
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            retryable = status in retryable_statuses or isinstance(
+                exc,
+                (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                 requests.exceptions.ChunkedEncodingError, socket.gaierror),
+            )
+            if not retryable or attempt == 2:
+                raise
+            retry_after = 0
+            if status == 429:
+                try:
+                    retry_after = min(10, max(0, int(response.headers.get("Retry-After", "0"))))
+                except (TypeError, ValueError):
+                    retry_after = 0
+            time.sleep(retry_after or delays[attempt])
+        finally:
+            if response is not None:
+                response.close()
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+    if last_error:
+        raise last_error
+
+
+def _write_image_bytes(content: bytes, output_path: str) -> None:
+    """校验内联图片并原子写入目标路径。"""
+    if not content or len(content) > 50 * 1024 * 1024:
+        raise ValueError("图片数据为空或超过 50 MB 上限")
+    directory = os.path.dirname(os.path.abspath(output_path))
+    os.makedirs(directory, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(prefix=".image-result-", suffix=".tmp", dir=directory)
+    os.close(fd)
+    try:
+        with open(temp_path, "wb") as output:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        with Image.open(temp_path) as image:
+            image.load()
+            if image.width < 1 or image.height < 1 or image.width * image.height > 100_000_000:
+                raise ValueError("图片尺寸无效或超过像素上限")
+            image.save(temp_path + ".normalized", format="PNG")
+        os.replace(temp_path + ".normalized", output_path)
+    finally:
+        for candidate in (temp_path, temp_path + ".normalized"):
+            if os.path.exists(candidate):
+                os.unlink(candidate)
 
 
 def _download_video_content(task_id: str, output_path: str) -> None:
-    response = requests.get(
+    response = _gateway_get(
         f"{_base_url()}/v1/videos/{task_id}/content",
         headers=_headers(),
         timeout=300,
@@ -249,7 +391,7 @@ def query_video_task(task_id: str) -> Dict[str, Any]:
     网关把任务留得比我们想得久（实测 3 天前的任务号仍可查），所以「回捞」是行得通
     的：拿着存下来的 task_id 重新问一次，完成了就补下载，不必重新生成。
     """
-    response = requests.get(
+    response = _gateway_get(
         f"{_base_url()}/v1/videos/{task_id}",
         headers=_headers(),
         timeout=VIDEO_POLL_REQUEST_TIMEOUT,
@@ -319,7 +461,7 @@ def poll_video_task(
                 url = str(result.get("url") or "").strip()
                 if url and allow_url_fallback:
                     try:
-                        _download(url, output_path)
+                        _download(url, output_path, validate_image=False)
                         logger.info(
                             "Jiucaihezi content endpoint failed for task %s (%s); saved it from the poll url instead.",
                             task_id,
@@ -422,7 +564,7 @@ def generate_audio(
     if refs:
         payload["metadata"] = {"references": refs}
 
-    response = requests.post(
+    response = _gateway_post(
         f"{_base_url()}/v1/audio/speech",
         headers={**_headers(), "Content-Type": "application/json"},
         json=payload,
@@ -460,7 +602,7 @@ def upload_to_jiucaihezi(path: str, media_type: str = "media") -> str:
         try:
             # Reopen the file on every attempt so retries always start at byte 0.
             with open(path, "rb") as handle:
-                response = requests.post(
+                response = _gateway_post(
                     f"{_base_url()}/api/creations/uploads",
                     headers=_headers(),
                     files={"file": (os.path.basename(path), handle, content_type)},
@@ -525,30 +667,35 @@ class JiucaiheziImageModel(ImageGenModel):
         # quality 只有声明了该档位的模型（如 gpt-image-2.5-菠萝）才会传进来；
         # 别的模型这里是 None，JSON 里不带这个键。
         quality = kwargs.get("quality")
+        fk_params = resolve_fk_image_parameters(model, kwargs)
         if refs and model != "jc-qwen-image-2.1":
             files = []
             handles = []
+            image_field = "images" if fk_params is not None else "image"
             for ref in refs:
                 if ref.startswith(("http://", "https://")):
-                    downloaded = _image_request(ref, timeout=180)
+                    downloaded = _gateway_request(ref, timeout=180)
                     _raise_for_status_with_body(downloaded, ref)
                     mime = downloaded.headers.get("Content-Type", "image/png").split(";", 1)[0]
-                    files.append(("image", (os.path.basename(ref) or "reference", downloaded.content, mime)))
+                    files.append((image_field, (os.path.basename(ref) or "reference", downloaded.content, mime)))
                     continue
                 path = ref if os.path.exists(ref) else os.path.join("output", ref)
                 if os.path.exists(path):
                     handle = open(path, "rb")
                     handles.append(handle)
-                    files.append(("image", (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
+                    files.append((image_field, (os.path.basename(path), handle, mimetypes.guess_type(path)[0] or "image/png")))
             if not files:
                 raise ValueError("No valid reference images found for image editing")
             data = {"model": model, "prompt": prompt, "size": size, "n": str(kwargs.get("n", 1)), "response_format": response_format}
-            if quality:
+            if fk_params is not None:
+                data.pop("size", None)
+                data.update(fk_params)
+            elif quality:
                 data["quality"] = str(quality)
             endpoint = "/v1/images/edits"
             _log_image_request(endpoint, data)
             try:
-                response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers=_headers(), data=data, files=files, timeout=180)
+                response = _gateway_post(f"{_base_url()}{endpoint}", headers=_headers(), data=data, files=files, timeout=180)
             finally:
                 for handle in handles:
                     handle.close()
@@ -560,11 +707,14 @@ class JiucaiheziImageModel(ImageGenModel):
                 # Both routes are documented, but JSON avoids the gateway's
                 # multipart -> file placeholder -> data URL conversion.
                 payload["images"] = [_qwen_reference_data_url(ref) for ref in refs]
-            if quality:
+            if fk_params is not None:
+                payload.pop("size", None)
+                payload.update(fk_params)
+            elif quality:
                 payload["quality"] = str(quality)
             endpoint = "/v1/images/generations"
             _log_image_request(endpoint, payload)
-            response = _image_request(f"{_base_url()}{endpoint}", method="POST", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
+            response = _gateway_post(f"{_base_url()}{endpoint}", headers={**_headers(), "Content-Type": "application/json"}, json=payload, timeout=180)
         logger.info(
             "Jiucaihezi image response <- %s | model=%s refs=%d status=%s elapsed=%.2fs request_id=%s",
             endpoint, model, len(refs), response.status_code, time.time() - started,
@@ -580,10 +730,26 @@ class JiucaiheziImageModel(ImageGenModel):
         url = item.get("url")
         b64 = item.get("b64_json")
         if url:
-            _download(url, output_path, direct=True)
+            on_artifact = kwargs.get("on_artifact")
+            if callable(on_artifact):
+                # 先将下载地址和网关请求号落入项目任务，再开始可能失败的文件传输。
+                on_artifact({
+                    "url": url,
+                    "provider_request_id": response.headers.get("x-oneapi-request-id"),
+                    "content_type": item.get("content_type"),
+                })
+            _download(url, output_path)
         elif b64:
-            with open(output_path, "wb") as output:
-                output.write(base64.b64decode(b64))
+            try:
+                on_artifact = kwargs.get("on_artifact")
+                if callable(on_artifact):
+                    on_artifact({
+                        "provider_request_id": response.headers.get("x-oneapi-request-id"),
+                        "content_type": item.get("content_type") or "image/png",
+                    })
+                _write_image_bytes(base64.b64decode(b64, validate=True), output_path)
+            except (ValueError, OSError) as exc:
+                raise RuntimeError(f"网关返回的内联图片无效: {exc}") from exc
         else:
             # 「HTTP 200 但 data 是空的」是网关的另一种坏法（z-image-turbo 实测如此）：
             # 通道在、上游没产出。裸 item["b64_json"] 只会扔一个 KeyError，
@@ -676,6 +842,15 @@ class JiucaiheziVideoModel(VideoGenModel):
                 "extra_fields": {"webappId": webapp_id},
                 "webappId": webapp_id,
             }
+        elif model_name == "jc-minimax-h3-director8":
+            local_params = resolve_local_h3_video_parameters(model_name, kwargs)
+            if not 1 <= len(images) <= 9:
+                raise ValueError("Director8 需要 1–9 张参考图")
+            payload = {
+                "model": upstream_model_name, "prompt": prompt,
+                "duration": local_params["duration"],
+                "size": local_params["resolution"], "images": images,
+            }
         elif is_jc_minimax_h3_model(model_name):
             local_params = resolve_local_h3_video_parameters(model_name, kwargs)
             payload = {"model": upstream_model_name, "prompt": prompt, "duration": int(kwargs.get("duration") or 5), "size": local_params["size"]}
@@ -706,7 +881,7 @@ class JiucaiheziVideoModel(VideoGenModel):
             # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
             payload["images"] = images[:9]
         try:
-            response = requests.post(
+            response = _gateway_post(
                 f"{_base_url()}/v1/videos",
                 headers={**_headers(), "Content-Type": "application/json"},
                 json=payload,
@@ -719,6 +894,14 @@ class JiucaiheziVideoModel(VideoGenModel):
             raise RuntimeError(
                 "Jiucaihezi video task creation did not return within 180 seconds; "
                 "submission status is unknown and it was not retried to avoid duplicate billing"
+            ) from exc
+        except requests.ConnectionError as exc:
+            # A lost response may hide an accepted, billed task. Never resubmit
+            # automatically; the user must check acceptance before trying again.
+            raise RuntimeError(
+                "提交视频任务时连接被中断，无法确认上游是否已受理（网络层错误，不是网关拒绝）："
+                f"{exc}。该任务**可能已经创建并计费**，请先到韭菜盒子后台核对任务列表，"
+                "确认没有已受理的任务再重试，以免重复扣费"
             ) from exc
         if not response.ok:
             # The create endpoint returns a structured error.message for 4xx.

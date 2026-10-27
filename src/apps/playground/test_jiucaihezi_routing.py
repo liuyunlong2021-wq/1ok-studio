@@ -1,9 +1,9 @@
 import tempfile
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
-from .models import PlaygroundMode
+from .models import GenerateRequest, PlaygroundMode
 from .service import PlaygroundService
 
 
@@ -21,6 +21,40 @@ def _generation(model_id, mode):
 
 
 class JiucaiheziRoutingTest(unittest.TestCase):
+    def test_image_modes_reject_video_before_saving(self):
+        for mode in ("t2i", "i2i"):
+            with self.subTest(mode=mode):
+                storage = Mock()
+                with self.assertRaisesRegex(ValueError, "参考素材必须是图片"):
+                    PlaygroundService(storage).create_generation(GenerateRequest(
+                        mode=mode, model_id="ft-image-v1-186289ba9d3263010c69372f8939dd94",
+                        prompt="test", input_media=["output/playground/videos/source.mp4"],
+                    ))
+                storage.add_generation.assert_not_called()
+
+    def test_v2v_rejects_image_only_model_before_saving_or_uploading(self):
+        storage = Mock()
+        service = PlaygroundService(storage)
+        with patch("src.models.jiucaihezi.upload_to_jiucaihezi") as upload:
+            with self.assertRaisesRegex(ValueError, "不支持视频输入"):
+                service.create_generation(GenerateRequest(
+                    mode="v2v", model_id="minimax_h3_zm_u24", prompt="test",
+                    input_media=["output/playground/videos/source.mp4"],
+                ))
+        storage.add_generation.assert_not_called()
+        upload.assert_not_called()
+
+    def test_v2v_reference_video_reaches_video_adapter(self):
+        service = PlaygroundService(Mock())
+        service._jiucaihezi_video_model = Mock()
+        gen = _generation("ft-video-v1-451adae35b0c4a3d275c2c46394abc98", PlaygroundMode.V2V)
+        gen.input_media = ["output/playground/videos/source.mp4"]
+        service._generate_video_jiucaihezi(gen, "/tmp/out.mp4")
+        kwargs = service._jiucaihezi_video_model.generate.call_args.kwargs
+        self.assertEqual(kwargs["reference_video_urls"], gen.input_media)
+        self.assertEqual(kwargs["ref_image_urls"], [])
+        self.assertNotIn("img_path", kwargs)
+
     def test_every_model_routes_to_the_single_jiucaihezi_adapter(self):
         """目录里只有韭菜盒子一家：不管 model_id 是什么都走同一个适配器。
 
@@ -61,6 +95,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             img_url=None,
             ratio="16:9",
             ref_image_urls=[],
+            on_task_id=ANY,
         )
 
     def test_image_quality_parameter_reaches_adapter(self):
@@ -78,6 +113,8 @@ class JiucaiheziRoutingTest(unittest.TestCase):
             model_name="jiucaihezi/gpt-image-2.5-菠萝",
             size="1024x1024",
             n=1,
+            resolution="768p竖",
+            aspect_ratio=None,
             quality=None,
         )
 
@@ -88,7 +125,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
 
     @patch.dict("os.environ", {"JIUCAIHEZI_API_KEY": "test"})
     @patch("src.models.jiucaihezi.upload_to_jiucaihezi")
-    @patch("src.apps.playground.service.requests.post")
+    @patch("src.models.jiucaihezi._gateway_post")
     def test_seed_audio_local_reference_uses_jiucaihezi_upload(self, post, upload):
         upload.return_value = "https://api.jiucaihezi.studio/media/creation/audio"
         response = Mock()

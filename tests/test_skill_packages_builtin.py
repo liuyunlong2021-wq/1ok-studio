@@ -121,6 +121,8 @@ def test_repo_builtin_root_resolves_to_the_bundled_skills_directory():
 
     shipped = SkillPackageStore(root="/nonexistent").list()
     assert "builtin:storyboard-inline-camera" in {pkg["id"] for pkg in shipped}
+    motion = {pkg["id"]: pkg for pkg in shipped if pkg.get("kind") == "motion"}
+    assert {"builtin:h3-prompt-writing", "builtin:jc-seedance"} <= set(motion)
 
     skill_md = (BUILTIN_ROOT / "storyboard-inline-camera" / "SKILL.md").read_text(
         encoding="utf-8"

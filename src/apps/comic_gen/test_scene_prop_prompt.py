@@ -104,9 +104,11 @@ def test_scene_prompt_contract_drops_character_style(tmp_path):
     assert "skin" not in scene_contract and "streetwear" not in scene_contract
     assert "不得描写人物外观" in scene_contract
     assert "画面以空景为主" in scene_contract
+    assert "场景设定参考图" in scene_contract
     assert "画面只呈现单件道具" not in scene_contract
     # 角色阶段不受影响，仍拿原风格。
     assert "skin" in character_contract
+    assert "三格人物设定参考图" in character_contract
 
 
 def test_prop_prompt_contract_rules_out_hands_and_figures(tmp_path):
@@ -120,3 +122,5 @@ def test_prop_prompt_contract_rules_out_hands_and_figures(tmp_path):
 
     assert "画面只呈现单件道具" in prop_contract
     assert "skin" not in prop_contract
+    assert "SHEET_GRAPHICS" in prop_contract
+    assert "six orthographic views" in prop_contract

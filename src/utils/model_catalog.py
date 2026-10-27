@@ -1000,6 +1000,15 @@ def is_jc_minimax_h3_ref2v_model(model_id: Optional[str]) -> bool:
 def resolve_local_h3_video_parameters(model_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     """Local H3 uses ratio-only controls; pixels/Ref2V wire labels stay server-side."""
     bare = str(model_id).split("/")[-1].split("#")[0]
+    if bare == "jc-minimax-h3-director8":
+        spec = load_generated_model_catalog()["models"][bare]
+        size = parameters.get("resolution") or parameters.get("size") or spec["params"]["resolution"]["default"]
+        if size not in spec["params"]["resolution"]["options"]:
+            raise ValueError(f"Director8 不支持生成尺寸 {size}")
+        duration = float(parameters.get("duration", 5))
+        if not 0.2 <= duration <= 120:
+            raise ValueError("Director8 时长必须为 0.2–120 秒")
+        return {**parameters, "resolution": size, "duration": round(duration, 1)}
     if bare not in {"jc-minimax-h3", "jc-minimax-h3-ref2v"}:
         return dict(parameters)
     config = load_generated_model_catalog()["models"][bare]["params"]["ratio"]
@@ -1017,6 +1026,21 @@ def resolve_local_h3_video_parameters(model_id: str, parameters: Dict[str, Any])
     if config.get("pixel_sizes"):
         resolved["size"] = config["pixel_sizes"][ratio]
     return resolved
+
+
+def resolve_fk_image_parameters(model_id: str, parameters: dict) -> Optional[dict]:
+    """Resolve FK's native tier/ratio fields for both JSON and multipart requests."""
+    spec = load_generated_model_catalog()["models"].get(jiucaihezi_upstream_model_id(model_id), {})
+    if spec.get("runtime", {}).get("jiucaihezi", {}).get("image_contract") != "fk_image":
+        return None
+    params = spec["params"]
+    tier = parameters.get("resolution") or parameters.get("imageSize") or params["resolution"]["default"]
+    ratio = parameters.get("aspect_ratio") or parameters.get("ratio") or params["ratio"]["default"]
+    if tier not in params["resolution"]["options"]:
+        raise ValueError(f"FK 图片尺寸不支持 {tier}，请选择 1K / 2K / 4K")
+    if ratio not in params["ratio"]["options"]:
+        raise ValueError(f"FK 图片比例不支持 {ratio}")
+    return {"imageSize": tier, "ratio": ratio}
 
 
 def jiucaihezi_upstream_model_id(model_id: Optional[str]) -> str:

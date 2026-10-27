@@ -291,8 +291,9 @@ export function getModelsForMode(mode: PlaygroundMode): PlaygroundModelOption[] 
 /**
  * Use the catalog default when compatible, then the recommended/first model.
  */
-export function getDefaultModelForMode(mode: PlaygroundMode): string {
+export function getDefaultModelForMode(mode: PlaygroundMode, preferredModelId?: string): string {
   const models = getModelsForMode(mode);
+  if (preferredModelId && models.some((model) => model.id === preferredModelId)) return preferredModelId;
   const configured = mode === 't2i' ? DEFAULT_MODEL_SETTINGS.t2i_model
     : mode === 'i2i' ? DEFAULT_MODEL_SETTINGS.i2i_model
     : mode === 't2v' || mode === 'i2v' ? DEFAULT_MODEL_SETTINGS.i2v_model

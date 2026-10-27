@@ -25,7 +25,7 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
   const [series, setSeries] = useState<Series | null>(null);
   const [episodes, setEpisodes] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeItem, setActiveItem] = useState<SidebarItem>({ kind: "asset", tab: "characters" });
+  const [activeItem, setActiveItem] = useState<SidebarItem>({ kind: "art_direction" });
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [showAddEpisode, setShowAddEpisode] = useState(false);
@@ -55,6 +55,9 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
         setSeries(seriesData);
         setEpisodes(episodesData);
         setEditTitle(seriesData.title);
+        setActiveItem(seriesData.production_workflow === "engineering_segments_v1"
+          ? { kind: "art_direction" }
+          : { kind: "asset", tab: "characters" });
       } catch (error) {
         console.error("Failed to fetch series data:", error);
       } finally {
@@ -94,11 +97,20 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
     try {
       const nextEpNum = episodes.length + 1;
       const workflowMode = series?.workflow_mode || "i2v_legacy";
-      await api.createEpisodeForSeries(seriesId, newEpisodeTitle.trim(), nextEpNum, workflowMode);
+      const episode = await api.createEpisodeForSeries(
+        seriesId,
+        newEpisodeTitle.trim(),
+        nextEpNum,
+        workflowMode,
+        series?.production_workflow || undefined,
+      );
       const updatedEpisodes = await api.getSeriesEpisodes(seriesId);
       setEpisodes(updatedEpisodes);
       setNewEpisodeTitle("");
       setShowAddEpisode(false);
+      if (series?.production_workflow === "engineering_segments_v1") {
+        window.location.hash = `#/series/${seriesId}/episode/${episode.id}`;
+      }
     } catch (error) {
       console.error("Failed to add episode:", error);
     } finally {

@@ -334,14 +334,15 @@ function DurationStepper({
 
   const commit = (raw: string) => {
     setDraft(null);
-    const digits = raw.replace(/[^0-9]/g, '');
-    if (!digits) return; // 空 = 放弃本次编辑，回到原值
-    onChange(Math.max(min, Math.min(max, parseInt(digits, 10))));
+    const parsed = Number(raw);
+    if (!raw.trim() || !Number.isFinite(parsed)) return;
+    const normalized = Math.round(parsed / step) * step;
+    onChange(Number(Math.max(min, Math.min(max, normalized)).toFixed(3)));
   };
 
   const nudge = (delta: number) => {
     setDraft(null);
-    onChange(Math.max(min, Math.min(max, value + delta)));
+    onChange(Number(Math.max(min, Math.min(max, value + delta)).toFixed(3)));
   };
 
   return (
@@ -359,10 +360,10 @@ function DurationStepper({
         <div className="flex-1 h-full flex items-center justify-center gap-0.5">
           <input
             type="text"
-            inputMode="numeric"
+            inputMode={step < 1 ? 'decimal' : 'numeric'}
             aria-label={t('parameters.duration')}
             value={draft ?? String(value)}
-            onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            onChange={(e) => setDraft(e.target.value.replace(step < 1 ? /[^0-9.]/g : /[^0-9]/g, '').slice(0, 7))}
             onBlur={(e) => commit(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
             className="w-8 bg-transparent text-center font-mono text-xs font-medium text-foreground outline-none"
@@ -462,7 +463,7 @@ export default function ParameterBar() {
     }
     if (hasRatio && !usesBackendSizePresets) {
       const cur = parameters.aspect_ratio as string | undefined;
-      if (cur && !ratioOptions.includes(cur)) patches.aspect_ratio = ratioDefault;
+      if (!cur || !ratioOptions.includes(cur)) patches.aspect_ratio = ratioDefault;
     }
     if (hasResolution && !usesBackendSizePresets) {
       const cur = parameters.resolution as string | undefined;
@@ -630,6 +631,24 @@ export default function ParameterBar() {
                   formatOption={formatImageSize}
                 />
               ))}
+
+            {!hasSize && hasResolution && (
+              <ParamDropdown
+                label={t('parameters.imageSize')}
+                value={(parameters.resolution as string) ?? resolutionDefault}
+                options={resolutionOptions}
+                onChange={(v) => updateParam('resolution', v)}
+              />
+            )}
+            {!hasSize && showRatio && (
+              <ParamDropdown
+                label={t('parameters.aspectRatio')}
+                value={(parameters.aspect_ratio as string) ?? ratioDefault}
+                options={ratioOptions}
+                onChange={(v) => updateParam('aspect_ratio', v)}
+                formatOption={(v) => v === 'auto' ? t('parameters.auto') : v}
+              />
+            )}
 
             {/* Quality (GPT-Image-2 specific) */}
             {hasQuality && (

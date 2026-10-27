@@ -77,7 +77,7 @@ def _dialogue(lines):
     return "\n".join(spoken) or None, speakers[0] if speakers else None, "\n".join(descriptions)
 
 
-def parse_engineering_script(text):
+def parse_engineering_script(text, validate_specs=True):
     normalized = normalize_screenplay(text)
     shots, preamble, current, scene = [], [], None, ""
 
@@ -87,22 +87,23 @@ def parse_engineering_script(text):
         body = "\n".join(current.pop("lines")).strip()
         number = current["number"]
         spec_match = next((m for m in re.finditer(r"【([^】]+)】", body) if "景" in m.group(1) or "特写" in m.group(1)), None)
-        if not spec_match:
+        if not spec_match and validate_specs:
             raise ValueError(f"镜头{number}缺少【景别、运镜、机位、构图】规格")
-        spec = spec_match.group(1)
+        spec = spec_match.group(1) if spec_match else ""
         size_match = re.search(r"大特写|手部特写|中近景|大全景|大远景|远景|特写|近景|中景|全景", spec)
-        if not size_match:
+        if not size_match and validate_specs:
             raise ValueError(f"镜头{number}的景别无法识别，请使用工程台本的标准景别")
-        size = size_match.group()
+        size = size_match.group() if size_match else "中景"
         parts = [part.strip() for part in re.split(r"[，,；;]", spec)]
-        angle_tokens = ("过肩", "肩后", "鸟瞰", "航拍", "蚁视", "贴地", "荷兰角", "第一人称", "主观", "仰视", "低角度", "俯视", "平视", "侧面", "斜机位", "内侧机位")
+        angle_tokens = ("过肩", "肩后", "鸟瞰", "航拍", "蚁视", "贴地", "荷兰角", "第一人称", "主观", "仰视", "低角度", "俯视", "平视", "侧面", "侧身", "斜机位", "内侧机位")
         angle = next((part for part in sorted(parts, key=lambda part: "机位" not in part) if any(token in part for token in angle_tokens)), None)
         movement = next((part.strip() for part in re.split(r"[，,；;]", spec) if re.search(r"固定|静止|手持|推|拉|摇|移|跟|环绕|俯冲|FPV|航拍|子弹时间|变速|变焦|一镜到底", part)), None)
-        if not angle or not movement or "构图" not in spec:
+        if validate_specs and (not angle or not movement or "构图" not in spec):
             raise ValueError(f"镜头{number}的运镜、机位或构图不完整，请在剧本中补齐")
-        movement = re.sub(r"^(?:单人|双人|多人)?(?:大特写|手部特写|中近景|大全景|大远景|远景|特写|近景|中景|全景)", "", movement).replace("镜头", "").strip()
+        angle = angle or "平视机位"
+        movement = re.sub(r"^(?:单人|双人|多人)?(?:大特写|手部特写|中近景|大全景|大远景|远景|特写|近景|中景|全景)", "", movement or "固定镜头").replace("镜头", "").strip()
         previous_beat = current["start"]
-        for beat in BEAT.finditer(body):
+        for beat in BEAT.finditer(body) if validate_specs else ():
             start = _seconds(beat.group(1))
             end = _seconds(beat.group(2)) if beat.group(2) else start
             if not current["start"] <= start <= end <= current["end"] or start < previous_beat:
@@ -111,9 +112,11 @@ def parse_engineering_script(text):
         try:
             dialogue, speaker, visual = _dialogue(body.splitlines())
         except ValueError as error:
-            raise ValueError(f"镜头{number}：{error}") from error
+            if validate_specs:
+                raise ValueError(f"镜头{number}：{error}") from error
+            dialogue, speaker, visual = None, None, body
         current.update(body=body, visual=visual, shot_size=size, camera_angle=angle, camera_movement=movement,
-                       composition=next(part.strip() for part in re.split(r"[，,]", spec) if "构图" in part), dialogue=dialogue, speaker=speaker,
+                       composition=next((part.strip() for part in re.split(r"[，,]", spec) if "构图" in part), "默认构图"), dialogue=dialogue, speaker=speaker,
                        source_text=(current["scene"] + "\n" if current["scene"] else "") + current["header"] + "\n" + body)
         shots.append(current.copy())
 
@@ -129,7 +132,7 @@ def parse_engineering_script(text):
             current = {"number": number, "header": line, "start": _seconds(start), "end": _seconds(end), "scene": scene, "lines": []}
             if current["end"] <= current["start"]:
                 raise ValueError(f"镜头{number}结束时间必须晚于起点")
-            if shots and (current["start"] != shots[-1]["end"] or number != shots[-1]["number"] + 1):
+            if validate_specs and shots and (current["start"] != shots[-1]["end"] or number != shots[-1]["number"] + 1):
                 raise ValueError(f"镜头{number}与前镜编号或时间码不连续，请回剧本调整")
         elif line.startswith("镜头"):
             raise ValueError(f"镜头标题格式有误：{line}。请使用 镜头一【00:00-00:04】（整秒）")
@@ -150,7 +153,17 @@ def parse_engineering_script(text):
 
 def engineering_status(script):
     plan = script.engineering_script
-    return {"confirmed": bool(plan), "current": bool(plan and plan["revision"] == screenplay_revision(script.original_text)),
+    if script.production_workflow == "engineering_segments_v1":
+        from .production_workflow import source_revision
+        current = bool(
+            plan
+            and script.production_engineering_source_revision == source_revision(script.original_text)
+            and script.production_engineering_style_revision == script.production_style_revision
+            and script.production_style_confirmed_at
+        )
+    else:
+        current = bool(plan and plan["revision"] == screenplay_revision(script.original_text))
+    return {"confirmed": bool(plan), "current": current,
             "revision": plan["revision"] if plan else None, "count": len(plan["shots"]) if plan else 0,
             "duration": plan["duration"] if plan else 0, "synced": bool(plan and script.storyboard_source_revision == plan["revision"])}
 
@@ -222,7 +235,7 @@ def preview_engineering_sync(script, assets):
                       shot_size=shot["shot_size"], camera_angle=shot["camera_angle"], camera_movement=shot["camera_movement"], composition=shot["composition"], dialogue=shot["dialogue"], speaker=shot["speaker"])
         if old:
             if _source_body(old.source_text) != _source_body(shot["source_text"]):
-                fields.update(scene_id=scene_ids[0] if len(scene_ids) == 1 else "", character_ids=char_ids, prop_ids=prop_ids)
+                fields.update(scene_id=scene_ids[0] if len(scene_ids) == 1 else "", character_ids=char_ids, character_look_ids={}, prop_ids=prop_ids)
             # Keep deliberate manual bindings when the source text is unchanged.
             changed = any(getattr(old, key) != value for key, value in fields.items() if key != "source_revision")
             frame = old.model_copy(deep=True)

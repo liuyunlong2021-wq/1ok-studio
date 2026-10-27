@@ -34,6 +34,7 @@ REFERENCE_RE = re.compile(
 # truth, so an app upgrade refreshes them instead of leaving stale copies in
 # the user data dir.
 DEFAULT_STORYBOARD_SKILL_ID = "builtin:storyboard-inline-camera"
+BUILTIN_MOTION_SKILLS = {"h3-prompt-writing", "jc-seedance"}
 BUILTIN_PREFIX = "builtin:"
 BUILTIN_ID_RE = re.compile(r"^builtin:[a-z0-9][a-z0-9-]*$")
 _MANAGEMENT_LOCK = threading.RLock()
@@ -264,6 +265,7 @@ class SkillPackageStore:
                 "validation": self.validate_files(files, entry),
                 "version": 1,
                 "builtin": True,
+                "kind": "motion" if name in BUILTIN_MOTION_SKILLS else None,
             },
             "contents": files,
         }
@@ -338,7 +340,7 @@ class SkillPackageStore:
             package["metadata"]["modified"] = True
             package["metadata"]["files"] = [{"path": path, "size": len(text.encode())} for path, text in package["contents"].items()]
             package["metadata"]["sha256"] = self._digest(package["contents"])
-        package["metadata"].update(hidden=record.get("hidden", False), kind=record.get("kind"), updated_at=record.get("updated_at"), has_backup=bool(record.get("history")))
+        package["metadata"].update(hidden=record.get("hidden", False), kind=record.get("kind") or package["metadata"].get("kind"), updated_at=record.get("updated_at"), has_backup=bool(record.get("history")))
         return package
 
     def manage(self, package_id, *, name=None, contents=None, hidden=None, reset=False, recover=False, kind=None):

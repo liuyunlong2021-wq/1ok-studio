@@ -3,7 +3,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles } from 'lucide-react';
-import { getPromptMaxLength } from './promptLimits';
 import ModeSelector from './ModeSelector';
 import ModelSelector from './ModelSelector';
 import MediaInput from './MediaInput';
@@ -12,6 +11,9 @@ import ParameterBar from './ParameterBar';
 import ResultGallery from './ResultGallery';
 import { usePlaygroundStore, type PlaygroundMode, type PlaygroundGeneration, type QueuedRequest } from './usePlaygroundStore';
 import { playgroundApi, type PlaygroundGenerationResponse } from '@/lib/api';
+import { getModelsForMode } from './playgroundModels';
+import { errorMessage } from '@/lib/utils';
+import { toast } from '@/store/toastStore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,6 +86,7 @@ export default function PlaygroundPage() {
   const setTemplates = usePlaygroundStore((s) => s.setTemplates);
   const startGeneration = usePlaygroundStore((s) => s.startGeneration);
   const updateGeneration = usePlaygroundStore((s) => s.updateGeneration);
+  const removeGeneration = usePlaygroundStore((s) => s.removeGeneration);
   const enqueueRequest = usePlaygroundStore((s) => s.enqueueRequest);
   const markDispatching = usePlaygroundStore((s) => s.markDispatching);
   const removeFromQueue = usePlaygroundStore((s) => s.removeFromQueue);
@@ -91,7 +94,28 @@ export default function PlaygroundPage() {
   const activeCount = usePlaygroundStore((s) => s.activeGenerationIds.length);
   const maxConcurrent = usePlaygroundStore((s) => s.maxConcurrent);
 
+  useEffect(() => {
+    if (!getModelsForMode(mode).some((model) => model.id === modelId)) {
+      usePlaygroundStore.getState().setMode(mode);
+    }
+  }, [mode, modelId]);
+
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  const handleDelete = useCallback(async (gen: PlaygroundGeneration) => {
+    const inFlight = gen.status === 'pending' || gen.status === 'processing';
+    if (inFlight && !window.confirm(t('card.deleteInFlightConfirm'))) return;
+    try {
+      await playgroundApi.deleteGeneration(gen.id);
+      const timer = pollTimers.current.get(gen.id);
+      if (timer) clearInterval(timer);
+      pollTimers.current.delete(gen.id);
+      removeGeneration(gen.id);
+    } catch (err) {
+      console.error('[Playground] Delete failed:', err);
+      toast.error(errorMessage(err));
+    }
+  }, [removeGeneration, t]);
 
   // ─── Fetch initial data on mount ───────────────────────────────────────────
 
@@ -108,7 +132,13 @@ export default function PlaygroundPage() {
       const fresh = usePlaygroundStore.getState().history;
       const combined = new Map(items.map((item) => [item.id, toGeneration(item)]));
       fresh.forEach((item) => { if (!combined.has(item.id)) combined.set(item.id, item); });
-      setHistory(Array.from(combined.values()));
+      const restored = Array.from(combined.values());
+      setHistory(restored);
+      restored.forEach((generation) => {
+        if (generation.status === 'pending' || generation.status === 'processing') {
+          startPolling(generation.id);
+        }
+      });
     })().catch((err) => {
       console.error('[Playground] Failed to fetch history:', err);
     });
@@ -176,7 +206,11 @@ export default function PlaygroundPage() {
   // ─── Generate handler — enqueue a request; the dispatcher runs it ──────────
 
   const handleGenerate = useCallback(() => {
-    if (!prompt.trim() || prompt.length > getPromptMaxLength(modelId)) return;
+    if (!prompt.trim()) return;
+    if ((mode === 't2i' || mode === 'i2i') && inputMedia.some((ref) => /\.(mp4|mov|webm|avi|mkv|mp3|wav|ogg|opus|pcm|m4a|flac|aac)(?:[?#]|$)/i.test(ref))) {
+      toast.error('参考素材是视频或音频，请移除后上传图片。使用视频画面时请先截帧。');
+      return;
+    }
     // Auto-detect i2i: t2i + reference images -> i2i
     const effectiveMode = (mode === 't2i' && inputMedia.length > 0) ? 'i2i' : mode;
     enqueueRequest({
@@ -211,6 +245,7 @@ export default function PlaygroundPage() {
       }
     } catch (err) {
       console.error('[Playground] Dispatch failed:', err);
+      toast.error(errorMessage(err));
       removeFromQueue(req.id);
     }
   }, [startGeneration, removeFromQueue, startPolling]);
@@ -239,7 +274,7 @@ export default function PlaygroundPage() {
 
   const resultCount = history.reduce((n, g) => n + g.outputs.filter((o) => !o.hidden).length, 0);
   const showMediaInput = MODES_WITH_MEDIA.includes(mode) || MODES_WITH_OPTIONAL_MEDIA.includes(mode);
-  const canGenerate = prompt.trim().length > 0 && prompt.length <= getPromptMaxLength(modelId) && (mode !== 'r2a' || inputMedia.length > 0);
+  const canGenerate = prompt.trim().length > 0 && (mode !== 'r2a' || inputMedia.length > 0);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -354,7 +389,7 @@ export default function PlaygroundPage() {
 
         {/* ─── RIGHT: RESULT GALLERY ─── */}
         <main className="flex flex-1 flex-col overflow-hidden min-w-0">
-          <ResultGallery />
+          <ResultGallery onDelete={handleDelete} />
         </main>
       </div>
     </div>

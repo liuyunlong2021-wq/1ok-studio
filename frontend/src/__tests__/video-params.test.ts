@@ -68,6 +68,7 @@ describe('视频模型参数契约', () => {
             'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
             'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
             'jc-minimax-h3',
+            'jc-minimax-h3-director8',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',

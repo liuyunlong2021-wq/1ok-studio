@@ -20,7 +20,7 @@ from .models import (
 from .storage import PlaygroundStorage
 from ...utils import get_logger
 from ...utils.media_refs import to_media_ref
-from ...utils.model_catalog import load_generated_model_catalog, resolve_local_h3_video_parameters
+from ...utils.model_catalog import load_generated_model_catalog, resolve_local_h3_video_parameters, resolve_fk_image_parameters
 
 logger = get_logger(__name__)
 
@@ -34,6 +34,12 @@ AUDIO_OUTPUT_DIR = os.path.join("output", "playground", "audio")
 
 def resolve_image_parameters(model_id: str, parameters: dict) -> dict:
     """Resolve catalog size tiers/ratios in the backend, including legacy history."""
+    fk_params = resolve_fk_image_parameters(model_id, parameters)
+    if fk_params is not None:
+        resolved = {**parameters, "resolution": fk_params["imageSize"], "aspect_ratio": fk_params["ratio"]}
+        for key in ("size", "quality", "ratio", "imageSize"):
+            resolved.pop(key, None)
+        return resolved
     model_params = load_generated_model_catalog().get("models", {}).get(model_id, {}).get("params", {})
     size_config = model_params.get("size", {})
     presets = size_config.get("presets")
@@ -72,6 +78,17 @@ class PlaygroundService:
     def create_generation(self, request: GenerateRequest) -> PlaygroundGeneration:
         """Create a :class:`PlaygroundGeneration` record with *status=pending*,
         persist it via storage, and return it."""
+        from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
+        spec = fk_video_spec(request.model_id)
+        if request.mode in (PlaygroundMode.T2I, PlaygroundMode.I2I):
+            _, videos, audios = split_fk_media(request.input_media)
+            if videos or audios:
+                raise ValueError("图片生成的参考素材必须是图片。请移除视频或音频，换成 PNG、JPG 或 WebP 图片；使用视频画面时请先截帧。")
+        if request.mode == PlaygroundMode.V2V:
+            if not spec or spec["inputs"]["reference_videos"]["max"] < 1:
+                raise ValueError("此模型不支持视频输入。请在「视频编辑」中重新选择支持参考视频的模型，再提交。")
+            if not split_fk_media(request.input_media)[1]:
+                raise ValueError("视频编辑需要添加源视频。")
         gen = PlaygroundGeneration(
             id=str(uuid.uuid4()),
             mode=request.mode,
@@ -90,8 +107,7 @@ class PlaygroundService:
             error=None,
             created_at=datetime.now(timezone.utc).isoformat(),
         )
-        from ...models.fk_video import fk_video_spec, fk_video_payload, split_fk_media
-        if fk_video_spec(gen.model_id):
+        if spec:
             images, videos, audios = split_fk_media(gen.input_media)
             payload = fk_video_payload(gen.model_id, gen.prompt, images, {**gen.parameters, 'reference_video_urls': videos, 'reference_audio_urls': audios})
             gen.parameters.update({k: payload[k] for k in ['duration', 'resolution', 'ratio']})
@@ -281,6 +297,8 @@ class PlaygroundService:
             "model_name": gen.model_id,
             "size": gen.parameters.get("size", "1024x1024"),
             "n": 1,
+            "resolution": gen.parameters.get("resolution"),
+            "aspect_ratio": gen.parameters.get("aspect_ratio"),
             # 只有声明了 quality 的模型（如 gpt-image-2.5-菠萝）在 UI 里能选到；
             # 其余模型这里是 None，适配器会跳过不发给网关。
             "quality": gen.parameters.get("quality"),
@@ -328,13 +346,16 @@ class PlaygroundService:
         if self._jiucaihezi_video_model is None:
             self._jiucaihezi_video_model = JiucaiheziVideoModel({})
         from ...models.fk_video import fk_video_spec, split_fk_media
+        # Persist task IDs for every video route before polling, so interrupted
+        # downloads can be recovered without creating another billed task.
+        remember_task = lambda task_id: self._remember_video_task(gen, task_id)
         if fk_video_spec(gen.model_id):
             images, videos, audios = split_fk_media(gen.input_media)
             self._jiucaihezi_video_model.generate(gen.prompt, out_path, model_name=gen.model_id,
                 duration=gen.parameters.get('duration'), resolution=gen.parameters.get('resolution'),
                 ratio=gen.parameters.get('ratio'), ref_image_urls=images,
                 reference_video_urls=videos, reference_audio_urls=audios,
-                on_task_id=lambda task_id: self._remember_video_task(gen, task_id))
+                on_task_id=remember_task)
             return
         img_path, img_url = self._resolve_first_input_media(gen)
         self._jiucaihezi_video_model.generate(
@@ -347,6 +368,7 @@ class PlaygroundService:
             img_url=img_url,
             ratio=gen.parameters.get("ratio") or gen.parameters.get("aspect_ratio") or "16:9",
             ref_image_urls=list(gen.input_media) if gen.mode == PlaygroundMode.R2V else [],
+            on_task_id=remember_task,
         )
 
     def _remember_video_task(self, gen: PlaygroundGeneration, task_id: str) -> None:

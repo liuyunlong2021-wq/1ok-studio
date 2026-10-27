@@ -3,22 +3,29 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Palette, Wand2, Plus, Check, ChevronRight, Lock, RotateCcw, ArrowUp, AlertTriangle, X, Image as ImageIcon, Pencil } from "lucide-react";
+import { Sparkles, Palette, Plus, Check, ChevronRight, Lock, RotateCcw, ArrowUp, AlertTriangle, X, Image as ImageIcon, Pencil } from "lucide-react";
 import { useProjectStore, type StyleConfig, type StylePreset, type StylePresetCategory } from "@/store/projectStore";
 import { api } from "@/lib/api";
 import { publicAsset } from "@/lib/publicAsset";
 import StepPageHeader, { StepPill } from "@/components/shared/StepPageHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 import { toast } from "@/store/toastStore";
+import { IMAGE_MODELS } from "@/store/projectStore";
+import { PRODUCTION_R2V_MODELS } from "@/lib/modelCatalog";
+import { scriptEditorApi, type ScriptSkill } from "@/lib/scriptEditorApi";
+
+const PRODUCTION_MOTION_SKILLS = new Set(["builtin:h3-prompt-writing", "builtin:jc-seedance"]);
+const PRODUCTION_MOTION_SKILL_NAMES: Record<string, string> = {
+    "builtin:h3-prompt-writing": "MiniMax H3 提示词 · 内置",
+    "builtin:jc-seedance": "Seedance 导演提示词 · 内置",
+};
 
 export default function ArtDirection() {
     const ta = useTranslations("artDirection");
     const tStep = useTranslations("stepHeader");
     const {
         currentProject,
-        updateProject,
-        isAnalyzingArtStyle,
-        analyzeArtStyle
+        updateProject
     } = useProjectStore();
 
     const [selectedStyle, setSelectedStyle] = useState<StyleConfig | null>(null);
@@ -34,12 +41,6 @@ export default function ArtDirection() {
     const [modalPositive, setModalPositive] = useState("");
     const [modalNegative, setModalNegative] = useState("");
 
-    // AI Recommendation modal state
-    const [aiModalStyle, setAiModalStyle] = useState<StyleConfig | null>(null);
-    const [aiModalEditing, setAiModalEditing] = useState(false);
-    const [aiModalPositive, setAiModalPositive] = useState("");
-    const [aiModalNegative, setAiModalNegative] = useState("");
-
     // Track if current selection is modified from original preset
     const [isModified, setIsModified] = useState(false);
 
@@ -48,6 +49,32 @@ export default function ArtDirection() {
     const [editingPositive, setEditingPositive] = useState("");
     const [editingNegative, setEditingNegative] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [aspectRatio, setAspectRatio] = useState("9:16");
+    const [imageModel, setImageModel] = useState("");
+    const [videoModel, setVideoModel] = useState("");
+    const [maxSegmentSeconds, setMaxSegmentSeconds] = useState("");
+    const [motionSkillId, setMotionSkillId] = useState("");
+    const [motionSkills, setMotionSkills] = useState<ScriptSkill[]>([]);
+
+    const production = currentProject?.production_workflow === "engineering_segments_v1";
+    const segmentDurationOptions = Array.from({ length: 29 }, (_, index) => index + 2);
+
+    useEffect(() => {
+        const settings = currentProject?.production_settings || {};
+        setAspectRatio(settings.aspect_ratio || currentProject?.model_settings?.storyboard_aspect_ratio || "9:16");
+        setImageModel(settings.image_model || currentProject?.model_settings?.image_model || IMAGE_MODELS[0]?.id || "");
+        setVideoModel(settings.video_model || currentProject?.model_settings?.r2v_model || PRODUCTION_R2V_MODELS[0]?.id || "");
+        setMaxSegmentSeconds(settings.max_segment_seconds ? String(settings.max_segment_seconds) : "");
+        setMotionSkillId(settings.motion_skill_id || "");
+    }, [currentProject?.id, currentProject?.production_settings, currentProject?.model_settings]);
+
+    useEffect(() => {
+        let cancelled = false;
+        void scriptEditorApi.listScriptSkills("motion").then((items) => {
+            if (!cancelled) setMotionSkills(items.filter((item) => (PRODUCTION_MOTION_SKILLS.has(item.id) || item.id === currentProject?.production_settings?.motion_skill_id) && !item.hidden && !item.validation_error && item.executor !== "h3_context_ir"));
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [currentProject?.production_settings?.motion_skill_id]);
 
     const filteredPresets = useMemo(() => {
         if (activeCategory === "all") return presets;
@@ -179,22 +206,6 @@ export default function ArtDirection() {
         }
     };
 
-    const handleAnalyze = async () => {
-        if (!currentProject) return;
-        try {
-            await analyzeArtStyle(
-                currentProject.id,
-                currentProject.originalText || currentProject.title
-            );
-        } catch (error) {
-            console.error("Failed to analyze script:", error);
-            toast.error(ta("analysisFailed"), {
-                projectId: currentProject?.id,
-                projectTitle: currentProject?.title,
-            });
-        }
-    };
-
     const toStyleConfig = (style: StyleConfig | StylePreset): StyleConfig => {
         if ("is_custom" in style) {
             return style as StyleConfig;
@@ -253,49 +264,6 @@ export default function ArtDirection() {
     const closePresetModal = () => {
         setModalPreset(null);
         setModalEditing(false);
-    };
-
-    // AI Recommendation modal handlers
-    const openAiModal = (style: StyleConfig) => {
-        setAiModalStyle(style);
-        setAiModalEditing(false);
-        setAiModalPositive(style.positive_prompt);
-        setAiModalNegative(style.negative_prompt);
-    };
-
-    const closeAiModal = () => {
-        setAiModalStyle(null);
-        setAiModalEditing(false);
-    };
-
-    const handleAiModalApply = () => {
-        if (!aiModalStyle) return;
-        const isCustomized = aiModalEditing && (
-            aiModalPositive !== aiModalStyle.positive_prompt ||
-            aiModalNegative !== aiModalStyle.negative_prompt
-        );
-
-        const config: StyleConfig = {
-            id: aiModalStyle.id,
-            name: aiModalStyle.name,
-            positive_prompt: isCustomized ? aiModalPositive : aiModalStyle.positive_prompt,
-            negative_prompt: isCustomized ? aiModalNegative : aiModalStyle.negative_prompt,
-            is_custom: false,
-        };
-
-        const isSeriesBaseline = isInherit && seriesBaseline && config.id === seriesBaseline.id;
-        if (isInherit && !overrideAccepted && !isSeriesBaseline) {
-            setPendingOverrideStyle(config);
-            closeAiModal();
-            return;
-        }
-
-        setSelectedStyle(config);
-        setEditingName(config.name);
-        setEditingPositive(config.positive_prompt);
-        setEditingNegative(config.negative_prompt);
-        setIsModified(isCustomized);
-        closeAiModal();
     };
 
     // Modal: use this style (original or customized)
@@ -359,13 +327,25 @@ export default function ArtDirection() {
 
         setIsSaving(true);
         try {
-            const updated = await api.saveArtDirection(
+            let updated = await api.saveArtDirection(
                 currentProject.id,
                 finalConfig.id,
                 finalConfig,
                 customStyles,
                 aiRecommendations
             );
+            if (production) {
+                if (!imageModel || !videoModel || !motionSkillId || !maxSegmentSeconds) {
+                    throw new Error("请先选定画幅、图片模型、视频通道、提示词 Skill 和单段总时长上限");
+                }
+                updated = await api.confirmProductionSettings(currentProject.id, {
+                    aspect_ratio: aspectRatio,
+                    image_model: imageModel,
+                    video_model: videoModel,
+                    motion_skill_id: motionSkillId,
+                    max_segment_seconds: Number(maxSegmentSeconds),
+                });
+            }
             updateProject(currentProject.id, updated);
             setOverrideAccepted(false);
             toast.success(ta("styleApplied"), {
@@ -387,10 +367,10 @@ export default function ArtDirection() {
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
             <StepPageHeader
-                stepNumber={2}
+                stepNumber={production ? 1 : 2}
                 englishName="STYLE"
-                title={tStep("styleTitle")}
-                subtitle={tStep("styleSubtitle")}
+                title={production ? "風格與製作設置" : tStep("styleTitle")}
+                subtitle={production ? "先鎖定本項目的最高視覺準則與實際生成能力；此處不設置 BGM。" : tStep("styleSubtitle")}
                 pills={projectStyle?.name ? (
                     <StepPill label={ta("styleLabel")} value={projectStyle.name} />
                 ) : null}
@@ -398,6 +378,46 @@ export default function ArtDirection() {
 
             {/* Scrollable content — full width */}
             <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-8 bg-surface">
+                {production && (
+                    <section className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-5 space-y-4">
+                        <div>
+                            <h3 className="text-sm font-semibold text-foreground">制作设置（确认后作为全流程准则）</h3>
+                            <p className="mt-1 text-xs text-text-secondary">单段时长由你设置，与视频模型选择无关；每段结尾固定保留 1 秒全景。整集时长不设上限，按镜头自动分成多段。</p>
+                        </div>
+                        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+                            <label className="text-xs text-text-secondary">画幅
+                                <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"].map((value) => <option key={value}>{value}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">资产图片模型
+                                <select value={imageModel} onChange={(e) => setImageModel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {IMAGE_MODELS.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">参考生视频通道
+                                <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    {PRODUCTION_R2V_MODELS.map((model) => <option key={model.id} value={model.id}>{model.name.replace(/^Fk /i, "").replace(/\bSd 2\.5\b/i, "Seedance 2.5")}</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary">单段总时长上限（含尾部全景）
+                                <select value={maxSegmentSeconds} onChange={(e) => setMaxSegmentSeconds(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                    <option value="">请选择</option>
+                                    {segmentDurationOptions.map((value) => <option key={value} value={value}>{value} 秒（剧情最多 {value - 1} 秒）</option>)}
+                                </select>
+                            </label>
+                            <label className="text-xs text-text-secondary xl:col-span-2">视频提示词 Skill
+                                <div className="mt-1 flex gap-2">
+                                    <select value={motionSkillId} onChange={(e) => setMotionSkillId(e.target.value)} className="w-full rounded-lg border border-glass-border bg-input-bg p-2 text-foreground">
+                                        <option value="">请选择提示词 Skill</option>
+                                        {motionSkills.map((skill) => <option key={skill.id} value={skill.id}>{PRODUCTION_MOTION_SKILL_NAMES[skill.id] || skill.name}</option>)}
+                                    </select>
+                                </div>
+                            </label>
+                        </div>
+                        <p className="text-xs text-text-muted">已确认风格优先于各步临时提示；原剧情与台词不因风格改写。最终成片不混入 BGM。</p>
+                    </section>
+                )}
                 {/* Series inherit/override banners */}
                 {inSeries && !seriesBaselineLoading && (
                     <>
@@ -478,35 +498,6 @@ export default function ArtDirection() {
                         )}
                     </>
                 )}
-
-                {/* AI Recommendations */}
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                            <Sparkles size={20} className="text-yellow-400" />
-                            {ta("aiRecommendations")}
-                        </h3>
-                        <WorkflowActionButton
-                            variant="secondary"
-                            loading={isAnalyzingArtStyle}
-                            leftIcon={<Wand2 />}
-                            onClick={handleAnalyze}
-                            disabled={isAnalyzingArtStyle}
-                        >
-                            {isAnalyzingArtStyle ? ta("analyzing") : ta("analyzeScript")}
-                        </WorkflowActionButton>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        {aiRecommendations.map((style) => (
-                            <AIRecommendationCard
-                                key={style.id}
-                                style={style}
-                                isSelected={selectedStyle?.id === style.id}
-                                onClick={() => openAiModal(style)}
-                            />
-                        ))}
-                    </div>
-                </div>
 
                 {/* Built-in Presets v2 */}
                 <div>
@@ -606,29 +597,11 @@ export default function ArtDirection() {
                     loading={isSaving}
                     rightIcon={<ChevronRight />}
                     onClick={handleApply}
-                    disabled={!selectedStyle}
+                    disabled={!selectedStyle || (production && (!imageModel || !videoModel || !motionSkillId || !maxSegmentSeconds || !segmentDurationOptions.includes(Number(maxSegmentSeconds))))}
                 >
-                    {isSaving ? ta("saving") : ta("applyAndContinue")}
+                    {isSaving ? ta("saving") : production ? "确认制作方案" : ta("applyAndContinue")}
                 </WorkflowActionButton>
             </div>
-
-            {/* AI Recommendation Detail Modal */}
-            <AnimatePresence>
-                {aiModalStyle && (
-                    <AIRecommendationModal
-                        style={aiModalStyle}
-                        isSelected={selectedStyle?.id === aiModalStyle.id}
-                        editing={aiModalEditing}
-                        positivePrompt={aiModalPositive}
-                        negativePrompt={aiModalNegative}
-                        onPositiveChange={setAiModalPositive}
-                        onNegativeChange={setAiModalNegative}
-                        onStartEditing={() => setAiModalEditing(true)}
-                        onApply={handleAiModalApply}
-                        onClose={closeAiModal}
-                    />
-                )}
-            </AnimatePresence>
 
             {/* Preset Detail Modal */}
             <AnimatePresence>

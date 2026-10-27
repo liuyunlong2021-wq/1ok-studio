@@ -211,7 +211,10 @@
     "toastVariantDoneBody": "已生成 {count} 张变体",
     "toastPollErr": "轮询异常",
     "toastPollErrBody": "请刷新页面查看结果",
-    "toastEntityGone": "该资产已不存在（可能已被删除），请刷新页面后重试"
+    "toastEntityGone": "该资产已不存在（可能已被删除），请刷新页面后重试",
+    "resumingImageTask": "正在取回已生成图片",
+    "resumeImageTaskHint": "只下载原产物，不会再次提交生成。",
+    "resumeImageTaskFailed": "继续取回失败"
   },
   "previousFramesRail": {
     "title": "上一集结尾分镜",
@@ -375,6 +378,8 @@
     "addEpisode": "添加集数",
     "newSeries": "新建系列",
     "newProject": "新建独立项目",
+    "multiEpisodeDrama": "多集剧",
+    "singleEpisodeDrama": "单集剧",
     "newEpisode": "新建一集",
     "seriesTitle": "系列标题",
     "seriesTitlePlaceholder": "例如：我的漫剧系列",
@@ -1230,6 +1235,11 @@
     "noCharacterSelected": "请选择一个角色",
     "descriptionLabel": "描述",
     "generateImage": "生成图片",
+    "imageDownloadInterrupted": "图片已生成，下载中断",
+    "resumeImageTaskHint": "继续取回只下载原产物，不会再次提交生成。",
+    "resumeImageTask": "继续取回",
+    "resumingImageTask": "正在取回...",
+    "regenerateImageTask": "重新生成（可能再次计费）",
     "generating": "生成中...",
     "uploadRef": "上传参考图",
     "viewLarger": "点击查看大图",
@@ -1652,6 +1662,7 @@
       "generateVideo": "生成视频",
       "retry": "重试",
       "delete": "删除",
+      "deleteInFlightConfirm": "删除这条任务记录？已提交的生成仍可能继续运行并产生费用。",
       "copyError": "复制全文",
       "copied": "已复制",
       "expand": "展开",
@@ -1755,6 +1766,7 @@
       "tapToRemove": "点一下从参考图移除"
     },
     "parameters": {
+      "auto": "自动",
       "imageSize": "图像尺寸",
       "quality": "画质",
       "aspectRatio": "画面比例",

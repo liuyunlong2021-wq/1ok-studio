@@ -12,6 +12,7 @@ import {
     GLOBAL_TEXT_MODELS,
     PROJECT_I2V_MODELS,
     PROJECT_T2I_MODELS,
+    PRODUCTION_R2V_MODELS,
     R2V_ROUTE_MODEL_ID,
     R2V_SELECTION_MODEL_ID,
     VIDEO_I2V_MODELS,
@@ -98,6 +99,7 @@ describe('model catalog selectors', () => {
             'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
             'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
             'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
+            'jc-minimax-h3-director8',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
@@ -117,6 +119,13 @@ describe('model catalog selectors', () => {
             expect(resolveModelSettings({ image_model: id, t2i_model: id, i2i_model: id }, surface))
                 .toMatchObject({ image_model: id, t2i_model: id, i2i_model: id });
         }
+    });
+
+    it('retains the Seedance video contract for aliased channel ids', () => {
+        expect(VIDEO_R2V_MODELS.find((model) => model.id === 'cvk-2.5-720')?.videoContract)
+            .toBe('lingdong_seedance25');
+        expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'cvk-2.5-720')).toBe(true);
+        expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'dola-seedance2.5')).toBe(true);
     });
 
     it('keeps hidden and planned catalog entries out of visible selectors', () => {

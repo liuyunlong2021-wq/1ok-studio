@@ -6,11 +6,25 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { LEGACY_STEPS, UNIFIED_STEPS, stepsForWorkflow } from '@/lib/projectSteps';
+import { ENGINEERING_SEGMENTS_V1_STEPS, LEGACY_STEPS, UNIFIED_STEPS, stepsForWorkflow } from '@/lib/projectSteps';
 
 const r2v = { workflowMode: 'r2v', seriesContentMode: 'scripted' };
 
 describe('项目步骤表', () => {
+    it('新版手动制作流程固定为六步，且旧流程字段不影响版本分派', () => {
+        expect(stepsForWorkflow({
+            workflowMode: 'r2v',
+            seriesContentMode: 'freeform',
+            productionWorkflow: 'engineering_segments_v1',
+        })).toBe(ENGINEERING_SEGMENTS_V1_STEPS);
+        expect(ENGINEERING_SEGMENTS_V1_STEPS.map((step) => step.id)).toEqual([
+            'art_direction', 'script', 'cast', 'segments', 'segment_video', 'assembly',
+        ]);
+        ENGINEERING_SEGMENTS_V1_STEPS.forEach((step, index) => {
+            expect(step.label.startsWith(`${index + 1}.`), step.label).toBe(true);
+        });
+    });
+
     describe('r2v 统一流程', () => {
         it('步骤顺序是 剧本 → 风格 → Cast → 声音 → 分镜 → 合成', () => {
             expect(stepsForWorkflow(r2v).map((step) => step.id)).toEqual([

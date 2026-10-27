@@ -9,6 +9,12 @@
       "cvk-2.5-720": "jiucaihezi/cvk-2.5-720#r2v",
       "deepseek-flash": "jiucaihezi/deepseek-flash#text",
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
+      "ft-image-v1-186289ba9d3263010c69372f8939dd94": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image",
+      "ft-image-v1-211f28f47b0355abb1798f72eb65f22d": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d#image",
+      "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d": "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d#image",
+      "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82#image",
+      "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9#image",
+      "ft-image-v1-eb47192eb578f340043911005a06fb6e": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e#image",
       "ft-video-v1-451adae35b0c4a3d275c2c46394abc98": "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v",
       "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f": "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f#r2v",
       "ft-video-v1-7393b0529b788d532d031dcac5e820cb": "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb#r2v",
@@ -20,6 +26,7 @@
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
       "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
+      "jc-minimax-h3-director8": "jiucaihezi/jc-minimax-h3-director8#r2v",
       "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
       "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
@@ -78,6 +85,12 @@
         "cvk-2.5-720",
         "deepseek-flash",
         "dola-seedance2.5",
+        "ft-image-v1-186289ba9d3263010c69372f8939dd94",
+        "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+        "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+        "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+        "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+        "ft-image-v1-eb47192eb578f340043911005a06fb6e",
         "ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
         "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
         "ft-video-v1-7393b0529b788d532d031dcac5e820cb",
@@ -89,6 +102,7 @@
         "gemini-3.8-flash",
         "gpt-5.6-sol",
         "jc-minimax-h3",
+        "jc-minimax-h3-director8",
         "jc-minimax-h3-ref2v",
         "jc-qwen-image-2.1",
         "jiucaihezi/gemini-3-pro-image-preview",
@@ -590,6 +604,372 @@
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "display_name": "FK-image2.5",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "legacy_model_ids": [
+        "ft-image-v1-186289ba9d3263010c69372f8939dd94"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "display_name": "FK-image2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "legacy_model_ids": [
+        "ft-image-v1-211f28f47b0355abb1798f72eb65f22d"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "display_name": "FK-image2.5-sunburst",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "legacy_model_ids": [
+        "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "display_name": "FK-banana-2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "legacy_model_ids": [
+        "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "display_name": "FK-banana-pro",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "legacy_model_ids": [
+        "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "display_name": "FK-image2.5-flare",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "legacy_model_ids": [
+        "ft-image-v1-eb47192eb578f340043911005a06fb6e"
+      ],
+      "modes": [
+        "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e#image"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
         }
       },
       "status": "active",
@@ -1252,6 +1632,66 @@
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-director8": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-director8",
+      "legacy_model_ids": [
+        "jc-minimax-h3-director8"
+      ],
+      "modes": [
+        "jiucaihezi/jc-minimax-h3-director8#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
@@ -2659,8 +3099,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -2749,12 +3188,595 @@
         ]
       }
     },
+    "ft-image-v1-186289ba9d3263010c69372f8939dd94": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "display_name": "FK-image2.5",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1019,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-image-v1-211f28f47b0355abb1798f72eb65f22d": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "display_name": "FK-image2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1020,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "display_name": "FK-image2.5-sunburst",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1017,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "display_name": "FK-banana-2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1016,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "display_name": "FK-banana-pro",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1015,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-image-v1-eb47192eb578f340043911005a06fb6e": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "display_name": "FK-image2.5-flare",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "inputs": {},
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1018,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
     "ft-video-v1-451adae35b0c4a3d275c2c46394abc98": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -2973,7 +3995,8 @@
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -3416,7 +4439,8 @@
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -3872,6 +4896,109 @@
         "order": 1004,
         "recommended": true,
         "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jc-minimax-h3-director8": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 120,
+        "min": 0.2,
+        "step": 0.1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jc-minimax-h3-director8",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "min": 1,
+          "reference_type": "image"
+        }
+      },
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "736x1280",
+          "options": [
+            "736x1280",
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
         "visible_in": [
           "project_settings",
           "series_settings",
@@ -4676,8 +5803,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -4781,8 +5907,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -5080,8 +6205,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -5785,8 +6909,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -5878,12 +7001,613 @@
         ]
       }
     },
+    "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "display_name": "FK-image2.5",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1019,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "display_name": "FK-image2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1020,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "display_name": "FK-image2.5-sunburst",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-3432bdee1a22da4ce8ff2bbfc6ef4c1d",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1017,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "display_name": "FK-banana-2",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1016,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "display_name": "FK-banana-pro",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1015,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e#image": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2i",
+        "i2i"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "NewAPI 图片模型 · 上游 ID: ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "display_name": "FK-image2.5-flare",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e#image",
+      "inputs": {},
+      "legacy_model_id": "ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "9:16",
+          "options": [
+            "auto",
+            "1:1",
+            "9:16",
+            "16:9",
+            "4:3",
+            "3:4",
+            "3:2",
+            "2:3",
+            "5:4",
+            "4:5",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "2K",
+          "options": [
+            "1K",
+            "2K",
+            "4K"
+          ]
+        },
+        "seed": false,
+        "watermark": false
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "image_contract": "fk_image"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "FK",
+          "NewAPI"
+        ],
+        "order": 1018,
+        "recommended": false,
+        "selection_group": "image",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
     "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -6108,7 +7832,8 @@
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -6563,7 +8288,8 @@
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -7034,6 +8760,112 @@
         "order": 1004,
         "recommended": true,
         "selection_group": "i2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/jc-minimax-h3-director8#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
+      "display_name": "MiniMax H3 Director 8 步 · 本地",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 120,
+        "min": 0.2,
+        "step": 0.1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/jc-minimax-h3-director8#r2v",
+      "inputs": {
+        "reference_images": {
+          "max": 9,
+          "min": 1,
+          "reference_type": "image"
+        }
+      },
+      "legacy_model_id": "jc-minimax-h3-director8",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/jc-minimax-h3-director8",
+      "params": {
+        "negativePrompt": false,
+        "promptExtend": false,
+        "resolution": {
+          "default": "736x1280",
+          "options": [
+            "736x1280",
+            "1344x768",
+            "1024x1024",
+            "1024x576",
+            "576x1024",
+            "1024x768",
+            "768x1024",
+            "960x640",
+            "640x960",
+            "1440x1440",
+            "1920x1088",
+            "1088x1920",
+            "1664x1248",
+            "1248x1664",
+            "1760x1184",
+            "1184x1760"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "本地",
+          "MiniMax"
+        ],
+        "order": 1006,
+        "recommended": false,
+        "selection_group": "r2v",
         "visible_in": [
           "project_settings",
           "series_settings",
@@ -7862,8 +9694,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -7970,8 +9801,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -8278,8 +10108,7 @@
       "capabilities": [
         "r2v",
         "i2v",
-        "t2v",
-        "v2v"
+        "t2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
