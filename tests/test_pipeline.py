@@ -93,6 +93,28 @@ class TestCreateProject:
         assert len(project.scenes) == 1
         assert len(project.frames) == 1
 
+    def test_new_production_workflow_creates_empty_draft_without_analysis(self, pipeline):
+        draft = _make_parsed_script()
+        draft.original_text = ""
+        pipeline.script_processor.create_draft_script.return_value = draft
+
+        result = pipeline.create_project(
+            "未命名项目", "", skip_analysis=False, workflow_mode="r2v",
+            production_workflow="engineering_segments_v1",
+        )
+
+        assert result.production_workflow == "engineering_segments_v1"
+        pipeline.script_processor.create_draft_script.assert_called_once_with("未命名项目", "")
+        pipeline.script_processor.parse_novel.assert_not_called()
+
+    def test_new_production_workflow_rejects_wrong_generation_mode_before_creating(self, pipeline):
+        with pytest.raises(ValueError, match="workflow_mode=r2v"):
+            pipeline.create_project(
+                "Draft", "", workflow_mode="i2v_legacy",
+                production_workflow="engineering_segments_v1",
+            )
+        assert pipeline.scripts == {}
+
 
 # ---------------------------------------------------------------------------
 # Step 2: Generate Assets

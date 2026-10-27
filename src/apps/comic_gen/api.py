@@ -24,8 +24,9 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Literal, Tuple
 import asyncio
+import copy
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -43,8 +44,10 @@ import webbrowser
 from .pipeline import ComicGenPipeline, LibraryAssetInUseError
 from .skill_packages import SkillPackageError, SkillPackageStore, DEFAULT_STORYBOARD_SKILL_ID
 from .engineering_script import parse_engineering_script, engineering_status, preview_engineering_sync, apply_engineering_sync, require_synced_engineering
+from .production_workflow import PRODUCTION_WORKFLOW_ID, VOICE_DESIGN_KEYS, source_revision, style_revision
 from .models import (
     ArtDirection,
+    ModelSettings,
     PromptConfig,
     Script,
     Series,
@@ -58,7 +61,8 @@ _SIDECAR_MTIME = (
     if getattr(sys, "frozen", False) and os.path.exists(sys.executable)
     else None
 )
-from .llm import ScriptProcessor, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
+from .llm import ScriptProcessor, _strip_markdown_json, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
+from .llm_adapter import LLMAdapter
 from ...utils.global_settings import get_global_text_model, set_global_text_model
 from ...utils import setup_logging
 from fastapi.responses import JSONResponse
@@ -398,6 +402,30 @@ def signed_response(data):
         processed_data = [item.model_dump() if hasattr(item, "model_dump") else item for item in data]
     else:
         processed_data = data
+
+    def redact_image_artifact_addresses(value):
+        if isinstance(value, list):
+            return [redact_image_artifact_addresses(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        result = {key: redact_image_artifact_addresses(item) for key, item in value.items()}
+        for field in ("production_image_task", "production_image_task_history"):
+            task_value = result.get(field)
+            tasks = task_value if isinstance(task_value, list) else [task_value]
+            for task in tasks:
+                if not isinstance(task, dict):
+                    continue
+                artifacts = task.get("artifacts") or []
+                task["can_resume"] = task.get("phase") == "download_pending" and any(
+                    pipeline._asset_image_artifact_resumable(item) for item in artifacts if isinstance(item, dict)
+                )
+                task["artifacts"] = [
+                    {key: item[key] for key in ("variant_id", "status", "content_type") if key in item}
+                    for item in artifacts if isinstance(item, dict)
+                ]
+        return result
+
+    processed_data = redact_image_artifact_addresses(processed_data)
     
     # Return JSONResponse directly to avoid Pydantic re-validation stripping fields
     return JSONResponse(content=processed_data)
@@ -409,6 +437,7 @@ def signed_response(data):
 
 class GenerateAssetRequest(BaseModel):
     asset_id: str
+    look_id: Optional[str] = None
     asset_type: str
     style_preset: str = "Cinematic"
     reference_image_url: Optional[str] = None
@@ -530,7 +559,8 @@ def upload_asset(
     asset_id: str,
     upload_type: str,
     description: Optional[str] = None,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    look_id: Optional[str] = None,
 ):
     """
     Uploads an image as a new variant for an asset.
@@ -559,7 +589,8 @@ def upload_asset(
             asset_id=asset_id,
             upload_type=upload_type,
             image_url=image_url,
-            description=description
+            description=description,
+            look_id=look_id,
         )
         
         if not updated_script:
@@ -583,6 +614,8 @@ class CreateProjectRequest(BaseModel):
     # Omit for a standalone project — behavior unchanged.
     series_id: Optional[str] = None
     prompt_config: Optional[PromptConfig] = None
+    production_workflow: Optional[str] = None
+    model_settings: Optional[ModelSettings] = None
 
 
 @app.post("/projects", response_model=Script)
@@ -595,6 +628,10 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
     """
     if request.prompt_config:
         _validate_skill_bindings(request.prompt_config.skill_bindings)
+    if request.production_workflow not in (None, "engineering_segments_v1"):
+        raise HTTPException(status_code=422, detail="Unsupported production workflow")
+    if request.production_workflow and request.workflow_mode != "r2v":
+        raise HTTPException(status_code=422, detail="engineering_segments_v1 requires workflow_mode=r2v")
     # Run in thread pool to avoid blocking event loop during LLM analysis (Python 3.8 compatible)
     loop = asyncio.get_event_loop()
     try:
@@ -608,6 +645,8 @@ async def create_project(request: CreateProjectRequest, skip_analysis: bool = Fa
                 request.workflow_mode,
                 request.series_id,
                 request.prompt_config.model_dump() if request.prompt_config else None,
+                request.production_workflow,
+                request.model_settings.model_dump() if request.model_settings else None,
             )
         )
     except ValueError as e:
@@ -1070,9 +1109,15 @@ def update_script_text(script_id: str, request: UpdateScriptTextRequest):
     script = pipeline.get_script(script_id)
     if not script:
         raise HTTPException(status_code=404, detail="Script not found")
-    script.original_text = request.text or ""
-    script.updated_at = time.time()
-    pipeline._save_data()
+    if script.production_workflow == PRODUCTION_WORKFLOW_ID:
+        try:
+            script = pipeline.update_production_source(script_id, request.text or "")
+        except ValueError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+    else:
+        script.original_text = request.text or ""
+        script.updated_at = time.time()
+        pipeline._save_data()
     return signed_response(script)
 
 
@@ -1147,6 +1192,7 @@ class CreateSeriesRequest(BaseModel):
     # PR-3e (r2v-workflow-v3) — Visual control preference.
     # 'r2v' (节奏优先, default) | 'i2v' (画面优先).
     default_generation_mode: str = "r2v"
+    production_workflow: Optional[str] = None
 
 
 class UpdateSeriesRequest(BaseModel):
@@ -1163,12 +1209,17 @@ class UpdateSeriesRequest(BaseModel):
 @app.post("/series")
 def create_series(request: CreateSeriesRequest):
     """Create a new Series."""
+    if request.production_workflow not in (None, "engineering_segments_v1"):
+        raise HTTPException(status_code=422, detail="Unsupported production workflow")
+    if request.production_workflow and (request.workflow_mode != "r2v" or request.content_mode != "scripted"):
+        raise HTTPException(status_code=422, detail="engineering_segments_v1 series require scripted r2v workflow")
     series = pipeline.create_series(
         request.title,
         request.description,
         request.workflow_mode,
         request.content_mode,
         request.default_generation_mode,
+        request.production_workflow,
     )
     return signed_response(series)
 
@@ -2708,6 +2759,505 @@ def generate_motion_ref(script_id: str, request: GenerateMotionRefRequest, backg
 
 # === STORYBOARD DRAMATIZATION v2 ===
 
+class ConfirmProductionSettingsRequest(BaseModel):
+    aspect_ratio: str = "9:16"
+    image_model: str
+    video_model: str
+    motion_skill_id: str
+    max_segment_seconds: int
+
+
+class ProductionEngineeringTextRequest(BaseModel):
+    text: str
+
+
+class ApplyProductionAssetsRequest(BaseModel):
+    source_revision: str
+    screenplay_revision: str
+    shot_bindings: Optional[List[Dict[str, Any]]] = None
+
+
+class ProductionSegmentRequest(BaseModel):
+    synopsis: str = ""
+    entry_state: str = ""
+    exit_state: str = ""
+    segment_revision: str
+
+
+class ProductionVoiceDesignRequest(BaseModel):
+    voice_design: Dict[str, str]
+
+
+class ProductionAssetPromptRequest(BaseModel):
+    prompt: str
+    look_id: Optional[str] = None
+
+
+class ProductionSegmentPromptRequest(BaseModel):
+    prompt: str
+    segment_revision: str
+
+
+class ProductionSegmentActionRequest(BaseModel):
+    segment_revision: str
+
+
+class ProductionSegmentVideoRequest(BaseModel):
+    segment_revision: str
+
+
+class SelectProductionSegmentVideoRequest(BaseModel):
+    task_id: str
+
+
+@app.post("/projects/{script_id}/production/settings/confirm")
+def confirm_production_settings(script_id: str, request: ConfirmProductionSettingsRequest):
+    script = pipeline.get_script(script_id)
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+        raise HTTPException(status_code=404, detail="新制作流程项目不存在")
+    skill = next((item for item in _read_script_skills(kind="motion") if item["id"] == request.motion_skill_id), None)
+    if not skill or skill.get("hidden") or skill.get("validation_error"):
+        raise HTTPException(status_code=400, detail="所选视频提示词 Skill 不存在或不可用")
+    if skill.get("executor") == "h3_context_ir":
+        raise HTTPException(status_code=400, detail="H3 Context IR 增强器不适用于本制作流程")
+    if request.aspect_ratio not in ("9:16", "16:9", "1:1", "4:3", "3:4", "21:9"):
+        raise HTTPException(status_code=400, detail="不支持的画幅")
+    timing = hashlib.sha256(skill["content"].encode("utf-8")).hexdigest()
+    try:
+        updated = pipeline.confirm_production_settings(script_id, {
+            **request.model_dump(),
+            "motion_skill_name": skill["name"],
+            "motion_skill_revision": str(skill.get("updated_at") or "builtin"),
+            "motion_skill_hash": timing,
+        })
+        return signed_response(updated)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _run_production_engineering_task(
+    script_id: str, task_id: str, source_text: str, style: Dict[str, Any],
+    skill_content: str, model: str,
+) -> None:
+    if not pipeline.mark_production_engineering_running(script_id, task_id):
+        return
+    system = (
+        f"{skill_content}\n\n"
+        "# 本项目最高视觉准则\n"
+        f"风格名称：{style.get('name', '')}\n正向风格：{style.get('positive_prompt', '')}\n"
+        f"负向风格：{style.get('negative_prompt', '')}\n\n"
+        "风格是画面、光影、摄影机与表演呈现的最高准则；不得改写原剧情事实、人物关系、原台词、动作因果或结局。"
+        "本制作流程不含 BGM。输出完整工程台本，不解释，不使用 Markdown 代码围栏。"
+    )
+    try:
+        text = LLMAdapter().chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": source_text},
+        ], model=model or None).strip()
+        pipeline.complete_production_engineering(script_id, task_id, text, model)
+    except Exception as error:
+        logger.exception("Production engineering task %s failed", task_id)
+        pipeline.fail_production_engineering(script_id, task_id, str(error))
+
+
+@app.post("/projects/{script_id}/production/engineering/generate", status_code=202)
+def generate_production_engineering(script_id: str, background_tasks: BackgroundTasks):
+    script = pipeline.get_script(script_id)
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+        raise HTTPException(status_code=404, detail="新制作流程项目不存在")
+    if not script.production_style_confirmed_at or script.production_style_revision != style_revision(script.art_direction):
+        raise HTTPException(status_code=409, detail="请先确认风格与制作设置")
+    if not script.original_text.strip():
+        raise HTTPException(status_code=400, detail="请先粘贴并保存原始剧本")
+    skill = next((item for item in _read_script_skills(kind="script") if item["id"] == "builtin-engineering"), None)
+    if not skill or not skill.get("content"):
+        raise HTTPException(status_code=500, detail="内置工程台本 Skill 缺失")
+    model = pipeline.get_effective_polish_model(script)
+    try:
+        task = pipeline.queue_production_engineering(script_id)
+        background_tasks.add_task(
+            _run_production_engineering_task, script_id, task["task_id"], script.original_text,
+            copy.deepcopy(script.art_direction.style_config), skill["content"], model or "",
+        )
+        return {"task_id": task["task_id"], "status": "queued"}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Production engineering screenplay generation failed")
+        raise HTTPException(status_code=502, detail=f"工程剧本生成失败：{error}") from error
+
+
+@app.put("/projects/{script_id}/production/engineering/draft")
+def save_production_engineering_draft(script_id: str, request: ProductionEngineeringTextRequest):
+    try:
+        script = pipeline.save_production_engineering_draft(script_id, request.text, {"source": "manual_edit"})
+        return signed_response(script.production_engineering_draft)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/engineering/adopt")
+def adopt_production_engineering(script_id: str, request: ProductionEngineeringTextRequest):
+    try:
+        return signed_response(pipeline.adopt_production_engineering(script_id, request.text))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/assets/preview", status_code=202)
+def preview_production_assets(script_id: str, background_tasks: BackgroundTasks):
+    try:
+        task = pipeline.queue_production_asset_extraction(script_id)
+        background_tasks.add_task(pipeline.process_production_asset_extraction_task, script_id, task["task_id"])
+        return {"task_id": task["task_id"], "status": task["status"]}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Production asset extraction failed")
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/assets/apply")
+def apply_production_assets(script_id: str, request: ApplyProductionAssetsRequest):
+    try:
+        return signed_response(pipeline.apply_production_assets(script_id, request.source_revision, request.screenplay_revision, shot_bindings=request.shot_bindings))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+def _run_production_voice_design_task(script_id: str, asset_id: str, task_id: str) -> None:
+    if not pipeline.mark_production_voice_design_running(script_id, asset_id, task_id):
+        return
+    script = pipeline.get_script(script_id)
+    character, _source = pipeline._find_asset_with_source(script, asset_id, "character") if script else (None, None)
+    task = copy.deepcopy(character.voice_design_task) if character else {}
+    prompt = (
+        "根据角色外形、人物关系和戏剧情绪，设计可复用的角色声音档案。只返回 JSON 对象，"
+        f"并且必须包含{'、'.join(VOICE_DESIGN_KEYS)}九个字符串字段。"
+        "声音描述保持跨场景稳定，不写当前情绪表演，不生成试听台词或音频。\n"
+        f"角色：{task.get('name', '')}\n外形与性格：{task.get('description', '')}\n视觉风格：{task.get('style_name', '')}"
+    )
+    try:
+        raw = LLMAdapter().chat([{"role": "user", "content": prompt}], model=task.get("model") or None)
+        design = json.loads(_strip_markdown_json(raw))
+        if not isinstance(design, dict) or any(not isinstance(design.get(key), str) or not design[key].strip() for key in VOICE_DESIGN_KEYS):
+            raise ValueError("模型返回的九维声音档案不完整，请重试")
+        pipeline.complete_production_voice_design(
+            script_id, asset_id, task_id,
+            {key: design[key].strip()[:300] for key in VOICE_DESIGN_KEYS},
+        )
+    except Exception as error:
+        logger.exception("Production voice design generation failed")
+        pipeline.fail_production_voice_design(script_id, asset_id, task_id, str(error))
+
+
+class FoldProductionPropRequest(BaseModel):
+    target_type: Literal["character", "scene"]
+    target_id: str
+    look_id: Optional[str] = None
+
+
+@app.post("/projects/{script_id}/production/props/{prop_id}/fold")
+def fold_production_prop(script_id: str, prop_id: str, request: FoldProductionPropRequest):
+    try:
+        return signed_response(pipeline.fold_production_prop(script_id, prop_id, request.target_type, request.target_id, request.look_id))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/assets/{asset_id}/voice-design/generate", status_code=202)
+def generate_production_voice_design(script_id: str, asset_id: str, background_tasks: BackgroundTasks):
+    try:
+        task = pipeline.queue_production_voice_design(script_id, asset_id)
+        if not task.get("reused"):
+            background_tasks.add_task(_run_production_voice_design_task, script_id, asset_id, task["task_id"])
+        return {"task_id": task["task_id"], "status": task["status"]}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+def _production_asset_and_type(script: Script, asset_id: str):
+    for asset_type in ("character", "scene", "prop"):
+        asset, source = pipeline._find_asset_with_source(script, asset_id, asset_type)
+        if asset:
+            return asset, source, asset_type
+    return None, None, None
+
+
+@app.post("/projects/{script_id}/production/assets/{asset_id}/image-prompt/generate", status_code=202)
+def generate_production_asset_prompt(script_id: str, asset_id: str, background_tasks: BackgroundTasks, look_id: Optional[str] = None):
+    script = pipeline.get_script(script_id)
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+        raise HTTPException(status_code=404, detail="新制作流程项目不存在")
+    asset, source, asset_type = _production_asset_and_type(script, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="资产不存在")
+    if source == "global":
+        raise HTTPException(status_code=409, detail="全局资产只读，请先复制到本项目")
+    if getattr(asset, "locked", False):
+        raise HTTPException(status_code=409, detail="资产已锁定")
+    try:
+        from .production_assets import asset_description, get_look, resolve_target, require_editable
+        if asset_type == "character" and asset.looks:
+            look_id = get_look(asset, look_id).id
+        owner, asset, source = resolve_target(pipeline, script, asset_id, asset_type, look_id)
+        require_editable(owner, asset, source)
+        series = pipeline.get_series(script.series_id) if script.series_id else None
+        custom = pipeline.get_effective_prompt(f"{asset_type}_prompt", script, series)
+        model = pipeline.get_effective_polish_model(script)
+        revision = script.production_settings.get("revision")
+        if not script.production_style_confirmed_at or not revision:
+            raise ValueError("请先确认当前风格与制作设置")
+        already_queued = asset.prompt_generation_status in ("queued", "processing")
+        task_id = pipeline.create_prompt_generation_task(
+            script_id, asset_id, asset_type, asset.name,
+            asset_description(owner, asset if look_id else None), custom, model or "",
+            aspect_ratio=script.production_settings.get("aspect_ratio", "9:16"),
+            production_settings_revision_snapshot=revision,
+            look_id=look_id,
+        )
+        if not already_queued:
+            background_tasks.add_task(pipeline.process_prompt_generation_task, task_id)
+        return {"task_id": task_id, "status": "queued", "asset_id": asset_id, "asset_type": asset_type}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Production asset prompt generation failed")
+        raise HTTPException(status_code=502, detail=f"资产提示词生成失败：{error}") from error
+
+
+@app.put("/projects/{script_id}/production/assets/{asset_id}/image-prompt")
+def save_production_asset_prompt(script_id: str, asset_id: str, request: ProductionAssetPromptRequest):
+    script = pipeline.get_script(script_id)
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+        raise HTTPException(status_code=404, detail="新制作流程项目不存在")
+    asset, _source, asset_type = _production_asset_and_type(script, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="资产不存在")
+    try:
+        from .production_assets import get_look
+        look_id = get_look(asset, request.look_id).id if asset_type == "character" and asset.looks else request.look_id
+        return pipeline.save_production_asset_prompt(script_id, asset_id, asset_type, request.prompt, "manual", look_id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.put("/projects/{script_id}/production/assets/{asset_id}/voice-design")
+def save_production_voice_design(script_id: str, asset_id: str, request: ProductionVoiceDesignRequest):
+    script = pipeline.get_script(script_id)
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID:
+        raise HTTPException(status_code=404, detail="新制作流程项目不存在")
+    character, source = pipeline._find_asset_with_source(script, asset_id, "character")
+    if not character:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    try:
+        return pipeline.save_production_voice_design(script_id, asset_id, request.voice_design)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/segments/plan")
+def plan_production_segments(script_id: str):
+    try:
+        return signed_response(pipeline.plan_production_segments(script_id))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.put("/projects/{script_id}/production/segments/{segment_id}")
+def update_production_segment(script_id: str, segment_id: str, request: ProductionSegmentRequest):
+    try:
+        return signed_response(pipeline.update_production_segment(script_id, segment_id, request.synopsis, request.entry_state, request.exit_state, request.segment_revision))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/segments/adopt")
+def adopt_production_segments(script_id: str):
+    try:
+        return signed_response(pipeline.adopt_production_segments(script_id))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+def _production_segment_draft_input(segments: List[Dict[str, Any]]) -> str:
+    blocks = []
+    for segment in segments:
+        names = {ref["id"]: ref["name"] for ref in segment.get("asset_refs", []) if ref.get("kind") == "characters"}
+        tail = "、".join(dict.fromkeys(names[item] for item in segment.get("tail_character_ids") or [] if item in names)) or "无人（空场景）"
+        shots = "\n".join(f"{shot.get('scene') or ''} 镜头{shot['local_number']}：{shot['body']}" for shot in segment.get("shots", []))
+        blocks.append(f"### 分段 id={segment['id']}（第{segment['index']}段）\n结尾全景在场人物：{tail}\n{shots}")
+    return "\n\n".join(blocks)
+
+
+def _run_production_segment_draft_task(script_id: str, task_id: str, segments: List[Dict[str, Any]], model: str) -> None:
+    if not pipeline.mark_production_segment_drafts_running(script_id, task_id):
+        return
+    system = (
+        "你是短剧分段编辑。为每个分段写两项草稿，只返回 JSON 对象："
+        '{"segments":[{"id":"分段id","synopsis":"…","exit_state":"…"}]}，必须覆盖输入的全部分段并原样保留 id。\n'
+        "synopsis：一句话（不超过60字），写清主体、人物关系、情绪与本段内容；不是旁白，不新增剧情。\n"
+        "exit_state：本段最后1秒全景里，仅限“结尾全景在场人物”，逐个写出画面左右、前后、朝向、视线和持物，"
+        "并点出一个场景地标；以本段最后一个镜头结束时的实际状态为准，不召回已离场的人，不新增动作。"
+        "无人时只写空场景的地标与机位关系。下一段会直接从这个站位开场。"
+    )
+    try:
+        raw = LLMAdapter().chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": _production_segment_draft_input(segments)},
+        ], model=model or None, response_format={"type": "json_object"})
+        data = json.loads(_strip_markdown_json(raw))
+        drafts = data.get("segments") if isinstance(data, dict) else data
+        if not isinstance(drafts, list):
+            raise ValueError("模型没有返回分段草稿列表，请重试")
+        pipeline.complete_production_segment_drafts(script_id, task_id, drafts)
+    except Exception as error:
+        logger.exception("Production segment draft task %s failed", task_id)
+        pipeline.fail_production_segment_drafts(script_id, task_id, str(error))
+
+
+@app.post("/projects/{script_id}/production/segments/drafts/generate", status_code=202)
+def generate_production_segment_drafts(script_id: str, background_tasks: BackgroundTasks):
+    try:
+        task = pipeline.queue_production_segment_drafts(script_id)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    script = pipeline.get_script(script_id)
+    background_tasks.add_task(
+        _run_production_segment_draft_task, script_id, task["task_id"],
+        copy.deepcopy(script.production_segments), pipeline.get_effective_polish_model(script) or "",
+    )
+    return {"task_id": task["task_id"], "status": task["status"]}
+
+
+def _production_segment_and_motion_skill(script_id: str, segment_id: str):
+    script = pipeline.get_script(script_id)
+    segment = next((item for item in script.production_segments if item.get("id") == segment_id), None) if script else None
+    if not script or script.production_workflow != PRODUCTION_WORKFLOW_ID or not segment:
+        raise HTTPException(status_code=404, detail="分段不存在")
+    from .production_workflow import production_segment_revision
+    if not segment.get("adopted_at") or production_segment_revision(segment) != segment.get("revision"):
+        raise HTTPException(status_code=409, detail="请先采用当前版本的分段工程剧本")
+    settings = script.production_settings
+    skill = next((item for item in _read_script_skills(kind="motion") if item["id"] == settings.get("motion_skill_id")), None)
+    if not skill or skill.get("hidden") or skill.get("validation_error") or skill.get("executor") == "h3_context_ir":
+        raise HTTPException(status_code=409, detail="已确认的 Motion Skill 当前不可用，请重新确认制作设置")
+    digest = hashlib.sha256(skill["content"].encode("utf-8")).hexdigest()
+    if digest != settings.get("motion_skill_hash"):
+        raise HTTPException(status_code=409, detail="Motion Skill 已更新，请重新确认制作设置")
+    return script, segment, skill, digest
+
+
+def _run_production_segment_prompt_task(
+    task_id: str, script_id: str, segment_id: str, segment_revision: str,
+    settings_revision: str, skill: Dict[str, str], skill_content: str,
+    segment: Dict[str, Any], model: str,
+) -> None:
+    if not pipeline.mark_production_segment_prompt_running(script_id, segment_id, task_id):
+        return
+    style = segment.get("style") or {}
+    references = "\n".join(f"图{item['number']}：{item['name']}（{item.get('description') or '无描述'}）" for item in segment.get("asset_refs", []))
+    system = (
+        skill_content + "\n\n本段提示词必须遵守已确认视觉风格；视觉风格是最高画面准则。"
+        "不得增加 BGM，也不得生成或引用角色参考音；只设计模型生成的现场音。"
+        "严格使用本段参考图编号，不虚构资产；保留结尾1秒全景和所有人物的相对位置。"
+        "只输出可提交给视频模型的提示词正文，不作解释。\n"
+        f"确认风格：{style.get('name', '')}；{style.get('positive_prompt', '')}；避免：{style.get('negative_prompt', '')}"
+    )
+    try:
+        prompt = LLMAdapter().chat([
+            {"role": "system", "content": system},
+            {"role": "user", "content": f"{segment.get('screenplay_text', '')}\n\n可用参考资产：\n{references}"},
+        ], model=model or None).strip().replace("```text", "").replace("```markdown", "").replace("```", "").strip()
+        pipeline.complete_production_segment_prompt(
+            script_id, segment_id, task_id, segment_revision, settings_revision, skill, prompt,
+        )
+    except Exception as error:
+        logger.exception("Production segment prompt task %s failed", task_id)
+        pipeline.fail_production_segment_prompt(script_id, segment_id, task_id, str(error))
+
+
+@app.post("/projects/{script_id}/production/segments/{segment_id}/prompt/generate", status_code=202)
+def generate_production_segment_prompt(script_id: str, segment_id: str, request: ProductionSegmentActionRequest, background_tasks: BackgroundTasks):
+    script, segment, skill, digest = _production_segment_and_motion_skill(script_id, segment_id)
+    from .production_workflow import production_segment_revision
+    if request.segment_revision != segment.get("revision") or production_segment_revision(segment) != segment.get("revision"):
+        raise HTTPException(status_code=409, detail="分段内容已变化，请重新采用")
+    try:
+        model = pipeline.get_effective_polish_model(script)
+        skill_snapshot = {
+            "id": skill["id"], "name": skill["name"], "revision": str(skill.get("updated_at") or "builtin"), "hash": digest,
+        }
+        task_id = pipeline.queue_production_segment_prompt(script_id, segment_id, skill_snapshot)
+        background_tasks.add_task(
+            _run_production_segment_prompt_task, task_id, script_id, segment_id,
+            segment["revision"], script.production_settings["revision"], skill_snapshot,
+            skill["content"], copy.deepcopy(segment), model or "",
+        )
+        return {"task_id": task_id, "status": "queued", "segment_revision": segment["revision"], "skill_name": skill["name"]}
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Production segment prompt generation failed")
+        raise HTTPException(status_code=502, detail=f"分段提示词生成失败：{error}") from error
+
+
+@app.put("/projects/{script_id}/production/segments/{segment_id}/prompt")
+def save_production_segment_prompt(script_id: str, segment_id: str, request: ProductionSegmentPromptRequest):
+    try:
+        _production_segment_and_motion_skill(script_id, segment_id)
+        segment = pipeline.save_production_segment_prompt(script_id, segment_id, request.prompt, expected_revision=request.segment_revision)
+        return signed_response(segment)
+    except HTTPException:
+        raise
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/segments/{segment_id}/prompt/adopt")
+def adopt_production_segment_prompt(script_id: str, segment_id: str, request: ProductionSegmentPromptRequest):
+    try:
+        _production_segment_and_motion_skill(script_id, segment_id)
+        return signed_response(pipeline.adopt_production_segment_prompt(script_id, segment_id, request.prompt, request.segment_revision))
+    except HTTPException:
+        raise
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/segments/{segment_id}/video")
+def create_production_segment_video(script_id: str, segment_id: str, request: ProductionSegmentVideoRequest, background_tasks: BackgroundTasks):
+    try:
+        script, segment, _skill, _digest = _production_segment_and_motion_skill(script_id, segment_id)
+        from .production_workflow import production_segment_revision
+        if request.segment_revision != segment.get("revision") or production_segment_revision(segment) != segment.get("revision") or segment.get("adopted_prompt_revision") != segment.get("revision"):
+            raise ValueError("分段或提示词版本已变化，请重新采用")
+        settings = script.production_settings
+        urls = list(dict.fromkeys(ref["image_url"] for ref in segment.get("asset_refs", []) if ref.get("image_url")))
+        if not urls:
+            raise ValueError("本段没有已生成并绑定的参考资产图")
+        updated, task_id = pipeline.create_video_task(
+            script_id=script_id, image_url="", prompt=segment["adopted_prompt"],
+            duration=segment["duration_total"], resolution="720p", generate_audio=False,
+            model=settings["video_model"], generation_mode="r2v", reference_image_urls=urls,
+            source_frame_ids=segment["source_frame_ids"], skill_id=settings["motion_skill_id"],
+            skill_name=settings["motion_skill_name"], ratio=settings["aspect_ratio"],
+            segment_id=segment_id, segment_revision=segment["revision"],
+        )
+        task = next(item for item in updated.video_tasks if item.id == task_id)
+        background_tasks.add_task(process_video_task, script_id, task_id)
+        return signed_response(task)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/projects/{script_id}/production/segments/{segment_id}/video/select")
+def select_production_segment_video(script_id: str, segment_id: str, request: SelectProductionSegmentVideoRequest):
+    try:
+        return signed_response(pipeline.select_production_segment_video(script_id, segment_id, request.task_id))
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
 class AnalyzeToStoryboardRequest(BaseModel):
     """Request to analyze script text into storyboard frames."""
     text: str
@@ -3017,6 +3567,8 @@ class CreateVideoTaskRequest(BaseModel):
     # generation_mode (backend dispatcher hint) — used by the candidates
     # panel to group takes per UI tab on refresh.
     workbench_tab: Optional[str] = None  # 't2i_i2v' | 'direct_r2v'
+    segment_id: Optional[str] = None
+    segment_revision: Optional[str] = None
 
 
 def process_video_task(script_id: str, task_id: str, resume: bool = False):
@@ -3191,6 +3743,8 @@ def create_video_task(script_id: str, request: CreateVideoTaskRequest, backgroun
                 vidu_audio=request.vidu_audio,
                 movement_amplitude=request.movement_amplitude,
                 workbench_tab=request.workbench_tab,
+                segment_id=request.segment_id,
+                segment_revision=request.segment_revision,
             )
 
             # Find the created task object
@@ -3234,6 +3788,7 @@ def generate_single_asset(script_id: str, request: GenerateAssetRequest, backgro
             request.batch_size,
             request.model_name,
             request.aspect_ratio,
+            look_id=request.look_id,
         )
         
         # Add background processing
@@ -3248,6 +3803,20 @@ def generate_single_asset(script_id: str, request: GenerateAssetRequest, backgro
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/projects/{script_id}/asset_tasks/{task_id}/resume")
+def resume_asset_image(script_id: str, task_id: str, background_tasks: BackgroundTasks):
+    """Continue downloading a previously generated asset image; never submit generation."""
+    try:
+        status = pipeline.queue_asset_image_recovery(script_id, task_id)
+        if not status.get("reused"):
+            background_tasks.add_task(pipeline.process_asset_image_recovery, task_id)
+        return {key: status.get(key) for key in ("task_id", "status", "phase", "reused", "can_resume")}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/tasks/{task_id}")
@@ -3387,6 +3956,7 @@ class UpdateAssetDescriptionRequest(BaseModel):
     asset_id: str
     asset_type: str
     description: str
+    look_id: Optional[str] = None
 
 
 class RewriteAssetDescriptionRequest(BaseModel):
@@ -3404,7 +3974,8 @@ def update_asset_description(script_id: str, request: UpdateAssetDescriptionRequ
             script_id,
             request.asset_id,
             request.asset_type,
-            request.description
+            request.description,
+            look_id=request.look_id
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3444,6 +4015,7 @@ class SelectVariantRequest(BaseModel):
     asset_id: str
     asset_type: str
     variant_id: str
+    look_id: Optional[str] = None
     generation_type: str = None  # For character: "full_body", "three_view", "headshot"
 
 @app.post("/projects/{script_id}/assets/variant/select", response_model=Script)
@@ -3455,7 +4027,8 @@ def select_asset_variant(script_id: str, request: SelectVariantRequest):
             request.asset_id,
             request.asset_type,
             request.variant_id,
-            request.generation_type
+            request.generation_type,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3467,6 +4040,7 @@ class DeleteVariantRequest(BaseModel):
     asset_id: str
     asset_type: str
     variant_id: str
+    look_id: Optional[str] = None
 
 @app.post("/projects/{script_id}/assets/variant/delete", response_model=Script)
 def delete_asset_variant(script_id: str, request: DeleteVariantRequest):
@@ -3476,7 +4050,8 @@ def delete_asset_variant(script_id: str, request: DeleteVariantRequest):
             script_id,
             request.asset_id,
             request.asset_type,
-            request.variant_id
+            request.variant_id,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3491,6 +4066,7 @@ class FavoriteVariantRequest(BaseModel):
     variant_id: str
     generation_type: Optional[str] = None  # For character: 'full_body', 'three_view', 'headshot'
     is_favorited: bool
+    look_id: Optional[str] = None
 
 @app.post("/projects/{script_id}/assets/variant/favorite", response_model=Script)
 def toggle_variant_favorite(script_id: str, request: FavoriteVariantRequest):
@@ -3502,7 +4078,8 @@ def toggle_variant_favorite(script_id: str, request: FavoriteVariantRequest):
             request.asset_type,
             request.variant_id,
             request.is_favorited,
-            request.generation_type
+            request.generation_type,
+            look_id=request.look_id,
         )
         return signed_response(updated_script)
     except ValueError as e:
@@ -3624,16 +4201,20 @@ def list_skill_packages():
 
 
 @app.post("/skill-packages")
-def upload_skill_package(file: UploadFile = File(...)):
+def upload_skill_package(file: UploadFile = File(...), kind: str = Form(default="script")):
     try:
         data = file.file.read()
-        return pipeline.skill_packages.import_upload(file.filename or "SKILL.md", data)
+        if kind not in ("script", "motion"):
+            raise SkillPackageError("Skill kind must be script or motion")
+        package = pipeline.skill_packages.import_upload(file.filename or "SKILL.md", data)
+        pipeline.skill_packages.manage(package["id"], kind=kind)
+        return pipeline.skill_packages.describe(package["id"])
     except SkillPackageError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.post("/skill-packages/folder")
-def upload_skill_package_folder(files: List[UploadFile] = File(...), paths: str = Form(default="[]")):
+def upload_skill_package_folder(files: List[UploadFile] = File(...), paths: str = Form(default="[]"), kind: str = Form(default="script")):
     """整目录上传 Skill（SKILL.md 连同它的 references/ 一起）。
 
     `paths` 是与 `files` 同序的 JSON 数组。这里特意用一条 JSON 字段而不是
@@ -3641,6 +4222,8 @@ def upload_skill_package_folder(files: List[UploadFile] = File(...), paths: str 
     list-of-tuples），而这里一旦错位，代价是“路径全乱却看起来成功”的包。
     """
     try:
+        if kind not in ("script", "motion"):
+            raise SkillPackageError("Skill kind must be script or motion")
         if not files:
             raise SkillPackageError("没有收到任何文件")
         try:
@@ -3654,7 +4237,9 @@ def upload_skill_package_folder(files: List[UploadFile] = File(...), paths: str 
             (str(relative_paths[index]) or (upload.filename or ""), upload.file.read())
             for index, upload in enumerate(files)
         ]
-        return pipeline.skill_packages.import_upload_folder(entries)
+        package = pipeline.skill_packages.import_upload_folder(entries)
+        pipeline.skill_packages.manage(package["id"], kind=kind)
+        return pipeline.skill_packages.describe(package["id"])
     except SkillPackageError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -4102,6 +4687,8 @@ class UpdateFrameRequest(BaseModel):
     camera_angle: Optional[str] = None
     scene_id: Optional[str] = None
     character_ids: Optional[List[str]] = None
+    character_look_ids: Optional[Dict[str, str]] = None
+    source_revision: Optional[str] = None
     duration: Optional[int] = None
     shot_size: Optional[str] = None
     camera_movement_description: Optional[str] = None
@@ -4120,6 +4707,8 @@ def update_frame(script_id: str, request: UpdateFrameRequest):
             camera_angle=request.camera_angle,
             scene_id=request.scene_id,
             character_ids=request.character_ids,
+            character_look_ids=request.character_look_ids,
+            source_revision=request.source_revision,
             duration=request.duration,
             shot_size=request.shot_size,
             camera_movement_description=request.camera_movement_description,

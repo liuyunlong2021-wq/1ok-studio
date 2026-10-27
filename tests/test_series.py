@@ -105,6 +105,42 @@ class TestSeriesCRUD:
         assert s.created_at > 0
         assert s.updated_at > 0
 
+    def test_new_series_can_opt_into_the_versioned_manual_workflow(self, pipeline):
+        s = pipeline.create_series(
+            "New workflow", workflow_mode="r2v", content_mode="scripted",
+            production_workflow="engineering_segments_v1",
+        )
+        assert s.production_workflow == "engineering_segments_v1"
+
+    def test_new_workflow_episode_is_created_and_bound_in_one_project_operation(self, pipeline):
+        series = pipeline.create_series(
+            "Series", workflow_mode="r2v", content_mode="scripted",
+            production_workflow="engineering_segments_v1",
+        )
+        draft = _make_script(title="Episode 1", text="")
+        pipeline.script_processor.create_draft_script.return_value = draft
+
+        episode = pipeline.create_project(
+            "Episode 1", "", skip_analysis=False, workflow_mode="r2v",
+            series_id=series.id, production_workflow="engineering_segments_v1",
+        )
+
+        assert episode.series_id == series.id
+        assert episode.episode_number == 1
+        assert episode.production_workflow == series.production_workflow
+        assert series.episode_ids == [episode.id]
+        pipeline.script_processor.parse_novel.assert_not_called()
+
+    def test_new_workflow_refuses_legacy_series_without_creating_project(self, pipeline):
+        series = pipeline.create_series("Legacy", workflow_mode="r2v")
+        with pytest.raises(ValueError, match="does not match"):
+            pipeline.create_project(
+                "Episode 1", "", workflow_mode="r2v", series_id=series.id,
+                production_workflow="engineering_segments_v1",
+            )
+        assert pipeline.scripts == {}
+        assert series.episode_ids == []
+
     def test_get_series_exists(self, pipeline):
         s = pipeline.create_series("X")
         assert pipeline.get_series(s.id) is s

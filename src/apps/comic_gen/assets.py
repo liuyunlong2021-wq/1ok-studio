@@ -7,7 +7,7 @@ from urllib.parse import quote
 from .models import Character, Scene, Prop, GenerationStatus, ImageAsset, ImageVariant, MAX_VARIANTS_PER_ASSET
 from ...models.jiucaihezi import JiucaiheziImageModel
 from ...utils import get_logger
-from ...utils.media_refs import to_media_ref
+from ...utils.media_refs import to_media_ref, resolve_local_media_path
 
 logger = get_logger(__name__)
 
@@ -90,7 +90,13 @@ class AssetGenerator:
         self.model = JiucaiheziImageModel(self.config.get('model', {}))
         self.output_dir = self.config.get('output_dir', 'output/assets')
 
-    def generate_character(self, character: Character, generation_type: str = "all", prompt: str = "", positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, i2i_model_name: str = None, size: str = None) -> Character:
+    @staticmethod
+    def _artifact_callback(callback, variant_id, output_path):
+        if not callable(callback):
+            return None
+        return lambda artifact: callback({**artifact, "variant_id": variant_id, "output_path": output_path})
+
+    def generate_character(self, character: Character, generation_type: str = "all", prompt: str = "", positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, i2i_model_name: str = None, size: str = None, reference_image_url: str = None, on_artifact=None) -> Character:
         """
         Generates character assets based on generation_type.
         Types: 'full_body', 'three_view', 'headshot', 'all'
@@ -107,6 +113,12 @@ class AssetGenerator:
             # === R2V: Single unified reference sheet (T2I only) ===
             if generation_type == "reference_sheet":
                 effective_prompt = prompt if prompt else f"Character reference sheet for {character.name}. {character.description}. Multiple views: front, side, back. Clean background, studio lighting."
+                reference_path = None
+                if reference_image_url:
+                    reference_path = reference_image_url if reference_image_url.startswith(("http://", "https://")) else resolve_local_media_path(reference_image_url)
+                    if not reference_path:
+                        raise ValueError("角色身份参考图无法读取，请重新选择参考图")
+                    effective_prompt = "以所附图锁定同一人物的面部、体型与固定标记，仅将服装替换为本次指定造型。\n" + effective_prompt
                 if positive_prompt and positive_prompt not in effective_prompt:
                     effective_prompt = f"{effective_prompt}, {positive_prompt}"
 
@@ -122,9 +134,11 @@ class AssetGenerator:
 
                         self.model.generate(
                             effective_prompt, sheet_path,
+                            **({"ref_image_path": reference_path} if reference_path else {}),
                             negative_prompt=negative_prompt,
                             model_name=model_name,
-                            size=effective_size
+                            size=effective_size,
+                            **({"on_artifact": self._artifact_callback(on_artifact, variant_id, sheet_path)} if on_artifact else {})
                         )
 
                         rel_path = to_media_ref(os.path.relpath(sheet_path, "output"))
@@ -236,7 +250,7 @@ class AssetGenerator:
                                 effective_generation_prompt = f"{reverse_enhancement}{generation_prompt}"
                                 logger.debug(f"Reverse generation enhanced prompt: {effective_generation_prompt[:100]}...")
                         
-                        self.model.generate(effective_generation_prompt, fullbody_path, ref_image_path=ref_image_path, negative_prompt=negative_prompt, model_name=effective_model_name, size=effective_size)
+                        self.model.generate(effective_generation_prompt, fullbody_path, ref_image_path=ref_image_path, negative_prompt=negative_prompt, model_name=effective_model_name, size=effective_size, **({"on_artifact": self._artifact_callback(on_artifact, variant_id, fullbody_path)} if on_artifact else {}))
                         
                         rel_fullbody_path = to_media_ref(os.path.relpath(fullbody_path, "output"))
                         
@@ -364,7 +378,7 @@ class AssetGenerator:
                         variant_id = str(uuid.uuid4())
                         sheet_path = os.path.join(self.output_dir, 'characters', f"{character.id}_sheet_{variant_id}.png")
                         
-                        self.model.generate(generation_prompt, sheet_path, ref_image_path=fullbody_path, negative_prompt=sheet_negative, ref_strength=0.8, model_name=i2i_model_name)
+                        self.model.generate(generation_prompt, sheet_path, ref_image_path=fullbody_path, negative_prompt=sheet_negative, ref_strength=0.8, model_name=i2i_model_name, **({"on_artifact": self._artifact_callback(on_artifact, variant_id, sheet_path)} if on_artifact else {}))
                         
                         rel_sheet_path = to_media_ref(os.path.relpath(sheet_path, "output"))
                         
@@ -427,7 +441,7 @@ class AssetGenerator:
                         variant_id = str(uuid.uuid4())
                         avatar_path = os.path.join(self.output_dir, 'characters', f"{character.id}_avatar_{variant_id}.png")
                         
-                        self.model.generate(generation_prompt, avatar_path, ref_image_path=fullbody_path, negative_prompt=negative_prompt, ref_strength=0.8, model_name=i2i_model_name)
+                        self.model.generate(generation_prompt, avatar_path, ref_image_path=fullbody_path, negative_prompt=negative_prompt, ref_strength=0.8, model_name=i2i_model_name, **({"on_artifact": self._artifact_callback(on_artifact, variant_id, avatar_path)} if on_artifact else {}))
                         
                         rel_avatar_path = to_media_ref(os.path.relpath(avatar_path, "output"))
                         
@@ -485,7 +499,7 @@ class AssetGenerator:
             
         return character
 
-    def generate_scene(self, scene: Scene, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "") -> Scene:
+    def generate_scene(self, scene: Scene, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "", on_artifact=None) -> Scene:
         """Generates a scene reference image."""
         scene.status = GenerationStatus.PROCESSING
         
@@ -512,7 +526,7 @@ class AssetGenerator:
                 output_path = os.path.join(self.output_dir, 'scenes', f"{scene.id}_{variant_id}.png")
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 
-                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
+                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size, **({"on_artifact": self._artifact_callback(on_artifact, variant_id, output_path)} if on_artifact else {}))
                 
                 rel_path = to_media_ref(os.path.relpath(output_path, "output"))
                 
@@ -541,7 +555,7 @@ class AssetGenerator:
             
         return scene
 
-    def generate_prop(self, prop: Prop, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "") -> Prop:
+    def generate_prop(self, prop: Prop, positive_prompt: str = None, negative_prompt: str = "", batch_size: int = 1, model_name: str = None, size: str = None, prompt: str = "", on_artifact=None) -> Prop:
         """Generates a prop reference image."""
         prop.status = GenerationStatus.PROCESSING
         
@@ -567,7 +581,7 @@ class AssetGenerator:
                 output_path = os.path.join(self.output_dir, 'props', f"{prop.id}_{variant_id}.png")
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 
-                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size)
+                image_path, _ = self.model.generate(prompt, output_path, negative_prompt=negative_prompt, model_name=model_name, size=effective_size, **({"on_artifact": self._artifact_callback(on_artifact, variant_id, output_path)} if on_artifact else {}))
                 
                 rel_path = to_media_ref(os.path.relpath(output_path, "output"))
                 

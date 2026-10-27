@@ -86,6 +86,7 @@ export default function PlaygroundPage() {
   const setTemplates = usePlaygroundStore((s) => s.setTemplates);
   const startGeneration = usePlaygroundStore((s) => s.startGeneration);
   const updateGeneration = usePlaygroundStore((s) => s.updateGeneration);
+  const removeGeneration = usePlaygroundStore((s) => s.removeGeneration);
   const enqueueRequest = usePlaygroundStore((s) => s.enqueueRequest);
   const markDispatching = usePlaygroundStore((s) => s.markDispatching);
   const removeFromQueue = usePlaygroundStore((s) => s.removeFromQueue);
@@ -100,6 +101,21 @@ export default function PlaygroundPage() {
   }, [mode, modelId]);
 
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  const handleDelete = useCallback(async (gen: PlaygroundGeneration) => {
+    const inFlight = gen.status === 'pending' || gen.status === 'processing';
+    if (inFlight && !window.confirm(t('card.deleteInFlightConfirm'))) return;
+    try {
+      await playgroundApi.deleteGeneration(gen.id);
+      const timer = pollTimers.current.get(gen.id);
+      if (timer) clearInterval(timer);
+      pollTimers.current.delete(gen.id);
+      removeGeneration(gen.id);
+    } catch (err) {
+      console.error('[Playground] Delete failed:', err);
+      toast.error(errorMessage(err));
+    }
+  }, [removeGeneration, t]);
 
   // ─── Fetch initial data on mount ───────────────────────────────────────────
 
@@ -116,7 +132,13 @@ export default function PlaygroundPage() {
       const fresh = usePlaygroundStore.getState().history;
       const combined = new Map(items.map((item) => [item.id, toGeneration(item)]));
       fresh.forEach((item) => { if (!combined.has(item.id)) combined.set(item.id, item); });
-      setHistory(Array.from(combined.values()));
+      const restored = Array.from(combined.values());
+      setHistory(restored);
+      restored.forEach((generation) => {
+        if (generation.status === 'pending' || generation.status === 'processing') {
+          startPolling(generation.id);
+        }
+      });
     })().catch((err) => {
       console.error('[Playground] Failed to fetch history:', err);
     });
@@ -367,7 +389,7 @@ export default function PlaygroundPage() {
 
         {/* ─── RIGHT: RESULT GALLERY ─── */}
         <main className="flex flex-1 flex-col overflow-hidden min-w-0">
-          <ResultGallery />
+          <ResultGallery onDelete={handleDelete} />
         </main>
       </div>
     </div>

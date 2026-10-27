@@ -29,13 +29,49 @@ import { getAssetUrl } from "@/lib/utils";
 import { publicAsset } from "@/lib/publicAsset";
 import PreviewImage from "@/components/shared/preview/PreviewImage";
 import GroupedModelGrid from "@/components/common/GroupedModelGrid";
+import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
+import CharacterWorkbench from "@/components/modules/CharacterWorkbench";
+import CharacterLookBindings from "./CharacterLookBindings";
 
 export type CastKind = "character" | "scene" | "prop";
 
 // Module-level poll registry — survives modal close/reopen.
 export const activePolls = new Map<string, ReturnType<typeof setInterval>>();
 
-function startAssetPoll(
+async function waitForProductionAssetPrompt(projectId: string, entityId: string, kind: CastKind, lookId?: string) {
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        const pool = kind === "character" ? project.characters : kind === "scene" ? project.scenes : project.props;
+        const owner = (pool || []).find((item: any) => item.id === entityId);
+        const asset = lookId ? owner?.looks?.find((item: any) => item.id === lookId) : owner;
+        if (asset?.prompt_generation_status === "completed") {
+            return kind === "character" ? asset.reference_sheet?.image_prompt || asset.full_body_prompt : asset.image_prompt;
+        }
+        if (["failed", "stale"].includes(asset?.prompt_generation_status)) {
+            throw new Error(asset.prompt_generation_error || "资产提示词生成失败，请重试");
+        }
+    }
+    throw new Error("提示词仍在后台处理中；稍后可重新打开资产查看状态");
+}
+
+async function waitForProductionVoiceDesign(projectId: string, entityId: string, taskId: string) {
+    const deadline = Date.now() + 180_000;
+    while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const project = await api.getProject(projectId);
+        useProjectStore.getState().updateProject(projectId, project);
+        const character = (project.characters || []).find((item: any) => item.id === entityId);
+        const task = character?.voice_design_task;
+        if (task?.task_id !== taskId) throw new Error("角色声音任务版本已变化，请刷新后重试");
+        if (task.status === "completed") return character.voice_design || {};
+        if (["failed", "stale"].includes(task.status)) throw new Error(task.error || "九维声音档案生成失败");
+    }
+    throw new Error("声音档案仍在后台处理中；稍后可重新打开角色查看状态");
+}
+
+export function startAssetPoll(
     entityId: string,
     taskId: string,
     projectId: string,
@@ -47,41 +83,50 @@ function startAssetPoll(
         removeGeneratingTask: (assetId: string, generationType: string) => void;
     },
     progressToastId?: string,
+    lookId?: string,
 ) {
-    if (activePolls.has(entityId)) return;
+    const key = assetTaskKey(projectId, entityId, lookId);
+    if (activePolls.has(key)) return;
     const interval = setInterval(async () => {
         try {
             const status = await api.getTaskStatus(taskId);
             if (status?.status === "completed") {
                 clearInterval(interval);
-                activePolls.delete(entityId);
+                activePolls.delete(key);
                 if (progressToastId) toast.dismiss(progressToastId);
                 const fresh = await api.getProject(projectId);
                 const { updateProject, removeGeneratingTask } = getStore();
                 updateProject(projectId, fresh);
-                removeGeneratingTask(entityId, generationType);
+                removeGeneratingTask(key, generationType);
                 const entityPool = (kind === "character" ? fresh.characters : kind === "scene" ? fresh.scenes : fresh.props) || [];
                 const updatedEntity = entityPool.find((e: any) => e.id === entityId);
-                const count = updatedEntity ? readVariants(updatedEntity, kind).length : 0;
+                const count = updatedEntity ? readVariants(lookId ? updatedEntity.looks?.find((look: any) => look.id === lookId) : updatedEntity, kind).length : 0;
                 toast.success(t("toastVariantDone"), { body: t("toastVariantDoneBody", { count }) });
-            } else if (status?.status === "failed") {
+            } else if (["failed", "stale"].includes(status?.status || "")) {
                 clearInterval(interval);
-                activePolls.delete(entityId);
+                activePolls.delete(key);
                 if (progressToastId) toast.dismiss(progressToastId);
-                const { removeGeneratingTask } = getStore();
-                removeGeneratingTask(entityId, generationType);
+                const { updateProject, removeGeneratingTask } = getStore();
+                removeGeneratingTask(key, generationType);
+                if (status?.can_resume) {
+                    try { updateProject(projectId, await api.getProject(projectId)); } catch { /* keep the persisted task visible in the cache */ }
+                }
                 toast.error(t("toastGenErr"), { body: status?.error || t("toastGenErrUnknown") });
             }
         } catch (err) {
             clearInterval(interval);
-            activePolls.delete(entityId);
+            activePolls.delete(key);
             if (progressToastId) toast.dismiss(progressToastId);
             const { removeGeneratingTask } = getStore();
-            removeGeneratingTask(entityId, generationType);
+            removeGeneratingTask(key, generationType);
             toast.error(t("toastPollErr"), { body: t("toastPollErrBody") });
         }
     }, 2500);
-    activePolls.set(entityId, interval);
+    activePolls.set(key, interval);
+}
+
+export function assetTaskKey(projectId: string, entityId: string, lookId?: string) {
+    return lookId ? `${projectId}:${entityId}:${lookId}` : entityId;
 }
 
 interface CastWorkbenchModalProps {
@@ -89,6 +134,7 @@ interface CastWorkbenchModalProps {
     kind: CastKind | null;
     entityId: string | null;
     onClose: () => void;
+    onEntityForked?: (entityId: string) => void;
 }
 
 interface ImageVariant {
@@ -98,6 +144,7 @@ interface ImageVariant {
 }
 
 type CharacterTemplate = "simple" | "detailed" | "design_sheet";
+const VOICE_DIMENSIONS = ["年龄感", "音高", "明暗", "厚薄", "共鸣", "气息", "颗粒感", "口音", "稳定表达习惯"] as const;
 
 const CHARACTER_TEMPLATES: Record<CharacterTemplate, {
     labelKey: string;
@@ -143,7 +190,7 @@ function buildTemplate(kind: CastKind, entity: any, template?: CharacterTemplate
     if (kind === "scene") {
         return `${name}${desc ? "：" + desc : ""}\n\nComposition: wide establishing shot of the environment on neutral gray background, single unified image, no figures in foreground. Emphasize atmosphere, architecture and terrain structure. Lighting and color palette match the scene mood. Soft volumetric lighting, depth of field.`;
     }
-    return `${name}${desc ? "：" + desc : ""}\n\nComposition: product photography style on neutral gray background, single unified image, seamless layout without borders. Main view: object centered at slight angle. Secondary views: detail close-ups of material and texture. Clean even studio lighting, subtle shadow beneath object.`;
+    return `${name}${desc ? "：" + desc : ""}\n\n道具设定参考图：同一件道具的多视角转面设定，主体完整、比例统一，清晰展示正面、背面、左右侧面、顶部与底部结构；各视图使用一致的材质、色彩、组件与磨损位置。单件道具独立置于干净的中性摄影棚背景，均匀柔光，细节清楚可复用；不出现人物、手、使用场景、包装、品牌或无关文字。`;
 }
 
 function getTemplateNegative(kind: CastKind, template?: CharacterTemplate): string {
@@ -183,7 +230,7 @@ function readSelectedId(entity: any, kind: CastKind): string | null {
     return entity?.image_asset?.selected_id ?? null;
 }
 
-export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: CastWorkbenchModalProps) {
+export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose, onEntityForked }: CastWorkbenchModalProps) {
     const t = useTranslations("castWorkbench");
     const currentProject = useProjectStore((state) => state.currentProject);
     const currentSeries = useProjectStore((state) => state.currentSeries);
@@ -217,15 +264,27 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
     const [finalPreviewExpanded, setFinalPreviewExpanded] = useState(true);
     const [applyStyle, setApplyStyle] = useState(true);
     const [galleryFilter, setGalleryFilter] = useState<"all" | "favorited">("all");
-    const generating = generatingTasks.some((t) => t.assetId === entityId);
+    const isProduction = currentProject?.production_workflow === "engineering_segments_v1";
+    const [selectedLookId, setSelectedLookId] = useState("");
+    const currentLook = isProduction && kind === "character" ? entity?.looks?.find((look: any) => look.id === selectedLookId) || entity?.looks?.[0] : undefined;
+    const currentTarget = currentLook || entity;
+    const generationKey = assetTaskKey(currentProject?.id || "", entityId || "", currentLook?.id);
+    const generating = generatingTasks.some((task) => task.assetId === generationKey);
+    const pendingSave = useRef<Promise<void>>(Promise.resolve());
     // Effective t2i model — drives the "design_sheet" template gating: that
     // template only works with gpt-image-2, so it stays locked unless the
     // user has selected gpt-image-2 (override or project default).
-    const selectedModelId = modelOverride || currentProject?.model_settings?.t2i_model || "wan2.1-t2i";
+    const selectedModelId = isProduction
+        ? currentProject?.production_settings?.image_model || "wan2.1-t2i"
+        : modelOverride || currentProject?.model_settings?.t2i_model || "wan2.1-t2i";
     const isGptImage2 = selectedModelId === "gpt-image-2";
     const [selectedTemplate, setSelectedTemplate] = useState<CharacterTemplate>("simple");
     const [pendingTemplate, setPendingTemplate] = useState<CharacterTemplate | null>(null);
     const [promptDirty, setPromptDirty] = useState(false);
+    const [face, setFace] = useState<"image" | "voice">("image");
+    const [promptBusy, setPromptBusy] = useState(false);
+    const [voiceBusy, setVoiceBusy] = useState(false);
+    const [voiceDesign, setVoiceDesign] = useState<Record<string, string>>({});
     const lastSeededEntityId = useRef<string | null>(null);
     const overlayMouseDown = useRef(false);
 
@@ -235,12 +294,15 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
     // button or kind/entity switch.
     useEffect(() => {
         if (!isOpen || !entity || !kind) return;
-        if (lastSeededEntityId.current !== entity.id) {
-            setPrompt(buildTemplate(kind, entity, selectedTemplate));
+        const seedKey = `${entity.id}:${currentLook?.id || ""}`;
+        if (lastSeededEntityId.current !== seedKey) {
+            setPrompt(currentTarget.reference_sheet?.image_prompt || currentTarget.image_prompt || currentTarget.full_body_prompt || buildTemplate(kind, entity, selectedTemplate));
             setPromptDirty(false);
-            lastSeededEntityId.current = entity.id;
+            setVoiceDesign(entity.voice_design || {});
+            setFace("image");
+            lastSeededEntityId.current = seedKey;
         }
-    }, [isOpen, entity, kind, selectedTemplate]);
+    }, [isOpen, entity, kind, selectedTemplate, currentLook?.id, currentTarget]);
 
     const [presets, setPresets] = useState<any[]>([]);
     useEffect(() => {
@@ -261,12 +323,12 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
     }
 
     const ms = currentProject.model_settings;
-    const defaultAspectRatio = kind === "character"
+    const defaultAspectRatio = isProduction ? (currentProject.production_settings?.aspect_ratio || "9:16") : kind === "character"
         ? (ms?.character_aspect_ratio || "9:16")
         : kind === "scene"
             ? (ms?.scene_aspect_ratio || "16:9")
             : (ms?.prop_aspect_ratio || "1:1");
-    const effectiveAspectRatio = aspectRatioOverride || defaultAspectRatio;
+    const effectiveAspectRatio = isProduction ? defaultAspectRatio : aspectRatioOverride || defaultAspectRatio;
 
     const handleResetTemplate = () => {
         setPrompt(buildTemplate(kind, entity, selectedTemplate));
@@ -299,13 +361,95 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
         setPendingTemplate(null);
     };
 
-    const handleGenerate = async () => {
-        if (!prompt.trim()) {
+    const ensureEditableAsset = async () => {
+        if (entity.source !== "global") return entity.id;
+        const forked = await api.forkAssetFromLibrary(currentProject.id, kind, entity.id);
+        updateProject(currentProject.id, await api.getProject(currentProject.id));
+        onEntityForked?.(forked.id);
+        return forked.id as string;
+    };
+
+    const handleGenerateAssetPrompt = async (description?: string) => {
+        setPromptBusy(true);
+        try {
+            const targetId = await ensureEditableAsset();
+            await pendingSave.current;
+            if (description !== undefined && description !== currentTarget.description) {
+                await api.updateAssetDescription(currentProject.id, targetId, kind, description, currentLook?.id);
+                updateProject(currentProject.id, await api.getProject(currentProject.id));
+            }
+            await api.generateProductionAssetPrompt(currentProject.id, targetId, currentLook?.id);
+            const generated = await waitForProductionAssetPrompt(currentProject.id, targetId, kind, currentLook?.id);
+            if (!generated) throw new Error("没有返回可编辑的资产提示词");
+            updateProject(currentProject.id, await api.getProject(currentProject.id));
+            setPrompt(generated);
+            setPromptDirty(true);
+            toast.success("资产提示词已生成，请检查后生成图片");
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("资产提示词生成失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+        } finally { setPromptBusy(false); }
+    };
+
+    const handleSaveProductionAssetPrompt = async () => {
+        setPromptBusy(true);
+        try {
+            const targetId = await ensureEditableAsset();
+            await api.saveProductionAssetPrompt(currentProject.id, targetId, prompt);
+            updateProject(currentProject.id, await api.getProject(currentProject.id));
+            setPromptDirty(false);
+            toast.success("资产提示词已保存");
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("资产提示词保存失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+        } finally { setPromptBusy(false); }
+    };
+
+    const handleGenerateVoiceDesign = async () => {
+        setVoiceBusy(true);
+        try {
+            const targetId = await ensureEditableAsset();
+            const task = await api.generateProductionVoiceDesign(currentProject.id, targetId);
+            setVoiceDesign(await waitForProductionVoiceDesign(currentProject.id, targetId, task.task_id));
+            toast.success("九维声音档案已生成，可手动修改");
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("九维声音档案生成失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+        } finally { setVoiceBusy(false); }
+    };
+
+    const handleSaveVoiceDesign = async () => {
+        setVoiceBusy(true);
+        try {
+            const targetId = await ensureEditableAsset();
+            await api.saveProductionVoiceDesign(currentProject.id, targetId, voiceDesign);
+            updateProject(currentProject.id, await api.getProject(currentProject.id));
+            toast.success("九维声音档案已保存");
+        } catch (error) {
+            const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+            toast.error("声音档案保存失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+        } finally { setVoiceBusy(false); }
+    };
+
+    const handleGenerate = async (promptOverride = prompt) => {
+        if (!promptOverride.trim()) {
             toast.warning(t("toastPromptEmpty"), {
                 projectId: currentProject.id,
                 projectTitle: currentProject.title,
             });
             return;
+        }
+        let generationEntityId = entity.id;
+        if (isProduction) {
+            try {
+                generationEntityId = await ensureEditableAsset();
+                await pendingSave.current;
+                await api.saveProductionAssetPrompt(currentProject.id, generationEntityId, promptOverride.trim(), currentLook?.id);
+            } catch (error) {
+                const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+                toast.error("保存资产提示词失败", { body: typeof detail === "string" ? detail : error instanceof Error ? error.message : String(error) });
+                return;
+            }
         }
         // Refresh project + validate the entity still exists backend-side
         // before submitting. The store can hold a stale character that was
@@ -315,7 +459,7 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
         try {
             const fresh = await api.getProject(currentProject.id);
             const pool = kind === "character" ? fresh.characters : kind === "scene" ? fresh.scenes : fresh.props;
-            if (!Array.isArray(pool) || !pool.some((e: any) => e.id === entity.id)) {
+            if (!Array.isArray(pool) || !pool.some((e: any) => e.id === generationEntityId)) {
                 toast.error(t("toastEntityGone"), {
                     projectId: currentProject.id,
                     projectTitle: currentProject.title,
@@ -329,8 +473,9 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
             // Refresh failed — proceed with cached data; backend will reject
             // if the entity truly is stale and the poll surfaces the error.
         }
-        const effectiveBatchSize = Math.max(1, Math.min(4, batchSize));
-        addGeneratingTask(entity.id, kind === "character" ? "reference_sheet" : "all", effectiveBatchSize);
+        const effectiveBatchSize = isProduction ? 1 : Math.max(1, Math.min(4, batchSize));
+        const taskKey = assetTaskKey(currentProject.id, generationEntityId, currentLook?.id);
+        addGeneratingTask(taskKey, kind === "character" ? "reference_sheet" : "all", effectiveBatchSize);
 
         const progressId = toast.progress(t("toastGenStart", { kind: t(`kind.${kind}`) }), {
             projectId: currentProject.id,
@@ -341,39 +486,63 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
         try {
             const resp = await api.generateAsset(
                 currentProject.id,
-                entity.id,
+                generationEntityId,
                 kind,
                 currentProject.style_preset || "realistic",
-                applyStyle ? stylePositive : "",
+                isProduction || applyStyle ? stylePositive : "",
                 kind === "character" ? "reference_sheet" : "all",
-                prompt.trim(),
-                applyStyle,
-                [applyStyle ? styleNegative : "", getTemplateNegative(kind, selectedTemplate)].filter(Boolean).join(", "),
+                promptOverride.trim(),
+                isProduction || applyStyle,
+                [isProduction || applyStyle ? styleNegative : "", getTemplateNegative(kind, selectedTemplate)].filter(Boolean).join(", "),
                 effectiveBatchSize,
-                modelOverride || currentProject.model_settings?.t2i_model,
-                aspectRatioOverride || undefined,
+                selectedModelId,
+                isProduction ? currentProject.production_settings?.aspect_ratio : aspectRatioOverride || undefined,
+                currentLook?.id,
             );
 
             const taskId = (resp as any)?._task_id;
             if (taskId) {
-                const capturedEntityId = entity.id;
+                const capturedEntityId = generationEntityId;
                 const capturedKind = kind;
                 const capturedProjectId = currentProject.id;
                 startAssetPoll(capturedEntityId, taskId, capturedProjectId, capturedKind, kind === "character" ? "reference_sheet" : "all", t, () => ({
                     updateProject: useProjectStore.getState().updateProject,
                     removeGeneratingTask: useProjectStore.getState().removeGeneratingTask,
-                }), progressId);
+                }), progressId, currentLook?.id);
             } else if (resp) {
                 toast.dismiss(progressId);
                 updateProject(currentProject.id, resp);
-                removeGeneratingTask(entity.id, kind === "character" ? "reference_sheet" : "all");
+                removeGeneratingTask(taskKey, kind === "character" ? "reference_sheet" : "all");
                 toast.success(t("toastGenDone", { kind: t(`kind.${kind}`) }));
             }
         } catch (err: any) {
             toast.dismiss(progressId);
-            removeGeneratingTask(entity.id, kind === "character" ? "reference_sheet" : "all");
+            removeGeneratingTask(taskKey, kind === "character" ? "reference_sheet" : "all");
             const detail = err?.response?.data?.detail || err?.message || t("toastGenErrUnknown");
             toast.error(t("toastGenErr"), { body: String(detail) });
+        }
+    };
+
+    const handleResumeImageTask = async (taskId: string) => {
+        const taskKey = assetTaskKey(currentProject.id, entity.id, currentLook?.id);
+        const generationType = kind === "character" ? "reference_sheet" : "all";
+        addGeneratingTask(taskKey, generationType, 1);
+        const progressId = toast.progress(t("resumingImageTask"), {
+            projectId: currentProject.id,
+            projectTitle: currentProject.title,
+            body: t("resumeImageTaskHint"),
+        });
+        try {
+            await api.resumeAssetImage(currentProject.id, taskId);
+            startAssetPoll(entity.id, taskId, currentProject.id, kind, generationType, t, () => ({
+                updateProject: useProjectStore.getState().updateProject,
+                removeGeneratingTask: useProjectStore.getState().removeGeneratingTask,
+            }), progressId, currentLook?.id);
+        } catch (error: any) {
+            toast.dismiss(progressId);
+            removeGeneratingTask(taskKey, generationType);
+            const detail = error?.response?.data?.detail || error?.message || t("resumeImageTaskFailed");
+            toast.error(t("resumeImageTaskFailed"), { body: String(detail) });
         }
     };
 
@@ -441,6 +610,74 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
         },
     } as const;
     const accent = accentClasses[kind];
+
+    if (isProduction) {
+        const workbenchAsset = {
+            ...entity,
+            ...currentTarget,
+            id: entity.id,
+            name: currentLook ? `${entity.name} · ${currentLook.name}` : entity.name,
+            full_body_asset: kind === "character"
+                ? { variants: currentTarget.reference_sheet?.image_variants?.length ? currentTarget.reference_sheet.image_variants : (!currentLook ? entity.full_body_asset?.variants || [] : []), selected_id: currentTarget.reference_sheet?.selected_image_id || (!currentLook ? selectedId : undefined) }
+                : entity.image_asset,
+            full_body_image_url: kind === "character"
+                ? currentTarget.reference_sheet?.image_variants?.find((image: any) => image.id === currentTarget.reference_sheet?.selected_image_id)?.url || currentTarget.image_url || (!currentLook ? entity.full_body_image_url : undefined)
+                : entity.image_url,
+            full_body_prompt: kind === "character"
+                ? currentTarget.reference_sheet?.image_prompt || currentTarget.full_body_prompt || ""
+                : entity.image_prompt || "",
+        };
+        return (
+            <CharacterWorkbench
+                key={`${entity.id}:${currentLook?.id || ""}`}
+                asset={workbenchAsset}
+                assetType={kind}
+                onClose={() => { void pendingSave.current.then(onClose).catch((error) => toast.error("保存失败", { body: String(error) })); }}
+                referenceLookId={currentLook?.id}
+                toolbar={currentLook && <div className="flex items-center gap-3 border-b border-glass-border px-6 py-3 text-sm"><span>角色造型</span><select aria-label="角色造型" value={currentLook.id} onChange={(event) => { const id = event.target.value; void pendingSave.current.then(() => setSelectedLookId(id)).catch((error) => toast.error("保存失败", { body: String(error) })); }} className="rounded-lg border border-glass-border bg-input-bg px-3 py-1.5">{entity.looks.map((look: any) => <option key={look.id} value={look.id}>{look.name}</option>)}</select><span className="text-xs text-text-muted">{entity.looks.length} 套造型，共用人物身份与声音</span></div>}
+                contextPanel={<><CharacterLookBindings character={entity} /><details className="rounded-lg border border-glass-border p-3 text-xs text-text-muted"><summary className="cursor-pointer">{currentLook ? "人物共用资料与工程来源" : "工程提取来源"}</summary>{currentLook && <textarea key={entity.description} aria-label="人物共用资料" defaultValue={entity.description} onBlur={(event) => { const value = event.target.value; if (value === entity.description) return; pendingSave.current = (async () => { const targetId = await ensureEditableAsset(); await api.updateAssetDescription(currentProject.id, targetId, kind, value); updateProject(currentProject.id, await api.getProject(currentProject.id)); })(); void pendingSave.current.catch((error) => toast.error("人物资料保存失败", { body: String(error) })); }} className="mt-2 min-h-40 w-full rounded bg-input-bg p-2 text-text-secondary" />}{[...(entity.extraction_evidence || []), ...(currentLook?.extraction_evidence || [])].map((evidence: any, index: number) => <p key={index} className="mt-2">{evidence.shot_number ? `镜头${evidence.shot_number}` : "总说明"}：{evidence.quote}</p>)}{[...(entity.extraction_unknowns || []), ...(currentLook?.extraction_unknowns || [])].map((unknown: string) => <p key={unknown} className="mt-2">未交代／待确定：{unknown}</p>)}</details></>}
+                onUpdateDescription={(description) => {
+                    pendingSave.current = (async () => {
+                        const targetId = await ensureEditableAsset();
+                        await api.updateAssetDescription(currentProject.id, targetId, kind, description, currentLook?.id);
+                        updateProject(currentProject.id, await api.getProject(currentProject.id));
+                    })();
+                    return pendingSave.current;
+                }}
+                onSavePrompt={(imagePrompt) => {
+                    pendingSave.current = (async () => {
+                        const targetId = await ensureEditableAsset();
+                        await api.saveProductionAssetPrompt(currentProject.id, targetId, imagePrompt, currentLook?.id);
+                        updateProject(currentProject.id, await api.getProject(currentProject.id));
+                    })();
+                    return pendingSave.current;
+                }}
+                onGeneratePrompt={async (_assetType, description) => handleGenerateAssetPrompt(description)}
+                onGenerate={(_type, imagePrompt) => handleGenerate(imagePrompt)}
+                onResumeImageTask={handleResumeImageTask}
+                onSelectReferenceImage={async (variantId) => {
+                    const targetId = await ensureEditableAsset();
+                    const updated = await api.selectAssetVariant(currentProject.id, targetId, kind, variantId, kind === "character" ? "reference_sheet" : undefined, currentLook?.id);
+                    updateProject(currentProject.id, updated);
+                }}
+                generatingTypes={generatingTasks.filter((task) => task.assetId === generationKey).map((task) => ({ type: task.generationType === "reference_sheet" ? "full_body" : task.generationType, batchSize: task.batchSize }))}
+                stylePrompt={stylePositive}
+                styleNegativePrompt={styleNegative}
+                voicePanel={kind === "character" ? (
+                    <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                        <div className="mx-auto max-w-3xl space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div><h3 className="text-sm font-bold text-foreground">九维声音档案</h3><p className="mt-1 text-xs text-text-muted">只设计角色声音特征，不生成参考音频</p></div>
+                                <WorkflowActionButton size="sm" variant="secondary" loading={voiceBusy} disabled={voiceBusy} onClick={() => void handleGenerateVoiceDesign()}>生成九维档案</WorkflowActionButton>
+                            </div>
+                            {VOICE_DIMENSIONS.map((key) => <label key={key} className="block space-y-1"><span className="text-xs text-text-secondary">{key}</span><textarea value={voiceDesign[key] || ""} onChange={(event) => setVoiceDesign((current) => ({ ...current, [key]: event.target.value }))} disabled={voiceBusy} className="min-h-16 w-full resize-y rounded-lg border border-glass-border bg-input-bg p-3 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" /></label>)}
+                            <div className="flex justify-end"><WorkflowActionButton size="sm" variant="primary" loading={voiceBusy} disabled={voiceBusy || VOICE_DIMENSIONS.some((key) => !voiceDesign[key]?.trim())} onClick={() => void handleSaveVoiceDesign()}>保存声音档案</WorkflowActionButton></div>
+                        </div>
+                    </div>
+                ) : undefined}
+            />
+        );
+    }
 
     return createPortal((
         <AnimatePresence>
@@ -529,7 +766,7 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                     <p className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-text-muted">
                                         <Palette size={10} /> {t("styleAppliedFrom")}
                                     </p>
-                                    {styleName && (
+                                    {styleName && !isProduction && (
                                         <button
                                             onClick={() => setApplyStyle(!applyStyle)}
                                             className={`relative w-7 h-4 rounded-full transition-colors ${applyStyle ? "bg-primary/60" : "bg-elevated"}`}
@@ -539,12 +776,12 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                     )}
                                 </div>
                                 <p className="mt-1 text-[0.75rem] text-foreground">{styleName || t("styleNotSet")}</p>
-                                {!applyStyle && styleName && (
+                                {!applyStyle && !isProduction && styleName && (
                                     <p className="text-[0.625rem] text-amber-300/70 mt-0.5">{t("styleDisabledHint")}</p>
                                 )}
 
                                 {/* Positive prompt */}
-                                {applyStyle && stylePositive && (
+                                {(applyStyle || isProduction) && stylePositive && (
                                     <div className="mt-2.5 rounded-md bg-primary/5 border border-primary/10 px-2.5 py-2">
                                         <p className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-primary/70 mb-1">{t("positiveLabel")}</p>
                                         <p className={`text-[0.6875rem] leading-relaxed text-text-secondary ${!positiveExpanded ? "line-clamp-3" : ""}`}>
@@ -562,7 +799,7 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                 )}
 
                                 {/* Negative prompt */}
-                                {applyStyle && styleNegative && (
+                                {(applyStyle || isProduction) && styleNegative && (
                                     <div className="mt-2 rounded-md bg-red-500/5 border border-red-500/10 px-2.5 py-2">
                                         <p className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-red-400/70 mb-1">{t("negativeLabel")}</p>
                                         <p className={`text-[0.6875rem] leading-relaxed text-text-secondary ${!negativeExpanded ? "line-clamp-3" : ""}`}>
@@ -584,6 +821,15 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
 
                         {/* CENTER — template cards → prompt → tags → preview → generation config → CTA */}
                         <div className="flex flex-col p-5 overflow-y-auto custom-scrollbar">
+                            {isProduction && kind === "character" && <div className="mb-4 flex gap-2 border-b border-glass-border pb-3">
+                                <button onClick={() => setFace("image")} className={`rounded-full px-3 py-1.5 text-xs ${face === "image" ? "bg-primary/15 text-primary" : "text-text-muted"}`}>图片设计</button>
+                                <button onClick={() => setFace("voice")} className={`rounded-full px-3 py-1.5 text-xs ${face === "voice" ? "bg-primary/15 text-primary" : "text-text-muted"}`}>九维声音档案</button>
+                            </div>}
+                            {isProduction && kind === "character" && face === "voice" ? <div className="space-y-3">
+                                <p className="text-xs leading-5 text-text-muted">只维护角色稳定音色身份，不生成试听台词、参考录音或 TTS。</p>
+                                {VOICE_DIMENSIONS.map((key) => <label key={key} className="block space-y-1"><span className="text-xs text-text-secondary">{key}</span><textarea value={voiceDesign[key] || ""} onChange={(event) => setVoiceDesign((current) => ({ ...current, [key]: event.target.value }))} disabled={voiceBusy} className="min-h-16 w-full resize-y rounded-lg border border-glass-border bg-black/20 p-3 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" /></label>)}
+                                <div className="flex justify-end gap-2"><WorkflowActionButton size="sm" variant="secondary" loading={voiceBusy} disabled={voiceBusy} onClick={() => void handleGenerateVoiceDesign()}>生成九维档案</WorkflowActionButton><WorkflowActionButton size="sm" variant="primary" loading={voiceBusy} disabled={voiceBusy || VOICE_DIMENSIONS.some((key) => !voiceDesign[key]?.trim())} onClick={() => void handleSaveVoiceDesign()}>保存声音档案</WorkflowActionButton></div>
+                            </div> : <>
                             {/* Template selection cards — character only */}
                             {kind === "character" && (
                                 <div className="mb-4">
@@ -674,6 +920,8 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                     <RefreshCw size={11} />
                                     {t("resetTemplate")}
                                 </button>
+                                {isProduction && <button onClick={() => void handleSaveProductionAssetPrompt()} disabled={generating || promptBusy || !prompt.trim()} className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[0.6875rem] text-text-secondary hover:bg-hover-bg disabled:opacity-40">保存提示词</button>}
+                                {isProduction && <button onClick={() => void handleGenerateAssetPrompt()} disabled={generating || promptBusy} className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[0.6875rem] text-primary hover:bg-primary/10 disabled:opacity-40">{promptBusy ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}生成提示词</button>}
                             </div>
                             <textarea
                                 value={prompt}
@@ -702,7 +950,7 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                             </div>
 
                             {/* Final prompt preview — collapsible, scrollable */}
-                            {applyStyle && stylePositive && (
+                            {(applyStyle || isProduction) && stylePositive && (
                                 <div className="mt-3 rounded-md bg-black/20 border border-glass-border">
                                     <button
                                         type="button"
@@ -758,22 +1006,9 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                     <label className="block font-mono text-[0.625rem] uppercase tracking-[0.16em] text-text-muted mb-2">
                                         {t("aspectRatioLabel")}
                                     </label>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        {["9:16", "3:4", "1:1", "4:3", "16:9"].map((ratio) => (
-                                            <button
-                                                key={ratio}
-                                                onClick={() => setAspectRatioOverride(ratio === defaultAspectRatio ? null : ratio)}
-                                                disabled={generating}
-                                                className={`px-3 py-1.5 rounded-md border font-mono text-[0.75rem] transition-colors ${
-                                                    effectiveAspectRatio === ratio
-                                                        ? accent.batchActive
-                                                        : "border-glass-border bg-glass text-text-muted hover:border-foreground/30 hover:text-text-secondary"
-                                                } disabled:opacity-40`}
-                                            >
-                                                {ratio}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    {isProduction ? <p className="text-xs text-text-secondary">制作方案固定：{defaultAspectRatio}</p> : <div className="flex items-center gap-2 flex-wrap">
+                                        {["9:16", "3:4", "1:1", "4:3", "16:9"].map((ratio) => <button key={ratio} onClick={() => setAspectRatioOverride(ratio === defaultAspectRatio ? null : ratio)} disabled={generating} className={`px-3 py-1.5 rounded-md border font-mono text-[0.75rem] transition-colors ${effectiveAspectRatio === ratio ? accent.batchActive : "border-glass-border bg-glass text-text-muted hover:border-foreground/30 hover:text-text-secondary"} disabled:opacity-40`}>{ratio}</button>)}
+                                    </div>}
                                 </div>
 
                                 {/* Model — full row, chip selected */}
@@ -781,17 +1016,13 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                     <label className="block font-mono text-[0.625rem] uppercase tracking-[0.16em] text-text-muted mb-2">
                                         {t("modelLabel")}
                                     </label>
-                                    <GroupedModelGrid
-                                        models={IMAGE_MODELS}
-                                        selectedId={modelOverride || currentProject.model_settings?.t2i_model || "wan2.1-t2i"}
-                                        onSelect={(id) => setModelOverride(id === (currentProject.model_settings?.t2i_model || "wan2.1-t2i") ? null : id)}
-                                    />
+                                    {isProduction ? <p className="text-xs text-text-secondary">制作方案固定：{selectedModelId}</p> : <GroupedModelGrid models={IMAGE_MODELS} selectedId={selectedModelId} onSelect={(id) => setModelOverride(id === (currentProject.model_settings?.t2i_model || "wan2.1-t2i") ? null : id)} />}
                                 </div>
                             </div>
 
                             {/* Generate CTA */}
                             <button
-                                onClick={handleGenerate}
+                                onClick={() => void handleGenerate()}
                                 disabled={generating || !prompt.trim()}
                                 className="mt-5 self-center inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-md bg-primary text-white border border-[rgba(100,108,255,0.65)] shadow-[inset_0_1.5px_0_rgba(255,255,255,0.14)] hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-[0.875rem] font-semibold"
                             >
@@ -802,6 +1033,7 @@ export default function CastWorkbenchModal({ isOpen, kind, entityId, onClose }: 
                                         ? t("generateFirst")
                                         : t("generateMore", { count: batchSize })}
                             </button>
+                            </>}
                         </div>
 
                         {/* RIGHT — variants gallery */}

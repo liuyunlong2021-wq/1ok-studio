@@ -1,8 +1,10 @@
 """Image transport regression checks without remote generation or billing."""
 
 import base64
+import io
 import json
 import os
+import socket
 import tempfile
 import threading
 import unittest
@@ -11,6 +13,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import requests
+from PIL import Image
 
 from src.apps.playground.models import GenerateRequest
 from src.apps.playground.service import PlaygroundService
@@ -26,11 +29,16 @@ class ImageTransportChecks(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.output = Path(self.directory.name) / "output.png"
+        self.image_data = self.png_data()
         self.calls = []
         self.proxy_lookup = self.enterContext(patch(
             "requests.utils.getproxies", return_value={"https": "http://127.0.0.1:1"},
         ))
         self.enterContext(patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"}))
+        self.enterContext(patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))],
+        ))
         self.handler = self.respond_inline
 
         def send(adapter, request, **kwargs):
@@ -45,6 +53,18 @@ class ImageTransportChecks(unittest.TestCase):
         self.enterContext(patch("requests.adapters.HTTPAdapter.send", new=send))
 
     @staticmethod
+    def png_data():
+        image = Image.new("RGB", (2, 2), (12, 34, 56))
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        return output.getvalue()
+
+    def assert_image_output(self):
+        with Image.open(self.output) as image:
+            image.load()
+            self.assertEqual(image.getpixel((0, 0)), (12, 34, 56))
+
+    @staticmethod
     def response(content, status=200, content_type="application/json"):
         response = requests.Response()
         response.status_code = status
@@ -55,7 +75,7 @@ class ImageTransportChecks(unittest.TestCase):
 
     def respond_inline(self, request):
         return self.response(json.dumps({
-            "data": [{"b64_json": base64.b64encode(b"generated-image").decode()}],
+            "data": [{"b64_json": base64.b64encode(self.image_data).decode()}],
         }).encode())
 
     def assert_direct(self):
@@ -95,7 +115,7 @@ class ImageTransportChecks(unittest.TestCase):
         self.assertEqual(request.method, "POST")
         self.assertTrue(request.url.endswith("/v1/images/generations"))
         self.assertEqual(json.loads(request.body)["size"], "1088x1920")
-        self.assertEqual(self.output.read_bytes(), b"generated-image")
+        self.assert_image_output()
         self.assert_direct()
 
     def test_qwen_reference_edit_uses_documented_json_with_exact_size(self):
@@ -114,7 +134,7 @@ class ImageTransportChecks(unittest.TestCase):
             "n": 1, "response_format": "b64_json",
             "images": ["data:image/png;base64," + base64.b64encode(b"reference").decode()],
         })
-        self.assertEqual(self.output.read_bytes(), b"generated-image")
+        self.assert_image_output()
         self.assert_direct()
 
     def test_qwen_multi_reference_order_and_data_urls_are_preserved(self):
@@ -217,14 +237,14 @@ class ImageTransportChecks(unittest.TestCase):
             if request.method == "POST":
                 return self.response(b'{"data":[{"url":"https://cdn.example/output.png"}]}')
             self.assertNotIn("Authorization", request.headers)
-            return self.response(b"image", content_type="image/png")
+            return self.response(self.image_data, content_type="image/png")
         self.handler = respond
         JiucaiheziImageModel({}).generate(
             "prompt", str(self.output), model_name="grok-imagine-image-2.0",
             ref_image_paths=["https://cdn.example/reference.png"],
         )
         self.assertEqual([request.method for request, _ in self.calls], ["GET", "POST", "GET"])
-        self.assertEqual(self.output.read_bytes(), b"image")
+        self.assert_image_output()
         self.assert_direct()
 
     def test_upstream_http_error_is_preserved_without_submission_retry(self):
@@ -233,6 +253,113 @@ class ImageTransportChecks(unittest.TestCase):
             JiucaiheziImageModel({}).generate("prompt", str(self.output))
         self.assertEqual(len(self.calls), 1)
         self.assert_direct()
+
+    def test_download_retries_transient_520_after_artifact_is_recorded_once(self):
+        attempts = {"post": 0, "get": 0}
+        events = []
+
+        def respond(request):
+            if request.method == "POST":
+                attempts["post"] += 1
+                return self.response(b'{"data":[{"url":"https://cdn.example/result.png"}]}')
+            attempts["get"] += 1
+            if attempts["get"] == 1:
+                return self.response(b"temporarily unavailable", 520, "text/plain")
+            return self.response(self.image_data, content_type="image/png")
+
+        self.handler = respond
+        with patch("src.models.jiucaihezi.time.sleep"):
+            JiucaiheziImageModel({}).generate("prompt", str(self.output), on_artifact=events.append)
+
+        self.assertEqual(attempts, {"post": 1, "get": 2})
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["url"], "https://cdn.example/result.png")
+        self.assert_image_output()
+
+    def test_invalid_download_does_not_replace_existing_image(self):
+        self.output.write_bytes(self.image_data)
+        self.handler = lambda request: self.response(
+            b'{"data":[{"url":"https://cdn.example/result.png"}]}'
+        ) if request.method == "POST" else self.response(b"<html>gateway error</html>", content_type="text/html")
+
+        with self.assertRaises(Exception):
+            JiucaiheziImageModel({}).generate("prompt", str(self.output))
+
+        self.assertEqual(self.output.read_bytes(), self.image_data)
+        self.assertEqual([request.method for request, _ in self.calls].count("POST"), 1)
+
+    def test_empty_and_truncated_downloads_do_not_replace_existing_image(self):
+        for content, content_length in ((b"", None), (self.image_data, str(len(self.image_data) + 1))):
+            with self.subTest(content_length=content_length):
+                self.calls.clear()
+                self.output.write_bytes(self.image_data)
+
+                def respond(request):
+                    if request.method == "POST":
+                        return self.response(b'{"data":[{"url":"https://cdn.example/result.png"}]}')
+                    response = self.response(content, content_type="image/png")
+                    if content_length is not None:
+                        response.headers["Content-Length"] = content_length
+                    return response
+
+                self.handler = respond
+                with self.assertRaises(ValueError):
+                    JiucaiheziImageModel({}).generate(
+                        "prompt", str(self.output), model_name="grok-imagine-image-2.0",
+                    )
+
+                self.assertEqual(self.output.read_bytes(), self.image_data)
+                self.assertEqual([request.method for request, _ in self.calls].count("POST"), 1)
+
+    def test_exhausted_download_keeps_artifact_and_existing_file_without_resubmission(self):
+        self.output.write_bytes(self.image_data)
+        events = []
+
+        def unavailable(request):
+            if request.method == "POST":
+                return self.response(b'{"data":[{"url":"https://cdn.example/result.png"}]}')
+            return self.response(b"temporarily unavailable", 520, "text/plain")
+
+        self.handler = unavailable
+        with patch("src.models.jiucaihezi.time.sleep"), self.assertRaises(requests.HTTPError):
+            JiucaiheziImageModel({}).generate(
+                "prompt", str(self.output), model_name="grok-imagine-image-2.0", on_artifact=events.append,
+            )
+
+        self.assertEqual([request.method for request, _ in self.calls].count("POST"), 1)
+        self.assertEqual([request.method for request, _ in self.calls].count("GET"), 3)
+        self.assertEqual(events[0]["url"], "https://cdn.example/result.png")
+        self.assertEqual(self.output.read_bytes(), self.image_data)
+
+    def test_download_rejects_private_redirect_before_following_it(self):
+        def redirect(request):
+            if request.method == "POST":
+                return self.response(b'{"data":[{"url":"https://cdn.example/result.png"}]}')
+            response = self.response(b"", 302, "text/plain")
+            response.headers["Location"] = "https://127.0.0.1/private.png"
+            return response
+
+        self.handler = redirect
+        with self.assertRaisesRegex(ValueError, "本机或内网"):
+            JiucaiheziImageModel({}).generate(
+                "prompt", str(self.output), model_name="grok-imagine-image-2.0",
+            )
+
+        self.assertEqual([request.method for request, _ in self.calls], ["POST", "GET"])
+
+    def test_transient_dns_failure_retries_only_the_artifact_get(self):
+        self.handler = lambda request: self.response(
+            b'{"data":[{"url":"https://cdn.example/result.png"}]}'
+        ) if request.method == "POST" else self.response(self.image_data, content_type="image/png")
+        public_address = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+        with patch("socket.getaddrinfo", side_effect=[socket.gaierror("temporary DNS failure"), public_address]), \
+             patch("src.models.jiucaihezi.time.sleep"):
+            JiucaiheziImageModel({}).generate(
+                "prompt", str(self.output), model_name="grok-imagine-image-2.0",
+            )
+
+        self.assertEqual([request.method for request, _ in self.calls], ["POST", "GET"])
+        self.assert_image_output()
 
     def test_direct_session_is_closed_after_connection_failure(self):
         sessions = []

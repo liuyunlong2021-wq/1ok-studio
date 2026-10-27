@@ -13,6 +13,7 @@ interface UploadAssetModalProps {
     assetName: string;
     defaultDescription: string;
     scriptId: string;
+    lookId?: string;
     onUploadComplete: (updatedScript: any) => void | Promise<void>;
 }
 
@@ -24,6 +25,7 @@ export default function UploadAssetModal({
     assetName,
     defaultDescription,
     scriptId,
+    lookId,
     onUploadComplete,
 }: UploadAssetModalProps) {
     const t = useTranslations("assets");
@@ -31,14 +33,14 @@ export default function UploadAssetModal({
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [uploadType, setUploadType] = useState<string>(
-        assetType === "character" ? "full_body" : "image"
+        lookId ? "reference_sheet" : assetType === "character" ? "full_body" : "image"
     );
     const [description, setDescription] = useState(defaultDescription);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const uploadTypes = assetType === "character" ? [
+    const uploadTypes = lookId ? [{ id: "reference_sheet", label: "当前造型参考图", icon: User, description: "只更新当前造型，不覆盖人物其他造型" }] : assetType === "character" ? [
         { id: "full_body", label: t("fullBody"), icon: User, description: t("fullBodyDesc") },
         { id: "head_shot", label: t("headShot"), icon: Eye, description: t("headShotDesc") },
         { id: "three_views", label: t("threeViews"), icon: Layout, description: t("threeViewsDesc") },
@@ -95,7 +97,8 @@ export default function UploadAssetModal({
                 assetId,
                 selectedFile,
                 uploadType,
-                description
+                description,
+                lookId,
             );
             await onUploadComplete(updatedScript);
             handleClose();

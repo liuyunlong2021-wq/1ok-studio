@@ -67,6 +67,22 @@ export interface ReferenceAudioVariant {
     created_at?: number;
 }
 
+export interface CharacterLook {
+    id: string;
+    name: string;
+    description: string;
+    extracted_description?: string;
+    description_version?: number;
+    reference_sheet?: AssetUnit;
+    image_url?: string;
+    locked?: boolean;
+    prompt_generation_status?: string;
+    prompt_generation_error?: string;
+    production_image_task?: { status?: string; task_id?: string; error?: string };
+    extraction_evidence?: { shot_number?: number | null; quote: string }[];
+    extraction_unknowns?: string[];
+}
+
 export interface Character {
     id: string;
     name: string;
@@ -74,6 +90,7 @@ export interface Character {
     age?: string;
     gender?: string;
     clothing?: string;
+    looks?: CharacterLook[];
     visual_weight?: number;
 
     // Legacy fields
@@ -288,6 +305,7 @@ export interface Series {
     prompt_config?: PromptConfig;
     model_settings?: ModelSettings;
     workflow_mode?: "r2v" | "i2v_legacy";
+    production_workflow?: "engineering_segments_v1" | null;
     /** PR-3e — Visual control preference. 'r2v' = 节奏优先 (new shots default
      *  direct_r2v); 'i2v' = 画面优先 (new shots default t2i_i2v). */
     default_generation_mode?: "r2v" | "i2v";
@@ -300,6 +318,21 @@ export interface Project {
     id: string;
     title: string;
     originalText: string;
+    production_workflow?: "engineering_segments_v1" | null;
+    production_settings?: Record<string, any>;
+    production_style_revision?: string | null;
+    production_style_confirmed_at?: number | null;
+    production_source_revision?: string | null;
+    production_engineering_source_revision?: string | null;
+    production_engineering_style_revision?: string | null;
+    production_engineering_draft?: { text?: string; source_revision?: string; style_revision?: string; [key: string]: any };
+    production_engineering_task?: { task_id?: string; status?: string; error?: string };
+    production_segment_draft_task?: { task_id?: string; status?: string; error?: string };
+    production_asset_extraction_task?: { task_id?: string; status?: string; error?: string };
+    production_asset_preview?: Record<string, any>;
+    production_segments?: Array<Record<string, any>>;
+    production_segment_archives?: Array<Record<string, any>>;
+    production_selected_video_tasks?: Record<string, string>;
     engineering_script?: { revision: string; confirmed_at: number; duration: number; shots: { number: number }[] } | null;
     storyboard_source_revision?: string | null;
     storyboard_archives?: { created_at: number; frames: any[] }[];
@@ -383,7 +416,7 @@ interface ProjectStore {
 
     // Actions
     setProjects: (projects: Project[]) => void;  // For syncing from backend
-    createProject: (title: string, text: string, skipAnalysis?: boolean, workflowMode?: string, seriesId?: string) => Promise<void>;
+    createProject: (title: string, text: string, skipAnalysis?: boolean, workflowMode?: string, seriesId?: string, productionWorkflow?: string) => Promise<Project>;
     analyzeProject: (script: string) => Promise<void>;
     analyzeArtStyle: (scriptId: string, text: string) => Promise<void>;
     loadProjects: () => void;
@@ -532,21 +565,26 @@ export const useProjectStore = create<ProjectStore>()(
             // Sync projects from backend
             setProjects: (projects: Project[]) => set({ projects }),
 
-            createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string) => {
+            createProject: async (title: string, text: string, skipAnalysis: boolean = false, workflowMode: string = "r2v", seriesId?: string, productionWorkflow?: string) => {
                 set({ isLoading: true });
                 try {
                     const initialPromptConfig = seriesId ? undefined : readLS<Record<string, any>>(LS_KEY_DEFAULT_PROMPT) || undefined;
-                    let project = await api.createProject(title, text, skipAnalysis, workflowMode, seriesId, initialPromptConfig);
+                    const initialModelSettings = productionWorkflow && !seriesId
+                        ? readLS<Partial<FrontendModelSettings>>(LS_KEY_DEFAULT_MODEL) || undefined
+                        : undefined;
+                    let project = await api.createProject(title, text, skipAnalysis, workflowMode, seriesId, initialPromptConfig, productionWorkflow, initialModelSettings);
                     // Inject SettingsPage defaults into the new project. These
                     // are persisted to localStorage by SettingsPage but were
                     // never wired into creation — so changing defaults had no
                     // effect. Backfill via the existing per-project endpoints.
-                    try {
-                        const updated = await injectDefaultsIntoProject(project.id);
-                        if (updated) project = { ...project, ...updated, originalText: project.originalText };
-                    } catch (backfillError) {
-                        // Non-fatal: a failed backfill must not block creation.
-                        console.warn('Failed to inject default settings into new project:', backfillError);
+                    if (!productionWorkflow) {
+                        try {
+                            const updated = await injectDefaultsIntoProject(project.id);
+                            if (updated) project = { ...project, ...updated, originalText: project.originalText };
+                        } catch (backfillError) {
+                            // Non-fatal: a failed backfill must not block creation.
+                            console.warn('Failed to inject default settings into new project:', backfillError);
+                        }
                     }
                     project = withResolvedModelSettings(project);
                     set((state) => ({
@@ -554,6 +592,7 @@ export const useProjectStore = create<ProjectStore>()(
                         currentProject: project,
                         isLoading: false,
                     }));
+                    return project;
                 } catch (error) {
                     console.error('Failed to create project:', error);
                     set({ isLoading: false });

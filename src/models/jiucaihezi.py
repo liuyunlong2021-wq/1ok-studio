@@ -2,11 +2,16 @@ import base64
 import logging
 import mimetypes
 import os
+import socket
+import tempfile
 import threading
 import time
 from typing import Any, Dict, Optional, Sequence, Tuple
+from urllib.parse import urljoin, urlparse
+import ipaddress
 
 import requests
+from PIL import Image
 
 from .fk_video import fk_video_payload, fk_video_spec
 from .base import VideoGenModel
@@ -230,17 +235,136 @@ def _qwen_reference_data_url(ref: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(content).decode('ascii')}"
 
 
-def _download(url: str, output_path: str) -> None:
-    """直连取回产物。
+def _download(url: str, output_path: str, *, validate_image: bool = True) -> None:
+    """有界重试并原子保存有效图片；下载失败不触碰旧文件。"""
+    retryable_statuses = {429, 500, 502, 503, 504, 520, 522, 524}
+    delays = (2, 5)
+    last_error: Optional[Exception] = None
 
-    以前这里有个 ``direct`` 开关，默认走模块级 ``requests.get`` —— 于是「轮询
-    响应里的 url 兜底」这条路径又悄悄吃上了系统代理，和 ``/content`` 一样会挂。
-    产物下载没有计费风险，统一直连即可。
-    """
-    response = _gateway_get(url, timeout=300)
-    _raise_for_status_with_body(response, url)
-    with open(output_path, "wb") as output:
-        output.write(response.content)
+    def validate_url(candidate: str) -> str:
+        parsed = urlparse(candidate)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("图片产物地址必须是 HTTPS URL")
+        host = parsed.hostname.lower().rstrip(".")
+        if host in {"localhost", "localhost.localdomain"} or host.endswith(".local"):
+            raise ValueError("图片产物地址不能指向本机或局域网")
+        try:
+            addresses = [ipaddress.ip_address(host)]
+        except ValueError:
+            addresses = [ipaddress.ip_address(item[4][0]) for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)]
+        if not addresses or any(
+            address.is_private or address.is_loopback or address.is_link_local
+            or address.is_reserved or address.is_unspecified or address.is_multicast
+            for address in addresses
+        ):
+            raise ValueError("图片产物地址不能指向本机或内网")
+        return candidate
+
+    for attempt in range(3):
+        temp_path = None
+        response = None
+        try:
+            current_url = validate_url(url)
+            for redirect_count in range(4):
+                response = _gateway_get(current_url, timeout=(15, 120), stream=True, allow_redirects=False)
+                if response.status_code not in {301, 302, 303, 307, 308}:
+                    break
+                location = response.headers.get("Location")
+                response.close()
+                response = None
+                if not location or redirect_count == 3:
+                    raise RuntimeError("图片产物下载重定向无效或超过上限")
+                current_url = validate_url(urljoin(current_url, location))
+
+            if response is None:
+                raise RuntimeError("图片产物下载未返回响应")
+            if response.status_code in retryable_statuses:
+                _raise_for_status_with_body(response, current_url)
+            _raise_for_status_with_body(response, current_url)
+
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(prefix=".image-download-", suffix=".tmp", dir=os.path.dirname(os.path.abspath(output_path)))
+            written = 0
+            with os.fdopen(fd, "wb") as output:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    written += len(chunk)
+                    if written > 50 * 1024 * 1024:
+                        raise ValueError("图片产物超过 50 MB 上限")
+                    output.write(chunk)
+                output.flush()
+                os.fsync(output.fileno())
+
+            if written == 0:
+                raise ValueError("图片产物为空")
+            encoded_length = response.headers.get("Content-Length")
+            if encoded_length and not response.headers.get("Content-Encoding") and not response.headers.get("Transfer-Encoding"):
+                if encoded_length.isdigit() and int(encoded_length) != written:
+                    raise ValueError("图片产物传输不完整")
+
+            if validate_image:
+                with Image.open(temp_path) as image:
+                    image.load()
+                    if image.width < 1 or image.height < 1 or image.width * image.height > 100_000_000:
+                        raise ValueError("图片尺寸无效或超过像素上限")
+                    if image.format != "PNG" or not output_path.lower().endswith(".png"):
+                        image_format = "PNG" if output_path.lower().endswith(".png") else image.format
+                        image.save(temp_path + ".normalized", format=image_format)
+                        normalized_path = temp_path + ".normalized"
+                        os.replace(normalized_path, temp_path)
+            os.replace(temp_path, output_path)
+            temp_path = None
+            return
+        except Exception as exc:  # noqa: BLE001 — retry only transient fetch failures
+            last_error = exc
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            retryable = status in retryable_statuses or isinstance(
+                exc,
+                (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                 requests.exceptions.ChunkedEncodingError, socket.gaierror),
+            )
+            if not retryable or attempt == 2:
+                raise
+            retry_after = 0
+            if status == 429:
+                try:
+                    retry_after = min(10, max(0, int(response.headers.get("Retry-After", "0"))))
+                except (TypeError, ValueError):
+                    retry_after = 0
+            time.sleep(retry_after or delays[attempt])
+        finally:
+            if response is not None:
+                response.close()
+            if temp_path and os.path.exists(temp_path):
+                os.unlink(temp_path)
+    if last_error:
+        raise last_error
+
+
+def _write_image_bytes(content: bytes, output_path: str) -> None:
+    """校验内联图片并原子写入目标路径。"""
+    if not content or len(content) > 50 * 1024 * 1024:
+        raise ValueError("图片数据为空或超过 50 MB 上限")
+    directory = os.path.dirname(os.path.abspath(output_path))
+    os.makedirs(directory, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(prefix=".image-result-", suffix=".tmp", dir=directory)
+    os.close(fd)
+    try:
+        with open(temp_path, "wb") as output:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        with Image.open(temp_path) as image:
+            image.load()
+            if image.width < 1 or image.height < 1 or image.width * image.height > 100_000_000:
+                raise ValueError("图片尺寸无效或超过像素上限")
+            image.save(temp_path + ".normalized", format="PNG")
+        os.replace(temp_path + ".normalized", output_path)
+    finally:
+        for candidate in (temp_path, temp_path + ".normalized"):
+            if os.path.exists(candidate):
+                os.unlink(candidate)
 
 
 def _download_video_content(task_id: str, output_path: str) -> None:
@@ -337,7 +461,7 @@ def poll_video_task(
                 url = str(result.get("url") or "").strip()
                 if url and allow_url_fallback:
                     try:
-                        _download(url, output_path)
+                        _download(url, output_path, validate_image=False)
                         logger.info(
                             "Jiucaihezi content endpoint failed for task %s (%s); saved it from the poll url instead.",
                             task_id,
@@ -606,10 +730,26 @@ class JiucaiheziImageModel(ImageGenModel):
         url = item.get("url")
         b64 = item.get("b64_json")
         if url:
+            on_artifact = kwargs.get("on_artifact")
+            if callable(on_artifact):
+                # 先将下载地址和网关请求号落入项目任务，再开始可能失败的文件传输。
+                on_artifact({
+                    "url": url,
+                    "provider_request_id": response.headers.get("x-oneapi-request-id"),
+                    "content_type": item.get("content_type"),
+                })
             _download(url, output_path)
         elif b64:
-            with open(output_path, "wb") as output:
-                output.write(base64.b64decode(b64))
+            try:
+                on_artifact = kwargs.get("on_artifact")
+                if callable(on_artifact):
+                    on_artifact({
+                        "provider_request_id": response.headers.get("x-oneapi-request-id"),
+                        "content_type": item.get("content_type") or "image/png",
+                    })
+                _write_image_bytes(base64.b64decode(b64, validate=True), output_path)
+            except (ValueError, OSError) as exc:
+                raise RuntimeError(f"网关返回的内联图片无效: {exc}") from exc
         else:
             # 「HTTP 200 但 data 是空的」是网关的另一种坏法（z-image-turbo 实测如此）：
             # 通道在、上游没产出。裸 item["b64_json"] 只会扔一个 KeyError，

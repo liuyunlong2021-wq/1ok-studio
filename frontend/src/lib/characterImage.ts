@@ -28,7 +28,12 @@ export function selectedVariantUrl(asset?: ImageAsset | AssetUnit | null): strin
 
 /** Resolve a character's primary image container to a normalized ImageAsset
  *  ({ variants, selected_id }), preferring reference_sheet over legacy full_body. */
-export function characterImageAsset(c: Character): ImageAsset | undefined {
+export function characterImageAsset(c: Character, lookId?: string): ImageAsset | undefined {
+  const look = lookId ? c.looks?.find((item) => item.id === lookId) : c.looks?.find((item) => selectedVariantUrl(item.reference_sheet));
+  if (lookId || look) {
+    const unit = look?.reference_sheet;
+    return unit ? { selected_id: unit.selected_image_id, variants: unit.image_variants } : undefined;
+  }
   const rs = c.reference_sheet;
   if (rs?.image_variants?.length) {
     return { selected_id: rs.selected_image_id, variants: rs.image_variants };
@@ -42,7 +47,11 @@ export function characterVariants(c: Character): ImageVariant[] {
 }
 
 /** A character's best display image: reference_sheet → full_body → legacy top-level urls. */
-export function characterImageUrl(c: Character): string | undefined {
+export function characterImageUrl(c: Character, lookId?: string): string | undefined {
+  if (lookId) {
+    const look = c.looks?.find((item) => item.id === lookId);
+    return selectedVariantUrl(characterImageAsset(c, lookId)) || look?.image_url;
+  }
   return selectedVariantUrl(characterImageAsset(c)) || c.image_url || c.full_body_image_url;
 }
 

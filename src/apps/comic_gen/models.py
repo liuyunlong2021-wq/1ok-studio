@@ -173,6 +173,9 @@ class AssetUnit(BaseModel):
     
     # Prompts
     image_prompt: Optional[str] = Field(None, description="Prompt used for image generation")
+    image_prompt_source: str = ""
+    image_prompt_model: str = ""
+    image_prompt_description_version: int = 0
     video_prompt: Optional[str] = Field(None, description="Prompt used for motion ref generation")
     
     # Timestamps for consistency tracking
@@ -246,6 +249,10 @@ class VideoTask(BaseModel):
         None,
         description="Storyboard R2V workbench tab the user generated from: 't2i_i2v' | 'direct_r2v'",
     )
+    segment_id: Optional[str] = Field(None, description="Production segment represented by this task")
+    segment_revision: Optional[str] = Field(None, description="Immutable production segment revision used for submission")
+    input_snapshot_revision: Optional[str] = Field(None, description="Hash of prompt, duration, model and ordered references")
+    reference_assets_snapshot: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: float = Field(default_factory=time.time)
     #: 处理时间线。只有创建时间不够 —— 出问题时要知道「排了多久 / 跑了多久 / 什么时候
     #: 结束的」，界面上也要能跟后端日志的时间对上。
@@ -253,7 +260,32 @@ class VideoTask(BaseModel):
     finished_at: float = Field(0.0, description="When it reached completed/failed (0 = still running)")
 
 
-class Character(BaseModel):
+class ExtractedAssetInfo(BaseModel):
+    extraction_evidence: List[Dict[str, Any]] = Field(default_factory=list)
+    extraction_unknowns: List[str] = Field(default_factory=list)
+
+
+class CharacterLook(ExtractedAssetInfo):
+    id: str
+    name: str
+    description: str = ""
+    extracted_description: Optional[str] = None
+    description_source: str = "extracted"
+    description_version: int = Field(1, ge=1)
+    locked: bool = False
+    reference_sheet: AssetUnit = Field(default_factory=AssetUnit)
+    full_body_prompt: str = ""
+    image_url: Optional[str] = None
+    prompt_generation_status: str = "idle"
+    prompt_generation_task_id: Optional[str] = None
+    prompt_generation_error: Optional[str] = None
+    prompt_generation_started_at: float = 0.0
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task_history: List[Dict[str, Any]] = Field(default_factory=list)
+    status: GenerationStatus = GenerationStatus.PENDING
+
+
+class Character(ExtractedAssetInfo):
     id: str = Field(..., description="Unique identifier for the character")
     name: str = Field(..., description="Name of the character")
     description: str = Field(..., description="Physical appearance and personality description")
@@ -265,6 +297,11 @@ class Character(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    voice_design: Dict[str, str] = Field(default_factory=dict, description="Nine-dimension voice identity design; text only")
+    voice_design_version: int = Field(0, ge=0)
+    voice_design_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task_history: List[Dict[str, Any]] = Field(default_factory=list)
 
     # R2V v2 Phase 4 — persona grouping. The character.id is the *visual
     # unit* (e.g. "young Zhang San" vs "adult Zhang San" are two ids).
@@ -276,6 +313,7 @@ class Character(BaseModel):
     age: Optional[str] = Field(None, description="Age of the character")
     gender: Optional[str] = Field(None, description="Gender of the character")
     clothing: Optional[str] = Field(None, description="Clothing description")
+    looks: List[CharacterLook] = Field(default_factory=list)
     visual_weight: int = Field(3, description="Visual importance weight (1-5)")
     
     # === R2V v2 Phase 5: Unified reference sheet ===
@@ -369,7 +407,7 @@ class Character(BaseModel):
     starred: bool = Field(False, description="User-starred flag for the asset library shortlist")
     status: GenerationStatus = GenerationStatus.PENDING
 
-class Scene(BaseModel):
+class Scene(ExtractedAssetInfo):
     id: str = Field(..., description="Unique identifier for the scene")
     name: str = Field(..., description="Name of the location/scene")
     description: str = Field(..., description="Visual description of the environment")
@@ -382,6 +420,8 @@ class Scene(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task_history: List[Dict[str, Any]] = Field(default_factory=list)
     visual_weight: int = Field(3, description="Visual importance weight (1-5)")
     time_of_day: Optional[str] = Field(None, description="Time of day (e.g. Night, Day)")
     lighting_mood: Optional[str] = Field(None, description="Lighting atmosphere")
@@ -398,7 +438,7 @@ class Scene(BaseModel):
     starred: bool = Field(False, description="User-starred flag for the asset library shortlist")
     status: GenerationStatus = GenerationStatus.PENDING
 
-class Prop(BaseModel):
+class Prop(ExtractedAssetInfo):
     id: str = Field(..., description="Unique identifier for the prop")
     name: str = Field(..., description="Name of the object")
     description: str = Field(..., description="Visual description of the object")
@@ -411,6 +451,8 @@ class Prop(BaseModel):
     prompt_generation_task_id: Optional[str] = None
     prompt_generation_error: Optional[str] = None
     prompt_generation_started_at: float = 0.0
+    production_image_task: Dict[str, Any] = Field(default_factory=dict)
+    production_image_task_history: List[Dict[str, Any]] = Field(default_factory=list)
     video_url: Optional[str] = None
     audio_url: Optional[str] = None
     sfx_url: Optional[str] = None
@@ -438,6 +480,7 @@ class StoryboardFrame(BaseModel):
     review_required: bool = False
     scene_id: str = Field(..., description="Reference to the Scene ID")
     character_ids: List[str] = Field(default_factory=list, description="List of Character IDs present in the frame")
+    character_look_ids: Dict[str, str] = Field(default_factory=dict)
     prop_ids: List[str] = Field(default_factory=list, description="List of Prop IDs present in the frame")
     
     # Legacy fields (kept for compatibility)
@@ -664,6 +707,22 @@ class Script(BaseModel):
     id: str = Field(..., description="Unique identifier for the script project")
     title: str = Field(..., description="Title of the comic/video")
     original_text: str = Field(..., description="The original novel text")
+    production_workflow: Optional[str] = Field(None, description="Versioned production workflow; None keeps the legacy route")
+    production_settings: Dict[str, Any] = Field(default_factory=dict)
+    production_style_revision: Optional[str] = None
+    production_style_confirmed_at: Optional[float] = None
+    production_source_revision: Optional[str] = None
+    production_engineering_draft: Dict[str, Any] = Field(default_factory=dict)
+    production_engineering_task: Dict[str, Any] = Field(default_factory=dict)
+    production_asset_extraction_task: Dict[str, Any] = Field(default_factory=dict)
+    production_asset_preview: Dict[str, Any] = Field(default_factory=dict)
+    production_engineering_source_revision: Optional[str] = None
+    production_engineering_style_revision: Optional[str] = None
+    production_engineering_archives: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segments: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segment_archives: List[Dict[str, Any]] = Field(default_factory=list)
+    production_segment_draft_task: Dict[str, Any] = Field(default_factory=dict)
+    production_selected_video_tasks: Dict[str, str] = Field(default_factory=dict)
     engineering_script: Optional[Dict[str, Any]] = None
     storyboard_source_revision: Optional[str] = None
     storyboard_archives: List[Dict[str, Any]] = Field(default_factory=list)
@@ -783,6 +842,10 @@ class Series(BaseModel):
 
     # Workflow mode for all episodes in this series
     workflow_mode: str = Field("i2v_legacy", description="Workflow mode: 'r2v' or 'i2v_legacy'")
+    production_workflow: Optional[str] = Field(None, description="Versioned production workflow inherited by new episodes")
+    production_settings: Dict[str, Any] = Field(default_factory=dict)
+    production_style_revision: Optional[str] = None
+    production_style_confirmed_at: Optional[float] = None
 
     # PR-3e (r2v-workflow-v3) — Visual control preference at series level.
     # Episodes inherit this when created; user can override per-shot via

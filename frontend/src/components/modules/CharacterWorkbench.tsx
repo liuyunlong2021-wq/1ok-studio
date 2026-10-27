@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, RefreshCw, Check, AlertTriangle, Image as ImageIcon, Lock, Unlock, ChevronRight, Maximize2, Video, Upload } from "lucide-react";
@@ -19,7 +20,7 @@ interface CharacterWorkbenchProps {
     asset: any;
     assetType?: "character" | "scene" | "prop";
     onClose: () => void;
-    onUpdateDescription: (desc: string) => void;
+    onUpdateDescription: (desc: string) => void | Promise<void>;
     /** 别名：同一个角色在别的集里可能被写成别的名字（刘备 / 刘玄德）。
      *  传了才显示别名编辑区。 */
     aliases?: string[];
@@ -27,6 +28,13 @@ interface CharacterWorkbenchProps {
     onRewriteDescription?: (description: string, instruction: string) => Promise<string | null>;
     onGenerate: (type: string, prompt: string, applyStyle: boolean, negativePrompt: string, batchSize: number) => void | Promise<void>;
     onGeneratePrompt?: (assetType: string, description: string) => Promise<void>;
+    onSelectReferenceImage?: (variantId: string) => void | Promise<void>;
+    onResumeImageTask?: (taskId: string) => Promise<void>;
+    voicePanel?: ReactNode;
+    toolbar?: ReactNode;
+    contextPanel?: ReactNode;
+    referenceLookId?: string;
+    onSavePrompt?: (prompt: string) => Promise<void>;
     generatingTypes: { type: string; batchSize: number }[];
     stylePrompt?: string;
     styleNegativePrompt?: string;
@@ -35,7 +43,7 @@ interface CharacterWorkbenchProps {
     isGeneratingVideo?: boolean;
 }
 
-export default function CharacterWorkbench({ asset, assetType = "character", onClose, onUpdateDescription, aliases = [], onUpdateAliases, onRewriteDescription, onGenerate, onGeneratePrompt, generatingTypes = [], stylePrompt = "", styleNegativePrompt = "", onGenerateVideo, onDeleteVideo, isGeneratingVideo }: CharacterWorkbenchProps) {
+export default function CharacterWorkbench({ asset, assetType = "character", onClose, onUpdateDescription, aliases = [], onUpdateAliases, onRewriteDescription, onGenerate, onGeneratePrompt, onSelectReferenceImage, onResumeImageTask, voicePanel, toolbar, contextPanel, referenceLookId, onSavePrompt, generatingTypes = [], stylePrompt = "", styleNegativePrompt = "", onGenerateVideo, onDeleteVideo, isGeneratingVideo }: CharacterWorkbenchProps) {
     const tc = useTranslations("character");
     const tv = useTranslations("characterVoice");
     // 工作台有两面镜子：生图 / 声音。左=素材、中=人的描述、右=给模型的提示词，
@@ -74,6 +82,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     // Local state for prompts
     const getInitialPrompt = (type: string, existingPrompt: string) => {
         if (existingPrompt) return existingPrompt;
+        if (onSavePrompt) return "";
 
         const baseDesc = asset.description || "";
         const name = asset.name || "Character";
@@ -100,11 +109,12 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
     const [descriptionDraft, setDescriptionDraft] = useState(asset.description || "");
     const [aliasDraft, setAliasDraft] = useState("");
     const [isRewritingDescription, setIsRewritingDescription] = useState(false);
-    const [showRewriteBar, setShowRewriteBar] = useState(true);
+    const [showRewriteBar, setShowRewriteBar] = useState(!!onRewriteDescription);
     const [rewriteInstruction, setRewriteInstruction] = useState("");
     const [rewriteError, setRewriteError] = useState("");
     const [isGeneratingAssetPrompt, setIsGeneratingAssetPrompt] = useState(false);
     const [generationError, setGenerationError] = useState("");
+    const [isResumingImageTask, setIsResumingImageTask] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
 
     // New State for Style Control
@@ -245,6 +255,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
 
     // Initialize prompts if empty (first time load)
     useEffect(() => {
+        if (onSavePrompt) return;
         if (!fullBodyPrompt) {
             setFullBodyPrompt(`Full body character design of ${asset.name}, concept art. ${asset.description}. Standing pose, neutral expression, no emotion, looking at viewer. Clean white background, isolated, no other objects, no scenery, simple background, high quality, masterpiece.`);
         }
@@ -295,7 +306,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
         }
 
         if (asset.video_prompt) setVideoPrompt(asset.video_prompt);
-    }, [asset, hasAnyUpload, hasNonFullBodyUpload]);
+    }, [asset.full_body_prompt, asset.three_view_prompt, asset.headshot_prompt, asset.video_prompt, hasAnyUpload, hasNonFullBodyUpload]);
 
     const handleGenerateClick = async (type: "full_body" | "three_view" | "headshot", batchSize: number) => {
         let prompt = "";
@@ -335,7 +346,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
         if (!currentProject) return;
 
         try {
-            await api.deleteAssetVariant(currentProject.id, asset.id, assetType, variantId);
+            await api.deleteAssetVariant(currentProject.id, asset.id, assetType, variantId, referenceLookId);
             updateProject(currentProject.id, await api.getProject(currentProject.id));
         } catch (error) {
             console.error("Failed to delete variant:", error);
@@ -346,7 +357,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
         if (!currentProject) return;
 
         try {
-            await api.favoriteAssetVariant(currentProject.id, asset.id, assetType, variantId, isFavorited, type);
+            await api.favoriteAssetVariant(currentProject.id, asset.id, assetType, variantId, isFavorited, type, referenceLookId);
             updateProject(currentProject.id, await api.getProject(currentProject.id));
         } catch (error) {
             console.error("Failed to favorite variant:", error);
@@ -393,14 +404,16 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                     </button>
                 </div>
 
+                {face === "image" && toolbar}
                 {showFaceSwitch && face === "voice" ? (
+                    voicePanel ??
                     <CharacterVoiceFace character={asset} />
                 ) : (
                 <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,32%)_minmax(280px,34%)_minmax(320px,34%)] overflow-hidden">
                     <section className="min-w-0 min-h-0 border-r border-glass-border p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
                         <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">主参考图</h3><p className="text-xs text-text-muted mt-1">统一资产图片，可上传或生成</p></div><span className="text-[0.625rem] uppercase tracking-wider text-primary">Static</span></div>
                         <div className="flex-1 min-h-0 rounded-xl border border-glass-border bg-glass p-3 overflow-hidden">
-                            <VariantSelector asset={asset.full_body_asset} currentImageUrl={asset.full_body_image_url || asset.image_url} onSelect={(id: string) => handleSelectVariant("full_body", id)} onDelete={(id: string) => handleDeleteVariant("full_body", id)} onFavorite={(id: string, fav: boolean) => handleFavoriteVariant("full_body", id, fav)} onGenerate={(batch: number) => handleGenerateClick("full_body", batch)} isGenerating={getGeneratingInfo("full_body").isGenerating} generatingBatchSize={getGeneratingInfo("full_body").batchSize} aspectRatio="4:5" className="h-full" showGenerate={false} />
+                            <VariantSelector asset={asset.full_body_asset} currentImageUrl={asset.full_body_image_url || asset.image_url} onSelect={(id: string) => onSelectReferenceImage ? void onSelectReferenceImage(id) : handleSelectVariant("full_body", id)} onDelete={(id: string) => handleDeleteVariant("full_body", id)} onFavorite={(id: string, fav: boolean) => handleFavoriteVariant("full_body", id, fav)} onGenerate={(batch: number) => handleGenerateClick("full_body", batch)} isGenerating={getGeneratingInfo("full_body").isGenerating} generatingBatchSize={getGeneratingInfo("full_body").batchSize} aspectRatio="4:5" className="h-full" showGenerate={false} />
                         </div>
                         <div className="flex items-center justify-between gap-3 text-xs text-text-muted">
                             <span>{asset.full_body_asset?.variants?.length || 0} 个版本</span>
@@ -418,8 +431,9 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                         </div>
                     </section>
                     <section className="min-w-0 min-h-0 border-r border-glass-border p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
-                        <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">描述</h3><p className="text-xs text-text-muted mt-1">当前来源：{asset.description_source === "ai" ? "AI 修改" : asset.description_source === "manual" ? "手工编辑" : "剧本提取"}</p></div><button type="button" onClick={() => setShowRewriteBar((v) => !v)} disabled={isRewritingDescription} className="text-xs text-primary disabled:opacity-50">{isRewritingDescription ? "AI 修改中..." : "AI 修改"}</button></div>
-                        <textarea value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} onBlur={() => { if (descriptionDraft !== (asset.description || "")) onUpdateDescription(descriptionDraft); }} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
+                        <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">描述</h3><p className="text-xs text-text-muted mt-1">当前来源：{asset.description_source === "ai" ? "AI 修改" : asset.description_source === "manual" ? "手工编辑" : "剧本提取"}</p></div>{onRewriteDescription && <button type="button" onClick={() => setShowRewriteBar((v) => !v)} disabled={isRewritingDescription} className="text-xs text-primary disabled:opacity-50">{isRewritingDescription ? "AI 修改中..." : "AI 修改"}</button>}</div>
+                        {contextPanel}
+                        <textarea value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} onBlur={() => { if (descriptionDraft !== (asset.description || "")) void Promise.resolve(onUpdateDescription(descriptionDraft)).catch((error) => setGenerationError(error?.message || "描述保存失败")); }} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
                         {showRewriteBar && <div className="rounded-xl border border-primary/25 bg-glass p-3"><div className="relative"><textarea value={rewriteInstruction} onChange={(e) => setRewriteInstruction(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleRewriteDescription(); } }} placeholder="输入修改要求，例如：补充服装细节" disabled={isRewritingDescription} className="min-h-[104px] w-full resize-none rounded-lg border border-glass-border bg-input-bg p-3 pb-11 text-xs leading-relaxed text-text-secondary outline-none focus:border-primary/60 placeholder:text-text-muted" /><button type="button" onClick={handleRewriteDescription} disabled={isRewritingDescription} className="absolute bottom-2 right-2 rounded-md bg-primary px-3 py-1.5 text-xs text-white disabled:opacity-50">{isRewritingDescription ? "生成中" : "生成修改"}</button></div>{rewriteError && <p className="mt-2 text-xs text-red-400">{rewriteError}</p>}</div>}
                         {asset.extracted_description && <details className="text-xs text-text-muted"><summary className="cursor-pointer hover:text-text-secondary">查看原始剧本描述</summary><p className="mt-2 rounded-lg bg-glass p-3 leading-relaxed">{asset.extracted_description}</p></details>}
                         {/* 别名：记住「刘玄德 = 刘备」这类判断。关联时后端会自动写入，
@@ -459,9 +473,10 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                     <section className="min-w-0 min-h-0 p-5 flex flex-col gap-3 bg-surface overflow-y-auto">
                         <div className="flex items-center justify-between"><div><h3 className="text-sm font-bold text-foreground">生图提示词</h3><p className="text-xs text-text-muted mt-1">基于当前描述生成</p></div><button type="button" onClick={handleGenerateAssetPrompt} disabled={!onGeneratePrompt || isGeneratingAssetPrompt || ["queued", "processing"].includes(asset.prompt_generation_status)} className="text-xs text-primary disabled:opacity-50">{asset.prompt_generation_status === "queued" ? "排队中..." : asset.prompt_generation_status === "processing" ? "生成中..." : asset.prompt_generation_status === "failed" || asset.prompt_generation_status === "stale" ? "重试生成" : asset.prompt_generation_status === "completed" ? "重新生成" : isGeneratingAssetPrompt ? "提交中..." : "生成提示词"}</button></div>
                         {(asset.prompt_generation_status === "failed" || asset.prompt_generation_status === "stale") && <p className="text-xs text-red-400">{asset.prompt_generation_error || "生成失败，请重试"}</p>}
-                        <textarea value={fullBodyPrompt} onChange={(e) => setFullBodyPrompt(e.target.value)} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
+                        <textarea value={fullBodyPrompt} onChange={(e) => setFullBodyPrompt(e.target.value)} onBlur={() => { if (onSavePrompt && fullBodyPrompt.trim() && fullBodyPrompt !== (asset.full_body_prompt || asset.image_prompt || "")) void onSavePrompt(fullBodyPrompt).catch((error) => setGenerationError(error?.message || "提示词保存失败")); }} className="min-h-[240px] flex-1 w-full rounded-xl border border-glass-border bg-input-bg p-4 text-sm leading-relaxed text-text-secondary resize-none focus:outline-none focus:border-primary/60" />
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted"><span>当前模型：项目默认 · 描述版本 v{asset.description_version || 1}</span><button type="button" onClick={(event) => { event.stopPropagation(); void handleGenerateClick("full_body", 1); }} disabled={getGeneratingInfo("full_body").isGenerating} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw size={13} className={getGeneratingInfo("full_body").isGenerating ? "animate-spin" : ""} />{getGeneratingInfo("full_body").isGenerating ? "生成中..." : "生成图片"}</button></div>
+                            {asset.production_image_task?.can_resume && onResumeImageTask && <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3"><div><p className="text-xs font-medium text-amber-200">{tc("imageDownloadInterrupted")}</p><p className="mt-1 text-[0.6875rem] text-text-muted">{tc("resumeImageTaskHint")}</p></div><button type="button" onClick={async () => { setIsResumingImageTask(true); try { await onResumeImageTask(asset.production_image_task.task_id); } finally { setIsResumingImageTask(false); } }} disabled={isResumingImageTask} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300/40 px-3 py-1.5 text-xs font-medium text-amber-100 disabled:opacity-50"><RefreshCw size={13} className={isResumingImageTask ? "animate-spin" : ""} />{isResumingImageTask ? tc("resumingImageTask") : tc("resumeImageTask")}</button></div>}
+                            <div className="flex items-center justify-between gap-3 text-[0.6875rem] text-text-muted"><span>当前模型：项目默认 · 描述版本 v{asset.description_version || 1}</span><button type="button" onClick={(event) => { event.stopPropagation(); void handleGenerateClick("full_body", 1); }} disabled={getGeneratingInfo("full_body").isGenerating || isResumingImageTask} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-primary/20 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw size={13} className={getGeneratingInfo("full_body").isGenerating ? "animate-spin" : ""} />{asset.production_image_task?.can_resume ? tc("regenerateImageTask") : getGeneratingInfo("full_body").isGenerating ? tc("generating") : tc("generateImage")}</button></div>
                             {generationError && <p className="text-xs text-red-400">{generationError}</p>}
                         </div>
                     </section>
@@ -542,6 +557,7 @@ export default function CharacterWorkbench({ asset, assetType = "character", onC
                     assetName={asset.name}
                     defaultDescription={descriptionDraft}
                     scriptId={currentProject.id}
+                    lookId={referenceLookId}
                     onUploadComplete={async () => {
                         updateProject(currentProject.id, await api.getProject(currentProject.id));
                         setShowUploadModal(false);

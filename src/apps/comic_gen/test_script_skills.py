@@ -34,3 +34,19 @@ def test_native_h3_skill_is_motion_only_and_readonly(tmp_path, monkeypatch):
     assert not any(item['id'] == SKILL_ID for item in client.get('/script-skills').json())
     assert client.post('/script-skills/' + SKILL_ID + '/restore').status_code == 200
     assert any(item['id'] == SKILL_ID for item in client.get('/script-skills').json())
+
+
+def test_shipped_video_prompt_skills_are_selectable_without_import(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from src.apps.comic_gen import api
+
+    monkeypatch.setattr(api, 'SKILLS_FILE', str(tmp_path / 'skills.json'))
+    monkeypatch.setattr(api, 'DELETED_BUILTINS_FILE', str(tmp_path / 'hidden.json'))
+    client = TestClient(api.app)
+    skills = client.get('/script-skills', params={'kind': 'motion'}).json()
+    selected = {item['id']: item for item in skills if item['id'] in {
+        'builtin:h3-prompt-writing', 'builtin:jc-seedance'
+    }}
+
+    assert set(selected) == {'builtin:h3-prompt-writing', 'builtin:jc-seedance'}
+    assert all(item['is_builtin'] and not item.get('validation_error') for item in selected.values())
