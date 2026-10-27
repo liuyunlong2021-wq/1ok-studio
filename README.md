@@ -22,7 +22,7 @@ One OK Studio 是一个本地运行的 AI 漫剧制作工具：从剧本、角�
 
 ### 安装步骤
 
-1. 到 Releases 下载 `One.OK.Studio_1.3.8_aarch64.dmg`
+1. 到 Releases 下载对应版本的 Apple Silicon `.dmg` 安装包
 2. 双击打开，把 **One OK Studio** 拖进「应用程序」
 3. 从「启动台」或「应用程序」启动
 
@@ -241,7 +241,7 @@ cd frontend && npm install && cd ..
 
 ## 版本
 
-当前版本：**1.3.8**
+当前版本：**2.0.0**
 
 ## License
 
