@@ -1,4 +1,6 @@
 import base64
+from io import BytesIO
+from PIL import Image
 import logging
 import os
 from unittest.mock import Mock, patch
@@ -230,7 +232,9 @@ def test_empty_data_still_carries_the_gateway_message(post, tmp_path):
 @patch.dict(os.environ, {"JIUCAIHEZI_API_KEY": "test"})
 @patch("src.models.jiucaihezi._gateway_post")
 def test_grok_reference_images_use_edits_endpoint(post, tmp_path):
-    post.return_value = _response({"data": [{"b64_json": base64.b64encode(b"image").decode()}]})
+    image = BytesIO()
+    Image.new("RGB", (2, 2), "blue").save(image, format="PNG")
+    post.return_value = _response({"data": [{"b64_json": base64.b64encode(image.getvalue()).decode()}]})
 
     # 参考图必须先落盘并关闭。这里原来用的是仍处于打开状态的
     # NamedTemporaryFile：POSIX 允许第二个读者再打开同一文件，Windows 会直接
@@ -782,7 +786,8 @@ def test_rh_aiapp_app_defaults_duration_to_five(post, get, _sleep, _download_con
 @patch("src.models.jiucaihezi.time.sleep")
 @patch("src.models.jiucaihezi._gateway_get")
 @patch("src.models.jiucaihezi._gateway_post")
-def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(post, get, _sleep, tmp_path):
+@patch("src.models.jiucaihezi.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 443))])
+def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(_dns, post, get, _sleep, tmp_path):
     """RH 渠道的 /content 实测恒 502，成片只在查询响应的 url 上。
 
     任务已经生成完（钱已经花了），取不回来才是失败 —— 所以 content 接口失败之后必须
@@ -800,6 +805,9 @@ def test_video_falls_back_to_the_poll_url_when_content_endpoint_is_down(post, ge
     blocked.raise_for_status.side_effect = requests.exceptions.HTTPError("502")
     fetched = _response({})
     fetched.content = b"rh-video-bytes"
+    fetched.status_code = 200
+    fetched.headers = {}
+    fetched.iter_content.return_value = [fetched.content]
     # content 接口重试 3 次都失败，第 4 次才是从 url 拉
     get.side_effect = [poll, blocked, blocked, blocked, fetched]
     output_path = tmp_path / "rh.mp4"
