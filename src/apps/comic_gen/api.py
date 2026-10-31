@@ -63,6 +63,7 @@ _SIDECAR_MTIME = (
 )
 from .llm import ScriptProcessor, _strip_markdown_json, DEFAULT_STORYBOARD_POLISH_PROMPT, DEFAULT_VIDEO_POLISH_PROMPT, DEFAULT_R2V_POLISH_PROMPT, DEFAULT_ENTITY_EXTRACTION_PROMPT, DEFAULT_STYLE_ANALYSIS_PROMPT, DEFAULT_STORYBOARD_EXTRACTION_PROMPT, DEFAULT_CHARACTER_ASSET_PROMPT, DEFAULT_SCENE_ASSET_PROMPT, DEFAULT_PROP_ASSET_PROMPT, DEFAULT_AUDIO_PLAN_PROMPT, DEFAULT_VOICE_PROMPT
 from .llm_adapter import LLMAdapter
+from . import text_jobs
 from ...utils.global_settings import get_global_text_model, set_global_text_model
 from ...utils import setup_logging
 from fastapi.responses import JSONResponse
@@ -1070,7 +1071,7 @@ def delete_script_skill(skill_id: str):
             _write_script_skills([item for item in items if item["id"] != skill_id])
         return {"ok": True}
 
-@app.post("/projects/{script_id}/standardize_script")
+@app.post("/projects/{script_id}/standardize_script", status_code=202)
 async def standardize_script(script_id: str, request: StandardizeScriptRequest):
     """Revise script text using the instruction and an optional Skill."""
     script = pipeline.get_script(script_id)
@@ -1089,13 +1090,22 @@ async def standardize_script(script_id: str, request: StandardizeScriptRequest):
         raise HTTPException(status_code=400, detail="不使用 Skill 时，请填写本次修改要求")
     skill = skill or "你是剧本编辑。仅按本次修改要求处理输入内容。未涉及的剧情、台词、动作、镜头编号、时间码和排版保持原样，不擅自标准化、拆镜、缩写或增加内容。返回修改后的完整输入内容。"
     prompt = f"{skill}\n\n本次修改要求：{request.instruction.strip() or '按 Skill 规则处理，保持原意。'}\n\n请只输出修改后的剧本文本，不要解释，不要 Markdown 代码块。\n\n待修改内容：\n{request.text}"
-    try:
-        result = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: LLMAdapter().chat([{"role": "user", "content": prompt}], model=model or None)
-        )
-        return {"standardized_text": result.strip(), "model": model or "system-default"}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"标准化失败: {e}")
+    def work(progress):
+        try:
+            text = LLMAdapter().chat([{"role": "user", "content": prompt}], model=model or None, progress=progress)
+        except Exception as e:
+            raise RuntimeError(f"标准化失败: {e}") from e
+        return {"result": text.strip(), "model": model or "system-default"}
+
+    return text_jobs.submit(work)
+
+
+@app.get("/projects/{script_id}/standardize_script/{job_id}")
+def get_standardize_script_job(script_id: str, job_id: str):
+    job = text_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或已过期，请重新发起")
+    return job
 
 
 @app.put("/projects/{script_id}/text", response_model=Script)

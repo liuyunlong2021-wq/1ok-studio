@@ -18,19 +18,28 @@ import os
 import re
 import time
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Callable, Dict, List, Optional, Any
 
 from ...utils.endpoints import get_provider_base_url
 
 logger = logging.getLogger(__name__)
 
-# 韭菜盒子链路里"另一个模型也依旧救得回来"的兜底选项。
-JIUCAIHEZI_FALLBACK_MODEL = "gpt-5.6-sol"
+# 韭菜盒子链路里"另一个模型也依旧救得回来"的兜底选项，按顺序取第一个与当前不同的。
+# 重试必须换一个模型：同一模型刚在网关侧 502/524，原地重试多半还是同一个结果。
+JIUCAIHEZI_FALLBACK_MODELS = ("gpt-6.1-sol", "claude-sonnet-5-5")
+JIUCAIHEZI_FALLBACK_MODEL = JIUCAIHEZI_FALLBACK_MODELS[0]
+
+
+def _fallback_model_for(model: Optional[str]) -> str:
+    current = (model or "").lower()
+    return next((item for item in JIUCAIHEZI_FALLBACK_MODELS if item != current), JIUCAIHEZI_FALLBACK_MODEL)
 
 # 文本请求最多追加一次尝试；SDK 的自动重试关闭，避免叠加重试。
 TRANSIENT_STATUS_CODES = {500, 502, 503, 504, 520, 521, 522, 523, 524}
-TRANSIENT_TOKENS = ("timeout", "timed out", "connection")
-TRANSIENT_RETRY_BACKOFF_SECONDS = 5.0
+# 流没有结束标志、正文为空也算瞬时故障：换模型重来一次，而不是直接把错误甩给用户。
+# 仍然不采用不完整正文（finish_reason 缺失时丢弃，由重试补齐）。
+TRANSIENT_TOKENS = ("timeout", "timed out", "connection", "未完整结束", "空正文")
+TRANSIENT_RETRY_BACKOFF_SECONDS = 2.0
 
 # 单次 chat 调用的超时秒数。长文生成（如 Motion 提示词要写几千字）经常跑过 60 秒，
 # 超时会一路冒泡成 502，把「还在生成」误判成失败。
@@ -199,6 +208,7 @@ class LLMAdapter:
         messages: List[Dict[str, str]],
         model: Optional[str] = None,
         response_format: Optional[Dict[str, str]] = None,
+        progress: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> str:
         """
         Send a chat completion request and return the response content.
@@ -207,6 +217,8 @@ class LLMAdapter:
             messages: List of {"role": ..., "content": ...} dicts
             model: Model name override (uses provider default if None)
             response_format: Optional {"type": "json_object"} constraint
+            progress: Optional callback receiving {"state", "attempt", "model", "reason"}
+                when a transient failure triggers a retry (used by background jobs).
 
         Returns:
             The assistant's response content as a string.
@@ -231,7 +243,7 @@ class LLMAdapter:
 
         # 产品默认通道。目录里的模型 id 与「没指定模型」都落在这里。
         return self._chat_jiucaihezi(
-            model or self._get_default_model(), messages, response_format
+            model or self._get_default_model(), messages, response_format, progress
         )
 
     def chat_images(self, messages: List[Dict[str, Any]]) -> str:
@@ -248,15 +260,21 @@ class LLMAdapter:
         model: str,
         messages: List[Dict[str, str]],
         response_format: Optional[Dict[str, str]],
+        progress: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> str:
-        """网关临时故障退避后最多再尝试一次，并统一最终失败提示。"""
+        """网关临时故障退避后换一个模型最多再尝试一次，并统一最终失败提示。"""
         client = self._get_jiucaihezi_client()
         try:
             return self._chat_once(client, model, messages, response_format, "Jiucaihezi")
         except RuntimeError as exc:
             if not _is_transient_gateway_error(exc):
                 raise
-            retry_model = JIUCAIHEZI_FALLBACK_MODEL
+            retry_model = _fallback_model_for(model)
+            if progress:
+                progress({
+                    "state": "retrying", "attempt": 2, "model": retry_model,
+                    "reason": _readable_gateway_error(exc),
+                })
             logger.warning(
                 "Text request transient failure: model=%s status=%s; retrying once with %s in %.0fs",
                 model, _gateway_error_status(exc), retry_model, TRANSIENT_RETRY_BACKOFF_SECONDS,

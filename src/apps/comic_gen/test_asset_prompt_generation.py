@@ -56,17 +56,19 @@ def test_asset_prompt_empty_responses_fall_back_without_leaking_skill():
 
 
 @patch("src.apps.comic_gen.llm.time.sleep")
-def test_asset_prompt_retries_transient_provider_failure(_sleep):
-    processor = _processor(
-        RuntimeError("Jiucaihezi API error: 502 Bad Gateway"),
-        "刘备，青年男性，旧布袍，草鞋，正面全身站姿，纯色背景",
-    )
+def test_asset_prompt_leaves_transient_retry_to_the_adapter(_sleep):
+    """瞬时故障的重试（换模型、一次）在 LLMAdapter.chat 内；这里不再叠加外层循环。"""
+    processor = _processor(RuntimeError("Jiucaihezi API error: 502 Bad Gateway"))
 
-    result = processor.generate_asset_prompt("character", "刘备", "卖草鞋的青年")
+    try:
+        processor.generate_asset_prompt("character", "刘备", "卖草鞋的青年")
+    except RuntimeError as exc:
+        assert "502" in str(exc)
+    else:
+        raise AssertionError("expected the transient error to surface after one call")
 
-    assert result.startswith("刘备，青年男性")
-    assert processor.llm.chat.call_count == 2
-    _sleep.assert_called_once_with(0.5)
+    assert processor.llm.chat.call_count == 1
+    _sleep.assert_not_called()
 
 
 @patch("src.apps.comic_gen.llm.time.sleep")

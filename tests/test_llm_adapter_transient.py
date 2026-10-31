@@ -60,7 +60,8 @@ def test_fallback_model_is_retried_once_and_then_reports_readably(adapter):
         with pytest.raises(RuntimeError) as excinfo:
             adapter.chat([{"role": "user", "content": "hi"}], model=JIUCAIHEZI_FALLBACK_MODEL)
 
-    assert calls == [JIUCAIHEZI_FALLBACK_MODEL, JIUCAIHEZI_FALLBACK_MODEL]
+    # 重试换了另一个模型：同一模型刚在网关侧失败，原地重试多半是同一个结果。
+    assert len(calls) == 2 and calls[0] == JIUCAIHEZI_FALLBACK_MODEL and calls[1] != calls[0]
     assert sleeper.call_count == 1
     assert "cloudflare.com" not in str(excinfo.value)
     assert "524" in str(excinfo.value)
@@ -81,7 +82,7 @@ def test_fallback_model_retry_can_succeed(adapter):
         result = adapter.chat([{"role": "user", "content": "hi"}], model=JIUCAIHEZI_FALLBACK_MODEL)
 
     assert result == '{"frames": []}'
-    assert calls == [JIUCAIHEZI_FALLBACK_MODEL, JIUCAIHEZI_FALLBACK_MODEL]
+    assert len(calls) == 2 and calls[1] != calls[0]
 
 
 def test_non_fallback_model_switches_to_the_fallback(adapter):
@@ -117,3 +118,37 @@ def test_non_transient_errors_do_not_retry(adapter):
 
     assert calls == [JIUCAIHEZI_FALLBACK_MODEL]  # 鉴权错不值得再试一次
     assert sleeper.call_count == 0
+
+
+def test_incomplete_stream_is_retried_on_another_model_not_adopted(adapter):
+    """缺结束标志的流不采用半篇正文，而是当瞬时故障换模型重来一次。"""
+    calls = []
+
+    def fake_chat_once(client, model, messages, response_format, provider_label=None):
+        calls.append(model)
+        if len(calls) == 1:
+            raise RuntimeError("文本流未完整结束（finish_reason=missing），请重试；未采用不完整正文")
+        return "完整正文"
+
+    with patch.object(LLMAdapter, "_get_jiucaihezi_client", return_value=object()), \
+         patch.object(LLMAdapter, "_chat_once", side_effect=fake_chat_once), \
+         patch("src.apps.comic_gen.llm_adapter.time.sleep"):
+        assert adapter.chat([{"role": "user", "content": "hi"}], model="gemini-3.8-flash") == "完整正文"
+
+    assert len(calls) == 2 and calls[1] != calls[0]
+
+
+def test_retry_reports_progress_to_the_caller(adapter):
+    events = []
+
+    def fake_chat_once(client, model, messages, response_format, provider_label=None):
+        if not events:
+            raise RuntimeError(CLOUDFLARE_524)
+        return "ok"
+
+    with patch.object(LLMAdapter, "_get_jiucaihezi_client", return_value=object()), \
+         patch.object(LLMAdapter, "_chat_once", side_effect=fake_chat_once), \
+         patch("src.apps.comic_gen.llm_adapter.time.sleep"):
+        adapter.chat([{"role": "user", "content": "hi"}], model="gemini-3.8-flash", progress=events.append)
+
+    assert events and events[0]["state"] == "retrying" and events[0]["attempt"] == 2

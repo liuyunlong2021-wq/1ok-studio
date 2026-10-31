@@ -11,6 +11,9 @@ export interface SnapshotResponse {
   created_at: string;
 }
 
+const STANDARDIZE_POLL_MS = 2500;
+const STANDARDIZE_MAX_WAIT_MS = 15 * 60 * 1000;
+
 export interface StandardizeResponse { standardized_text: string; model: string }
 export interface ScriptSkill { executor?: 'h3_context_ir'; readonly?: boolean; reused?: boolean; id: string; name: string; content: string; scope: string; is_builtin: boolean; kind: 'script' | 'motion'; hidden?: boolean; validation_error?: string; files?: Record<string, string>; entry?: string; has_backup?: boolean; created_at?: number; updated_at?: number }
 type ScriptDocument = Record<string, unknown>;
@@ -36,9 +39,34 @@ export const scriptEditorApi = {
   resetScriptSkill: async (id: string, recover = false): Promise<void> => { await axios.post(`${API_URL}/script-skills/${id}/default`, null, { params: { recover } }); },
   deleteScriptSkill: async (id: string): Promise<void> => { await axios.delete(`${API_URL}/script-skills/${id}`); },
   restoreScriptSkill: async (id: string): Promise<void> => { await axios.post(`${API_URL}/script-skills/${id}/restore`); },
+  /**
+   * 剧本修改是后台任务：POST 立刻拿到 job_id，再轮询到完成。
+   * 网关长请求会被 Cloudflare 在约 100 秒时 524，同步等待期间界面也没有任何反馈。
+   * 返回形状与旧同步接口一致，调用方无需改动。
+   */
   standardizeScript: async (projectId: string, text: string, skill: string, skillId?: string, instruction?: string): Promise<StandardizeResponse> => {
-    const res = await axios.post(`${API_URL}/projects/${projectId}/standardize_script`, { text, skill, skill_id: skillId || '', instruction: instruction || '' });
-    return res.data;
+    const base = `${API_URL}/projects/${projectId}/standardize_script`;
+    const started = await axios.post(base, { text, skill, skill_id: skillId || '', instruction: instruction || '' });
+    const jobId: string = started.data.job_id;
+    const deadline = Date.now() + STANDARDIZE_MAX_WAIT_MS;
+    let pollFailures = 0;
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, STANDARDIZE_POLL_MS));
+      if (Date.now() > deadline) throw new Error('剧本修改等待超时，请稍后重试');
+      let job: { status: string; result?: string; model?: string; error?: string };
+      try {
+        job = (await axios.get(`${base}/${jobId}`)).data;
+        pollFailures = 0;
+      } catch (error) {
+        // 单次轮询失败（网络抖动）不等于任务失败；连续失败才放弃。404 表示任务已丢失，立即报错。
+        if ((error as { response?: { status?: number } })?.response?.status === 404) throw error;
+        pollFailures += 1;
+        if (pollFailures >= 3) throw error;
+        continue;
+      }
+      if (job.status === 'done') return { standardized_text: job.result ?? '', model: job.model ?? '' };
+      if (job.status === 'failed') throw new Error(job.error || '剧本修改失败');
+    }
   },
 
   /** 加载文档 */

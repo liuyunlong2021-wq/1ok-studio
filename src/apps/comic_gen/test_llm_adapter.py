@@ -27,10 +27,10 @@ def test_transient_jiucaihezi_failure_falls_back_to_stable_model(monkeypatch):
 
     monkeypatch.setattr(adapter, "_chat_once", chat_once)
 
-    assert adapter.chat([], model="gemini-3.8-flash") == "jiucaihezi:gpt-5.6-sol"
+    assert adapter.chat([], model="gemini-3.8-flash") == "jiucaihezi:gpt-6.1-sol"
     assert calls == [
         ("jiucaihezi", "gemini-3.8-flash"),
-        ("jiucaihezi", "gpt-5.6-sol"),
+        ("jiucaihezi", "gpt-6.1-sol"),
     ]
 
 
@@ -46,8 +46,8 @@ def test_model_id_case_is_normalized_before_routing(monkeypatch):
     monkeypatch.setattr(adapter, "_chat_once", chat_once)
 
     # 目录里的 id 是小写，UI / API 调用方可能送厂商那套混写字，统一转小写再发。
-    assert adapter.chat([], model="deepSeek-flash") == "jiucaihezi:deepseek-flash"
-    assert calls == [("jiucaihezi", "deepseek-flash")]
+    assert adapter.chat([], model="deepSeek-V4.1-flash") == "jiucaihezi:deepseek-v4.1-flash"
+    assert calls == [("jiucaihezi", "deepseek-v4.1-flash")]
 
 
 def test_stale_dashscope_key_does_not_hijack_the_default_channel(monkeypatch):

@@ -922,20 +922,12 @@ class ScriptProcessor:
         return fallback.strip()
 
     def _chat_asset_prompt_with_retry(self, messages: List[Dict[str, str]], model: Optional[str]) -> str:
-        """Retry only transient provider failures; never retry bad auth/input."""
-        for attempt in range(3):
-            try:
-                return self.llm.chat(messages=messages, model=model)
-            except Exception as exc:
-                if attempt >= 2 or not self._is_retryable_llm_error(exc):
-                    raise
-                delay = 0.5 * (2 ** attempt)
-                logger.warning(
-                    "Asset prompt provider call failed temporarily (attempt %s/3, retrying in %.1fs): %s",
-                    attempt + 1, delay, exc,
-                )
-                time.sleep(delay)
-        raise RuntimeError("unreachable")
+        """单次调用：瞬时故障的重试（换模型、一次）已在 LLMAdapter.chat 内完成。
+
+        这里不再外包一层 3 次循环 —— 与 adapter 自带的重试叠加后，一次失败最坏要等
+        3 × (180s + 退避 + 180s)，界面全程无反馈。
+        """
+        return self.llm.chat(messages=messages, model=model)
 
     @staticmethod
     def _is_retryable_llm_error(exc: Exception) -> bool:
