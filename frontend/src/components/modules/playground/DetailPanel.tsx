@@ -17,12 +17,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Scissors,
+  Grid2x2,
 } from 'lucide-react';
 import { API_URL, playgroundApi } from '@/lib/api';
 import { saveMedia, revealMedia } from '@/lib/mediaActions';
 import { useTranslations } from 'next-intl';
 import { usePlaygroundStore, type PlaygroundGeneration } from './usePlaygroundStore';
 import FrameExtractOverlay from '../FrameExtractOverlay';
+import ImageSplitOverlay from '../ImageSplitOverlay';
 import { toast } from '@/store/toastStore';
 
 // ---------------------------------------------------------------------------
@@ -90,6 +92,7 @@ export default function DetailPanel({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [splitting, setSplitting] = useState(false);
   const updateGeneration = usePlaygroundStore((s) => s.updateGeneration);
   const history = usePlaygroundStore((s) => s.history);
   const featuredByGen = usePlaygroundStore((s) => s.featuredByGen);
@@ -132,14 +135,14 @@ export default function DetailPanel({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // 截帧浮层开着时键盘归它管 —— 否则 Esc 会把整个详情页关掉。
-      if (extracting) return;
+      if (extracting || splitting) return;
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowLeft') navigatePrev();
       if (e.key === 'ArrowRight') navigateNext();
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [onClose, navigatePrev, navigateNext, extracting]);
+  }, [onClose, navigatePrev, navigateNext, extracting, splitting]);
 
   // Lock body scroll
   useEffect(() => {
@@ -194,6 +197,26 @@ export default function DetailPanel({
     } catch (err) {
       console.error('[DetailPanel] Frame upload failed:', err);
       toast.error(t('media.frameUploadFailed'));
+    }
+  };
+
+  // 切图 → 逐张上传 → 与截帧同一套「加入参考图」规则；满了就停并提示。
+  const handleSplitTiles = async (files: File[]) => {
+    let added = 0;
+    try {
+      for (const file of files) {
+        const { path } = await playgroundApi.uploadMedia(file);
+        const result = usePlaygroundStore.getState().useResultAsReference(path, 'image');
+        if (result === 'full') {
+          toast.error(t('media.refsFull'));
+          break;
+        }
+        added += 1;
+      }
+      if (added > 0) toast.success(t('split.added', { count: added }));
+    } catch (err) {
+      console.error('[DetailPanel] Split upload failed:', err);
+      toast.error(t('split.uploadFailed'));
     }
   };
 
@@ -491,6 +514,15 @@ export default function DetailPanel({
                     {t('media.extractFrame')}
                   </button>
                 )}
+                {!isVideo && output?.media_path && (
+                  <button
+                    onClick={() => setSplitting(true)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-surface-inset border border-glass-border text-text-secondary text-[0.8125rem] font-medium hover:text-foreground hover:bg-hover-bg transition"
+                  >
+                    <Grid2x2 className="w-4 h-4" />
+                    {t('split.button')}
+                  </button>
+                )}
                 {mediaUrl && (
                   <button
                     onClick={handleDownload}
@@ -541,6 +573,14 @@ export default function DetailPanel({
           hintKey="frameExtractHintPlayground"
           onClose={() => setExtracting(false)}
           onExtract={handleExtractFrame}
+        />
+      )}
+      {splitting && !isVideo && output?.media_path && (
+        <ImageSplitOverlay
+          imagePath={output.media_path}
+          label={`#${generation.id.slice(0, 6)}`}
+          onClose={() => setSplitting(false)}
+          onSplit={handleSplitTiles}
         />
       )}
     </>

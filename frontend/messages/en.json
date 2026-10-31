@@ -1797,6 +1797,18 @@
       "pending": "Queued",
       "dispatching": "Starting",
       "cancel": "Cancel"
+    },
+    "split": {
+      "button": "Split",
+      "title": "Split · cut into separate images",
+      "hint": "Click cells to toggle. Cropped tiles are added as references.",
+      "selectAll": "All",
+      "cancel": "Cancel",
+      "confirm": "Add {count}",
+      "loadFailed": "Failed to load image",
+      "failed": "Split failed",
+      "added": "Split done — {count} added as references",
+      "uploadFailed": "Uploading the tiles failed; references were not added."
     }
   },
   "scriptEditor": {

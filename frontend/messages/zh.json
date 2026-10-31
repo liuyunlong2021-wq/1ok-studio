@@ -1797,6 +1797,18 @@
       "pending": "待发",
       "dispatching": "派发中",
       "cancel": "取消"
+    },
+    "split": {
+      "button": "切图",
+      "title": "切图 · 按格子拆成独立图片",
+      "hint": "点格子选中/取消；切出的图会加入参考图。",
+      "selectAll": "全选",
+      "cancel": "取消",
+      "confirm": "加入 {count} 张",
+      "loadFailed": "读取图片失败",
+      "failed": "切图失败",
+      "added": "已切图并加入 {count} 张参考图",
+      "uploadFailed": "切出的图上传失败，参考图没加上。"
     }
   },
   "scriptEditor": {
