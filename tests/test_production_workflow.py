@@ -27,7 +27,7 @@ def test_segment_duration_choices_are_independent_of_model_capabilities():
     assert segment_duration_choices() == list(range(2, 31))
     validate_segment_maximum(30)
     validate_production_video_model("jc-minimax-h3-ref2v")
-    validate_production_video_model("cvk-2.5-720")
+    validate_production_video_model("ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70")
     with pytest.raises(ValueError, match="请选择目录中可用的参考生视频通道"):
         validate_production_video_model("missing-model")
     with pytest.raises(ValueError, match="30秒"):

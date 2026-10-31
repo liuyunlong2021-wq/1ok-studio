@@ -86,25 +86,25 @@ describe('model catalog selectors', () => {
         // 2026-10-06 新增 Fk 通道 7 款；2026-10-07 该通道的 MiniMax H3 开通后
         // （原来因账号未开通而 hidden）从 8 款都进来了。
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
-            'SD-2.5-特价',
-            'cvk-2.5-1080',
-            'cvk-2.5-480',
-            'cvk-2.5-720',
             'dola-seedance2.5',
-            'ft-video-v1-451adae35b0c4a3d275c2c46394abc98',
-            'ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f',
-            'ft-video-v1-7393b0529b788d532d031dcac5e820cb',
-            'ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746',
+            'ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93',
+            'ft-video-v1-1eb6d53a32efa02adf7ae338f3239628',
+            'ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b',
+            'ft-video-v1-43644108aaba72b7cbad4cd322737f6c',
+            'ft-video-v1-756e0feb4b3e1f893726314109762123',
             'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70',
-            'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
-            'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
-            'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
+            'ft-video-v1-b8a797753dd4c6bf8e5a69820b293848',
+            'ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff',
             'jc-minimax-h3-director8',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
-            'rh_minimax_h3_ref_9',
-            'sd2.5-a',
+            'yl_cm_73',
+            'yl_g7zy_seedance_v2_5_s',
+            'yl_pp_mj_sd25_30010',
+            'yl_seedance-2-0_ba0687ff09f2',
+            'yl_seedance-2-5_6caffaca7390',
+            'yl_zh_tt_sedanco_2_0_720',
             '海seedance2.5',
         ]);
         // 默认必须是 meta 默认值（列表顺序按 ui.order 排，不是默认值）。
@@ -113,7 +113,7 @@ describe('model catalog selectors', () => {
     });
 
     it('exposes Grok image generation and editing without resetting the selection', () => {
-        const id = 'jiucaihezi/grok-imagine-image-2.0';
+        const id = 'ft-image-v1-211f28f47b0355abb1798f72eb65f22d';
         expect(GLOBAL_IMAGE_MODELS.some(model => model.id === id)).toBe(true);
         for (const surface of ['global_settings', 'project_settings', 'series_settings'] as const) {
             expect(resolveModelSettings({ image_model: id, t2i_model: id, i2i_model: id }, surface))
@@ -122,9 +122,9 @@ describe('model catalog selectors', () => {
     });
 
     it('retains the Seedance video contract for aliased channel ids', () => {
-        expect(VIDEO_R2V_MODELS.find((model) => model.id === 'cvk-2.5-720')?.videoContract)
-            .toBe('lingdong_seedance25');
-        expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'cvk-2.5-720')).toBe(true);
+        expect(VIDEO_R2V_MODELS.find((model) => model.id === 'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70')?.videoContract)
+            .toBe('fk_video');
+        expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70')).toBe(true);
         expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'dola-seedance2.5')).toBe(true);
     });
 
@@ -175,8 +175,8 @@ describe('model catalog fallbacks', () => {
         expect(stale.text_model).toBe('gpt-5.6-sol');
         // 韭菜盒子自家的模型即使不在该分组里也要保留：若走分组兜底会换成
         // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
-        expect(resolveModelSettings({ i2v_model: 'jiucaihezi/gpt-image-2.5-1k' }, 'project_settings').i2v_model)
-            .toBe('jiucaihezi/gpt-image-2.5-1k');
+        expect(resolveModelSettings({ i2v_model: 'ft-image-v1-211f28f47b0355abb1798f72eb65f22d' }, 'project_settings').i2v_model)
+            .toBe('ft-image-v1-211f28f47b0355abb1798f72eb65f22d');
         // dola-seedance2.5（2026-09-18 下线、09-19 拿回）：存量设置重新解析到它自己，
         // 不再回落到默认的海通道；早期带家族前缀的写法要一并归一化成目录 key。
         expect(resolveModelSettings({ i2v_model: 'dola-seedance2.5' }, 'project_settings').i2v_model)
@@ -285,7 +285,7 @@ describe('model catalog runtime helpers', () => {
 
     it('reads per-model reference image limits from catalog metadata', () => {
         // 声明了上限的模型读它自己的值 —— 从目录推，改上限时这里跟着走。
-        const grokId = 'jiucaihezi/grok-imagine-image-2.0';
+        const grokId = 'jc-qwen-image-2.1';
         const grokDeclared = (
             rawCatalog.models as Record<string, { inputs?: { reference_images?: { max?: number } } }>
         )[grokId]?.inputs?.reference_images?.max;

@@ -1,12 +1,8 @@
 {
   "compat": {
     "legacy_model_ids": {
-      "SD-2.5-特价": "jiucaihezi/SD-2.5-特价#r2v",
       "claude-fable-5-1": "jiucaihezi/claude-fable-5-1#text",
       "claude-sonnet-5": "jiucaihezi/claude-sonnet-5#text",
-      "cvk-2.5-1080": "jiucaihezi/cvk-2.5-1080#r2v",
-      "cvk-2.5-480": "jiucaihezi/cvk-2.5-480#r2v",
-      "cvk-2.5-720": "jiucaihezi/cvk-2.5-720#r2v",
       "deepseek-flash": "jiucaihezi/deepseek-flash#text",
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "ft-image-v1-186289ba9d3263010c69372f8939dd94": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image",
@@ -15,30 +11,29 @@
       "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82": "jiucaihezi/ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82#image",
       "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9": "jiucaihezi/ft-image-v1-d51c811d3d74a5b2433e6916ab564db9#image",
       "ft-image-v1-eb47192eb578f340043911005a06fb6e": "jiucaihezi/ft-image-v1-eb47192eb578f340043911005a06fb6e#image",
-      "ft-video-v1-451adae35b0c4a3d275c2c46394abc98": "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v",
-      "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f": "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f#r2v",
-      "ft-video-v1-7393b0529b788d532d031dcac5e820cb": "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb#r2v",
-      "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746": "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746#r2v",
+      "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93": "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93#r2v",
+      "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628": "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628#r2v",
+      "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b": "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b#r2v",
+      "ft-video-v1-43644108aaba72b7cbad4cd322737f6c": "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c#r2v",
+      "ft-video-v1-756e0feb4b3e1f893726314109762123": "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123#r2v",
       "ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70": "jiucaihezi/ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70#r2v",
-      "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4": "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4#r2v",
-      "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d": "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d#r2v",
-      "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563": "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563#r2v",
+      "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848": "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848#r2v",
+      "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff": "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
       "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
       "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
       "jc-minimax-h3-director8": "jiucaihezi/jc-minimax-h3-director8#r2v",
       "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
-      "jiucaihezi/gemini-3-pro-image-preview": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
-      "jiucaihezi/gpt-image-2-1k": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
-      "jiucaihezi/gpt-image-2-菠萝": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image",
-      "jiucaihezi/gpt-image-2.5-1k": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
-      "jiucaihezi/gpt-image-2.5-菠萝": "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝#image",
-      "jiucaihezi/grok-imagine-image-2.0": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
       "minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "minimax_h3_zm_u24": "jiucaihezi/minimax_h3_zm_u24#r2v",
-      "rh_minimax_h3_ref_9": "jiucaihezi/rh_minimax_h3_ref_9#r2v",
-      "sd2.5-a": "jiucaihezi/sd2.5-a#r2v",
+      "mj_relax_imagine": "jiucaihezi/mj_relax_imagine#image",
+      "yl_cm_73": "jiucaihezi/yl_cm_73#r2v",
+      "yl_g7zy_seedance_v2_5_s": "jiucaihezi/yl_g7zy_seedance_v2_5_s#r2v",
+      "yl_pp_mj_sd25_30010": "jiucaihezi/yl_pp_mj_sd25_30010#r2v",
+      "yl_seedance-2-0_ba0687ff09f2": "jiucaihezi/yl_seedance-2-0_ba0687ff09f2#r2v",
+      "yl_seedance-2-5_6caffaca7390": "jiucaihezi/yl_seedance-2-5_6caffaca7390#r2v",
+      "yl_zh_tt_sedanco_2_0_720": "jiucaihezi/yl_zh_tt_sedanco_2_0_720#r2v",
       "海seedance2.5": "jiucaihezi/海seedance2.5#r2v"
     }
   },
@@ -77,12 +72,8 @@
       },
       "family": "jiucaihezi",
       "models": [
-        "SD-2.5-特价",
         "claude-fable-5-1",
         "claude-sonnet-5",
-        "cvk-2.5-1080",
-        "cvk-2.5-480",
-        "cvk-2.5-720",
         "deepseek-flash",
         "dola-seedance2.5",
         "ft-image-v1-186289ba9d3263010c69372f8939dd94",
@@ -91,30 +82,29 @@
         "ft-image-v1-80fa79934b03dcdc7a54dacdb1ad7f82",
         "ft-image-v1-d51c811d3d74a5b2433e6916ab564db9",
         "ft-image-v1-eb47192eb578f340043911005a06fb6e",
-        "ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
-        "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
-        "ft-video-v1-7393b0529b788d532d031dcac5e820cb",
-        "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746",
+        "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93",
+        "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628",
+        "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b",
+        "ft-video-v1-43644108aaba72b7cbad4cd322737f6c",
+        "ft-video-v1-756e0feb4b3e1f893726314109762123",
         "ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70",
-        "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4",
-        "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d",
-        "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563",
+        "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
+        "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
         "gemini-3.8-flash",
         "gpt-5.6-sol",
         "jc-minimax-h3",
         "jc-minimax-h3-director8",
         "jc-minimax-h3-ref2v",
         "jc-qwen-image-2.1",
-        "jiucaihezi/gemini-3-pro-image-preview",
-        "jiucaihezi/gpt-image-2-1k",
-        "jiucaihezi/gpt-image-2-菠萝",
-        "jiucaihezi/gpt-image-2.5-1k",
-        "jiucaihezi/gpt-image-2.5-菠萝",
-        "jiucaihezi/grok-imagine-image-2.0",
         "minimax_h3_image_audio_to_video_v2_15s",
         "minimax_h3_zm_u24",
-        "rh_minimax_h3_ref_9",
-        "sd2.5-a",
+        "mj_relax_imagine",
+        "yl_cm_73",
+        "yl_g7zy_seedance_v2_5_s",
+        "yl_pp_mj_sd25_30010",
+        "yl_seedance-2-0_ba0687ff09f2",
+        "yl_seedance-2-5_6caffaca7390",
+        "yl_zh_tt_sedanco_2_0_720",
         "海seedance2.5"
       ],
       "provider": "jiucaihezi",
@@ -146,67 +136,6 @@
     }
   },
   "model_lines": {
-    "jiucaihezi/SD-2.5-特价": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/SD-2.5-特价",
-      "legacy_model_ids": [
-        "SD-2.5-特价"
-      ],
-      "modes": [
-        "jiucaihezi/SD-2.5-特价#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
     "jiucaihezi/claude-fable-5-1": {
       "backend_env_key": null,
       "credential_sources": {
@@ -301,189 +230,6 @@
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/cvk-2.5-1080": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-1080",
-      "legacy_model_ids": [
-        "cvk-2.5-1080"
-      ],
-      "modes": [
-        "jiucaihezi/cvk-2.5-1080#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/cvk-2.5-480": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 0.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-480",
-      "legacy_model_ids": [
-        "cvk-2.5-480"
-      ],
-      "modes": [
-        "jiucaihezi/cvk-2.5-480#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/cvk-2.5-720": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 0.75 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-720",
-      "legacy_model_ids": [
-        "cvk-2.5-720"
-      ],
-      "modes": [
-        "jiucaihezi/cvk-2.5-720#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
         }
       },
       "status": "active",
@@ -996,7 +742,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98": {
+    "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1004,8 +750,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "官方渠道-Seedance2.5满血720p，1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 官方 720P · 1 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（9图），¥2/次，固定 15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（9图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1015,12 +761,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
+      "id": "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93",
       "legacy_model_ids": [
-        "ft-video-v1-451adae35b0c4a3d275c2c46394abc98"
+        "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v"
+        "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1057,7 +803,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f": {
+    "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1065,8 +811,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "XZ-Seedance 2.5 720p(9图参考)，0.1 元/秒，4–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk XZ Sd 2.5 720P · 0.1 元/秒",
+      "description": "特价渠道 MiniMax H3 480p-1080p，480p ¥0.06/秒 · 720p/768p ¥0.07/秒 · 1080p ¥0.25/秒，4–30 秒；参考图片 9、视频 1、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 MiniMax H3 480p-1080p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1076,12 +822,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
+      "id": "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628",
       "legacy_model_ids": [
-        "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f"
+        "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f#r2v"
+        "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1118,7 +864,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb": {
+    "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1126,8 +872,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "XN1-Seedance 2.5满血 480-720p，480p 0.5 / 720p 1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN1 Sd 2.5 480/720P",
+      "description": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考），720p ¥8/次 · 1080p ¥12/次，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1137,12 +883,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb",
+      "id": "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b",
       "legacy_model_ids": [
-        "ft-video-v1-7393b0529b788d532d031dcac5e820cb"
+        "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb#r2v"
+        "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1179,7 +925,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746": {
+    "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1187,8 +933,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道 MiniMax H3-768p，0.08 元/秒，1–15 秒；参考图片 9、视频 0、音频 3。登记合同，实扣以账单为准。",
-      "display_name": "Fk MiniMax H3 768P · 0.08 元/秒",
+      "description": "特价渠道 Seedance 2.0 满血 480p (933)，¥2/次，4–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.0 满血 480p (933)",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1198,12 +944,73 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746",
+      "id": "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c",
       "legacy_model_ids": [
-        "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746"
+        "ft-video-v1-43644108aaba72b7cbad4cd322737f6c"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746#r2v"
+        "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "XN2-Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，15–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "XN2-Seedance 2.5 满血 480-720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123",
+      "legacy_model_ids": [
+        "ft-video-v1-756e0feb4b3e1f893726314109762123"
+      ],
+      "modes": [
+        "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1248,8 +1055,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道Seedance2.5满血720p(可过真人)，0.4 元/秒，15–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 真人 720P · 0.4 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（可过真人），¥5/次，固定 30 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（可过真人）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1301,7 +1108,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4": {
+    "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1309,8 +1116,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "XN2-Seedance 2.5满血 480-720p，480p 0.5 / 720p 0.8 元/秒，4–29 秒；参考图片 30、视频 0、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN2 Sd 2.5 480/720P",
+      "description": "Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "Seedance 2.5 满血 480-720p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1320,12 +1127,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4",
+      "id": "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
       "legacy_model_ids": [
-        "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4"
+        "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4#r2v"
+        "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1362,7 +1169,7 @@
         }
       }
     },
-    "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d": {
+    "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1370,8 +1177,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "长期特惠Seedance2.5满血720p，0.2 元/秒，30–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 长期特惠 30 秒 · 0.2 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 480p（10图），¥3.5/次，4–30 秒；参考图片 10、视频 0、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 480p（10图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1381,73 +1188,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d",
+      "id": "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
       "legacy_model_ids": [
-        "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d"
+        "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff"
       ],
       "modes": [
-        "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "特价渠道-Seedance2.5满血720p(30图)，0.1 元/秒，4–30 秒；参考图片 30、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 特价 720P · 0.1 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563",
-      "legacy_model_ids": [
-        "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563"
-      ],
-      "modes": [
-        "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563#r2v"
+        "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff#r2v"
       ],
       "provider": "jiucaihezi",
       "release_stage": "preview",
@@ -1844,366 +1590,6 @@
         }
       }
     },
-    "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Gemini 3 Pro Image via 韭菜盒子",
-      "display_name": "Gemini 3 Pro Image · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview",
-      "legacy_model_ids": [
-        "jiucaihezi/gemini-3-pro-image-preview"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2-1k": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2-1k",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2-1k"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2-1k#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2-菠萝": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2-菠萝"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-1k": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 via 韭菜盒子",
-      "display_name": "GPT Image 2.5 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-1k"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝",
-      "legacy_model_ids": [
-        "jiucaihezi/gpt-image-2.5-菠萝"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
-    "jiucaihezi/jiucaihezi/grok-imagine-image-2.0": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
-      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0",
-      "legacy_model_ids": [
-        "jiucaihezi/grok-imagine-image-2.0"
-      ],
-      "modes": [
-        "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
     "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s": {
       "backend_env_key": null,
       "credential_sources": {
@@ -2324,7 +1710,7 @@
         }
       }
     },
-    "jiucaihezi/rh_minimax_h3_ref_9": {
+    "jiucaihezi/mj_relax_imagine": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -2332,8 +1718,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "RH 渠道 MiniMax H3 多参应用：最多 9 张参考图，1-15 秒，via 韭菜盒子",
-      "display_name": "文武双修 · 韭菜盒子",
+      "description": "T8 Midjourney relax 文生图（newapi-plugins t8-mj 0.3.0，仅文生图、无参考图）。目前网关以 /v1/videos 任务回图，1ok 的图片适配器尚未接入，故为 planned。",
+      "display_name": "Midjourney relax · T8",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -2343,21 +1729,82 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/rh_minimax_h3_ref_9",
+      "id": "jiucaihezi/mj_relax_imagine",
       "legacy_model_ids": [
-        "rh_minimax_h3_ref_9"
+        "mj_relax_imagine"
       ],
       "modes": [
-        "jiucaihezi/rh_minimax_h3_ref_9#r2v"
+        "jiucaihezi/mj_relax_imagine#image"
       ],
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi"
+        }
+      },
+      "status": "planned",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/yl_cm_73": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 (RK-02)，480p ¥0.6/秒 · 720p ¥0.8/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (RK-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_cm_73",
+      "legacy_model_ids": [
+        "yl_cm_73"
+      ],
+      "modes": [
+        "jiucaihezi/yl_cm_73#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
         }
       },
       "status": "active",
@@ -2384,7 +1831,7 @@
         }
       }
     },
-    "jiucaihezi/sd2.5-a": {
+    "jiucaihezi/yl_g7zy_seedance_v2_5_s": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -2392,8 +1839,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
+      "description": "源流 AI Seedance 2.5 (LJ-02)，¥0.5/秒，5–30 秒；参考图片 30、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (LJ-02)",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -2403,22 +1850,266 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/sd2.5-a",
+      "id": "jiucaihezi/yl_g7zy_seedance_v2_5_s",
       "legacy_model_ids": [
-        "sd2.5-a"
+        "yl_g7zy_seedance_v2_5_s"
       ],
       "modes": [
-        "jiucaihezi/sd2.5-a#r2v"
+        "jiucaihezi/yl_g7zy_seedance_v2_5_s#r2v"
       ],
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/yl_pp_mj_sd25_30010": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 720p (QN-12)，480p/720p ¥0.6/秒 · 1080p ¥1/秒，4–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 720p (QN-12)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_pp_mj_sd25_30010",
+      "legacy_model_ids": [
+        "yl_pp_mj_sd25_30010"
+      ],
+      "modes": [
+        "jiucaihezi/yl_pp_mj_sd25_30010#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/yl_seedance-2-0_ba0687ff09f2": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0(HD)，¥4/次，10/15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_seedance-2-0_ba0687ff09f2",
+      "legacy_model_ids": [
+        "yl_seedance-2-0_ba0687ff09f2"
+      ],
+      "modes": [
+        "jiucaihezi/yl_seedance-2-0_ba0687ff09f2#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/yl_seedance-2-5_6caffaca7390": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5(HD)，¥6/次，10–30 秒；参考图片 10、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_seedance-2-5_6caffaca7390",
+      "legacy_model_ids": [
+        "yl_seedance-2-5_6caffaca7390"
+      ],
+      "modes": [
+        "jiucaihezi/yl_seedance-2-5_6caffaca7390#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/yl_zh_tt_sedanco_2_0_720": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0 720P (YC-02)，¥0.4/秒，5–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0 720P (YC-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_zh_tt_sedanco_2_0_720",
+      "legacy_model_ids": [
+        "yl_zh_tt_sedanco_2_0_720"
+      ],
+      "modes": [
+        "jiucaihezi/yl_zh_tt_sedanco_2_0_720#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
         }
       },
       "status": "active",
@@ -2507,98 +2198,6 @@
     }
   },
   "models": {
-    "SD-2.5-特价": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "SD-2.5-特价",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1009,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "claude-fable-5-1": {
       "backend_env_key": null,
       "capabilities": [
@@ -2725,306 +2324,6 @@
         "visible_in": [
           "project_settings",
           "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "cvk-2.5-1080": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "cvk-2.5-1080",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "1080p",
-          "options": [
-            "1080p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1006,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "cvk-2.5-480": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 0.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "cvk-2.5-480",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "480p",
-          "options": [
-            "480p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1010,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "cvk-2.5-720": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 0.75 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "cvk-2.5-720",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1007,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
@@ -3770,13 +3069,12 @@
         ]
       }
     },
-    "ft-video-v1-451adae35b0c4a3d275c2c46394abc98": {
+    "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v",
-        "v2v"
+        "r2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -3784,8 +3082,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "官方渠道-Seedance2.5满血720p，1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 官方 720P · 1 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（9图），¥2/次，固定 15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（9图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3795,25 +3093,22 @@
         ]
       },
       "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
+        "type": "fixed",
+        "value": 15
       },
       "family": "jiucaihezi",
-      "id": "ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
+      "id": "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93",
       "inputs": {
         "reference_audios": {
-          "max": 10,
+          "max": 0,
           "reference_type": "audio"
         },
         "reference_images": {
-          "max": 30,
+          "max": 9,
           "reference_type": "image"
         },
         "reference_videos": {
-          "max": 10,
+          "max": 0,
           "reference_type": "video"
         }
       },
@@ -3825,11 +3120,7 @@
           "default": "16:9",
           "options": [
             "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
+            "9:16"
           ]
         },
         "resolution": {
@@ -3870,7 +3161,7 @@
           "Fk",
           "Seedance 2.5"
         ],
-        "order": 1026,
+        "order": 1025,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -3881,12 +3172,13 @@
         ]
       }
     },
-    "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f": {
+    "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -3894,8 +3186,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "XZ-Seedance 2.5 720p(9图参考)，0.1 元/秒，4–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk XZ Sd 2.5 720P · 0.1 元/秒",
+      "description": "特价渠道 MiniMax H3 480p-1080p，480p ¥0.06/秒 · 720p/768p ¥0.07/秒 · 1080p ¥0.25/秒，4–30 秒；参考图片 9、视频 1、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 MiniMax H3 480p-1080p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -3912,10 +3204,10 @@
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
+      "id": "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628",
       "inputs": {
         "reference_audios": {
-          "max": 0,
+          "max": 3,
           "reference_type": "audio"
         },
         "reference_images": {
@@ -3923,7 +3215,117 @@
           "reference_type": "image"
         },
         "reference_videos": {
-          "max": 0,
+          "max": 1,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p",
+            "720p",
+            "768p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "MiniMax H3"
+        ],
+        "order": 1020,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考），720p ¥8/次 · 1080p ¥12/次，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考）",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
           "reference_type": "video"
         }
       },
@@ -3944,6 +3346,229 @@
         "resolution": {
           "default": "720p",
           "options": [
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "Seedance 2.5"
+        ],
+        "order": 1027,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-video-v1-43644108aaba72b7cbad4cd322737f6c": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "特价渠道 Seedance 2.0 满血 480p (933)，¥2/次，4–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.0 满血 480p (933)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "max": 15,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "ft-video-v1-43644108aaba72b7cbad4cd322737f6c",
+      "inputs": {
+        "reference_audios": {
+          "max": 3,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 3,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "Seedance 2.5"
+        ],
+        "order": 1024,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "ft-video-v1-756e0feb4b3e1f893726314109762123": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "XN2-Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，15–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "XN2-Seedance 2.5 满血 480-720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "max": 30,
+        "min": 15,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "ft-video-v1-756e0feb4b3e1f893726314109762123",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "maxPromptLength": 10000,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
             "720p"
           ]
         }
@@ -3990,228 +3615,6 @@
         ]
       }
     },
-    "ft-video-v1-7393b0529b788d532d031dcac5e820cb": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v",
-        "v2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "XN1-Seedance 2.5满血 480-720p，480p 0.5 / 720p 1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN1 Sd 2.5 480/720P",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "ft-video-v1-7393b0529b788d532d031dcac5e820cb",
-      "inputs": {
-        "reference_audios": {
-          "max": 10,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 10,
-          "reference_type": "video"
-        }
-      },
-      "params": {
-        "audio": false,
-        "maxPromptLength": 15000,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "480p",
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "Seedance 2.5"
-        ],
-        "order": 1024,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "特价渠道 MiniMax H3-768p，0.08 元/秒，1–15 秒；参考图片 9、视频 0、音频 3。登记合同，实扣以账单为准。",
-      "display_name": "Fk MiniMax H3 768P · 0.08 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 15,
-        "min": 1,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746",
-      "inputs": {
-        "reference_audios": {
-          "max": 3,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 0,
-          "reference_type": "video"
-        }
-      },
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "768p",
-          "options": [
-            "768p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "MiniMax H3"
-        ],
-        "order": 1027,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70": {
       "backend_env_key": null,
       "capabilities": [
@@ -4225,8 +3628,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道Seedance2.5满血720p(可过真人)，0.4 元/秒，15–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 真人 720P · 0.4 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（可过真人），¥5/次，固定 30 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（可过真人）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4236,12 +3639,8 @@
         ]
       },
       "duration": {
-        "default": 15,
-        "options": [
-          15,
-          30
-        ],
-        "type": "buttons"
+        "type": "fixed",
+        "value": 30
       },
       "family": "jiucaihezi",
       "id": "ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70",
@@ -4322,119 +3721,7 @@
         ]
       }
     },
-    "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "XN2-Seedance 2.5满血 480-720p，480p 0.5 / 720p 0.8 元/秒，4–29 秒；参考图片 30、视频 0、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN2 Sd 2.5 480/720P",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 29,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4",
-      "inputs": {
-        "reference_audios": {
-          "max": 10,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 0,
-          "reference_type": "video"
-        }
-      },
-      "params": {
-        "audio": false,
-        "maxPromptLength": 9999,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "480p",
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "Seedance 2.5"
-        ],
-        "order": 1025,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d": {
+    "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
@@ -4448,8 +3735,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "长期特惠Seedance2.5满血720p，0.2 元/秒，30–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 长期特惠 30 秒 · 0.2 元/秒",
+      "description": "Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "Seedance 2.5 满血 480-720p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4459,11 +3746,14 @@
         ]
       },
       "duration": {
-        "type": "fixed",
-        "value": 30
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d",
+      "id": "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
       "inputs": {
         "reference_audios": {
           "max": 10,
@@ -4480,7 +3770,7 @@
       },
       "params": {
         "audio": false,
-        "maxPromptLength": 6000,
+        "maxPromptLength": 10000,
         "negativePrompt": false,
         "promptExtend": false,
         "ratio": {
@@ -4490,13 +3780,13 @@
             "9:16",
             "1:1",
             "4:3",
-            "3:4",
-            "21:9"
+            "3:4"
           ]
         },
         "resolution": {
           "default": "720p",
           "options": [
+            "480p",
             "720p"
           ]
         }
@@ -4543,7 +3833,7 @@
         ]
       }
     },
-    "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563": {
+    "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
@@ -4556,8 +3846,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道-Seedance2.5满血720p(30图)，0.1 元/秒，4–30 秒；参考图片 30、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 特价 720P · 0.1 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 480p（10图），¥3.5/次，4–30 秒；参考图片 10、视频 0、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 480p（10图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4567,21 +3857,21 @@
         ]
       },
       "duration": {
-        "default": 5,
+        "default": 30,
         "max": 30,
         "min": 4,
         "step": 1,
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563",
+      "id": "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
       "inputs": {
         "reference_audios": {
-          "max": 0,
+          "max": 3,
           "reference_type": "audio"
         },
         "reference_images": {
-          "max": 30,
+          "max": 10,
           "reference_type": "image"
         },
         "reference_videos": {
@@ -4600,14 +3890,13 @@
             "9:16",
             "1:1",
             "4:3",
-            "3:4",
-            "21:9"
+            "3:4"
           ]
         },
         "resolution": {
-          "default": "720p",
+          "default": "480p",
           "options": [
-            "720p"
+            "480p"
           ]
         }
       },
@@ -4642,7 +3931,7 @@
           "Fk",
           "Seedance 2.5"
         ],
-        "order": 1020,
+        "order": 1026,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -5241,563 +4530,6 @@
         ]
       }
     },
-    "jiucaihezi/gemini-3-pro-image-preview": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Gemini 3 Pro Image via 韭菜盒子",
-      "display_name": "Gemini 3 Pro Image · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gemini-3-pro-image-preview",
-      "inputs": {},
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "2048x2048",
-            "2048x1152",
-            "1152x2048",
-            "2048x1536",
-            "1536x2048",
-            "3840x2160",
-            "2160x3840"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 999,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2-1k": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2-1k",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1002,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2-菠萝": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2-菠萝",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "quality": {
-          "default": "high",
-          "options": [
-            "high",
-            "medium",
-            "low"
-          ]
-        },
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 993,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-1k": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 via 韭菜盒子",
-      "display_name": "GPT Image 2.5 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-1k",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/gpt-image-2.5-菠萝": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-image-2.5-菠萝",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "quality": {
-          "default": "high",
-          "options": [
-            "high",
-            "medium",
-            "low"
-          ]
-        },
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 994,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/grok-imagine-image-2.0": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
-      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/grok-imagine-image-2.0",
-      "inputs": {
-        "reference_images": {
-          "max": 5,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "2048x2048",
-            "2048x1152",
-            "1152x2048"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1001,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
     "minimax_h3_image_audio_to_video_v2_15s": {
       "backend_env_key": null,
       "capabilities": [
@@ -6006,10 +4738,10 @@
         ]
       }
     },
-    "rh_minimax_h3_ref_9": {
+    "mj_relax_imagine": {
       "backend_env_key": null,
       "capabilities": [
-        "r2v"
+        "t2i"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -6017,8 +4749,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "RH 渠道 MiniMax H3 多参应用：最多 9 张参考图，1-15 秒，via 韭菜盒子",
-      "display_name": "文武双修 · 韭菜盒子",
+      "description": "T8 Midjourney relax 文生图（newapi-plugins t8-mj 0.3.0，仅文生图、无参考图）。目前网关以 /v1/videos 任务回图，1ok 的图片适配器尚未接入，故为 planned。",
+      "display_name": "Midjourney relax · T8",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -6027,40 +4759,30 @@
           "jiucaihezi"
         ]
       },
-      "duration": {
-        "default": 5,
-        "max": 15,
-        "min": 1,
-        "step": 1,
-        "type": "slider"
-      },
+      "duration": null,
       "family": "jiucaihezi",
-      "id": "rh_minimax_h3_ref_9",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
+      "id": "mj_relax_imagine",
+      "inputs": {},
       "params": {
         "negativePrompt": false,
         "promptExtend": false,
         "ratio": {
-          "default": "9:16",
+          "default": "1:1",
           "options": [
+            "1:1",
             "16:9",
             "9:16",
-            "1:1",
             "4:3",
             "3:4",
             "3:2",
-            "2:3",
-            "21:9"
+            "2:3"
           ]
-        }
+        },
+        "seed": false,
+        "watermark": false
       },
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
@@ -6069,7 +4791,7 @@
           "gateway": "jiucaihezi"
         }
       },
-      "status": "active",
+      "status": "planned",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -6086,26 +4808,26 @@
       },
       "ui": {
         "badges": [
-          "韭菜盒子",
-          "MiniMax"
+          "T8",
+          "Midjourney"
         ],
-        "order": 1003,
+        "order": 1030,
         "recommended": false,
-        "selection_group": "r2v",
+        "selection_group": "image",
         "visible_in": [
           "project_settings",
           "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
     },
-    "sd2.5-a": {
+    "yl_cm_73": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -6113,8 +4835,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
+      "description": "源流 AI Seedance 2.5 (RK-02)，480p ¥0.6/秒 · 720p ¥0.8/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (RK-02)",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -6131,11 +4853,19 @@
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "sd2.5-a",
+      "id": "yl_cm_73",
       "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
         "reference_images": {
           "max": 30,
           "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
+          "reference_type": "video"
         }
       },
       "params": {
@@ -6145,29 +4875,31 @@
         "ratio": {
           "default": "16:9",
           "options": [
-            "1:1",
             "16:9",
             "9:16",
+            "1:1",
             "4:3",
-            "3:4"
+            "3:4",
+            "21:9"
           ]
         },
         "resolution": {
           "default": "720p",
           "options": [
+            "480p",
             "720p"
           ]
         }
       },
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
+          "video_contract": "fk_video"
         }
       },
       "status": "active",
@@ -6187,9 +4919,564 @@
       },
       "ui": {
         "badges": [
-          "满血Seedance2.5"
+          "源流",
+          "Seedance"
         ],
-        "order": 1008,
+        "order": 1043,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "yl_g7zy_seedance_v2_5_s": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 (LJ-02)，¥0.5/秒，5–30 秒；参考图片 30、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (LJ-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 5,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "yl_g7zy_seedance_v2_5_s",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "auto",
+            "1:1",
+            "3:4",
+            "4:3",
+            "9:16",
+            "16:9",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1041,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "yl_pp_mj_sd25_30010": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 720p (QN-12)，480p/720p ¥0.6/秒 · 1080p ¥1/秒，4–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 720p (QN-12)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "yl_pp_mj_sd25_30010",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1042,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "yl_seedance-2-0_ba0687ff09f2": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0(HD)，¥4/次，10/15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 10,
+        "options": [
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "yl_seedance-2-0_ba0687ff09f2",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1045,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "yl_seedance-2-5_6caffaca7390": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5(HD)，¥6/次，10–30 秒；参考图片 10、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 10,
+        "max": 30,
+        "min": 10,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "yl_seedance-2-5_6caffaca7390",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1040,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "yl_zh_tt_sedanco_2_0_720": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0 720P (YC-02)，¥0.4/秒，5–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0 720P (YC-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 15,
+        "min": 5,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "yl_zh_tt_sedanco_2_0_720",
+      "inputs": {
+        "reference_audios": {
+          "max": 3,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 3,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1044,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -6296,101 +5583,6 @@
     }
   },
   "modes": {
-    "jiucaihezi/SD-2.5-特价#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图",
-      "display_name": "Sd 2.5 特价 30 秒 · 2.5 元/次",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "type": "fixed",
-        "value": 30
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/SD-2.5-特价#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "SD-2.5-特价",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/SD-2.5-特价",
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1009,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "jiucaihezi/claude-fable-5-1#text": {
       "backend_env_key": null,
       "capabilities": [
@@ -6523,315 +5715,6 @@
         "visible_in": [
           "project_settings",
           "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/cvk-2.5-1080#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 1080P · 1.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-1080#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "cvk-2.5-1080",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/cvk-2.5-1080",
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "1080p",
-          "options": [
-            "1080p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1006,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/cvk-2.5-480#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 480P · 0.5 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-480#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "cvk-2.5-480",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/cvk-2.5-480",
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "480p",
-          "options": [
-            "480p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1010,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/cvk-2.5-720#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5 720P · 0.75 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/cvk-2.5-720#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "cvk-2.5-720",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/cvk-2.5-720",
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "1:1",
-            "16:9",
-            "9:16",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "满血Seedance2.5"
-        ],
-        "order": 1007,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
@@ -7601,13 +6484,12 @@
         ]
       }
     },
-    "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v": {
+    "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v",
-        "v2v"
+        "r2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -7615,8 +6497,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "官方渠道-Seedance2.5满血720p，1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 官方 720P · 1 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（9图），¥2/次，固定 15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（9图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -7626,31 +6508,28 @@
         ]
       },
       "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
+        "type": "fixed",
+        "value": 15
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98#r2v",
+      "id": "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93#r2v",
       "inputs": {
         "reference_audios": {
-          "max": 10,
+          "max": 0,
           "reference_type": "audio"
         },
         "reference_images": {
-          "max": 30,
+          "max": 9,
           "reference_type": "image"
         },
         "reference_videos": {
-          "max": 10,
+          "max": 0,
           "reference_type": "video"
         }
       },
-      "legacy_model_id": "ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
+      "legacy_model_id": "ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-451adae35b0c4a3d275c2c46394abc98",
+      "model_line_id": "jiucaihezi/ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93",
       "params": {
         "audio": false,
         "negativePrompt": false,
@@ -7659,11 +6538,7 @@
           "default": "16:9",
           "options": [
             "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
+            "9:16"
           ]
         },
         "resolution": {
@@ -7704,7 +6579,7 @@
           "Fk",
           "Seedance 2.5"
         ],
-        "order": 1026,
+        "order": 1025,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -7715,12 +6590,13 @@
         ]
       }
     },
-    "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f#r2v": {
+    "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -7728,8 +6604,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "XZ-Seedance 2.5 720p(9图参考)，0.1 元/秒，4–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk XZ Sd 2.5 720P · 0.1 元/秒",
+      "description": "特价渠道 MiniMax H3 480p-1080p，480p ¥0.06/秒 · 720p/768p ¥0.07/秒 · 1080p ¥0.25/秒，4–30 秒；参考图片 9、视频 1、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 MiniMax H3 480p-1080p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -7746,10 +6622,10 @@
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f#r2v",
+      "id": "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628#r2v",
       "inputs": {
         "reference_audios": {
-          "max": 0,
+          "max": 3,
           "reference_type": "audio"
         },
         "reference_images": {
@@ -7757,13 +6633,126 @@
           "reference_type": "image"
         },
         "reference_videos": {
-          "max": 0,
+          "max": 1,
           "reference_type": "video"
         }
       },
-      "legacy_model_id": "ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
+      "legacy_model_id": "ft-video-v1-1eb6d53a32efa02adf7ae338f3239628",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f",
+      "model_line_id": "jiucaihezi/ft-video-v1-1eb6d53a32efa02adf7ae338f3239628",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p",
+            "720p",
+            "768p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "MiniMax H3"
+        ],
+        "order": 1020,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考），720p ¥8/次 · 1080p ¥12/次，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720-1080p（全能参考）",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 30,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b",
       "params": {
         "audio": false,
         "negativePrompt": false,
@@ -7781,6 +6770,235 @@
         "resolution": {
           "default": "720p",
           "options": [
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "Seedance 2.5"
+        ],
+        "order": 1027,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "特价渠道 Seedance 2.0 满血 480p (933)，¥2/次，4–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.0 满血 480p (933)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "max": 15,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 3,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 3,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "ft-video-v1-43644108aaba72b7cbad4cd322737f6c",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/ft-video-v1-43644108aaba72b7cbad4cd322737f6c",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "480p",
+          "options": [
+            "480p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "Fk",
+          "Seedance 2.5"
+        ],
+        "order": 1024,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "XN2-Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，15–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "XN2-Seedance 2.5 满血 480-720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "max": 30,
+        "min": 15,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "ft-video-v1-756e0feb4b3e1f893726314109762123",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/ft-video-v1-756e0feb4b3e1f893726314109762123",
+      "params": {
+        "audio": false,
+        "maxPromptLength": 10000,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
             "720p"
           ]
         }
@@ -7827,234 +7045,6 @@
         ]
       }
     },
-    "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v",
-        "v2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "XN1-Seedance 2.5满血 480-720p，480p 0.5 / 720p 1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN1 Sd 2.5 480/720P",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 30,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb#r2v",
-      "inputs": {
-        "reference_audios": {
-          "max": 10,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 10,
-          "reference_type": "video"
-        }
-      },
-      "legacy_model_id": "ft-video-v1-7393b0529b788d532d031dcac5e820cb",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-7393b0529b788d532d031dcac5e820cb",
-      "params": {
-        "audio": false,
-        "maxPromptLength": 15000,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "480p",
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "Seedance 2.5"
-        ],
-        "order": 1024,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "特价渠道 MiniMax H3-768p，0.08 元/秒，1–15 秒；参考图片 9、视频 0、音频 3。登记合同，实扣以账单为准。",
-      "display_name": "Fk MiniMax H3 768P · 0.08 元/秒",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 15,
-        "min": 1,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746#r2v",
-      "inputs": {
-        "reference_audios": {
-          "max": 3,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 0,
-          "reference_type": "video"
-        }
-      },
-      "legacy_model_id": "ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746",
-      "params": {
-        "audio": false,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4"
-          ]
-        },
-        "resolution": {
-          "default": "768p",
-          "options": [
-            "768p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "MiniMax H3"
-        ],
-        "order": 1027,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "jiucaihezi/ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70#r2v": {
       "backend_env_key": null,
       "capabilities": [
@@ -8068,8 +7058,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道Seedance2.5满血720p(可过真人)，0.4 元/秒，15–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 真人 720P · 0.4 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 720p（可过真人），¥5/次，固定 30 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 720p（可过真人）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -8079,12 +7069,8 @@
         ]
       },
       "duration": {
-        "default": 15,
-        "options": [
-          15,
-          30
-        ],
-        "type": "buttons"
+        "type": "fixed",
+        "value": 30
       },
       "family": "jiucaihezi",
       "id": "jiucaihezi/ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70#r2v",
@@ -8168,122 +7154,7 @@
         ]
       }
     },
-    "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "XN2-Seedance 2.5满血 480-720p，480p 0.5 / 720p 0.8 元/秒，4–29 秒；参考图片 30、视频 0、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk XN2 Sd 2.5 480/720P",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 29,
-        "min": 4,
-        "step": 1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4#r2v",
-      "inputs": {
-        "reference_audios": {
-          "max": 10,
-          "reference_type": "audio"
-        },
-        "reference_images": {
-          "max": 30,
-          "reference_type": "image"
-        },
-        "reference_videos": {
-          "max": 0,
-          "reference_type": "video"
-        }
-      },
-      "legacy_model_id": "ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4",
-      "params": {
-        "audio": false,
-        "maxPromptLength": 9999,
-        "negativePrompt": false,
-        "promptExtend": false,
-        "ratio": {
-          "default": "16:9",
-          "options": [
-            "16:9",
-            "9:16",
-            "1:1",
-            "4:3",
-            "3:4",
-            "21:9"
-          ]
-        },
-        "resolution": {
-          "default": "720p",
-          "options": [
-            "480p",
-            "720p"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi",
-          "video_contract": "fk_video"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "Fk",
-          "Seedance 2.5"
-        ],
-        "order": 1025,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d#r2v": {
+    "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
@@ -8297,8 +7168,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "长期特惠Seedance2.5满血720p，0.2 元/秒，30–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 长期特惠 30 秒 · 0.2 元/秒",
+      "description": "Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "Seedance 2.5 满血 480-720p",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -8308,11 +7179,14 @@
         ]
       },
       "duration": {
-        "type": "fixed",
-        "value": 30
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d#r2v",
+      "id": "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848#r2v",
       "inputs": {
         "reference_audios": {
           "max": 10,
@@ -8327,12 +7201,12 @@
           "reference_type": "video"
         }
       },
-      "legacy_model_id": "ft-video-v1-bdf45387433ac0a9042ebab3fae0299d",
+      "legacy_model_id": "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-bdf45387433ac0a9042ebab3fae0299d",
+      "model_line_id": "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
       "params": {
         "audio": false,
-        "maxPromptLength": 6000,
+        "maxPromptLength": 10000,
         "negativePrompt": false,
         "promptExtend": false,
         "ratio": {
@@ -8342,13 +7216,13 @@
             "9:16",
             "1:1",
             "4:3",
-            "3:4",
-            "21:9"
+            "3:4"
           ]
         },
         "resolution": {
           "default": "720p",
           "options": [
+            "480p",
             "720p"
           ]
         }
@@ -8395,7 +7269,7 @@
         ]
       }
     },
-    "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563#r2v": {
+    "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
@@ -8408,8 +7282,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "特价渠道-Seedance2.5满血720p(30图)，0.1 元/秒，4–30 秒；参考图片 30、视频 0、音频 0。登记合同，实扣以账单为准。",
-      "display_name": "Fk Sd 2.5 特价 720P · 0.1 元/秒",
+      "description": "特价渠道 Seedance 2.5 满血 480p（10图），¥3.5/次，4–30 秒；参考图片 10、视频 0、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。",
+      "display_name": "特价渠道 Seedance 2.5 满血 480p（10图）",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -8419,21 +7293,21 @@
         ]
       },
       "duration": {
-        "default": 5,
+        "default": 30,
         "max": 30,
         "min": 4,
         "step": 1,
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563#r2v",
+      "id": "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff#r2v",
       "inputs": {
         "reference_audios": {
-          "max": 0,
+          "max": 3,
           "reference_type": "audio"
         },
         "reference_images": {
-          "max": 30,
+          "max": 10,
           "reference_type": "image"
         },
         "reference_videos": {
@@ -8441,9 +7315,9 @@
           "reference_type": "video"
         }
       },
-      "legacy_model_id": "ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563",
+      "legacy_model_id": "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563",
+      "model_line_id": "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
       "params": {
         "audio": false,
         "negativePrompt": false,
@@ -8455,14 +7329,13 @@
             "9:16",
             "1:1",
             "4:3",
-            "3:4",
-            "21:9"
+            "3:4"
           ]
         },
         "resolution": {
-          "default": "720p",
+          "default": "480p",
           "options": [
-            "720p"
+            "480p"
           ]
         }
       },
@@ -8497,7 +7370,7 @@
           "Fk",
           "Seedance 2.5"
         ],
-        "order": 1020,
+        "order": 1026,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [
@@ -9114,581 +7987,6 @@
         ]
       }
     },
-    "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Gemini 3 Pro Image via 韭菜盒子",
-      "display_name": "Gemini 3 Pro Image · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview#image",
-      "inputs": {},
-      "legacy_model_id": "jiucaihezi/gemini-3-pro-image-preview",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gemini-3-pro-image-preview",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "2048x2048",
-            "2048x1152",
-            "1152x2048",
-            "2048x1536",
-            "1536x2048",
-            "3840x2160",
-            "2160x3840"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 999,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2-1k#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2，固定 1K，via 韭菜盒子",
-      "display_name": "GPT Image 2 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2-1k#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2-1k",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2-1k",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1002,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2-菠萝",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2-菠萝",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "quality": {
-          "default": "high",
-          "options": [
-            "high",
-            "medium",
-            "low"
-          ]
-        },
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 993,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 via 韭菜盒子",
-      "display_name": "GPT Image 2.5 1K · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-1k",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-1k",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "GPT Image 2.5 菠萝，1K/2K/4K + 质量档，via 韭菜盒子",
-      "display_name": "GPT Image 2.5 菠萝 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝#image",
-      "inputs": {
-        "reference_images": {
-          "max": 16,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/gpt-image-2.5-菠萝",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/gpt-image-2.5-菠萝",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "quality": {
-          "default": "high",
-          "options": [
-            "high",
-            "medium",
-            "low"
-          ]
-        },
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "1024x768",
-            "768x1024",
-            "1024x576",
-            "576x1024"
-          ],
-          "resolutions": [
-            "1K",
-            "2K",
-            "4K"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 994,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image": {
-      "backend_env_key": null,
-      "capabilities": [
-        "t2i",
-        "i2i"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Grok Imagine Image 2.0 via 韭菜盒子",
-      "display_name": "Grok Imagine Image 2.0 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0#image",
-      "inputs": {
-        "reference_images": {
-          "max": 5,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jiucaihezi/grok-imagine-image-2.0",
-      "mode": "image",
-      "model_line_id": "jiucaihezi/jiucaihezi/grok-imagine-image-2.0",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "seed": false,
-        "size": {
-          "default": "1024x1024",
-          "options": [
-            "1024x1024",
-            "1536x1024",
-            "1024x1536",
-            "2048x2048",
-            "2048x1152",
-            "1152x2048"
-          ]
-        },
-        "watermark": false
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1001,
-        "recommended": false,
-        "selection_group": "image",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
     "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v": {
       "backend_env_key": null,
       "capabilities": [
@@ -9903,10 +8201,10 @@
         ]
       }
     },
-    "jiucaihezi/rh_minimax_h3_ref_9#r2v": {
+    "jiucaihezi/mj_relax_imagine#image": {
       "backend_env_key": null,
       "capabilities": [
-        "r2v"
+        "t2i"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -9914,8 +8212,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "RH 渠道 MiniMax H3 多参应用：最多 9 张参考图，1-15 秒，via 韭菜盒子",
-      "display_name": "文武双修 · 韭菜盒子",
+      "description": "T8 Midjourney relax 文生图（newapi-plugins t8-mj 0.3.0，仅文生图、无参考图）。目前网关以 /v1/videos 任务回图，1ok 的图片适配器尚未接入，故为 planned。",
+      "display_name": "Midjourney relax · T8",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -9924,43 +8222,33 @@
           "jiucaihezi"
         ]
       },
-      "duration": {
-        "default": 5,
-        "max": 15,
-        "min": 1,
-        "step": 1,
-        "type": "slider"
-      },
+      "duration": null,
       "family": "jiucaihezi",
-      "id": "jiucaihezi/rh_minimax_h3_ref_9#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "rh_minimax_h3_ref_9",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/rh_minimax_h3_ref_9",
+      "id": "jiucaihezi/mj_relax_imagine#image",
+      "inputs": {},
+      "legacy_model_id": "mj_relax_imagine",
+      "mode": "image",
+      "model_line_id": "jiucaihezi/mj_relax_imagine",
       "params": {
         "negativePrompt": false,
         "promptExtend": false,
         "ratio": {
-          "default": "9:16",
+          "default": "1:1",
           "options": [
+            "1:1",
             "16:9",
             "9:16",
-            "1:1",
             "4:3",
             "3:4",
             "3:2",
-            "2:3",
-            "21:9"
+            "2:3"
           ]
-        }
+        },
+        "seed": false,
+        "watermark": false
       },
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
@@ -9969,7 +8257,7 @@
           "gateway": "jiucaihezi"
         }
       },
-      "status": "active",
+      "status": "planned",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -9986,26 +8274,26 @@
       },
       "ui": {
         "badges": [
-          "韭菜盒子",
-          "MiniMax"
+          "T8",
+          "Midjourney"
         ],
-        "order": 1003,
+        "order": 1030,
         "recommended": false,
-        "selection_group": "r2v",
+        "selection_group": "image",
         "visible_in": [
           "project_settings",
           "series_settings",
-          "video_sidebar",
           "global_settings"
         ]
       }
     },
-    "jiucaihezi/sd2.5-a#r2v": {
+    "jiucaihezi/yl_cm_73#r2v": {
       "backend_env_key": null,
       "capabilities": [
         "t2v",
         "i2v",
-        "r2v"
+        "r2v",
+        "v2v"
       ],
       "credential_sources": {
         "jiucaihezi": [
@@ -10013,8 +8301,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图",
-      "display_name": "Sd 2.5-a 720P · 0.5 元/秒",
+      "description": "源流 AI Seedance 2.5 (RK-02)，480p ¥0.6/秒 · 720p ¥0.8/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (RK-02)",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -10031,16 +8319,24 @@
         "type": "slider"
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/sd2.5-a#r2v",
+      "id": "jiucaihezi/yl_cm_73#r2v",
       "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
         "reference_images": {
           "max": 30,
           "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
+          "reference_type": "video"
         }
       },
-      "legacy_model_id": "sd2.5-a",
+      "legacy_model_id": "yl_cm_73",
       "mode": "r2v",
-      "model_line_id": "jiucaihezi/sd2.5-a",
+      "model_line_id": "jiucaihezi/yl_cm_73",
       "params": {
         "audio": false,
         "negativePrompt": false,
@@ -10048,29 +8344,31 @@
         "ratio": {
           "default": "16:9",
           "options": [
-            "1:1",
             "16:9",
             "9:16",
+            "1:1",
             "4:3",
-            "3:4"
+            "3:4",
+            "21:9"
           ]
         },
         "resolution": {
           "default": "720p",
           "options": [
+            "480p",
             "720p"
           ]
         }
       },
       "provider": "jiucaihezi",
-      "release_stage": "stable",
+      "release_stage": "preview",
       "routing_prefixes": [
         "jiucaihezi/"
       ],
       "runtime": {
         "jiucaihezi": {
           "gateway": "jiucaihezi",
-          "video_contract": "lingdong_seedance25"
+          "video_contract": "fk_video"
         }
       },
       "status": "active",
@@ -10090,9 +8388,579 @@
       },
       "ui": {
         "badges": [
-          "满血Seedance2.5"
+          "源流",
+          "Seedance"
         ],
-        "order": 1008,
+        "order": 1043,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/yl_g7zy_seedance_v2_5_s#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 (LJ-02)，¥0.5/秒，5–30 秒；参考图片 30、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 (LJ-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 5,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_g7zy_seedance_v2_5_s#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "yl_g7zy_seedance_v2_5_s",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/yl_g7zy_seedance_v2_5_s",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "auto",
+            "1:1",
+            "3:4",
+            "4:3",
+            "9:16",
+            "16:9",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1041,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/yl_pp_mj_sd25_30010#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5 720p (QN-12)，480p/720p ¥0.6/秒 · 1080p ¥1/秒，4–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5 720p (QN-12)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_pp_mj_sd25_30010#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 10,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "yl_pp_mj_sd25_30010",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/yl_pp_mj_sd25_30010",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "1:1",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1042,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/yl_seedance-2-0_ba0687ff09f2#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0(HD)，¥4/次，10/15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 10,
+        "options": [
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_seedance-2-0_ba0687ff09f2#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "yl_seedance-2-0_ba0687ff09f2",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/yl_seedance-2-0_ba0687ff09f2",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1045,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/yl_seedance-2-5_6caffaca7390#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance 2.5(HD)，¥6/次，10–30 秒；参考图片 10、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance 2.5(HD)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 10,
+        "max": 30,
+        "min": 10,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_seedance-2-5_6caffaca7390#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "yl_seedance-2-5_6caffaca7390",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/yl_seedance-2-5_6caffaca7390",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "adaptive",
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1040,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/yl_zh_tt_sedanco_2_0_720#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v",
+        "v2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "源流 AI Seedance2.0 720P (YC-02)，¥0.4/秒，5–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。",
+      "display_name": "Seedance2.0 720P (YC-02)",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 15,
+        "min": 5,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/yl_zh_tt_sedanco_2_0_720#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 3,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 3,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "yl_zh_tt_sedanco_2_0_720",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/yl_zh_tt_sedanco_2_0_720",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "源流",
+          "Seedance"
+        ],
+        "order": 1044,
         "recommended": false,
         "selection_group": "r2v",
         "visible_in": [

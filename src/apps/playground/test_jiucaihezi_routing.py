@@ -47,7 +47,7 @@ class JiucaiheziRoutingTest(unittest.TestCase):
     def test_v2v_reference_video_reaches_video_adapter(self):
         service = PlaygroundService(Mock())
         service._jiucaihezi_video_model = Mock()
-        gen = _generation("ft-video-v1-451adae35b0c4a3d275c2c46394abc98", PlaygroundMode.V2V)
+        gen = _generation("ft-video-v1-b8a797753dd4c6bf8e5a69820b293848", PlaygroundMode.V2V)
         gen.input_media = ["output/playground/videos/source.mp4"]
         service._generate_video_jiucaihezi(gen, "/tmp/out.mp4")
         kwargs = service._jiucaihezi_video_model.generate.call_args.kwargs

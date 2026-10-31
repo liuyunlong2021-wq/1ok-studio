@@ -54,26 +54,26 @@ const VIDEO_MODELS = Object.entries(rawCatalog.models).filter(
 describe('视频模型参数契约', () => {
     it('目录里确实有视频模型（防止下面的断言空跑）', () => {
         expect(VIDEO_MODELS.map(([id]) => id).sort()).toEqual([
-            'SD-2.5-特价',
-            'cvk-2.5-1080',
-            'cvk-2.5-480',
-            'cvk-2.5-720',
             'dola-seedance2.5',
-            'ft-video-v1-451adae35b0c4a3d275c2c46394abc98',
-            'ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f',
-            'ft-video-v1-7393b0529b788d532d031dcac5e820cb',
-            'ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746',
+            'ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93',
+            'ft-video-v1-1eb6d53a32efa02adf7ae338f3239628',
+            'ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b',
+            'ft-video-v1-43644108aaba72b7cbad4cd322737f6c',
+            'ft-video-v1-756e0feb4b3e1f893726314109762123',
             'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70',
-            'ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4',
-            'ft-video-v1-bdf45387433ac0a9042ebab3fae0299d',
-            'ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563',
+            'ft-video-v1-b8a797753dd4c6bf8e5a69820b293848',
+            'ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff',
             'jc-minimax-h3',
             'jc-minimax-h3-director8',
             'jc-minimax-h3-ref2v',
             'minimax_h3_image_audio_to_video_v2_15s',
             'minimax_h3_zm_u24',
-            'rh_minimax_h3_ref_9',
-            'sd2.5-a',
+            'yl_cm_73',
+            'yl_g7zy_seedance_v2_5_s',
+            'yl_pp_mj_sd25_30010',
+            'yl_seedance-2-0_ba0687ff09f2',
+            'yl_seedance-2-5_6caffaca7390',
+            'yl_zh_tt_sedanco_2_0_720',
             '海seedance2.5',
         ]);
     });
@@ -118,17 +118,6 @@ describe('视频模型参数契约', () => {
         expect(h3.duration.type).toBe('slider');
     });
 
-    it('RH 渠道应用（文武双修）只有 8 个比例、9 张参考图，不接受音频', () => {
-        const model = catalogModel('rh_minimax_h3_ref_9');
-        expect(model.duration).toEqual({ type: 'slider', min: 1, max: 15, step: 1, default: 5 });
-        expect(model.params.ratio.options).toHaveLength(8);
-        expect(model.params.ratio.default).toBe('9:16');
-        // 画幅由 ratio 单独决定：宁可不声明 resolution，也不编一个网关不认的档位出来。
-        expect(model.params.resolution).toBeUndefined();
-        // 这个应用只收参考图，不收参考音频。
-        expect(model.params.audio).toBeUndefined();
-        expect(model.inputs.reference_images.max).toBe(9);
-    });
 });
 
 // ── GRID_COLS_CLASS 映射 ───────────────────────────────────────────────

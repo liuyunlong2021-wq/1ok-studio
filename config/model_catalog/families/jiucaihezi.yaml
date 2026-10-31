@@ -60,149 +60,6 @@ models:
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: true, badges: [韭菜盒子]}
-  - id: jiucaihezi/gpt-image-2.5-1k
-    display_name: "GPT Image 2.5 1K · 韭菜盒子"
-    description: "GPT Image 2.5 via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {official_snapshot_ids: [jiucaihezi/images], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui:
-      selection_group: image
-      visible_in: [project_settings, series_settings, global_settings]
-      order: 1000
-      recommended: false
-      badges: [韭菜盒子]
-    params: &gpt_image_params_1k
-      # 像素尺寸的事实源在前端 frontend/src/lib/imageSizePresets.ts（一张表管住 17 个比例
-      # × 1K/2K/4K）。目录只声明「这个模型支持哪几档分辨率」，不要再把像素枚举一遍。
-      # options 仅为旧版单下拉的兼容回退，新 UI 不看它。
-      size:
-        resolutions: ["1K"]
-        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
-        default: "1024x1024"
-      negativePrompt: false
-      seed: false
-      promptExtend: false
-      watermark: false
-    # 上游 /v1/images/edits 最多接 16 张参考图。只声明在本模型上：同家族的
-    # gemini / grok 是别的上游模型，上限各不相同，不能跟着锚点套。
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/gemini-3-pro-image-preview
-    display_name: "Gemini 3 Pro Image · 韭菜盒子"
-    description: "Gemini 3 Pro Image via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {official_snapshot_ids: [jiucaihezi/images], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui:
-      selection_group: image
-      visible_in: [project_settings, series_settings, global_settings]
-      order: 999
-      recommended: false
-      badges: [韭菜盒子]
-    # gemini 自己的尺寸集，跟 GPT Image 2.5 的 17 比例表不同，所以不给它 resolutions，
-    # 它会继续走旧的单下拉 UI。
-    params:
-      size:
-        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048", "2048x1536", "1536x2048", "3840x2160", "2160x3840"]
-        default: "1024x1024"
-      negativePrompt: false
-      seed: false
-      promptExtend: false
-      watermark: false
-  # 2 系列（无 .5）：网关上是与 2.5 并存的独立通道。旧默认出图模型是
-  # gpt-image-2-1k；当前默认值由 catalog.meta.yaml 声明。
-  - id: jiucaihezi/gpt-image-2-1k
-    display_name: "GPT Image 2 1K · 韭菜盒子"
-    description: "GPT Image 2，固定 1K，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1002, recommended: false, badges: [韭菜盒子]}
-    params: *gpt_image_params_1k
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  # 菠萝通道的 2 系列：与 2.5-菠萝 同规格 —— 1K/2K/4K + 17 比例表 + 质量档。
-  # 菠萝通道自身就支持选质量，质量档是**请求参数**（网关另有两个
-  # `gpt-image-2-中质量` / `gpt-image-2-低质量`，那是把档位预设好的整包模型 id，
-  # 跟这个参数不冲突 —— 别拿它们反推「这个模型不吃 quality」）。
-  - id: jiucaihezi/gpt-image-2-菠萝
-    display_name: "GPT Image 2 菠萝 · 韭菜盒子"
-    description: "GPT Image 2 菠萝，1K/2K/4K + 质量档，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 993, recommended: false, badges: [韭菜盒子]}
-    params:
-      size:
-        resolutions: ["1K", "2K", "4K"]
-        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
-        default: "1024x1024"
-      quality:
-        options: ["high", "medium", "low"]
-        default: "high"
-      negativePrompt: false
-      seed: false
-      promptExtend: false
-      watermark: false
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/gpt-image-2.5-菠萝
-    display_name: "GPT Image 2.5 菠萝 · 韭菜盒子"
-    description: "GPT Image 2.5 菠萝，1K/2K/4K + 质量档，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
-    params:
-      # 1K/2K/4K + 17 比例表，外加质量档：这是本目录里第一个
-      # 暴露 quality 的模型（网关接受 high/medium/low）。Playground 的 ParameterBar
-      # 看到 quality 才渲染「质量」下拉；值经 playground service → JiucaiheziImageModel
-      # 转给网关，三处缺一不可。
-      size:
-        resolutions: ["1K", "2K", "4K"]
-        options: ["1024x1024", "1536x1024", "1024x1536", "1024x768", "768x1024", "1024x576", "576x1024"]
-        default: "1024x1024"
-      quality:
-        options: ["high", "medium", "low"]
-        default: "high"
-      negativePrompt: false
-      seed: false
-      promptExtend: false
-      watermark: false
-    inputs:
-      reference_images: {max: 16, reference_type: image}
-  - id: jiucaihezi/grok-imagine-image-2.0
-    display_name: "Grok Imagine Image 2.0 · 韭菜盒子"
-    description: "Grok Imagine Image 2.0 via 韭菜盒子"
-    status: active
-    release_stage: stable
-    capabilities: [t2i, i2i]
-    docs: {official_snapshot_ids: [jiucaihezi/grok-image-2], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: image, visible_in: [project_settings, series_settings, global_settings], order: 1001, recommended: false, badges: [韭菜盒子]}
-    params:
-      size:
-        options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048", "2048x1152", "1152x2048"]
-        default: "1024x1024"
-      negativePrompt: false
-      seed: false
-      promptExtend: false
-      watermark: false
-    inputs:
-      reference_images: {max: 5, reference_type: image}
-  # UI 显示 FK 请求名；目录 ID 保留 NewAPI 唯一可用的真实上游 ID，
-  # JiucaiheziImageModel 会原样发送这个 ID，不向 NewAPI 发送 FK 别名。
   - id: ft-image-v1-211f28f47b0355abb1798f72eb65f22d
     display_name: "FK-image2"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d"
@@ -494,132 +351,16 @@ models:
   # 用 `extra_fields.webappId`（写编号）选应用 —— 所以目录里只能按应用分开取 id，
   # 到了请求那一步才换成 rh-aiapp + 编号（见 models/jiucaihezi.py 的 _RH_WEBAPP_IDS）。
   # 对外合同：jiucaihezi-app/docs/wiki/运维/韭菜盒子RH渠道MiniMaxH3视频API对外接入-2026-09-21.md
-  - id: rh_minimax_h3_ref_9
-    display_name: "文武双修 · 韭菜盒子"
-    description: "RH 渠道 MiniMax H3 多参应用：最多 9 张参考图，1-15 秒，via 韭菜盒子"
-    status: active
-    release_stage: stable
-    # 这个应用只做「多张参考图生视频」：不收参考音频，也不做文生视频。
-    capabilities: [r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/minimax-h3], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui:
-      selection_group: r2v
-      visible_in: [project_settings, series_settings, video_sidebar, global_settings]
-      order: 1003
-      recommended: false
-      badges: [韭菜盒子, MiniMax]
-    duration: {type: slider, min: 1, max: 15, step: 1, default: 5}
-    params:
-      # RH 应用原生就这 8 个比例，画幅由 ratio 单独决定 —— 没有 resolution 这一层，
-      # 所以不声明；UI 两处渲染都有 `modelParams.resolution &&` 守卫。
-      ratio: {options: ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"], default: "9:16"}
-      negativePrompt: false
-      promptExtend: false
-    inputs:
-      reference_images: {max: 9, reference_type: image}
-
-  # 灵动（满血）Seedance 2.5：公开 /v1/videos 合同，参考素材仅图片。
-  - id: "cvk-2.5-480"
-    display_name: "Sd 2.5 480P · 0.5 元/秒"
-    description: "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图"
-    status: active
-    release_stage: stable
-    capabilities: [t2v, i2v, r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
-    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1010, recommended: false, badges: [满血Seedance2.5]}
-    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
-    params:
-      resolution: {options: [480p], default: 480p}
-      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
-      negativePrompt: false
-      promptExtend: false
-      audio: false
-    inputs:
-      reference_images: {max: 30, reference_type: image}
-  - id: "SD-2.5-特价"
-    display_name: "Sd 2.5 特价 30 秒 · 2.5 元/次"
-    description: "满血 Seedance 2.5，2.5 元/次，固定 30 秒，最多 9 张参考图"
-    status: active
-    release_stage: stable
-    capabilities: [t2v, i2v, r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
-    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1009, recommended: false, badges: [满血Seedance2.5]}
-    duration: {type: fixed, value: 30}
-    params:
-      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9"], default: "16:9"}
-      negativePrompt: false
-      promptExtend: false
-      audio: false
-    inputs:
-      reference_images: {max: 9, reference_type: image}
-  - id: "sd2.5-a"
-    display_name: "Sd 2.5-a 720P · 0.5 元/秒"
-    description: "满血 Seedance 2.5，0.5 元/秒，4–30 秒，最多 30 张参考图"
-    status: active
-    release_stage: stable
-    capabilities: [t2v, i2v, r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
-    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1008, recommended: false, badges: [满血Seedance2.5]}
-    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
-    params:
-      resolution: {options: [720p], default: 720p}
-      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
-      negativePrompt: false
-      promptExtend: false
-      audio: false
-    inputs:
-      reference_images: {max: 30, reference_type: image}
-  - id: "cvk-2.5-720"
-    display_name: "Sd 2.5 720P · 0.75 元/秒"
-    description: "满血 Seedance 2.5，0.75 元/秒，4–30 秒，最多 30 张参考图"
-    status: active
-    release_stage: stable
-    capabilities: [t2v, i2v, r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
-    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1007, recommended: false, badges: [满血Seedance2.5]}
-    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
-    params:
-      resolution: {options: [720p], default: 720p}
-      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
-      negativePrompt: false
-      promptExtend: false
-      audio: false
-    inputs:
-      reference_images: {max: 30, reference_type: image}
-  - id: "cvk-2.5-1080"
-    display_name: "Sd 2.5 1080P · 1.5 元/秒"
-    description: "满血 Seedance 2.5，1.5 元/秒，4–30 秒，最多 30 张参考图"
-    status: active
-    release_stage: stable
-    capabilities: [t2v, i2v, r2v]
-    docs: {official_snapshot_ids: [jiucaihezi/lingdong-seedance25], context_hub_doc_ids: [jiucaihezi]}
-    runtime: {jiucaihezi: {gateway: jiucaihezi, video_contract: lingdong_seedance25}}
-    ui: {selection_group: r2v, visible_in: [project_settings, series_settings, video_sidebar, global_settings], order: 1006, recommended: false, badges: [满血Seedance2.5]}
-    duration: {type: slider, min: 4, max: 30, step: 1, default: 5}
-    params:
-      resolution: {options: [1080p], default: 1080p}
-      ratio: {options: ["1:1", "16:9", "9:16", "4:3", "3:4"], default: "16:9"}
-      negativePrompt: false
-      promptExtend: false
-      audio: false
-    inputs:
-      reference_images: {max: 30, reference_type: image}
-
-  # Fk 网关合同，2026-10-06；不改变现有默认模型。
-  - id: ft-video-v1-fe82aee0b8ce5ee1d790a56291dc5563
-    display_name: Fk Sd 2.5 特价 720P · 0.1 元/秒
-    description: 特价渠道-Seedance2.5满血720p(30图)，0.1 元/秒，4–30 秒；参考图片 30、视频 0、音频 0。登记合同，实扣以账单为准。
+  - id: ft-video-v1-1eb6d53a32efa02adf7ae338f3239628
+    display_name: 特价渠道 MiniMax H3 480p-1080p
+    description: 特价渠道 MiniMax H3 480p-1080p，480p ¥0.06/秒 · 720p/768p ¥0.07/秒 · 1080p ¥0.25/秒，4–30 秒；参考图片 9、视频 1、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
     - t2v
     - i2v
     - r2v
+    - v2v
     docs:
       official_snapshot_ids:
       - jiucaihezi/fk-video-2026-10-06
@@ -640,7 +381,7 @@ models:
       recommended: false
       badges:
       - Fk
-      - Seedance 2.5
+      - MiniMax H3
     duration:
       type: slider
       min: 4
@@ -650,33 +391,32 @@ models:
     params:
       resolution:
         options:
+        - 480p
         - 720p
-        default: 720p
+        - 768p
+        - 1080p
+        default: 480p
       ratio:
         options:
         - '16:9'
         - '9:16'
-        - '1:1'
-        - '4:3'
-        - '3:4'
-        - '21:9'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
       audio: false
     inputs:
       reference_images:
-        max: 30
+        max: 9
         reference_type: image
       reference_videos:
-        max: 0
+        max: 1
         reference_type: video
       reference_audios:
-        max: 0
+        max: 3
         reference_type: audio
   - id: ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70
-    display_name: Fk Sd 2.5 真人 720P · 0.4 元/秒
-    description: 特价渠道Seedance2.5满血720p(可过真人)，0.4 元/秒，15–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。
+    display_name: 特价渠道 Seedance 2.5 满血 720p（可过真人）
+    description: 特价渠道 Seedance 2.5 满血 720p（可过真人），¥5/次，固定 30 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -705,11 +445,8 @@ models:
       - Fk
       - Seedance 2.5
     duration:
-      type: buttons
-      options:
-      - 15
-      - 30
-      default: 15
+      type: fixed
+      value: 30
     params:
       resolution:
         options:
@@ -736,9 +473,9 @@ models:
       reference_audios:
         max: 0
         reference_type: audio
-  - id: ft-video-v1-bdf45387433ac0a9042ebab3fae0299d
-    display_name: Fk Sd 2.5 长期特惠 30 秒 · 0.2 元/秒
-    description: 长期特惠Seedance2.5满血720p，0.2 元/秒，30–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。
+  - id: ft-video-v1-b8a797753dd4c6bf8e5a69820b293848
+    display_name: Seedance 2.5 满血 480-720p
+    description: Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -768,11 +505,15 @@ models:
       - Fk
       - Seedance 2.5
     duration:
-      type: fixed
-      value: 30
+      type: slider
+      min: 4
+      max: 30
+      step: 1
+      default: 5
     params:
       resolution:
         options:
+        - 480p
         - 720p
         default: 720p
       ratio:
@@ -782,12 +523,11 @@ models:
         - '1:1'
         - '4:3'
         - '3:4'
-        - '21:9'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
       audio: false
-      maxPromptLength: 6000
+      maxPromptLength: 10000
     inputs:
       reference_images:
         max: 30
@@ -798,9 +538,9 @@ models:
       reference_audios:
         max: 10
         reference_type: audio
-  - id: ft-video-v1-69ef4c70291248a25c8198cd1c7c9c1f
-    display_name: Fk XZ Sd 2.5 720P · 0.1 元/秒
-    description: XZ-Seedance 2.5 720p(9图参考)，0.1 元/秒，4–30 秒；参考图片 9、视频 0、音频 0。登记合同，实扣以账单为准。
+  - id: ft-video-v1-756e0feb4b3e1f893726314109762123
+    display_name: XN2-Seedance 2.5 满血 480-720p
+    description: XN2-Seedance 2.5 满血 480-720p，480p ¥0.4/秒 · 720p ¥0.5/秒，15–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -830,39 +570,41 @@ models:
       - Seedance 2.5
     duration:
       type: slider
-      min: 4
+      min: 15
       max: 30
       step: 1
-      default: 5
+      default: 15
     params:
       resolution:
         options:
+        - 480p
         - 720p
         default: 720p
       ratio:
         options:
         - '16:9'
         - '9:16'
-        - '1:1'
         - '4:3'
         - '3:4'
+        - '1:1'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
       audio: false
+      maxPromptLength: 10000
     inputs:
       reference_images:
-        max: 9
+        max: 30
         reference_type: image
       reference_videos:
         max: 0
         reference_type: video
       reference_audios:
-        max: 0
+        max: 10
         reference_type: audio
-  - id: ft-video-v1-7393b0529b788d532d031dcac5e820cb
-    display_name: Fk XN1 Sd 2.5 480/720P
-    description: XN1-Seedance 2.5满血 480-720p，480p 0.5 / 720p 1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。
+  - id: ft-video-v1-43644108aaba72b7cbad4cd322737f6c
+    display_name: 特价渠道 Seedance 2.0 满血 480p (933)
+    description: 特价渠道 Seedance 2.0 满血 480p (933)，¥2/次，4–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -894,41 +636,39 @@ models:
     duration:
       type: slider
       min: 4
-      max: 30
+      max: 15
       step: 1
-      default: 5
+      default: 15
     params:
       resolution:
         options:
         - 480p
-        - 720p
-        default: 720p
+        default: 480p
       ratio:
         options:
         - '16:9'
         - '9:16'
-        - '1:1'
         - '4:3'
         - '3:4'
+        - '1:1'
         - '21:9'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
       audio: false
-      maxPromptLength: 15000
     inputs:
       reference_images:
-        max: 30
+        max: 9
         reference_type: image
       reference_videos:
-        max: 10
+        max: 3
         reference_type: video
       reference_audios:
-        max: 10
+        max: 3
         reference_type: audio
-  - id: ft-video-v1-9f4e77de6c05f3c360c1c0b9938a44a4
-    display_name: Fk XN2 Sd 2.5 480/720P
-    description: XN2-Seedance 2.5满血 480-720p，480p 0.5 / 720p 0.8 元/秒，4–29 秒；参考图片 30、视频 0、音频 10。登记合同，实扣以账单为准。
+  - id: ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93
+    display_name: 特价渠道 Seedance 2.5 满血 720p（9图）
+    description: 特价渠道 Seedance 2.5 满血 720p（9图），¥2/次，固定 15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -957,50 +697,40 @@ models:
       - Fk
       - Seedance 2.5
     duration:
-      type: slider
-      min: 4
-      max: 29
-      step: 1
-      default: 5
+      type: fixed
+      value: 15
     params:
       resolution:
         options:
-        - 480p
         - 720p
         default: 720p
       ratio:
         options:
         - '16:9'
         - '9:16'
-        - '1:1'
-        - '4:3'
-        - '3:4'
-        - '21:9'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
       audio: false
-      maxPromptLength: 9999
     inputs:
       reference_images:
-        max: 30
+        max: 9
         reference_type: image
       reference_videos:
         max: 0
         reference_type: video
       reference_audios:
-        max: 10
+        max: 0
         reference_type: audio
-  - id: ft-video-v1-451adae35b0c4a3d275c2c46394abc98
-    display_name: Fk Sd 2.5 官方 720P · 1 元/秒
-    description: 官方渠道-Seedance2.5满血720p，1 元/秒，4–30 秒；参考图片 30、视频 10、音频 10。登记合同，实扣以账单为准。
+  - id: ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff
+    display_name: 特价渠道 Seedance 2.5 满血 480p（10图）
+    description: 特价渠道 Seedance 2.5 满血 480p（10图），¥3.5/次，4–30 秒；参考图片 10、视频 0、音频 3。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
     - t2v
     - i2v
     - r2v
-    - v2v
     docs:
       official_snapshot_ids:
       - jiucaihezi/fk-video-2026-10-06
@@ -1027,10 +757,332 @@ models:
       min: 4
       max: 30
       step: 1
+      default: 30
+    params:
+      resolution:
+        options:
+        - 480p
+        default: 480p
+      ratio:
+        options:
+        - '16:9'
+        - '9:16'
+        - '1:1'
+        - '4:3'
+        - '3:4'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 10
+        reference_type: image
+      reference_videos:
+        max: 0
+        reference_type: video
+      reference_audios:
+        max: 3
+        reference_type: audio
+  - id: ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b
+    display_name: 特价渠道 Seedance 2.5 满血 720-1080p（全能参考）
+    description: 特价渠道 Seedance 2.5 满血 720-1080p（全能参考），720p ¥8/次 · 1080p ¥12/次，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins fk.plugin.js 0.7.0，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    - v2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1027
+      recommended: false
+      badges:
+      - Fk
+      - Seedance 2.5
+    duration:
+      type: slider
+      min: 4
+      max: 30
+      step: 1
+      default: 30
+    params:
+      resolution:
+        options:
+        - 720p
+        - 1080p
+        default: 720p
+      ratio:
+        options:
+        - '16:9'
+        - '9:16'
+        - '1:1'
+        - '4:3'
+        - '3:4'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 30
+        reference_type: image
+      reference_videos:
+        max: 10
+        reference_type: video
+      reference_audios:
+        max: 10
+        reference_type: audio
+  # 源流 AI，同步自 newapi-plugins/yuanliu.plugin.js 0.3.2；请求体与 fk_video 同形（imageUrls/duration/ratio/resolution）。
+  - id: yl_seedance-2-5_6caffaca7390
+    display_name: Seedance 2.5(HD)
+    description: 源流 AI Seedance 2.5(HD)，¥6/次，10–30 秒；参考图片 10、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1040
+      recommended: false
+      badges:
+      - 源流
+      - Seedance
+    duration:
+      type: slider
+      min: 10
+      max: 30
+      step: 1
+      default: 10
+    params:
+      resolution:
+        options:
+        - 720p
+        default: 720p
+      ratio:
+        options:
+        - adaptive
+        - '16:9'
+        - '9:16'
+        - '1:1'
+        - '4:3'
+        - '3:4'
+        - '21:9'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 10
+        reference_type: image
+      reference_videos:
+        max: 0
+        reference_type: video
+      reference_audios:
+        max: 0
+        reference_type: audio
+  - id: yl_g7zy_seedance_v2_5_s
+    display_name: Seedance 2.5 (LJ-02)
+    description: 源流 AI Seedance 2.5 (LJ-02)，¥0.5/秒，5–30 秒；参考图片 30、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1041
+      recommended: false
+      badges:
+      - 源流
+      - Seedance
+    duration:
+      type: slider
+      min: 5
+      max: 30
+      step: 1
       default: 5
     params:
       resolution:
         options:
+        - 720p
+        default: 720p
+      ratio:
+        options:
+        - auto
+        - '1:1'
+        - '3:4'
+        - '4:3'
+        - '9:16'
+        - '16:9'
+        - '21:9'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 30
+        reference_type: image
+      reference_videos:
+        max: 0
+        reference_type: video
+      reference_audios:
+        max: 0
+        reference_type: audio
+  - id: yl_pp_mj_sd25_30010
+    display_name: Seedance 2.5 720p (QN-12)
+    description: 源流 AI Seedance 2.5 720p (QN-12)，480p/720p ¥0.6/秒 · 1080p ¥1/秒，4–30 秒；参考图片 30、视频 0、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1042
+      recommended: false
+      badges:
+      - 源流
+      - Seedance
+    duration:
+      type: slider
+      min: 4
+      max: 30
+      step: 1
+      default: 5
+    params:
+      resolution:
+        options:
+        - 480p
+        - 720p
+        - 1080p
+        default: 720p
+      ratio:
+        options:
+        - '16:9'
+        - '9:16'
+        - '4:3'
+        - '3:4'
+        - '1:1'
+        - '21:9'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 30
+        reference_type: image
+      reference_videos:
+        max: 0
+        reference_type: video
+      reference_audios:
+        max: 10
+        reference_type: audio
+  - id: yl_cm_73
+    display_name: Seedance 2.5 (RK-02)
+    description: 源流 AI Seedance 2.5 (RK-02)，480p ¥0.6/秒 · 720p ¥0.8/秒，4–30 秒；参考图片 30、视频 10、音频 10。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    - v2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1043
+      recommended: false
+      badges:
+      - 源流
+      - Seedance
+    duration:
+      type: slider
+      min: 4
+      max: 30
+      step: 1
+      default: 5
+    params:
+      resolution:
+        options:
+        - 480p
         - 720p
         default: 720p
       ratio:
@@ -1055,9 +1107,70 @@ models:
       reference_audios:
         max: 10
         reference_type: audio
-  - id: ft-video-v1-77e8ee7a636f15dac27b2ce6d6fcd746
-    display_name: Fk MiniMax H3 768P · 0.08 元/秒
-    description: 特价渠道 MiniMax H3-768p，0.08 元/秒，1–15 秒；参考图片 9、视频 0、音频 3。登记合同，实扣以账单为准。
+  - id: yl_zh_tt_sedanco_2_0_720
+    display_name: Seedance2.0 720P (YC-02)
+    description: 源流 AI Seedance2.0 720P (YC-02)，¥0.4/秒，5–15 秒；参考图片 9、视频 3、音频 3。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
+    status: active
+    release_stage: preview
+    capabilities:
+    - t2v
+    - i2v
+    - r2v
+    - v2v
+    docs:
+      official_snapshot_ids:
+      - jiucaihezi/fk-video-2026-10-06
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+        video_contract: fk_video
+    ui:
+      selection_group: r2v
+      visible_in:
+      - project_settings
+      - series_settings
+      - video_sidebar
+      - global_settings
+      order: 1044
+      recommended: false
+      badges:
+      - 源流
+      - Seedance
+    duration:
+      type: slider
+      min: 5
+      max: 15
+      step: 1
+      default: 5
+    params:
+      resolution:
+        options:
+        - 720p
+        default: 720p
+      ratio:
+        options:
+        - '16:9'
+        - '9:16'
+        - '1:1'
+        default: '16:9'
+      negativePrompt: false
+      promptExtend: false
+      audio: false
+    inputs:
+      reference_images:
+        max: 9
+        reference_type: image
+      reference_videos:
+        max: 3
+        reference_type: video
+      reference_audios:
+        max: 3
+        reference_type: audio
+  - id: yl_seedance-2-0_ba0687ff09f2
+    display_name: Seedance2.0(HD)
+    description: 源流 AI Seedance2.0(HD)，¥4/次，10/15 秒；参考图片 9、视频 0、音频 0。来源 newapi-plugins yuanliu.plugin.js 0.3.2，实扣以账单为准。
     status: active
     release_stage: preview
     capabilities:
@@ -1080,29 +1193,31 @@ models:
       - series_settings
       - video_sidebar
       - global_settings
-      order: 1027
+      order: 1045
       recommended: false
       badges:
-      - Fk
-      - MiniMax H3
+      - 源流
+      - Seedance
     duration:
-      type: slider
-      min: 1
-      max: 15
-      step: 1
-      default: 5
+      type: buttons
+      options:
+      - 10
+      - 15
+      default: 10
     params:
       resolution:
         options:
-        - 768p
-        default: 768p
+        - 720p
+        default: 720p
       ratio:
         options:
+        - adaptive
         - '16:9'
         - '9:16'
         - '1:1'
         - '4:3'
         - '3:4'
+        - '21:9'
         default: '16:9'
       negativePrompt: false
       promptExtend: false
@@ -1115,5 +1230,45 @@ models:
         max: 0
         reference_type: video
       reference_audios:
-        max: 3
+        max: 0
         reference_type: audio
+  # T8 Midjourney，同步自 newapi-plugins/t8-mj.plugin.js 0.3.0。
+  - id: mj_relax_imagine
+    display_name: Midjourney relax · T8
+    description: T8 Midjourney relax 文生图（newapi-plugins t8-mj 0.3.0，仅文生图、无参考图）。目前网关以 /v1/videos 任务回图，1ok 的图片适配器尚未接入，故为 planned。
+    status: planned
+    release_stage: preview
+    capabilities:
+    - t2i
+    docs:
+      context_hub_doc_ids:
+      - jiucaihezi
+    runtime:
+      jiucaihezi:
+        gateway: jiucaihezi
+    ui:
+      selection_group: image
+      visible_in:
+      - project_settings
+      - series_settings
+      - global_settings
+      order: 1030
+      recommended: false
+      badges:
+      - T8
+      - Midjourney
+    params:
+      ratio:
+        options:
+        - '1:1'
+        - '16:9'
+        - '9:16'
+        - '4:3'
+        - '3:4'
+        - '3:2'
+        - '2:3'
+        default: '1:1'
+      negativePrompt: false
+      seed: false
+      promptExtend: false
+      watermark: false
