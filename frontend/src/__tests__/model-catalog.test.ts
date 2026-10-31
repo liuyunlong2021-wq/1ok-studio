@@ -165,14 +165,14 @@ describe('model catalog fallbacks', () => {
                 image_model: 'wan2.7-image-pro',
                 i2v_model: 'happyhorse-1.1-i2v',
                 r2v_model: 'happyhorse-1.1-r2v',
-                text_model: 'gpt-5.6-sol',
+                text_model: 'claude-sonnet-5-5',
             },
             'project_settings'
         );
         expect(stale.t2i_model).toBe(imageDefault);
         expect(stale.image_model).toBe(imageDefault);
         expect(stale.r2v_model).toBe('jc-minimax-h3-ref2v');
-        expect(stale.text_model).toBe('gpt-5.6-sol');
+        expect(stale.text_model).toBe('claude-sonnet-5-5');
         // 韭菜盒子自家的模型即使不在该分组里也要保留：若走分组兜底会换成
         // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
         expect(resolveModelSettings({ i2v_model: 'ft-image-v1-211f28f47b0355abb1798f72eb65f22d' }, 'project_settings').i2v_model)

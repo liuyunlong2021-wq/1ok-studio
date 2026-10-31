@@ -39,6 +39,12 @@ def _default_text_model() -> str:
     return (get_default_model_settings().text_model or "").strip()
 
 
+def _is_catalog_model(model_id: str) -> bool:
+    from .model_catalog import load_generated_model_catalog
+
+    return model_id in load_generated_model_catalog().get("models", {})
+
+
 def _read_raw() -> dict:
     """读设置文件。缺失或损坏一律当「没有设置」，不抛异常。
 
@@ -60,7 +66,11 @@ def get_global_text_model() -> str:
     """当前全局文本模型；未设置时回落目录默认值。"""
     configured = _read_raw().get(_TEXT_MODEL_KEY)
     if isinstance(configured, str) and configured.strip():
-        return configured.strip()
+        configured = configured.strip()
+        # 目录换代后，落盘的旧模型 id（已下线）不能继续发给网关，否则每次文本请求都失败。
+        if _is_catalog_model(configured):
+            return configured
+        logger.warning("Stored text model %s is no longer in the catalog; using the default", configured)
     return _default_text_model()
 
 

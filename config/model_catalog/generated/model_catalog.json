@@ -1,9 +1,9 @@
 {
   "compat": {
     "legacy_model_ids": {
-      "claude-fable-5-1": "jiucaihezi/claude-fable-5-1#text",
-      "claude-sonnet-5": "jiucaihezi/claude-sonnet-5#text",
-      "deepseek-flash": "jiucaihezi/deepseek-flash#text",
+      "claude-haiku-5-5": "jiucaihezi/claude-haiku-5-5#text",
+      "claude-sonnet-5-5": "jiucaihezi/claude-sonnet-5-5#text",
+      "deepseek-v4.1-flash": "jiucaihezi/deepseek-v4.1-flash#text",
       "dola-seedance2.5": "jiucaihezi/dola-seedance2.5#r2v",
       "ft-image-v1-186289ba9d3263010c69372f8939dd94": "jiucaihezi/ft-image-v1-186289ba9d3263010c69372f8939dd94#image",
       "ft-image-v1-211f28f47b0355abb1798f72eb65f22d": "jiucaihezi/ft-image-v1-211f28f47b0355abb1798f72eb65f22d#image",
@@ -20,7 +20,9 @@
       "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848": "jiucaihezi/ft-video-v1-b8a797753dd4c6bf8e5a69820b293848#r2v",
       "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff": "jiucaihezi/ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff#r2v",
       "gemini-3.8-flash": "jiucaihezi/gemini-3.8-flash#text",
-      "gpt-5.6-sol": "jiucaihezi/gpt-5.6-sol#text",
+      "gemini-4-argon": "jiucaihezi/gemini-4-argon#text",
+      "gpt-6.1-sol": "jiucaihezi/gpt-6.1-sol#text",
+      "grok-4.7": "jiucaihezi/grok-4.7#text",
       "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
       "jc-minimax-h3-director8": "jiucaihezi/jc-minimax-h3-director8#r2v",
       "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
@@ -44,7 +46,7 @@
       "image_model": "jiucaihezi/jc-qwen-image-2.1#image",
       "r2v_model": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "t2i_model": "jiucaihezi/jc-qwen-image-2.1#image",
-      "text_model": "jiucaihezi/gpt-5.6-sol#text"
+      "text_model": "jiucaihezi/claude-sonnet-5-5#text"
     },
     "model_settings": {
       "i2i_model": "jc-qwen-image-2.1",
@@ -52,7 +54,7 @@
       "image_model": "jc-qwen-image-2.1",
       "r2v_model": "jc-minimax-h3-ref2v",
       "t2i_model": "jc-qwen-image-2.1",
-      "text_model": "gpt-5.6-sol"
+      "text_model": "claude-sonnet-5-5"
     }
   },
   "families": {
@@ -72,9 +74,9 @@
       },
       "family": "jiucaihezi",
       "models": [
-        "claude-fable-5-1",
-        "claude-sonnet-5",
-        "deepseek-flash",
+        "claude-haiku-5-5",
+        "claude-sonnet-5-5",
+        "deepseek-v4.1-flash",
         "dola-seedance2.5",
         "ft-image-v1-186289ba9d3263010c69372f8939dd94",
         "ft-image-v1-211f28f47b0355abb1798f72eb65f22d",
@@ -91,7 +93,9 @@
         "ft-video-v1-b8a797753dd4c6bf8e5a69820b293848",
         "ft-video-v1-d69cdf94c9ed6d80ef7ec6ebf00f74ff",
         "gemini-3.8-flash",
-        "gpt-5.6-sol",
+        "gemini-4-argon",
+        "gpt-6.1-sol",
+        "grok-4.7",
         "jc-minimax-h3",
         "jc-minimax-h3-director8",
         "jc-minimax-h3-ref2v",
@@ -136,7 +140,7 @@
     }
   },
   "model_lines": {
-    "jiucaihezi/claude-fable-5-1": {
+    "jiucaihezi/claude-haiku-5-5": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -144,8 +148,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "Claude Fable 5.1 via 韭菜盒子",
-      "display_name": "Claude Fable 5.1 · 韭菜盒子",
+      "description": "Claude Haiku 5.5 via 韭菜盒子",
+      "display_name": "Claude Haiku 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -155,12 +159,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/claude-fable-5-1",
+      "id": "jiucaihezi/claude-haiku-5-5",
       "legacy_model_ids": [
-        "claude-fable-5-1"
+        "claude-haiku-5-5"
       ],
       "modes": [
-        "jiucaihezi/claude-fable-5-1#text"
+        "jiucaihezi/claude-haiku-5-5#text"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -196,7 +200,7 @@
         }
       }
     },
-    "jiucaihezi/claude-sonnet-5": {
+    "jiucaihezi/claude-sonnet-5-5": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -204,8 +208,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "Claude Sonnet 5 via 韭菜盒子",
-      "display_name": "Claude Sonnet 5 · 韭菜盒子",
+      "description": "Claude Sonnet 5.5 via 韭菜盒子",
+      "display_name": "Claude Sonnet 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -215,12 +219,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/claude-sonnet-5",
+      "id": "jiucaihezi/claude-sonnet-5-5",
       "legacy_model_ids": [
-        "claude-sonnet-5"
+        "claude-sonnet-5-5"
       ],
       "modes": [
-        "jiucaihezi/claude-sonnet-5#text"
+        "jiucaihezi/claude-sonnet-5-5#text"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -256,7 +260,7 @@
         }
       }
     },
-    "jiucaihezi/deepseek-flash": {
+    "jiucaihezi/deepseek-v4.1-flash": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -264,8 +268,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "deepseek-flash via 韭菜盒子",
-      "display_name": "deepseek-flash",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -275,12 +279,12 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/deepseek-flash",
+      "id": "jiucaihezi/deepseek-v4.1-flash",
       "legacy_model_ids": [
-        "deepseek-flash"
+        "deepseek-v4.1-flash"
       ],
       "modes": [
-        "jiucaihezi/deepseek-flash#text"
+        "jiucaihezi/deepseek-v4.1-flash#text"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -1290,7 +1294,7 @@
         }
       }
     },
-    "jiucaihezi/gpt-5.6-sol": {
+    "jiucaihezi/gemini-4-argon": {
       "backend_env_key": null,
       "credential_sources": {
         "jiucaihezi": [
@@ -1298,8 +1302,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "GPT 5.6 Sol via 韭菜盒子",
-      "display_name": "GPT 5.6 Sol · 韭菜盒子",
+      "description": "Gemini 4 Argon via 韭菜盒子",
+      "display_name": "Gemini 4 Argon · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -1309,12 +1313,132 @@
         ]
       },
       "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-5.6-sol",
+      "id": "jiucaihezi/gemini-4-argon",
       "legacy_model_ids": [
-        "gpt-5.6-sol"
+        "gemini-4-argon"
       ],
       "modes": [
-        "jiucaihezi/gpt-5.6-sol#text"
+        "jiucaihezi/gemini-4-argon#text"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/gpt-6.1-sol": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT 6.1 Sol via 韭菜盒子",
+      "display_name": "GPT 6.1 Sol · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/gpt-6.1-sol",
+      "legacy_model_ids": [
+        "gpt-6.1-sol"
+      ],
+      "modes": [
+        "jiucaihezi/gpt-6.1-sol#text"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/grok-4.7": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok 4.7 via 韭菜盒子",
+      "display_name": "Grok 4.7 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/grok-4.7",
+      "legacy_model_ids": [
+        "grok-4.7"
+      ],
+      "modes": [
+        "jiucaihezi/grok-4.7#text"
       ],
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -2198,7 +2322,7 @@
     }
   },
   "models": {
-    "claude-fable-5-1": {
+    "claude-haiku-5-5": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -2209,8 +2333,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "Claude Fable 5.1 via 韭菜盒子",
-      "display_name": "Claude Fable 5.1 · 韭菜盒子",
+      "description": "Claude Haiku 5.5 via 韭菜盒子",
+      "display_name": "Claude Haiku 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -2221,72 +2345,7 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "claude-fable-5-1",
-      "inputs": {},
-      "params": {},
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "text",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "claude-sonnet-5": {
-      "backend_env_key": null,
-      "capabilities": [
-        "text"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Claude Sonnet 5 via 韭菜盒子",
-      "display_name": "Claude Sonnet 5 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "claude-sonnet-5",
+      "id": "claude-haiku-5-5",
       "inputs": {},
       "params": {},
       "provider": "jiucaihezi",
@@ -2328,7 +2387,7 @@
         ]
       }
     },
-    "deepseek-flash": {
+    "claude-sonnet-5-5": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -2339,8 +2398,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "deepseek-flash via 韭菜盒子",
-      "display_name": "deepseek-flash",
+      "description": "Claude Sonnet 5.5 via 韭菜盒子",
+      "display_name": "Claude Sonnet 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -2351,7 +2410,7 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "deepseek-flash",
+      "id": "claude-sonnet-5-5",
       "inputs": {},
       "params": {},
       "provider": "jiucaihezi",
@@ -2383,7 +2442,72 @@
         "badges": [
           "韭菜盒子"
         ],
-        "order": 995,
+        "order": 1000,
+        "recommended": true,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "deepseek-v4.1-flash": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "deepseek-v4.1-flash",
+      "inputs": {},
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 994,
         "recommended": false,
         "selection_group": "text",
         "visible_in": [
@@ -4007,7 +4131,7 @@
         ]
       }
     },
-    "gpt-5.6-sol": {
+    "gemini-4-argon": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -4018,8 +4142,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "GPT 5.6 Sol via 韭菜盒子",
-      "display_name": "GPT 5.6 Sol · 韭菜盒子",
+      "description": "Gemini 4 Argon via 韭菜盒子",
+      "display_name": "Gemini 4 Argon · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -4030,7 +4154,7 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "gpt-5.6-sol",
+      "id": "gemini-4-argon",
       "inputs": {},
       "params": {},
       "provider": "jiucaihezi",
@@ -4063,7 +4187,137 @@
           "韭菜盒子"
         ],
         "order": 996,
-        "recommended": true,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "gpt-6.1-sol": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT 6.1 Sol via 韭菜盒子",
+      "display_name": "GPT 6.1 Sol · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "gpt-6.1-sol",
+      "inputs": {},
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 998,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "grok-4.7": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok 4.7 via 韭菜盒子",
+      "display_name": "Grok 4.7 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "grok-4.7",
+      "inputs": {},
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 995,
+        "recommended": false,
         "selection_group": "text",
         "visible_in": [
           "project_settings",
@@ -5583,7 +5837,7 @@
     }
   },
   "modes": {
-    "jiucaihezi/claude-fable-5-1#text": {
+    "jiucaihezi/claude-haiku-5-5#text": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -5594,8 +5848,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "Claude Fable 5.1 via 韭菜盒子",
-      "display_name": "Claude Fable 5.1 · 韭菜盒子",
+      "description": "Claude Haiku 5.5 via 韭菜盒子",
+      "display_name": "Claude Haiku 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -5606,79 +5860,11 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "jiucaihezi/claude-fable-5-1#text",
+      "id": "jiucaihezi/claude-haiku-5-5#text",
       "inputs": {},
-      "legacy_model_id": "claude-fable-5-1",
+      "legacy_model_id": "claude-haiku-5-5",
       "mode": "text",
-      "model_line_id": "jiucaihezi/claude-fable-5-1",
-      "params": {},
-      "provider": "jiucaihezi",
-      "release_stage": "stable",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "韭菜盒子"
-        ],
-        "order": 1000,
-        "recommended": false,
-        "selection_group": "text",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "global_settings"
-        ]
-      }
-    },
-    "jiucaihezi/claude-sonnet-5#text": {
-      "backend_env_key": null,
-      "capabilities": [
-        "text"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "Claude Sonnet 5 via 韭菜盒子",
-      "display_name": "Claude Sonnet 5 · 韭菜盒子",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": null,
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/claude-sonnet-5#text",
-      "inputs": {},
-      "legacy_model_id": "claude-sonnet-5",
-      "mode": "text",
-      "model_line_id": "jiucaihezi/claude-sonnet-5",
+      "model_line_id": "jiucaihezi/claude-haiku-5-5",
       "params": {},
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -5719,7 +5905,7 @@
         ]
       }
     },
-    "jiucaihezi/deepseek-flash#text": {
+    "jiucaihezi/claude-sonnet-5-5#text": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -5730,8 +5916,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "deepseek-flash via 韭菜盒子",
-      "display_name": "deepseek-flash",
+      "description": "Claude Sonnet 5.5 via 韭菜盒子",
+      "display_name": "Claude Sonnet 5.5 · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -5742,11 +5928,11 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "jiucaihezi/deepseek-flash#text",
+      "id": "jiucaihezi/claude-sonnet-5-5#text",
       "inputs": {},
-      "legacy_model_id": "deepseek-flash",
+      "legacy_model_id": "claude-sonnet-5-5",
       "mode": "text",
-      "model_line_id": "jiucaihezi/deepseek-flash",
+      "model_line_id": "jiucaihezi/claude-sonnet-5-5",
       "params": {},
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -5777,7 +5963,75 @@
         "badges": [
           "韭菜盒子"
         ],
-        "order": 995,
+        "order": 1000,
+        "recommended": true,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/deepseek-v4.1-flash#text": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "DeepSeek V4.1 Flash via 韭菜盒子",
+      "display_name": "DeepSeek V4.1 Flash · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/deepseek-v4.1-flash#text",
+      "inputs": {},
+      "legacy_model_id": "deepseek-v4.1-flash",
+      "mode": "text",
+      "model_line_id": "jiucaihezi/deepseek-v4.1-flash",
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 994,
         "recommended": false,
         "selection_group": "text",
         "visible_in": [
@@ -7449,7 +7703,7 @@
         ]
       }
     },
-    "jiucaihezi/gpt-5.6-sol#text": {
+    "jiucaihezi/gemini-4-argon#text": {
       "backend_env_key": null,
       "capabilities": [
         "text"
@@ -7460,8 +7714,8 @@
         ]
       },
       "default_backend": "jiucaihezi",
-      "description": "GPT 5.6 Sol via 韭菜盒子",
-      "display_name": "GPT 5.6 Sol · 韭菜盒子",
+      "description": "Gemini 4 Argon via 韭菜盒子",
+      "display_name": "Gemini 4 Argon · 韭菜盒子",
       "docs": {
         "context_hub_doc_ids": [
           "jiucaihezi"
@@ -7472,11 +7726,11 @@
       },
       "duration": null,
       "family": "jiucaihezi",
-      "id": "jiucaihezi/gpt-5.6-sol#text",
+      "id": "jiucaihezi/gemini-4-argon#text",
       "inputs": {},
-      "legacy_model_id": "gpt-5.6-sol",
+      "legacy_model_id": "gemini-4-argon",
       "mode": "text",
-      "model_line_id": "jiucaihezi/gpt-5.6-sol",
+      "model_line_id": "jiucaihezi/gemini-4-argon",
       "params": {},
       "provider": "jiucaihezi",
       "release_stage": "stable",
@@ -7508,7 +7762,143 @@
           "韭菜盒子"
         ],
         "order": 996,
-        "recommended": true,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/gpt-6.1-sol#text": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "GPT 6.1 Sol via 韭菜盒子",
+      "display_name": "GPT 6.1 Sol · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/gpt-6.1-sol#text",
+      "inputs": {},
+      "legacy_model_id": "gpt-6.1-sol",
+      "mode": "text",
+      "model_line_id": "jiucaihezi/gpt-6.1-sol",
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 998,
+        "recommended": false,
+        "selection_group": "text",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/grok-4.7#text": {
+      "backend_env_key": null,
+      "capabilities": [
+        "text"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "Grok 4.7 via 韭菜盒子",
+      "display_name": "Grok 4.7 · 韭菜盒子",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": null,
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/grok-4.7#text",
+      "inputs": {},
+      "legacy_model_id": "grok-4.7",
+      "mode": "text",
+      "model_line_id": "jiucaihezi/grok-4.7",
+      "params": {},
+      "provider": "jiucaihezi",
+      "release_stage": "stable",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "韭菜盒子"
+        ],
+        "order": 995,
+        "recommended": false,
         "selection_group": "text",
         "visible_in": [
           "project_settings",

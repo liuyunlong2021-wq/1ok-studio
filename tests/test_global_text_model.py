@@ -129,5 +129,11 @@ def test_changing_the_global_applies_without_resaving_the_project(pipeline, monk
     set_global_text_model("gemini-3.8-flash")
     assert pipeline.get_effective_polish_model(script) == "gemini-3.8-flash"
 
-    set_global_text_model("claude-sonnet-5")
-    assert pipeline.get_effective_polish_model(script) == "claude-sonnet-5"
+    set_global_text_model("claude-sonnet-5-5")
+    assert pipeline.get_effective_polish_model(script) == "claude-sonnet-5-5"
+
+
+def test_stored_model_missing_from_the_catalog_falls_back_to_default(monkeypatch):
+    """目录换代后，settings.json 里落盘的已下线模型 id 不能再发给网关。"""
+    set_global_text_model("gpt-5.6-sol")
+    assert get_global_text_model() == CATALOG_DEFAULT

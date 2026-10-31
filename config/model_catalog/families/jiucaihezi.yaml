@@ -15,33 +15,33 @@ transport:
   audio_input_mode: {jiucaihezi: jiucaihezi_url}
   reference_video_input_mode: {jiucaihezi: jiucaihezi_url}
 models:
-  - id: claude-fable-5-1
-    display_name: "Claude Fable 5.1 · 韭菜盒子"
-    description: "Claude Fable 5.1 via 韭菜盒子"
+  - id: claude-sonnet-5-5
+    display_name: "Claude Sonnet 5.5 · 韭菜盒子"
+    description: "Claude Sonnet 5.5 via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [text]
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 1000, recommended: false, badges: [韭菜盒子]}
-  - id: claude-sonnet-5
-    display_name: "Claude Sonnet 5 · 韭菜盒子"
-    description: "Claude Sonnet 5 via 韭菜盒子"
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 1000, recommended: true, badges: [韭菜盒子]}
+  - id: claude-haiku-5-5
+    display_name: "Claude Haiku 5.5 · 韭菜盒子"
+    description: "Claude Haiku 5.5 via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [text]
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 999, recommended: false, badges: [韭菜盒子]}
-  - id: deepseek-flash
-    display_name: "deepseek-flash"
-    description: "deepseek-flash via 韭菜盒子"
+  - id: gpt-6.1-sol
+    display_name: "GPT 6.1 Sol · 韭菜盒子"
+    description: "GPT 6.1 Sol via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [text]
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子]}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 998, recommended: false, badges: [韭菜盒子]}
   - id: gemini-3.8-flash
     display_name: "Gemini 3.8 Flash · 韭菜盒子"
     description: "Gemini 3.8 Flash via 韭菜盒子"
@@ -51,15 +51,33 @@ models:
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
     ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 997, recommended: false, badges: [韭菜盒子]}
-  - id: gpt-5.6-sol
-    display_name: "GPT 5.6 Sol · 韭菜盒子"
-    description: "GPT 5.6 Sol via 韭菜盒子"
+  - id: gemini-4-argon
+    display_name: "Gemini 4 Argon · 韭菜盒子"
+    description: "Gemini 4 Argon via 韭菜盒子"
     status: active
     release_stage: stable
     capabilities: [text]
     docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
     runtime: {jiucaihezi: {gateway: jiucaihezi}}
-    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: true, badges: [韭菜盒子]}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 996, recommended: false, badges: [韭菜盒子]}
+  - id: grok-4.7
+    display_name: "Grok 4.7 · 韭菜盒子"
+    description: "Grok 4.7 via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 995, recommended: false, badges: [韭菜盒子]}
+  - id: deepseek-v4.1-flash
+    display_name: "DeepSeek V4.1 Flash · 韭菜盒子"
+    description: "DeepSeek V4.1 Flash via 韭菜盒子"
+    status: active
+    release_stage: stable
+    capabilities: [text]
+    docs: {official_snapshot_ids: [jiucaihezi/text], context_hub_doc_ids: [jiucaihezi]}
+    runtime: {jiucaihezi: {gateway: jiucaihezi}}
+    ui: {selection_group: text, visible_in: [project_settings, series_settings, global_settings], order: 994, recommended: false, badges: [韭菜盒子]}
   - id: ft-image-v1-211f28f47b0355abb1798f72eb65f22d
     display_name: "FK-image2"
     description: "NewAPI 图片模型 · 上游 ID: ft-image-v1-211f28f47b0355abb1798f72eb65f22d"
