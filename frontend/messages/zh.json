@@ -719,7 +719,32 @@
     "viewDefault": "查看完整默认提示词",
     "loadingConfig": "加载配置中...",
     "polishModelTitle": "Polish 模型",
-    "polishModelDesc": "选择 AI 润色调用的 LLM 模型。三个选项都支持视觉理解，能在润色时参考首帧/参考图。"
+    "polishModelDesc": "选择 AI 润色调用的 LLM 模型。三个选项都支持视觉理解，能在润色时参考首帧/参考图。",
+    "importEpisodes": {
+      "title": "上传多集剧本",
+      "dropHint": "把剧本文件夹或多个文件拖到这里",
+      "pickFolder": "选择文件夹",
+      "pickFiles": "选择文件",
+      "formats": "支持 .md / .txt；一个文件一集，或一个文件内含「第N集」标题",
+      "noEpisodes": "没有找到可导入的剧本内容",
+      "readFailed": "读取文件失败",
+      "close": "关闭",
+      "actionCreate": "新建一集",
+      "actionFill": "填入已有空集",
+      "actionExisting": "该集已有正文",
+      "overwrite": "覆盖已有正文",
+      "conflict": "同一集有多个版本，选用：",
+      "merged": "内容相同，已合并：{files}",
+      "skipped": "已跳过 {count} 个文件",
+      "chars": "{count} 字",
+      "back": "重新选择",
+      "summary": "将导入 {count} 集",
+      "import": "导入 {count} 集",
+      "running": "正在导入 {done} / {total}",
+      "done": "已导入 {count} 集",
+      "finish": "完成"
+    },
+    "importEpisodesButton": "上传多集"
   },
   "pipeline": {
     "stepLabel": "步骤 {number}",

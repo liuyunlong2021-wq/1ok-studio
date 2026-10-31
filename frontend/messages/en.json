@@ -719,7 +719,32 @@
     "viewDefault": "View full default prompt",
     "loadingConfig": "Loading configuration...",
     "polishModelTitle": "Polish model",
-    "polishModelDesc": "Choose the LLM used for AI polish. The options support vision, so they can reference the first frame / reference images while polishing."
+    "polishModelDesc": "Choose the LLM used for AI polish. The options support vision, so they can reference the first frame / reference images while polishing.",
+    "importEpisodes": {
+      "title": "Upload multi-episode scripts",
+      "dropHint": "Drop a script folder or several files here",
+      "pickFolder": "Choose folder",
+      "pickFiles": "Choose files",
+      "formats": ".md / .txt — one file per episode, or one file with \"Episode N\" headings",
+      "noEpisodes": "No importable script content found",
+      "readFailed": "Failed to read files",
+      "close": "Close",
+      "actionCreate": "New episode",
+      "actionFill": "Fill empty episode",
+      "actionExisting": "Already has text",
+      "overwrite": "Overwrite existing text",
+      "conflict": "Multiple versions for this episode, use:",
+      "merged": "Identical content merged: {files}",
+      "skipped": "Skipped {count} file(s)",
+      "chars": "{count} chars",
+      "back": "Choose again",
+      "summary": "{count} episode(s) will be imported",
+      "import": "Import {count}",
+      "running": "Importing {done} / {total}",
+      "done": "Imported {count} episode(s)",
+      "finish": "Done"
+    },
+    "importEpisodesButton": "Upload episodes"
   },
   "pipeline": {
     "stepLabel": "Step {number}",

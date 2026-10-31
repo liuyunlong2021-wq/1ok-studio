@@ -12,6 +12,7 @@ import SeriesSidebar, { type SidebarItem } from "./SeriesSidebar";
 
 const SeriesModelSettingsModal = dynamic(() => import("./SeriesModelSettingsModal"), { ssr: false });
 const SeriesPromptConfigModal = dynamic(() => import("./SeriesPromptConfigModal"), { ssr: false });
+const ImportEpisodesDialog = dynamic(() => import("./ImportEpisodesDialog"), { ssr: false });
 const ImportAssetsDialog = dynamic(() => import("./ImportAssetsDialog"), { ssr: false });
 const SeriesArtDirectionPanel = dynamic(() => import("./SeriesArtDirectionPanel"), { ssr: false });
 
@@ -34,6 +35,7 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
   const [showModelSettings, setShowModelSettings] = useState(false);
   const [showPromptConfig, setShowPromptConfig] = useState(false);
   const [showImportAssets, setShowImportAssets] = useState(false);
+  const [showImportEpisodes, setShowImportEpisodes] = useState(false);
 
   const t = useTranslations("series");
   const tc = useTranslations("common");
@@ -198,6 +200,7 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
         onOpenModelSettings={() => setShowModelSettings(true)}
         onOpenPromptConfig={() => setShowPromptConfig(true)}
         onOpenImportAssets={() => setShowImportAssets(true)}
+        onOpenImportEpisodes={() => setShowImportEpisodes(true)}
       />
 
       {/* ── Content Area ── */}
@@ -239,6 +242,15 @@ export default function SeriesDetailPage({ seriesId }: SeriesDetailPageProps) {
         onClose={() => setShowPromptConfig(false)}
         seriesId={seriesId}
         onSaved={refreshSeriesData}
+      />
+      <ImportEpisodesDialog
+        isOpen={showImportEpisodes}
+        onClose={() => setShowImportEpisodes(false)}
+        seriesId={seriesId}
+        workflowMode={series.workflow_mode || "i2v_legacy"}
+        productionWorkflow={series.production_workflow || undefined}
+        existingEpisodes={episodes as never}
+        onImported={refreshSeriesData}
       />
       <ImportAssetsDialog
         isOpen={showImportAssets}

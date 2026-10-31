@@ -12,6 +12,7 @@ import {
   MessageSquareCode,
   Download,
   Palette,
+  Upload,
 } from "lucide-react";
 import clsx from "clsx";
 import type { Series, Project } from "@/store/projectStore";
@@ -49,6 +50,7 @@ interface SeriesSidebarProps {
   onOpenModelSettings: () => void;
   onOpenPromptConfig: () => void;
   onOpenImportAssets: () => void;
+  onOpenImportEpisodes: () => void;
 }
 
 // ── Asset nav config ──
@@ -83,6 +85,7 @@ export default function SeriesSidebar({
   onOpenModelSettings,
   onOpenPromptConfig,
   onOpenImportAssets,
+  onOpenImportEpisodes,
 }: SeriesSidebarProps) {
   const t = useTranslations("series");
   const tc = useTranslations("common");
@@ -379,6 +382,13 @@ export default function SeriesSidebar({
               </motion.button>
             )}
           </AnimatePresence>
+          <button
+            onClick={onOpenImportEpisodes}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-text-secondary hover:text-foreground hover:bg-hover-bg transition-colors text-xs border border-dashed border-glass-border active:scale-[0.97]"
+          >
+            <Upload size={14} />
+            {t("importEpisodesButton")}
+          </button>
         </div>
       </div>
 
