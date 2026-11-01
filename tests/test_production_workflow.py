@@ -108,11 +108,8 @@ def test_rendered_segment_prints_each_scene_heading_once_per_run():
     assert render_production_segment(segment).count("场1-1") == 1
 
 
-@pytest.mark.parametrize(
-    ("characters", "expected"),
-    [(0, "空场景全景"), (1, "单人全景"), (2, "双人全景"), (3, "三人全景"), (4, "多人全景")],
-)
-def test_segment_tail_uses_only_characters_present_in_the_last_shot(characters, expected):
+@pytest.mark.parametrize("characters", [0, 1, 2, 3, 4])
+def test_segment_tail_states_positions_without_shot_or_camera_spec(characters):
     segment = {
         "duration_story": 3,
         "duration_total": 4,
@@ -124,4 +121,5 @@ def test_segment_tail_uses_only_characters_present_in_the_last_shot(characters, 
 
     screenplay = render_production_segment(segment)
 
-    assert f"【{expected}，固定镜头" in screenplay
+    assert "结尾站位：站位保持不变" in screenplay
+    assert "固定镜头" not in screenplay and "机位" not in screenplay and "全景，" not in screenplay

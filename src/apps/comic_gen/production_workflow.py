@@ -204,8 +204,6 @@ def render_production_segment(segment: dict) -> str:
         ])
     final_number = len(segment.get("shots", [])) + 1
     start, end = segment["duration_story"], segment["duration_total"]
-    character_count = len(set(segment.get("tail_character_ids") or []))
-    scale = {0: "空场景全景", 1: "单人全景", 2: "双人全景", 3: "三人全景"}.get(character_count, "多人全景")
     positions = segment.get("exit_state") or "请填写结尾全景中每个人物的左右、前后、朝向及持物关系"
     tail_looks = segment.get("tail_character_looks") or {}
     tail_references = [f"图{ref['number']}（{ref['name']} · {ref.get('look_name') or '默认造型'}）"
@@ -213,7 +211,7 @@ def render_production_segment(segment: dict) -> str:
                        if ref.get("kind") == "characters" and ref.get("id") in tail_looks and ref.get("look_id") == tail_looks[ref["id"]]]
     screenplay.extend([
         f"镜头{final_number}【{_timecode(start)}-{_timecode(end)}】",
-        f"【{scale}，固定镜头，平视机位，构图：{positions}】",
+        f"结尾站位：{positions}",
         *(["尾镜造型参考：" + "、".join(tail_references)] if tail_references else []),
         "△最后1秒保持人物空间关系与场景地标，不新增对白或动作。",
     ])
