@@ -10,6 +10,7 @@ from .models import StoryboardFrame
 TIME = r"\d{1,3}:\d{2}"
 HEADER = re.compile(rf"^镜头\s*([0-9一二三四五六七八九十百零〇两]+)\s*[【\[]\s*({TIME})\s*[-—–]\s*({TIME})\s*[】\]]\s*$")
 SCENE = re.compile(r"^场(?:景)?\s*\d+[-－]\d+")
+HEADER_ATTEMPT = re.compile(r"^镜头\s*[0-9一二三四五六七八九十百零〇两]+\s*[【\[]")
 BEAT = re.compile(rf"【({TIME})(?:[-—–]({TIME}))?】")
 
 
@@ -134,7 +135,7 @@ def parse_engineering_script(text, validate_specs=True):
                 raise ValueError(f"镜头{number}结束时间必须晚于起点")
             if validate_specs and shots and (current["start"] != shots[-1]["end"] or number != shots[-1]["number"] + 1):
                 raise ValueError(f"镜头{number}与前镜编号或时间码不连续，请回剧本调整")
-        elif line.startswith("镜头"):
+        elif HEADER_ATTEMPT.match(line):
             raise ValueError(f"镜头标题格式有误：{line}。请使用 镜头一【00:00-00:04】（整秒）")
         elif SCENE.match(line):
             finish()

@@ -21,3 +21,10 @@ def test_production_parse_splits_by_timecode_without_camera_spec_validation():
     assert plan["shots"][0]["number"] == 25
     assert plan["shots"][0]["start"] == 72
     assert plan["shots"][0]["end"] == 75
+
+
+def test_prose_line_starting_with_jingtou_is_body_not_a_bad_header():
+    from src.apps.comic_gen.engineering_script import parse_engineering_script
+    text = "镜头一【00:00-00:04】\n【中景，固定镜头，平视机位，构图居中】\n镜头跟随他的视线缓缓拉起——黑土延伸向远处。"
+    shots = parse_engineering_script(text)["shots"]
+    assert "镜头跟随他的视线" in shots[0]["body"]
