@@ -1,6 +1,7 @@
 """Read confirmed engineering screenplays without creating shots or estimating time."""
 import hashlib
 import json
+import math
 import re
 import time
 import uuid
@@ -11,6 +12,7 @@ TIME = r"\d{1,3}:\d{2}"
 HEADER = re.compile(rf"^镜头\s*([0-9一二三四五六七八九十百零〇两]+)\s*[【\[]\s*({TIME})\s*[-—–]\s*({TIME})\s*[】\]]\s*$")
 SCENE = re.compile(r"^场(?:景)?\s*\d+[-－]\d+")
 HEADER_ATTEMPT = re.compile(r"^镜头\s*[0-9一二三四五六七八九十百零〇两]+\s*[【\[]")
+STAMP = re.compile(r"^(\d+(?:\.\d+)?)\s*[-—–]\s*(\d+(?:\.\d+)?)\s*[sS秒]?\s*[：:]\s*(.*)$")
 BEAT = re.compile(rf"【({TIME})(?:[-—–]({TIME}))?】")
 
 
@@ -78,8 +80,54 @@ def _dialogue(lines):
     return "\n".join(spoken) or None, speakers[0] if speakers else None, "\n".join(descriptions)
 
 
+def _round_second(value):
+    return int(value + 0.5)
+
+
+def _parse_timestamp_script(normalized):
+    """Fold `0.0–1.0s：画面` paragraphs into whole-second shots (cut where a paragraph ends on a rounded second)."""
+    preamble, paragraphs = [], []
+    for raw in normalized.splitlines():
+        line = re.sub(r"^(?:#+\s*|\*\*)", "", raw.strip()).removesuffix("**")
+        match = STAMP.match(line)
+        if match:
+            paragraphs.append({"start": float(match.group(1)), "end": float(match.group(2)), "lines": [raw]})
+        elif paragraphs:
+            paragraphs[-1]["lines"].append(raw)
+        else:
+            preamble.append(raw)
+    if not paragraphs:
+        return None
+    for paragraph in paragraphs:
+        if paragraph["end"] <= paragraph["start"]:
+            raise ValueError(f"时间段 {paragraph['start']}–{paragraph['end']}s 结束时间必须晚于起点")
+    shots, group = [], []
+    cut_start = _round_second(paragraphs[0]["start"])
+    for index, paragraph in enumerate(paragraphs):
+        group.append(paragraph)
+        last = index == len(paragraphs) - 1
+        end = math.ceil(paragraph["end"]) if last else _round_second(paragraph["end"])
+        if end <= cut_start:
+            if not last:
+                continue
+            end = cut_start + 1
+        body = "\n".join("\n".join(item["lines"]).strip() for item in group).strip()
+        number = len(shots) + 1
+        header = f"镜头{number}【{cut_start // 60:02d}:{cut_start % 60:02d}-{end // 60:02d}:{end % 60:02d}】"
+        shots.append({"number": number, "header": header, "start": cut_start, "end": end, "scene": "", "body": body,
+                      "visual": body, "shot_size": "中景", "camera_angle": "平视机位", "camera_movement": "固定镜头",
+                      "composition": "默认构图", "dialogue": None, "speaker": None, "source_text": header + "\n" + body})
+        cut_start, group = end, []
+    return {"text": normalized, "revision": screenplay_revision(normalized), "shots": shots,
+            "preamble": "\n".join(preamble).strip(), "duration": shots[-1]["end"] - shots[0]["start"]}
+
+
 def parse_engineering_script(text, validate_specs=True):
     normalized = normalize_screenplay(text)
+    if not validate_specs and not any(HEADER.match(re.sub(r"^(?:#+\s*|\*\*)", "", line.strip()).removesuffix("**")) for line in normalized.splitlines()):
+        stamped = _parse_timestamp_script(normalized)
+        if stamped:
+            return stamped
     shots, preamble, current, scene = [], [], None, ""
 
     def finish():

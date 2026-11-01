@@ -5,7 +5,7 @@ import json
 from typing import Any, Optional
 
 from ...utils.model_catalog import load_generated_model_catalog
-from .engineering_script import BEAT, _seconds
+from .engineering_script import BEAT, STAMP, _seconds
 
 PRODUCTION_WORKFLOW_ID = "engineering_segments_v1"
 TAIL_SECONDS = 1
@@ -59,6 +59,15 @@ def validate_segment_maximum(duration: int) -> None:
 
 def _timecode(seconds: int) -> str:
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def _localize_stamp(line: str, offset: int) -> str:
+    """Shift a `a–bs：` paragraph prefix onto the segment's own 0-based time axis."""
+    match = STAMP.match(line.strip())
+    if not match:
+        return line
+    first, last = max(float(match.group(1)) - offset, 0), max(float(match.group(2)) - offset, 0)
+    return f"{first:.1f}–{last:.1f}s：{match.group(3)}"
 
 
 def plan_production_segments(
@@ -118,6 +127,7 @@ def plan_production_segments(
                 range_text = f"-{_timecode(last)}" if last is not None else ""
                 return f"【{_timecode(first)}{range_text}】"
             body = BEAT.sub(localize, body)
+            body = "\n".join(_localize_stamp(line, start) for line in body.splitlines())
             local_shots.append({
                 "number": shot["number"],
                 "local_number": local_number,

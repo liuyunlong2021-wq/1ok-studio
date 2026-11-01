@@ -28,3 +28,21 @@ def test_prose_line_starting_with_jingtou_is_body_not_a_bad_header():
     text = "镜头一【00:00-00:04】\n【中景，固定镜头，平视机位，构图居中】\n镜头跟随他的视线缓缓拉起——黑土延伸向远处。"
     shots = parse_engineering_script(text)["shots"]
     assert "镜头跟随他的视线" in shots[0]["body"]
+
+
+def test_timestamp_script_folds_into_whole_second_shots_for_production():
+    from src.apps.comic_gen.engineering_script import parse_engineering_script
+    text = "0.0–1.4s：甲转身。\n\n1.4–3.5s：乙开口。\n\n3.5–6.5s：丙落地。"
+    plan = parse_engineering_script(text, validate_specs=False)
+    assert [(s["start"], s["end"]) for s in plan["shots"]] == [(0, 1), (1, 4), (4, 7)]
+    assert plan["duration"] == 7 and "甲转身" in plan["shots"][0]["body"]
+
+
+def test_timestamp_segments_are_localized_to_segment_axis():
+    from src.apps.comic_gen.engineering_script import parse_engineering_script
+    from src.apps.comic_gen.production_workflow import plan_production_segments
+    text = "0.0–3.0s：甲。\n\n3.0–6.0s：乙。\n\n6.0–9.0s：丙。"
+    shots = parse_engineering_script(text, validate_specs=False)["shots"]
+    segments = plan_production_segments(shots, 7)
+    assert len(segments) == 2
+    assert segments[1]["shots"][0]["body"].startswith("0.0–3.0s：")
