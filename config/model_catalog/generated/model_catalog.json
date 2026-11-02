@@ -23,12 +23,15 @@
       "gpt-6.1-sol": "jiucaihezi/gpt-6.1-sol#text",
       "grok-4.7": "jiucaihezi/grok-4.7#text",
       "jc-minimax-h3": "jiucaihezi/jc-minimax-h3#i2v",
-      "jc-minimax-h3-director8": "jiucaihezi/jc-minimax-h3-director8#r2v",
       "jc-minimax-h3-ref2v": "jiucaihezi/jc-minimax-h3-ref2v#r2v",
       "jc-qwen-image-2.1": "jiucaihezi/jc-qwen-image-2.1#image",
       "minimax_h3_image_audio_to_video_v2_15s": "jiucaihezi/minimax_h3_image_audio_to_video_v2_15s#r2v",
       "minimax_h3_zm_u24": "jiucaihezi/minimax_h3_zm_u24#r2v",
       "mj_relax_imagine": "jiucaihezi/mj_relax_imagine#image",
+      "oc-model-ajotyl": "jiucaihezi/oc-model-ajotyl#r2v",
+      "oc-model-qbdmeb": "jiucaihezi/oc-model-qbdmeb#r2v",
+      "oc-model-wbryeg": "jiucaihezi/oc-model-wbryeg#r2v",
+      "oc-model-z83ice": "jiucaihezi/oc-model-z83ice#r2v",
       "yl_cm_73": "jiucaihezi/yl_cm_73#r2v",
       "yl_g7zy_seedance_v2_5_s": "jiucaihezi/yl_g7zy_seedance_v2_5_s#r2v",
       "yl_pp_mj_sd25_30010": "jiucaihezi/yl_pp_mj_sd25_30010#r2v",
@@ -94,12 +97,15 @@
         "gpt-6.1-sol",
         "grok-4.7",
         "jc-minimax-h3",
-        "jc-minimax-h3-director8",
         "jc-minimax-h3-ref2v",
         "jc-qwen-image-2.1",
         "minimax_h3_image_audio_to_video_v2_15s",
         "minimax_h3_zm_u24",
         "mj_relax_imagine",
+        "oc-model-ajotyl",
+        "oc-model-qbdmeb",
+        "oc-model-wbryeg",
+        "oc-model-z83ice",
         "yl_cm_73",
         "yl_g7zy_seedance_v2_5_s",
         "yl_pp_mj_sd25_30010",
@@ -1470,66 +1476,6 @@
         }
       }
     },
-    "jiucaihezi/jc-minimax-h3-director8": {
-      "backend_env_key": null,
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
-      "display_name": "MiniMax H3 Director 8 步 · 本地",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jc-minimax-h3-director8",
-      "legacy_model_ids": [
-        "jc-minimax-h3-director8"
-      ],
-      "modes": [
-        "jiucaihezi/jc-minimax-h3-director8#r2v"
-      ],
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "supported_modalities": [
-        "text",
-        "t2i",
-        "i2i",
-        "t2v",
-        "i2v",
-        "r2v"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      }
-    },
     "jiucaihezi/jc-minimax-h3-ref2v": {
       "backend_env_key": null,
       "credential_sources": {
@@ -1807,6 +1753,250 @@
         }
       },
       "status": "planned",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/oc-model-ajotyl": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 480p ¥0.35/秒 · 720p ¥0.45/秒 · 1080p ¥1.2/秒，4–30 秒；参考图片 30、视频 10、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 全能参考 480-1080p（按秒）",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-ajotyl",
+      "legacy_model_ids": [
+        "oc-model-ajotyl"
+      ],
+      "modes": [
+        "jiucaihezi/oc-model-ajotyl#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/oc-model-qbdmeb": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥2/次，5/10/15 秒 720p；参考图片 10、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 豆包 2.0 15秒 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-qbdmeb",
+      "legacy_model_ids": [
+        "oc-model-qbdmeb"
+      ],
+      "modes": [
+        "jiucaihezi/oc-model-qbdmeb#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/oc-model-wbryeg": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥3/次，10 或 15 秒 720p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.0 933 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-wbryeg",
+      "legacy_model_ids": [
+        "oc-model-wbryeg"
+      ],
+      "modes": [
+        "jiucaihezi/oc-model-wbryeg#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "supported_modalities": [
+        "text",
+        "t2i",
+        "i2i",
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      }
+    },
+    "jiucaihezi/oc-model-z83ice": {
+      "backend_env_key": null,
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥6/次，固定 30 秒 1080p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 原生真人 1080p 30秒",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-z83ice",
+      "legacy_model_ids": [
+        "oc-model-z83ice"
+      ],
+      "modes": [
+        "jiucaihezi/oc-model-z83ice#r2v"
+      ],
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
       "supported_backends": [
         "jiucaihezi"
       ],
@@ -4229,109 +4419,6 @@
         ]
       }
     },
-    "jc-minimax-h3-director8": {
-      "backend_env_key": null,
-      "capabilities": [
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
-      "display_name": "MiniMax H3 Director 8 步 · 本地",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 120,
-        "min": 0.2,
-        "step": 0.1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jc-minimax-h3-director8",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "min": 1,
-          "reference_type": "image"
-        }
-      },
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "resolution": {
-          "default": "736x1280",
-          "options": [
-            "736x1280",
-            "1344x768",
-            "1024x1024",
-            "1024x576",
-            "576x1024",
-            "1024x768",
-            "768x1024",
-            "960x640",
-            "640x960",
-            "1440x1440",
-            "1920x1088",
-            "1088x1920",
-            "1664x1248",
-            "1248x1664",
-            "1760x1184",
-            "1184x1760"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "本地",
-          "MiniMax"
-        ],
-        "order": 1006,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "jc-minimax-h3-ref2v": {
       "backend_env_key": null,
       "capabilities": [
@@ -4853,6 +4940,443 @@
         "visible_in": [
           "project_settings",
           "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "oc-model-ajotyl": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 480p ¥0.35/秒 · 720p ¥0.45/秒 · 1080p ¥1.2/秒，4–30 秒；参考图片 30、视频 10、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 全能参考 480-1080p（按秒）",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "oc-model-ajotyl",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1060,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "oc-model-qbdmeb": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥2/次，5/10/15 秒 720p；参考图片 10、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 豆包 2.0 15秒 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "options": [
+          5,
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "oc-model-qbdmeb",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "21:9",
+          "options": [
+            "21:9",
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1063,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "oc-model-wbryeg": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥3/次，10 或 15 秒 720p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.0 933 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "options": [
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "oc-model-wbryeg",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1062,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "oc-model-z83ice": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥6/次，固定 30 秒 1080p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 原生真人 1080p 30秒",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "oc-model-z83ice",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "1080p",
+          "options": [
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1061,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
           "global_settings"
         ]
       }
@@ -7622,112 +8146,6 @@
         ]
       }
     },
-    "jiucaihezi/jc-minimax-h3-director8#r2v": {
-      "backend_env_key": null,
-      "capabilities": [
-        "r2v"
-      ],
-      "credential_sources": {
-        "jiucaihezi": [
-          "JIUCAIHEZI_API_KEY"
-        ]
-      },
-      "default_backend": "jiucaihezi",
-      "description": "1–9 张参考图，0.2–120 秒，8 步采样与 Topaz 1.5× 后处理",
-      "display_name": "MiniMax H3 Director 8 步 · 本地",
-      "docs": {
-        "context_hub_doc_ids": [
-          "jiucaihezi"
-        ],
-        "official_snapshot_ids": [
-          "jiucaihezi"
-        ]
-      },
-      "duration": {
-        "default": 5,
-        "max": 120,
-        "min": 0.2,
-        "step": 0.1,
-        "type": "slider"
-      },
-      "family": "jiucaihezi",
-      "id": "jiucaihezi/jc-minimax-h3-director8#r2v",
-      "inputs": {
-        "reference_images": {
-          "max": 9,
-          "min": 1,
-          "reference_type": "image"
-        }
-      },
-      "legacy_model_id": "jc-minimax-h3-director8",
-      "mode": "r2v",
-      "model_line_id": "jiucaihezi/jc-minimax-h3-director8",
-      "params": {
-        "negativePrompt": false,
-        "promptExtend": false,
-        "resolution": {
-          "default": "736x1280",
-          "options": [
-            "736x1280",
-            "1344x768",
-            "1024x1024",
-            "1024x576",
-            "576x1024",
-            "1024x768",
-            "768x1024",
-            "960x640",
-            "640x960",
-            "1440x1440",
-            "1920x1088",
-            "1088x1920",
-            "1664x1248",
-            "1248x1664",
-            "1760x1184",
-            "1184x1760"
-          ]
-        }
-      },
-      "provider": "jiucaihezi",
-      "release_stage": "preview",
-      "routing_prefixes": [
-        "jiucaihezi/"
-      ],
-      "runtime": {
-        "jiucaihezi": {
-          "gateway": "jiucaihezi"
-        }
-      },
-      "status": "active",
-      "supported_backends": [
-        "jiucaihezi"
-      ],
-      "transport": {
-        "audio_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        },
-        "image_input_mode": {
-          "jiucaihezi": "jiucaihezi_url_or_multipart"
-        },
-        "reference_video_input_mode": {
-          "jiucaihezi": "jiucaihezi_url"
-        }
-      },
-      "ui": {
-        "badges": [
-          "本地",
-          "MiniMax"
-        ],
-        "order": 1006,
-        "recommended": false,
-        "selection_group": "r2v",
-        "visible_in": [
-          "project_settings",
-          "series_settings",
-          "video_sidebar",
-          "global_settings"
-        ]
-      }
-    },
     "jiucaihezi/jc-minimax-h3-ref2v#r2v": {
       "backend_env_key": null,
       "capabilities": [
@@ -8264,6 +8682,455 @@
         "visible_in": [
           "project_settings",
           "series_settings",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/oc-model-ajotyl#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 480p ¥0.35/秒 · 720p ¥0.45/秒 · 1080p ¥1.2/秒，4–30 秒；参考图片 30、视频 10、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 全能参考 480-1080p（按秒）",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 5,
+        "max": 30,
+        "min": 4,
+        "step": 1,
+        "type": "slider"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-ajotyl#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 30,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 10,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "oc-model-ajotyl",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/oc-model-ajotyl",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4",
+            "21:9"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "480p",
+            "720p",
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1060,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/oc-model-qbdmeb#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥2/次，5/10/15 秒 720p；参考图片 10、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 豆包 2.0 15秒 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "options": [
+          5,
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-qbdmeb#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 10,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "oc-model-qbdmeb",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/oc-model-qbdmeb",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "21:9",
+          "options": [
+            "21:9",
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1063,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/oc-model-wbryeg#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥3/次，10 或 15 秒 720p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.0 933 720p",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "default": 15,
+        "options": [
+          10,
+          15
+        ],
+        "type": "buttons"
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-wbryeg#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "oc-model-wbryeg",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/oc-model-wbryeg",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16",
+            "1:1",
+            "4:3",
+            "3:4"
+          ]
+        },
+        "resolution": {
+          "default": "720p",
+          "options": [
+            "720p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1062,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
+          "global_settings"
+        ]
+      }
+    },
+    "jiucaihezi/oc-model-z83ice#r2v": {
+      "backend_env_key": null,
+      "capabilities": [
+        "t2v",
+        "i2v",
+        "r2v"
+      ],
+      "credential_sources": {
+        "jiucaihezi": [
+          "JIUCAIHEZI_API_KEY"
+        ]
+      },
+      "default_backend": "jiucaihezi",
+      "description": "山海画布 ¥6/次，固定 30 秒 1080p；参考图片 9、视频 0、音频 0。来源 newapi-plugins shanhai.plugin.js 0.2.0，实扣以账单为准。",
+      "display_name": "山海 Seedance 2.5 原生真人 1080p 30秒",
+      "docs": {
+        "context_hub_doc_ids": [
+          "jiucaihezi"
+        ],
+        "official_snapshot_ids": [
+          "jiucaihezi"
+        ]
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 30
+      },
+      "family": "jiucaihezi",
+      "id": "jiucaihezi/oc-model-z83ice#r2v",
+      "inputs": {
+        "reference_audios": {
+          "max": 0,
+          "reference_type": "audio"
+        },
+        "reference_images": {
+          "max": 9,
+          "reference_type": "image"
+        },
+        "reference_videos": {
+          "max": 0,
+          "reference_type": "video"
+        }
+      },
+      "legacy_model_id": "oc-model-z83ice",
+      "mode": "r2v",
+      "model_line_id": "jiucaihezi/oc-model-z83ice",
+      "params": {
+        "audio": false,
+        "negativePrompt": false,
+        "promptExtend": false,
+        "ratio": {
+          "default": "16:9",
+          "options": [
+            "16:9",
+            "9:16"
+          ]
+        },
+        "resolution": {
+          "default": "1080p",
+          "options": [
+            "1080p"
+          ]
+        }
+      },
+      "provider": "jiucaihezi",
+      "release_stage": "preview",
+      "routing_prefixes": [
+        "jiucaihezi/"
+      ],
+      "runtime": {
+        "jiucaihezi": {
+          "gateway": "jiucaihezi",
+          "video_contract": "fk_video"
+        }
+      },
+      "status": "active",
+      "supported_backends": [
+        "jiucaihezi"
+      ],
+      "transport": {
+        "audio_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        },
+        "image_input_mode": {
+          "jiucaihezi": "jiucaihezi_url_or_multipart"
+        },
+        "reference_video_input_mode": {
+          "jiucaihezi": "jiucaihezi_url"
+        }
+      },
+      "ui": {
+        "badges": [
+          "山海",
+          "Seedance"
+        ],
+        "order": 1061,
+        "recommended": false,
+        "selection_group": "r2v",
+        "visible_in": [
+          "project_settings",
+          "series_settings",
+          "video_sidebar",
           "global_settings"
         ]
       }
