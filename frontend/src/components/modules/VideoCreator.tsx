@@ -57,7 +57,6 @@ const MOTION_PROMPT_POLL_INTERVAL_MS = 3000;
 const MOTION_PROMPT_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 // This gateway's Seedance channels require 720p; duration is validated against the catalog.
-const requires720p = (modelId?: string | null) => (modelId || "").includes("seedance2.5");
 
 export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, extractedFrame, onExtractedFrameClear, params, onParamsChange, onShotTimingChange }: VideoCreatorProps) {
     const tc = useTranslations("creator");
@@ -804,7 +803,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, e
                                     onParamsChange({
                                         generationMode: "r2v",
                                         model: referenceImageModel,
-                                        resolution: requires720p(referenceImageModel) ? "720p" : params.resolution,
+                                        resolution: params.resolution,
                                     });
                                 }}
                                 className={`px-5 py-2.5 text-sm rounded-lg flex items-center gap-2 transition-all font-medium ${generationMode === "r2v"

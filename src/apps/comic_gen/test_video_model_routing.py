@@ -43,22 +43,6 @@ def _task_of(pipeline, task_id):
     return next(item for item in script.video_tasks if item.id == task_id)
 
 
-def test_flat_jiucaihezi_id_is_not_switched_to_wan():
-    """海seedance2.5（扁平 id）必须保持原样，不能被换成 wan2.7-r2v。"""
-    # 这条通道只接受 30 秒 → 两镜各 15 秒。
-    pipeline = _pipeline_with_script(15)
-
-    _, task_id = pipeline.create_video_task(
-        "project-1", "", "prompt", model="海seedance2.5", generation_mode="r2v",
-        reference_image_urls=["https://x/1.png"], source_frame_ids=["shot-1", "shot-2"],
-    )
-
-    task = _task_of(pipeline, task_id)
-    assert task.model == "海seedance2.5", f"扁平韭菜盒子 id 被换成了 {task.model}"
-    assert task.duration == 30
-    assert task.resolution == "720p"
-
-
 def test_prefixed_jiucaihezi_id_is_not_switched():
     """带前缀的写法同样不能被切换。"""
     # 单镜 30 秒正好是该通道唯一合法时长。

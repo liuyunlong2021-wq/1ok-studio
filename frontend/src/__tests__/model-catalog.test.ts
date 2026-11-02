@@ -86,7 +86,6 @@ describe('model catalog selectors', () => {
         // 2026-10-06 新增 Fk 通道 7 款；2026-10-07 该通道的 MiniMax H3 开通后
         // （原来因账号未开通而 hidden）从 8 款都进来了。
         expect(VIDEO_R2V_MODELS.map((model) => model.id).sort()).toEqual([
-            'dola-seedance2.5',
             'ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93',
             'ft-video-v1-1eb6d53a32efa02adf7ae338f3239628',
             'ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b',
@@ -105,7 +104,6 @@ describe('model catalog selectors', () => {
             'yl_seedance-2-0_ba0687ff09f2',
             'yl_seedance-2-5_6caffaca7390',
             'yl_zh_tt_sedanco_2_0_720',
-            '海seedance2.5',
         ]);
         // 默认必须是 meta 默认值（列表顺序按 ui.order 排，不是默认值）。
         // 1c6a04c 把 r2v_model 从「海seedance2.5」换成本地的 jc-minimax-h3-ref2v。
@@ -125,7 +123,6 @@ describe('model catalog selectors', () => {
         expect(VIDEO_R2V_MODELS.find((model) => model.id === 'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70')?.videoContract)
             .toBe('fk_video');
         expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'ft-video-v1-99d13a482c1f6f0e71db1e36c4154b70')).toBe(true);
-        expect(PRODUCTION_R2V_MODELS.some((model) => model.id === 'dola-seedance2.5')).toBe(true);
     });
 
     it('keeps hidden and planned catalog entries out of visible selectors', () => {
@@ -177,14 +174,9 @@ describe('model catalog fallbacks', () => {
         // happyhorse（没配密钥）→ 生成必定 401。旧值还带家族前缀，要一并归一化成目录 key。
         expect(resolveModelSettings({ i2v_model: 'ft-image-v1-211f28f47b0355abb1798f72eb65f22d' }, 'project_settings').i2v_model)
             .toBe('ft-image-v1-211f28f47b0355abb1798f72eb65f22d');
-        // dola-seedance2.5（2026-09-18 下线、09-19 拿回）：存量设置重新解析到它自己，
-        // 不再回落到默认的海通道；早期带家族前缀的写法要一并归一化成目录 key。
+        // 已从目录删除的旧通道（dola / 海 seedance2.5）：存量设置落到兜底默认。
         expect(resolveModelSettings({ i2v_model: 'dola-seedance2.5' }, 'project_settings').i2v_model)
-            .toBe('dola-seedance2.5');
-        expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5' }, 'project_settings').i2v_model)
-            .toBe('dola-seedance2.5');
-        // 只有更早期数据才有的 -r2v 后缀（网关没有这个名字）目录里没有，落到兜底。
-        // 注意这里走的是 **i2v 面**，兜底值是 i2v 默认（jc-minimax-h3），不是 r2v 默认。
+            .toBe('jc-minimax-h3');
         expect(resolveModelSettings({ i2v_model: 'jiucaihezi/dola-seedance2.5-r2v' }, 'project_settings').i2v_model)
             .toBe('jc-minimax-h3');
     });

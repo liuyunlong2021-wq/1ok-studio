@@ -54,7 +54,6 @@ const VIDEO_MODELS = Object.entries(rawCatalog.models).filter(
 describe('视频模型参数契约', () => {
     it('目录里确实有视频模型（防止下面的断言空跑）', () => {
         expect(VIDEO_MODELS.map(([id]) => id).sort()).toEqual([
-            'dola-seedance2.5',
             'ft-video-v1-1795bf4b67ce998dbfd8ab55cf838d93',
             'ft-video-v1-1eb6d53a32efa02adf7ae338f3239628',
             'ft-video-v1-22c418bc12d30fcc1bde650b2bc9727b',
@@ -74,7 +73,6 @@ describe('视频模型参数契约', () => {
             'yl_seedance-2-0_ba0687ff09f2',
             'yl_seedance-2-5_6caffaca7390',
             'yl_zh_tt_sedanco_2_0_720',
-            '海seedance2.5',
         ]);
     });
 
@@ -102,12 +100,6 @@ describe('视频模型参数契约', () => {
                 expect(option.options, `${id}.${key}`).toContain(option.default);
             }
         }
-    });
-
-    it('Seedance 2.5 固定 30 秒，不接受音频输入', () => {
-        const model = catalogModel('海seedance2.5');
-        expect(model.duration).toEqual({ type: 'fixed', value: 30 });
-        expect(model.params.audio).toBeUndefined();
     });
 
     it('MiniMax H3 两个档位参数一致，且都声明音频输入', () => {
@@ -195,9 +187,9 @@ describe('模型切换参数重置逻辑', () => {
         expect(result.shotType).toBe('single');
     });
 
-    it('未声明 promptExtend 的模型 → 关闭增强', () => {
-        const model = catalogModel('海seedance2.5');
-        expect(model.params.promptExtend).toBeUndefined();
-        expect(simulateModelSwitch('海seedance2.5').promptExtend).toBe(false);
+    it('promptExtend 为 false 的模型 → 关闭增强', () => {
+        const model = catalogModel('jc-minimax-h3');
+        expect(model.params.promptExtend).toBe(false);
+        expect(simulateModelSwitch('jc-minimax-h3').promptExtend).toBe(false);
     });
 });

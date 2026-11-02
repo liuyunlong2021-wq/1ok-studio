@@ -793,10 +793,7 @@ def _lingdong_video_payload(model_name: str, prompt: str, images: list, kwargs: 
 class JiucaiheziVideoModel(VideoGenModel):
     def generate(self, prompt: str, output_path: str, **kwargs) -> Tuple[str, float]:
         started = time.time()
-        model_name = (kwargs.get("model_name") or "海seedance2.5").split("/", 1)[-1].split("#", 1)[0]
-        if model_name == "dola-seedance2.5-r2v":
-            # 存量数据里存过的旧写法，网关没有这个名字（见目录里的 legacy 别名）。
-            model_name = "dola-seedance2.5"
+        model_name = (kwargs.get("model_name") or "jc-minimax-h3").split("/", 1)[-1].split("#", 1)[0]
         upstream_model_name = jiucaihezi_upstream_model_id(model_name)
         images = list(kwargs.get("ref_image_urls") or [])
         if kwargs.get("img_url"):
@@ -877,8 +874,7 @@ class JiucaiheziVideoModel(VideoGenModel):
                 if audio_refs:
                     payload["audios"] = [_public_media_url(ref, "audio") for ref in dict.fromkeys(audio_refs)][:3]
         if images and fk_payload is None and lingdong_payload is None and not (is_jc_minimax_h3_model(model_name) or is_jc_minimax_h3_ref2v_model(model_name)):
-            # 两个 Seedance 2.5 通道都是 9 张参考图上限（与目录的
-            # inputs.reference_images.max 和前端 VideoCreator 的上限对齐）。
+            # 其余通道的网关侧参考图上限统一按 9 张兜底。
             payload["images"] = images[:9]
         try:
             response = _gateway_post(

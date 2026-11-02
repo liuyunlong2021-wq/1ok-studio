@@ -4007,22 +4007,6 @@ class ComicGenPipeline:
         elif generation_mode == "r2v":
             raise ValueError("请先选择连续镜头，视频时长按镜头时长相加")
 
-        # Seedance 2.5（网关模型名就是「海seedance2.5」/「dola-seedance2.5」，两条
-        # 通道同规格）：固定 30 秒 / 720p，参考图最多 9 张。按 `seedance2.5` 子串判定，
-        # 两条通道都要吃到。
-        is_jiucaihezi_seedance = isinstance(model, str) and "seedance2.5" in model
-        if is_jiucaihezi_seedance:
-            prompt = (prompt or "").strip()
-            if not 1 <= len(prompt) <= 12000:
-                raise ValueError("Seedance 2.5 prompt must contain 1-12000 characters")
-            if generation_mode == "r2v" and not 1 <= len(reference_image_urls or []) <= 9:
-                raise ValueError("Seedance 2.5 reference mode requires 1-9 reference images")
-            if generation_mode == "r2v" and not source_frame_ids:
-                raise ValueError("Seedance 2.5 reference mode requires storyboard frames")
-            if (generation_mode == "r2v" or (source_frame_ids and script.storyboard_source_revision)) and duration != 30:
-                raise ValueError(f"所选镜头共{duration}秒，此 Seedance 通道仅支持30秒，请调整镜头选择或更换模型")
-            duration = 30 if generation_mode != "r2v" else duration
-            resolution = "720p"
         if isinstance(model, str) and is_minimax_h3_model(model):
             prompt = (prompt or "").strip()
             if not 1 <= len(prompt) <= 12000:

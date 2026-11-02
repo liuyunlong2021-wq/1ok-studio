@@ -242,8 +242,8 @@ class TestCatalogFailureIsLoud:
                 resolve_provider_backend("海seedance2.5")
 
     def test_flat_jiucaihezi_id_is_recognized_as_jiucaihezi(self):
-        """扁平 id（海seedance2.5）必须认成韭菜盒子，否则会被改成已删除的模型。"""
-        assert _is_jiucaihezi_family_model("海seedance2.5") is True
+        """扁平 id（minimax_h3_zm_u24）必须认成韭菜盒子，否则会被改成已删除的模型。"""
+        assert _is_jiucaihezi_family_model("minimax_h3_zm_u24") is True
         assert _is_jiucaihezi_family_model("jiucaihezi/gpt-image-2.5-1k") is True
         assert _is_jiucaihezi_family_model("") is False
         assert _is_jiucaihezi_family_model("happyhorse-1.1-r2v") is False
