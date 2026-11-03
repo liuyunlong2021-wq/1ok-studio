@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useProjectStore } from "@/store/projectStore";
 import { api } from "@/lib/api";
 import StepPageHeader from "@/components/shared/StepPageHeader";
 import WorkflowActionButton from "@/components/shared/WorkflowActionButton";
 import { toast } from "@/store/toastStore";
+
+const ImportEpisodesDialog = dynamic(() => import("@/components/series/ImportEpisodesDialog"), { ssr: false });
 
 function detailOf(error: unknown) {
     const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
@@ -32,6 +37,9 @@ export default function ProductionEngineeringWorkbench() {
     const [source, setSource] = useState("");
     const [screenplay, setScreenplay] = useState("");
     const [busy, setBusy] = useState<"" | "source" | "generate" | "adopt">("");
+    const t = useTranslations("series");
+    const [importing, setImporting] = useState<{ series: { workflow_mode?: string; production_workflow?: string }; episodes: unknown[] } | null>(null);
+    const [importOpen, setImportOpen] = useState(false);
 
     useEffect(() => {
         if (!project) return;
@@ -46,6 +54,26 @@ export default function ProductionEngineeringWorkbench() {
     const isAdopted = !!currentPlan
         && project.production_engineering_source_revision === project.production_source_revision
         && project.production_engineering_style_revision === project.production_style_revision;
+
+    const openImport = async () => {
+        if (!project.series_id) return;
+        try {
+            const [series, episodes] = await Promise.all([api.getSeries(project.series_id), api.getSeriesEpisodes(project.series_id)]);
+            setImporting({ series, episodes });
+            setImportOpen(true);
+        } catch (error) {
+            toast.error("无法读取所属系列", { body: detailOf(error) });
+        }
+    };
+
+    // 导入可能刚好填了本集：重新取回本集正文，避免保存时用旧文本覆盖。
+    const afterImport = async () => {
+        try {
+            const fresh = await api.getProject(project.id);
+            updateProject(project.id, fresh);
+            setSource(fresh.originalText || "");
+        } catch { /* 对话框内已显示导入结果；本集刷新失败不影响导入 */ }
+    };
 
     const saveSource = async () => {
         setBusy("source");
@@ -102,7 +130,10 @@ export default function ProductionEngineeringWorkbench() {
                 <section className="flex min-h-0 flex-col rounded-xl border border-glass-border bg-glass p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
                         <div><h2 className="text-sm font-semibold text-foreground">原始剧本 / 用户输入</h2><p className="mt-1 text-xs text-text-muted">独立保存；生成与采用不会覆盖本栏。</p></div>
-                        <WorkflowActionButton size="sm" variant="secondary" loading={busy === "source"} onClick={() => void saveSource()}>保存原文</WorkflowActionButton>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <WorkflowActionButton size="sm" variant="ghost" leftIcon={<Upload size={13} />} disabled={!project.series_id || busy !== ""} title={project.series_id ? undefined : "仅系列内的剧集可批量上传多集"} onClick={() => void openImport()}>{t("importEpisodesButton")}</WorkflowActionButton>
+                            <WorkflowActionButton size="sm" variant="secondary" loading={busy === "source"} onClick={() => void saveSource()}>保存原文</WorkflowActionButton>
+                        </div>
                     </div>
                     <textarea value={source} onChange={(event) => setSource(event.target.value)} placeholder="粘贴完整剧本、小说片段或其他剧情内容…" className="min-h-0 flex-1 resize-none rounded-lg border border-glass-border bg-input-bg p-4 text-sm leading-7 text-foreground outline-none focus:border-primary/60" />
                 </section>
@@ -118,6 +149,17 @@ export default function ProductionEngineeringWorkbench() {
                     </div>
                 </section>
             </div>
+            {project.series_id && importing && (
+                <ImportEpisodesDialog
+                    isOpen={importOpen}
+                    onClose={() => setImportOpen(false)}
+                    seriesId={project.series_id}
+                    workflowMode={importing.series.workflow_mode || "i2v_legacy"}
+                    productionWorkflow={importing.series.production_workflow || undefined}
+                    existingEpisodes={importing.episodes as never}
+                    onImported={() => void afterImport()}
+                />
+            )}
         </div>
     );
 }
