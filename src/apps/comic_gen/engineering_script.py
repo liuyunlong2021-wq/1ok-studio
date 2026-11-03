@@ -12,7 +12,7 @@ TIME = r"\d{1,3}:\d{2}"
 HEADER = re.compile(rf"^镜头\s*([0-9一二三四五六七八九十百零〇两]+)\s*[【\[]\s*({TIME})\s*[-—–]\s*({TIME})\s*[】\]]\s*$")
 SCENE = re.compile(r"^场(?:景)?\s*\d+[-－]\d+")
 HEADER_ATTEMPT = re.compile(r"^镜头\s*[0-9一二三四五六七八九十百零〇两]+\s*[【\[]")
-STAMP = re.compile(r"^(\d+(?:\.\d+)?)\s*[-—–]\s*(\d+(?:\.\d+)?)\s*[sS秒]?\s*[：:]\s*(.*)$")
+STAMP = re.compile(r"^(\d+(?:\.\d+)?)\s*[-—–]\s*(\d+(?:\.\d+)?)\s*[sS秒]?\s*[：:｜|]\s*(.*)$")
 BEAT = re.compile(rf"【({TIME})(?:[-—–]({TIME}))?】")
 
 

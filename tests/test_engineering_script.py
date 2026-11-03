@@ -46,3 +46,20 @@ def test_timestamp_segments_are_localized_to_segment_axis():
     segments = plan_production_segments(shots, 7)
     assert len(segments) == 2
     assert segments[1]["shots"][0]["body"].startswith("0.0–3.0s：")
+
+
+def test_adaptation_script_with_asset_header_pipe_stamps_and_dialogue():
+    from src.apps.comic_gen.production_workflow import plan_production_segments
+    text = (
+        "角色：李长青\n场景：黑土地平原边缘\n道具：劣质锄头\n\n"
+        "0.0–3.0s｜李长青把劣质锄头横到胸前。\n\n"
+        "3.0–6.0s｜硬切到蓝色光点特写，李长青皱眉。\n"
+        "李长青（低声恐惧颤音）：“不能继续留在这里了。”\n\n"
+        "6.0–9.0s｜李长青转身跑开。"
+    )
+    plan = parse_engineering_script(text, validate_specs=False)
+    assert plan["preamble"].startswith("角色：李长青")
+    assert [(s["start"], s["end"]) for s in plan["shots"]] == [(0, 3), (3, 6), (6, 9)]
+    assert "不能继续留在这里了" in plan["shots"][1]["body"]
+    segments = plan_production_segments(plan["shots"], 7)
+    assert segments[1]["shots"][0]["body"].startswith("0.0–3.0s：")
