@@ -56,9 +56,16 @@ export default function ProductionEngineeringWorkbench() {
         && project.production_engineering_style_revision === project.production_style_revision;
 
     const openImport = async () => {
-        if (!project.series_id) return;
         try {
-            const [series, episodes] = await Promise.all([api.getSeries(project.series_id), api.getSeriesEpisodes(project.series_id)]);
+            let seriesId = project.series_id;
+            // 单独的项目没有系列：以本项目为第 1 集，自动建一个同名系列再导入。
+            if (!seriesId) {
+                const created = await api.createSeriesV2(project.title || "未命名系列", { workflow_mode: "r2v", production_workflow: project.production_workflow });
+                await api.addEpisodeToSeries(created.id, project.id, 1);
+                seriesId = created.id;
+                updateProject(project.id, await api.getProject(project.id));
+            }
+            const [series, episodes] = await Promise.all([api.getSeries(seriesId as string), api.getSeriesEpisodes(seriesId as string)]);
             setImporting({ series, episodes });
             setImportOpen(true);
         } catch (error) {
@@ -131,7 +138,7 @@ export default function ProductionEngineeringWorkbench() {
             <div className="mb-3 flex items-center justify-between gap-3">
                         <div><h2 className="text-sm font-semibold text-foreground">原始剧本 / 用户输入</h2><p className="mt-1 text-xs text-text-muted">独立保存；生成与采用不会覆盖本栏。</p></div>
                         <div className="flex shrink-0 items-center gap-2">
-                            <WorkflowActionButton size="sm" variant="ghost" leftIcon={<Upload size={13} />} disabled={!project.series_id || busy !== ""} title={project.series_id ? undefined : "仅系列内的剧集可批量上传多集"} onClick={() => void openImport()}>{t("importEpisodesButton")}</WorkflowActionButton>
+                            <WorkflowActionButton size="sm" variant="ghost" leftIcon={<Upload size={13} />} disabled={busy !== ""} title={project.series_id ? undefined : "将以本项目为第 1 集建立系列后批量导入"} onClick={() => void openImport()}>{t("importEpisodesButton")}</WorkflowActionButton>
                             <WorkflowActionButton size="sm" variant="secondary" loading={busy === "source"} onClick={() => void saveSource()}>保存原文</WorkflowActionButton>
                         </div>
                     </div>

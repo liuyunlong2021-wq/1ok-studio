@@ -6,7 +6,7 @@ This file provides guidance to AI coding agents (Codex CLI / Qoder) when working
 
 - Git author is already configured for this repo, do not modify git config
 - **NEVER** add `Co-Authored-By` lines in commit messages
-- Push to the GitHub remote. There is exactly one remote (`origin` → `github.com/liuyunlong2021-wq/1ok-studio`); the older guidance naming a `github` remote pointed at a different, unrelated repository
+- Push to the GitHub remote. There is exactly one remote, `github` → `github.com/liuyunlong2021-wq/1ok-studio` (check with `git remote -v`; some checkouts may name it `origin` instead, so use whichever name that single remote has)
 - **Atomic commits** — 每完成一个独立功能点就立即 commit，不要攒到最后一次性大提交。拆分粒度示例：后端模块 → commit、前端骨架 → commit、UI 组件 → commit、catalog 变更 → commit、bug fix → 单独 commit
 
 ## Project Workflow Triggers
