@@ -60,7 +60,7 @@ export default function ProductionEngineeringWorkbench() {
             let seriesId = project.series_id;
             // 单独的项目没有系列：以本项目为第 1 集，自动建一个同名系列再导入。
             if (!seriesId) {
-                const created = await api.createSeriesV2(project.title || "未命名系列", { workflow_mode: "r2v", production_workflow: project.production_workflow });
+                const created = await api.createSeriesV2(project.title || "未命名系列", { workflow_mode: "r2v", production_workflow: project.production_workflow ?? undefined });
                 await api.addEpisodeToSeries(created.id, project.id, 1);
                 seriesId = created.id;
                 updateProject(project.id, await api.getProject(project.id));
